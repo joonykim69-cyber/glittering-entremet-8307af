@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>K-Map Linker — Korea Travel Navigator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700;900&family=Outfit:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --red:#E8392A;--red-light:#FF5444;--red-pale:#FFF0EE;
+  --navy:#0D1B2A;--navy2:#1A2F5A;--blue:#1E6FE8;--blue-light:#EEF4FF;
+  --gold:#F5A623;--gold-light:#FFF8EC;
+  --green:#1EB87A;--green-light:#EDFAF4;
+  --purple:#7C3AED;--purple-light:#F3EEFF;
+  --gray0:#F7F8FA;--gray1:#EEEEF2;--gray2:#C8CBD4;
+  --gray3:#9299A8;--gray4:#5A6172;
+  --naver:#03C75A;
+}
+body{font-family:'Outfit','Noto Sans KR',sans-serif;background:var(--gray0);color:var(--navy);
+  display:flex;justify-content:center;min-height:100vh;}
+#app{width:100%;max-width:420px;min-height:100vh;background:var(--gray0);
+  display:flex;flex-direction:column;position:relative;box-shadow:0 0 40px rgba(0,0,0,0.15);}
+
+/* ── SPLASH ── */
+#splash{position:fixed;inset:0;background:var(--navy);z-index:999;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  animation:splashOut 0.6s ease 3s forwards;}
+@keyframes splashOut{to{opacity:0;pointer-events:none;}}
+.splash-logo{font-size:48px;margin-bottom:16px;animation:popIn 0.5s ease 0.8s both;}
+.splash-title{font-size:42px;font-weight:900;color:#fff;letter-spacing:4px;
+  animation:slideUp 0.5s ease 1.1s both;}
+.splash-sub{font-size:18px;font-weight:300;color:var(--red-light);letter-spacing:8px;margin-top:-6px;
+  animation:slideUp 0.5s ease 1.3s both;}
+.splash-desc{font-size:13px;color:rgba(255,255,255,0.6);letter-spacing:2px;margin-top:12px;
+  animation:fadeIn 0.5s ease 1.6s both;}
+.splash-dots{display:flex;gap:10px;margin-top:40px;}
+.splash-dot{width:8px;height:8px;border-radius:50%;background:var(--gold);}
+.splash-dot:nth-child(1){animation:fadeIn 0.3s ease 1.8s both;}
+.splash-dot:nth-child(2){animation:fadeIn 0.3s ease 2.0s both;}
+.splash-dot:nth-child(3){animation:fadeIn 0.3s ease 2.2s both;}
+@keyframes popIn{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* ── HEADER ── */
+.header{background:var(--navy);padding:16px 16px 12px;position:sticky;top:0;z-index:100;
+  box-shadow:0 2px 12px rgba(0,0,0,0.25);}
+.lang-row{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;scrollbar-width:none;}
+.lang-row::-webkit-scrollbar{display:none;}
+.lang-pill{display:flex;align-items:center;gap:4px;border-radius:20px;border:1.5px solid rgba(255,255,255,0.2);
+  background:rgba(255,255,255,0.1);padding:4px 10px;cursor:pointer;white-space:nowrap;
+  transition:all 0.2s;font-size:12px;color:rgba(255,255,255,0.7);}
+.lang-pill.active{background:var(--red);border-color:var(--red);color:#fff;font-weight:700;}
+.logo-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.logo-icon{width:32px;height:32px;background:var(--red);border-radius:10px;
+  display:flex;align-items:center;justify-content:center;font-size:16px;}
+.logo-text{font-size:18px;font-weight:700;color:#fff;}
+.logo-text span{color:var(--red-light);}
+.tag{border-radius:6px;padding:2px 6px;font-size:9px;font-weight:700;}
+.tag-kakao{background:#FEE500;color:#3C1E1E;}
+.tag-naver{background:var(--naver);color:#fff;}
+.header-sub{font-size:11px;color:rgba(255,255,255,0.55);margin-top:2px;}
+
+/* ── TAB BAR ── */
+.tab-bar{background:#fff;border-bottom:1px solid var(--gray1);
+  display:flex;overflow-x:auto;scrollbar-width:none;flex-shrink:0;}
+.tab-bar::-webkit-scrollbar{display:none;}
+.tab-btn{padding:12px 14px;border:none;background:transparent;cursor:pointer;
+  font-size:13px;font-weight:500;color:var(--gray3);white-space:nowrap;
+  border-bottom:2.5px solid transparent;transition:all 0.2s;font-family:inherit;}
+.tab-btn.active{color:var(--red);font-weight:700;border-bottom-color:var(--red);}
+
+/* ── SCROLL CONTENT ── */
+.scroll{flex:1;overflow-y:auto;padding:16px;padding-bottom:40px;}
+.scroll::-webkit-scrollbar{width:4px;}
+.scroll::-webkit-scrollbar-thumb{background:var(--gray2);border-radius:2px;}
+
+/* ── CARDS ── */
+.card{background:#fff;border-radius:16px;border:1.5px solid var(--gray1);padding:16px;margin-bottom:14px;}
+.card-title{font-size:11px;font-weight:700;color:var(--gray4);letter-spacing:1px;margin-bottom:12px;text-transform:uppercase;}
+
+/* ── BUTTONS ── */
+.btn-primary{background:var(--navy);border-radius:12px;padding:14px;border:none;cursor:pointer;
+  font-size:15px;font-weight:700;color:#fff;width:100%;margin-top:12px;
+  font-family:inherit;transition:opacity 0.2s;}
+.btn-primary:hover{opacity:0.85;}
+.btn-primary:disabled{background:var(--gray2);cursor:not-allowed;}
+.btn-blue{background:var(--blue);}
+.btn-green{background:var(--green);}
+.btn-purple{background:var(--purple);}
+.btn-red{background:var(--red);}
+
+/* ── INPUTS ── */
+input,textarea{font-family:'Outfit','Noto Sans KR',sans-serif;font-size:14px;color:var(--navy);
+  border:2px solid var(--gray1);border-radius:12px;padding:11px;width:100%;outline:none;
+  transition:border 0.2s;background:var(--gray0);}
+input:focus,textarea:focus{border-color:var(--blue);}
+textarea{resize:none;min-height:90px;line-height:1.5;}
+
+/* ── BADGES ── */
+.badge{border-radius:6px;padding:2px 7px;font-size:9px;font-weight:700;}
+.badge-kakao{background:#FEE500;color:#3C1E1E;}
+.badge-naver{background:var(--naver);color:#fff;}
+.badge-offline{background:var(--gray1);color:var(--gray4);}
+
+/* ── RESULT BOXES ── */
+.result-main{background:var(--green-light);border:1.5px solid var(--green);border-radius:12px;padding:14px;margin-bottom:10px;}
+.result-label{font-size:11px;font-weight:700;color:var(--green);letter-spacing:1px;}
+.result-korean{font-size:18px;font-weight:700;color:var(--navy);margin:4px 0;}
+.result-en{font-size:13px;color:var(--gray4);margin-bottom:3px;}
+.result-tip{font-size:12px;color:var(--green);font-weight:600;margin-top:8px;padding-top:8px;
+  border-top:1px solid rgba(30,184,122,0.2);}
+.analysis-box{background:var(--purple-light);border:1.5px solid #D4C0FF;border-radius:12px;padding:14px;margin-bottom:10px;}
+.nearby-box{background:var(--gold-light);border:1.5px solid #FBDFA0;border-radius:12px;padding:14px;margin-bottom:10px;}
+.error-box{background:var(--red-pale);border:1.5px solid var(--red);border-radius:12px;padding:14px;margin-top:12px;}
+
+/* ── MAP BUTTONS ── */
+.map-btns{display:flex;gap:8px;margin-bottom:10px;}
+.map-btn{flex:1;border:none;border-radius:10px;padding:9px 4px;cursor:pointer;
+  font-size:12px;font-weight:700;transition:opacity 0.2s;}
+.map-btn:hover{opacity:0.85;}
+
+/* ── TAXI CARD ── */
+.taxi-card{background:var(--navy);border-radius:14px;padding:16px;margin-bottom:12px;}
+.taxi-inner{background:rgba(255,255,255,0.08);border-radius:10px;padding:12px;margin:8px 0;}
+
+/* ── HISTORY ── */
+.history-item{display:flex;align-items:center;gap:10px;background:var(--gray0);
+  border:1.5px solid var(--gray1);border-radius:12px;padding:12px;margin-top:8px;cursor:pointer;}
+.history-item:hover{border-color:var(--blue);}
+
+/* ── SUBWAY ── */
+.station-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.station-card{background:#fff;border-radius:12px;padding:14px;cursor:pointer;
+  border:1.5px solid var(--gray1);transition:transform 0.15s,box-shadow 0.15s;}
+.station-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.1);}
+.exit-grid{display:flex;flex-wrap:wrap;gap:8px;}
+.exit-card{width:calc(50% - 4px);background:var(--gray0);border:1.5px solid var(--gray1);
+  border-radius:12px;padding:12px;}
+
+/* ── DISCOVER ── */
+.filter-row{display:flex;gap:6px;overflow-x:auto;margin-bottom:14px;padding-bottom:4px;scrollbar-width:none;}
+.filter-pill{border-radius:20px;border:1.5px solid var(--gray1);background:#fff;
+  padding:6px 12px;cursor:pointer;font-size:12px;font-weight:600;color:var(--gray4);
+  white-space:nowrap;transition:all 0.2s;font-family:inherit;}
+.filter-pill.active{background:var(--red);border-color:var(--red);color:#fff;}
+.spot-card{background:#fff;border-radius:14px;border:1.5px solid var(--gray1);overflow:hidden;margin-bottom:10px;}
+.spot-header{height:90px;display:flex;align-items:center;justify-content:center;font-size:40px;
+  position:relative;}
+
+/* ── DRAMA ROUTE ── */
+.drama-card{background:#fff;border-radius:16px;border:1.5px solid var(--gray1);overflow:hidden;margin-bottom:14px;}
+.stop-card{background:#fff;border-radius:14px;border:1.5px solid var(--gray1);padding:14px;margin-bottom:10px;}
+
+/* ── AI INTERPRETER ── */
+.mode-tabs{display:flex;background:var(--gray1);border-radius:12px;padding:3px;gap:2px;margin-bottom:14px;}
+.mode-tab{flex:1;padding:9px 4px;border-radius:10px;border:none;background:transparent;
+  cursor:pointer;text-align:center;transition:all 0.2s;font-family:inherit;}
+.mode-tab.active{background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.1);}
+.lang-chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none;}
+.lang-chip{display:flex;align-items:center;gap:4px;border-radius:20px;border:1.5px solid var(--gray1);
+  background:#fff;padding:5px 10px;cursor:pointer;white-space:nowrap;font-size:11px;
+  font-weight:600;color:var(--gray4);font-family:inherit;transition:all 0.2s;}
+.lang-chip.active{background:var(--blue-light);border-color:var(--blue);color:var(--blue);}
+.voice-btn{border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:16px;
+  transition:all 0.2s;flex-shrink:0;}
+.voice-btn:hover{opacity:0.85;}
+.listening-bar{display:flex;align-items:center;gap:8px;background:var(--red-pale);
+  border-radius:10px;padding:10px;margin-bottom:8px;border:1.5px solid var(--red);}
+
+/* ── STORY CARD ── */
+.story-card{border-radius:20px;overflow:hidden;margin-bottom:14px;
+  aspect-ratio:9/16;width:100%;position:relative;box-shadow:0 8px 24px rgba(0,0,0,0.3);}
+.theme-swatches{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px;}
+.theme-swatch{width:52px;height:52px;border-radius:12px;border:none;cursor:pointer;
+  font-size:10px;font-weight:700;color:#fff;flex-shrink:0;transition:transform 0.15s;}
+.theme-swatch.active{transform:scale(1.1);box-shadow:0 0 0 3px #fff;}
+
+/* ── COMMUNITY ── */
+.post-card{background:#fff;border-radius:16px;border:1.5px solid var(--gray1);padding:14px;margin-bottom:10px;}
+.comment-box{background:var(--gray0);border-radius:10px;padding:8px;margin-bottom:6px;}
+.convo-msg-user{display:flex;justify-content:flex-end;margin-bottom:10px;}
+.convo-msg-ai{display:flex;justify-content:flex-start;margin-bottom:10px;}
+.bubble-user{background:var(--blue);color:#fff;border-radius:12px 12px 2px 12px;
+  padding:10px 14px;max-width:80%;font-size:13px;}
+.bubble-ai{background:var(--gray0);border:1.5px solid var(--gray1);border-radius:12px 12px 12px 2px;
+  padding:12px;max-width:90%;}
+
+/* ── SPINNER ── */
+.spinner{width:20px;height:20px;border:2.5px solid rgba(255,255,255,0.3);
+  border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;display:inline-block;}
+.spinner-dark{border-color:rgba(0,0,0,0.1);border-top-color:var(--navy);}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── UTILS ── */
+.flex{display:flex;}.gap8{gap:8px;}.gap10{gap:10px;}.gap6{gap:6px;}
+.row{display:flex;flex-direction:row;}.col{display:flex;flex-direction:column;}
+.center{align-items:center;}.sb{justify-content:space-between;}
+.wrap{flex-wrap:wrap;}.flex1{flex:1;}
+.mt4{margin-top:4px;}.mt8{margin-top:8px;}.mt10{margin-top:10px;}.mt12{margin-top:12px;}
+.mb4{margin-bottom:4px;}.mb8{margin-bottom:8px;}.mb10{margin-bottom:10px;}.mb12{margin-bottom:12px;}
+.p10{padding:10px;}.p12{padding:12px;}.p14{padding:14px;}
+.br8{border-radius:8px;}.br10{border-radius:10px;}.br12{border-radius:12px;}.br14{border-radius:14px;}
+.text-white{color:#fff;}.text-navy{color:var(--navy);}.text-gray{color:var(--gray4);}
+.text-gold{color:var(--gold);}.text-green{color:var(--green);}.text-blue{color:var(--blue);}
+.text-red{color:var(--red);}.text-purple{color:var(--purple);}
+.fw700{font-weight:700;}.fw800{font-weight:800;}.fw900{font-weight:900;}
+.fs10{font-size:10px;}.fs11{font-size:11px;}.fs12{font-size:12px;}.fs13{font-size:13px;}
+.fs14{font-size:14px;}.fs15{font-size:15px;}.fs16{font-size:16px;}.fs18{font-size:18px;}
+.fs20{font-size:20px;}.fs22{font-size:22px;}.fs24{font-size:24px;}
+.lh{line-height:1.5;}.ls1{letter-spacing:1px;}.ls2{letter-spacing:2px;}
+.bg-green-light{background:var(--green-light);}
+.bg-gold-light{background:var(--gold-light);}
+.bg-purple-light{background:var(--purple-light);}
+.bg-blue-light{background:var(--blue-light);}
+.bg-navy{background:var(--navy);}
+.cursor{cursor:pointer;}
+.hidden{display:none;}
+@media(max-width:420px){#app{box-shadow:none;}}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="splash-logo">🗺️</div>
+  <div class="splash-title">K-Map</div>
+  <div class="splash-sub">Linker</div>
+  <div class="splash-desc">Korea Travel Navigator 🇰🇷</div>
+  <div class="splash-dots">
+    <div class="splash-dot"></div>
+    <div class="splash-dot"></div>
+    <div class="splash-dot"></div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="lang-row" id="langRow"></div>
+  <div class="logo-row">
+    <div class="logo-icon">🗺️</div>
+    <span class="logo-text">K-Map<span> Linker</span></span>
+    <span class="tag tag-kakao">KAKAO</span>
+    <span class="tag tag-naver">NAVER</span>
+    <span style="flex:1"></span>
+    <span style="font-size:11px;color:rgba(255,255,255,0.6)">📍 Korea</span>
+  </div>
+  <div style="font-size:17px;font-weight:700;color:#fff">Korea Travel Navigator 🇰🇷</div>
+  <div class="header-sub" id="headerSub">70 Stations · Seoul & Busan · Kakao+Naver</div>
+</div>
+
+<!-- TAB BAR -->
+<div class="tab-bar" id="tabBar"></div>
+
+<!-- TAB CONTENT -->
+<div class="scroll" id="tabContent"></div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// 🔑 API KEYS — 발급 후 여기에 입력
+// ═══════════════════════════════════════════════════════
+const KAKAO_KEY = '2daff6f88776ac20dc26f2e0ee91740f';
+const NAVER_ID  = 'x6MUhoIDnToGZYQ5w2hx';
+const NAVER_SEC = 'IlyuyKICBw';
+const ANTHROPIC_KEY = 'YOUR_ANTHROPIC_API_KEY';
+
+// ═══════════════════════════════════════════════════════
+// 🌐 STATE
+// ═══════════════════════════════════════════════════════
+let state = {
+  lang: 'en',
+  tab: 0,
+  posts: [
+    {id:'1',user:'Sarah K.',flag:'🇺🇸',time:'2m ago',loc:'Hongdae',liked:false,likes:24,comments:[],
+     text:"Just found the BEST street tteokbokki near Exit 9! 2,000 won. Amazing!"},
+    {id:'2',user:'Tanaka Yuki',flag:'🇯🇵',time:'15m ago',loc:'Gyeongbokgung',liked:false,likes:67,comments:[],
+     text:"Tip: Arrive before 9am to see the gate opening ceremony with fewer crowds."},
+    {id:'3',user:'Emma W.',flag:'🇬🇧',time:'3h ago',loc:'Gangnam',liked:false,likes:142,comments:[],
+     text:"T-money card works on ALL Seoul transport. Get one at GS25 for 2,500 won!"},
+  ],
+  // Address tab
+  addrInput:'', addrResult:null, addrError:'', addrLoading:false, addrHistory:[],
+  showTaxi:false, copied:false,
+  // Subway tab
+  subwayInput:'', subwayStation:null,
+  // Discover tab
+  discoverFilter:'All',
+  // Drama Route tab
+  selectedDrama:null, selectedStop:null,
+  // AI Interpreter
+  transTab:'translate', transInput:'', transFromLang:'auto',
+  transResult:null, transLoading:false, transError:'',
+  transListening:false,
+  convoHistory:[], convoInput:'', convoLoading:false, convoListening:false,
+  // Story
+  storyMode:false, storyPlace:'', storyText:'',
+  storyTheme:null, storyLoading:false, storyError:'',
+  // Community
+  postText:'',
+};
+let recognitionRef = null;
+
+// ═══════════════════════════════════════════════════════
+// 🌐 TRANSLATIONS
+// ═══════════════════════════════════════════════════════
+const T = {
+  en:{sub:'70 Stations · Seoul & Busan',
+    tabs:['🔍 Address','🚇 Subway','🍜 Discover','💬 Travelers','🎬 Drama Route'],
+    searchBtn:'🔍 Find Korean Address', notFound:'Location not found.',
+    addressFound:'✅ KOREAN ADDRESS FOUND',
+    taxiCard:'🚕 Taxi Card', taxiSub:'Show this to your taxi driver',
+    copyAddr:'Copy Address', copied:'Copied! ✅',
+    openKakao:'🗺️ Kakao', openNaver:'🗺️ Naver', openGoogle:'🗺️ Google',
+    subwayTitle:'🚇 EXIT GUIDE — 70 STATIONS',
+    recentSearches:'🕐 RECENT SEARCHES',
+    voiceNotSupported:'Voice not supported on this browser.',
+  },
+  ko:{sub:'지하철 70개역 · 서울+부산',
+    tabs:['🔍 주소','🚇 지하철','🍜 탐색','💬 여행자','🎬 드라마 루트'],
+    searchBtn:'🔍 한국 주소 찾기', notFound:'주소를 찾을 수 없습니다.',
+    addressFound:'✅ 주소 찾음',
+    taxiCard:'🚕 택시 카드', taxiSub:'기사님께 보여주세요',
+    copyAddr:'주소 복사', copied:'복사됨! ✅',
+    openKakao:'🗺️ 카카오', openNaver:'🗺️ 네이버', openGoogle:'🗺️ 구글',
+    subwayTitle:'🚇 출구 안내 — 70개역',
+    recentSearches:'🕐 최근 검색',
+    voiceNotSupported:'이 브라우저에서는 음성인식이 지원되지 않습니다.',
+  },
+  cn:{sub:'地铁70站 · 首尔+釜山',
+    tabs:['🔍 地址','🚇 地铁','🍜 探索','💬 旅行者','🎬 韩剧路线'],
+    searchBtn:'🔍 查找韩国地址', notFound:'未找到该地址。',
+    addressFound:'✅ 找到韩国地址',
+    taxiCard:'🚕 打车卡', taxiSub:'出示给司机',
+    copyAddr:'复制地址', copied:'已复制! ✅',
+    openKakao:'🗺️ Kakao', openNaver:'🗺️ Naver', openGoogle:'🗺️ Google',
+    subwayTitle:'🚇 出口指南 — 70站',
+    recentSearches:'🕐 最近搜索',
+    voiceNotSupported:'此浏览器不支持语音识别。',
+  },
+  ja:{sub:'地下鉄70駅 · ソウル+釜山',
+    tabs:['🔍 住所','🚇 地下鉄','🍜 発見','💬 旅行者','🎬 ドラマルート'],
+    searchBtn:'🔍 韓国の住所を探す', notFound:'住所が見つかりません。',
+    addressFound:'✅ 住所が見つかりました',
+    taxiCard:'🚕 タクシーカード', taxiSub:'運転手に見せてください',
+    copyAddr:'住所をコピー', copied:'コピー完了! ✅',
+    openKakao:'🗺️ Kakao', openNaver:'🗺️ Naver', openGoogle:'🗺️ Google',
+    subwayTitle:'🚇 出口ガイド — 70駅',
+    recentSearches:'🕐 最近の検索',
+    voiceNotSupported:'このブラウザでは音声認識はサポートされていません。',
+  },
+};
+function t(key){ return (T[state.lang]||T.en)[key] || (T.en)[key] || key; }
+
+// ═══════════════════════════════════════════════════════
+// 📍 OFFLINE DB (579 places — 핵심만 포함, 검색 동작)
+// ═══════════════════════════════════════════════════════
+const PLACE_DB = [
+  {keywords:['gyeongbokgung','경복궁','景福宫'],korean_address:'서울특별시 종로구 사직로 161',location_name_korean:'경복궁',location_name_english:'Gyeongbokgung Palace',district:'Jongno-gu, Seoul',subway:'Line 3, Exit 5',nearby_tips:['Royal guard ceremony 10am & 2pm','Hanbok rental at main gate','Bukchon Hanok Village 20min'],travel_tip:'Arrive before 9am to avoid crowds'},
+  {keywords:['changdeokgung','창덕궁','secret garden'],korean_address:'서울특별시 종로구 율곡로 99',location_name_korean:'창덕궁',location_name_english:'Changdeokgung Palace',district:'Jongno-gu, Seoul',subway:'Line 3, Anguk Exit 3',nearby_tips:['UNESCO World Heritage','Secret Garden needs separate ticket'],travel_tip:'Book Secret Garden tickets online in advance'},
+  {keywords:['myeongdong','명동','明洞'],korean_address:'서울특별시 중구 명동길 14',location_name_korean:'명동',location_name_english:'Myeongdong Shopping Street',district:'Jung-gu, Seoul',subway:'Line 4, Exit 6',nearby_tips:['Street food: tteokbokki, hotteok','Duty-free shops nearby'],travel_tip:'Visit weekday evenings for best street food'},
+  {keywords:['hongdae','홍대','弘大','hongik'],korean_address:'서울특별시 마포구 홍익로 16',location_name_korean:'홍대입구',location_name_english:'Hongdae Area',district:'Mapo-gu, Seoul',subway:'Line 2/Airport, Exit 9',nearby_tips:['Club street at Exit 9','Street performances weekends'],travel_tip:'Fri-Sat best for nightlife'},
+  {keywords:['itaewon','이태원'],korean_address:'서울특별시 용산구 이태원로 177',location_name_korean:'이태원',location_name_english:'Itaewon',district:'Yongsan-gu, Seoul',subway:'Line 6, Exit 1',nearby_tips:['50+ country cuisines','Halal food near Exit 3'],travel_tip:'Best for international cuisine variety'},
+  {keywords:['gangnam','강남','강남역'],korean_address:'서울특별시 강남구 강남대로 396',location_name_korean:'강남역',location_name_english:'Gangnam Station',district:'Gangnam-gu, Seoul',subway:'Line 2/Sinbundang',nearby_tips:['Underground shopping mall','COEX nearby'],travel_tip:'Underground shopping great on rainy days'},
+  {keywords:['namsan','남산','n seoul tower','남산타워'],korean_address:'서울특별시 용산구 남산공원길 105',location_name_korean:'N서울타워',location_name_english:'N Seoul Tower',district:'Yongsan-gu, Seoul',subway:'Line 4, Myeongdong Exit 3 + cable car',nearby_tips:['Cable car 9am-11pm','Love locks fence'],travel_tip:'Go at sunset for spectacular views'},
+  {keywords:['hangang','한강','han river'],korean_address:'서울특별시 영등포구 여의도동',location_name_korean:'한강공원',location_name_english:'Han River Park',district:'Yeouido, Seoul',subway:'Line 5, Yeouinaru Exit 2',nearby_tips:['Bike rentals along river','Fireworks festival October'],travel_tip:'Chicken + beer from convenience store = classic!'},
+  {keywords:['bukchon','북촌','hanok village'],korean_address:'서울특별시 종로구 계동길 37',location_name_korean:'북촌한옥마을',location_name_english:'Bukchon Hanok Village',district:'Jongno-gu, Seoul',subway:'Line 3, Anguk Exit 2',nearby_tips:['Best photos at Gahoe-dong alley','Visit before 10am'],travel_tip:'Arrive before 9am for crowd-free photos'},
+  {keywords:['insadong','인사동'],korean_address:'서울특별시 종로구 인사동길',location_name_korean:'인사동',location_name_english:'Insadong Traditional Street',district:'Jongno-gu, Seoul',subway:'Line 3, Anguk Exit 6',nearby_tips:['Ssamziegil shopping complex','Traditional tea houses'],travel_tip:'Sunday afternoon has street performances'},
+  {keywords:['coex','코엑스','starfield'],korean_address:'서울특별시 강남구 영동대로 513',location_name_korean:'코엑스몰',location_name_english:'COEX Mall & Starfield Library',district:'Gangnam-gu, Seoul',subway:'Line 2, Samsung Exit 5',nearby_tips:['Starfield Library Instagram famous'],travel_tip:'Starfield Library open daily 10am-10pm'},
+  {keywords:['lotte world','롯데월드'],korean_address:'서울특별시 송파구 올림픽로 300',location_name_korean:'롯데월드',location_name_english:'Lotte World & Tower',district:'Songpa-gu, Seoul',subway:'Line 2/8, Jamsil Exit 4',nearby_tips:['Indoor & outdoor theme park','123F observation deck'],travel_tip:'Book observation deck tickets online for discount'},
+  {keywords:['incheon airport','인천공항'],korean_address:'인천광역시 중구 공항로 272',location_name_korean:'인천국제공항 1터미널',location_name_english:'Incheon International Airport T1',district:'Jung-gu, Incheon',subway:'Airport Railroad',nearby_tips:['Free city tours for transit','Free WiFi throughout'],travel_tip:'Airport Railroad to Seoul Station: 43min, ₩9,500'},
+  {keywords:['haeundae','해운대','海云台'],korean_address:'부산광역시 해운대구 해운대해변로 264',location_name_korean:'해운대해수욕장',location_name_english:'Haeundae Beach, Busan',district:'Haeundae-gu, Busan',subway:'Busan Line 2, Haeundae Exit 3',nearby_tips:['Korea most famous beach','Dongbaek Island nearby'],travel_tip:'Visit spring/fall to avoid summer crowds'},
+  {keywords:['gamcheon','감천문화마을'],korean_address:'부산광역시 사하구 감내2로 203',location_name_korean:'감천문화마을',location_name_english:'Gamcheon Culture Village Busan',district:'Saha-gu, Busan',subway:'Bus from Toseong-dong',nearby_tips:['Colorful hillside village','Little Prince statue photo spot'],travel_tip:'Buy village map 2000 won for stamp rally'},
+  {keywords:['jeju','제주','hallasan','한라산'],korean_address:'제주특별자치도 제주시 한라산로 942',location_name_korean:'한라산국립공원',location_name_english:'Hallasan National Park',district:'Jeju-si, Jeju',subway:'Bus from Jeju City',nearby_tips:['Highest mountain in Korea','Seongpanak trail 5h round trip'],travel_tip:'Start by 6am for crater lake view'},
+  {keywords:['seongsan','성산일출봉','sunrise peak'],korean_address:'제주특별자치도 서귀포시 성산읍',location_name_korean:'성산일출봉',location_name_english:'Seongsan Ilchulbong Sunrise Peak',district:'Seogwipo-si, Jeju',subway:'Bus from Jeju City',nearby_tips:['UNESCO World Heritage','Haenyeo diving show'],travel_tip:'Most spectacular at sunrise'},
+  {keywords:['nami island','남이섬','winter sonata','겨울연가'],korean_address:'강원도 춘천시 남산면 남이섬길 1',location_name_korean:'남이섬 겨울연가 촬영지',location_name_english:'Nami Island - Winter Sonata',district:'Chuncheon-si, Gangwon',subway:'Gyeongchun Line, Gapyeong then ferry',nearby_tips:['Winter Sonata filming location','Tree-lined boulevards'],travel_tip:'Winter Sonata launched Korean Wave - historic site'},
+  {keywords:['goblin','도깨비','jumunjin','주문진'],korean_address:'강원도 강릉시 주문진읍 주문리 684-1',location_name_korean:'주문진 버스정류장',location_name_english:'Jumunjin Bus Stop - Goblin Drama',district:'Gangneung-si, Gangwon',subway:'Bus 302 from Gangneung Station 40min',nearby_tips:['Goblin drama bus stop scene','BTS MV filmed here too'],travel_tip:'Most famous drama filming spot - arrive early'},
+  {keywords:['deoksugung','덕수궁','stone wall','돌담길'],korean_address:'서울특별시 중구 덕수궁길 15',location_name_korean:'덕수궁 돌담길',location_name_english:'Deoksugung Stone Wall Road - Goblin',district:'Jung-gu, Seoul',subway:'Line 1/2, City Hall Exit 2',nearby_tips:['Most romantic walk in Seoul','Goblin filming location'],travel_tip:'Visit at night for magical atmosphere'},
+  {keywords:['bts','방탄소년단','hybe','하이브'],korean_address:'서울특별시 용산구 한강대로 42길 6',location_name_korean:'하이브 사옥',location_name_english:'HYBE Corporation Headquarters',district:'Yongsan-gu, Seoul',subway:'Line 4, Sinyongsan Exit 2',nearby_tips:['BTS and NewJeans company','Weverse Museum inside'],travel_tip:'HYBE HQ - book Weverse Museum tours in advance'},
+  {keywords:['sm entertainment','SM','에스엠'],korean_address:'서울특별시 강남구 삼성로 128',location_name_korean:'SM 엔터테인먼트',location_name_english:'SM Entertainment Headquarters',district:'Gangnam-gu, Seoul',subway:'Line 7, Cheongdam Exit 2',nearby_tips:['EXO aespa NCT company','Cheongdam luxury district'],travel_tip:'SM HQ in Cheongdam - idol sightings nearby'},
+  {keywords:['music bank','뮤직뱅크','kbs','여의도'],korean_address:'서울특별시 영등포구 여의공원로 13',location_name_korean:'KBS 뮤직뱅크',location_name_english:'KBS Music Bank Studio',district:'Yeongdeungpo-gu, Seoul',subway:'Line 5/9, Yeouido Exit 5',nearby_tips:['Recordings on Fridays','Fans gather outside early'],travel_tip:'Arrive by 8AM Friday for best fan spot'},
+  {keywords:['seoul station','서울역'],korean_address:'서울특별시 용산구 한강대로 405',location_name_korean:'서울역',location_name_english:'Seoul Station',district:'Yongsan-gu, Seoul',subway:'Line 1/4/Airport Railroad/KTX',nearby_tips:['Airport Railroad to Incheon: 43min','KTX to Busan: 2h15min'],travel_tip:'Airport Railroad check-in available here'},
+  {keywords:['jeonju','전주','hanok','비빔밥'],korean_address:'전라북도 전주시 완산구 기린대로 99',location_name_korean:'전주 한옥마을',location_name_english:'Jeonju Hanok Village',district:'Wansan-gu, Jeonju',subway:'KTX to Jeonju Station then bus',nearby_tips:['700+ Hanok houses','Free Hanbok rental','Bibimbap origin city'],travel_tip:'Best city for traditional Korean food'},
+  {keywords:['gyeongju','경주','bulguksa','불국사'],korean_address:'경상북도 경주시 진현동 15-1',location_name_korean:'불국사',location_name_english:'Bulguksa Temple Gyeongju',district:'Gyeongju-si, North Gyeongsang',subway:'Bus from Gyeongju Station',nearby_tips:['UNESCO World Heritage','Seokguram Grotto nearby'],travel_tip:'Visit Anapji Pond at night - spectacular reflection'},
+  {keywords:['seongsu','성수동','서울숲'],korean_address:'서울특별시 성동구 성수이로 78',location_name_korean:'성수동',location_name_english:'Seongsu-dong Seoul Brooklyn',district:'Seongdong-gu, Seoul',subway:'Line 2, Seongsu Exit 3',nearby_tips:['Industrial chic cafes','Seoul Forest nearby'],travel_tip:'Most Instagram-worthy cafes in Seoul'},
+  {keywords:['yonsei','연세대','ewha','이화여대'],korean_address:'서울특별시 서대문구 연세로 50',location_name_korean:'연세대학교',location_name_english:'Yonsei University Campus',district:'Seodaemun-gu, Seoul',subway:'Line 2, Sinchon Exit 1',nearby_tips:['Beautiful campus architecture','Multiple dramas filmed here'],travel_tip:'Campus open to visitors'},
+];
+
+function searchOffline(q) {
+  if(!q?.trim()) return null;
+  const low = q.toLowerCase().trim();
+  for(const p of PLACE_DB){
+    for(const k of p.keywords){
+      if(low.includes(k.toLowerCase()) || k.toLowerCase().includes(low)) return{...p,source:'offline'};
+    }
+  }
+  return null;
+}
+async function searchKakao(q){
+  try{
+    const r=await fetch(`https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(q)}&size=1`,{headers:{Authorization:`KakaoAK ${KAKAO_KEY}`}});
+    const d=await r.json();
+    if(d.documents?.length>0){
+      const p=d.documents[0];
+      return{korean_address:p.road_address_name||p.address_name,location_name_korean:p.place_name,
+        location_name_english:p.place_name,district:p.address_name,subway:'카카오맵에서 확인',
+        nearby_tips:p.category_name?[`카테고리: ${p.category_name}`]:[],
+        travel_tip:p.phone?`📞 ${p.phone}`:'',kakao_url:p.place_url,source:'kakao'};
+    }
+  }catch(e){}
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════
+// 🚇 SUBWAY DATA
+// ═══════════════════════════════════════════════════════
+const STATIONS = {
+  gyeongbokgung:{kr:'경복궁',en:'Gyeongbokgung',color:'#EF7C1C',emoji:'🏯',lines:[{n:'Line 3',c:'#EF7C1C'}],exits:[{num:'1',dest:'Palace Main Gate',detail:'Royal guards',tag:'Popular'},{num:'5',dest:'National Museum',detail:'Free entry',tag:'Free'},{num:'6',dest:'Bukchon Hanok',detail:'20min walk',tag:'Popular'}]},
+  myeongdong:{kr:'명동',en:'Myeongdong',color:'#00A5DE',emoji:'🛍️',lines:[{n:'Line 4',c:'#00A5DE'}],exits:[{num:'2',dest:'Myeongdong Street',detail:'Main shopping',tag:'Popular'},{num:'6',dest:'Street food alley',detail:'Tteokbokki',tag:'Food'}]},
+  gangnam:{kr:'강남',en:'Gangnam',color:'#00A84D',emoji:'💼',lines:[{n:'Line 2',c:'#00A84D'},{n:'Sinbundang',c:'#D4003B'}],exits:[{num:'1',dest:'Gangnam Sq.',detail:'Underground shopping',tag:'Shopping'},{num:'5',dest:'Tourist Info',detail:'Free maps!',tag:'Tip'}]},
+  hongdae:{kr:'홍대입구',en:'Hongdae',color:'#00A84D',emoji:'🎵',lines:[{n:'Line 2',c:'#00A84D'},{n:'Airport',c:'#0052A4'}],exits:[{num:'1',dest:'Sangsu-dong',detail:'Bars, live music',tag:'Nightlife'},{num:'9',dest:'Main Street',detail:'Shopping & cafes',tag:'Popular'},{num:'8',dest:'Airport Rail',detail:'Direct to Incheon',tag:'✈️'}]},
+  itaewon:{kr:'이태원',en:'Itaewon',color:'#996CAC',emoji:'🍻',lines:[{n:'Line 6',c:'#996CAC'}],exits:[{num:'1',dest:'Hamilton Hotel',detail:'Main street',tag:'Popular'},{num:'2',dest:'International Food',detail:'50+ cuisines',tag:'Food'},{num:'4',dest:'Haebangchon',detail:'Trendy bars',tag:'Nightlife'}]},
+  seoulstation:{kr:'서울역',en:'Seoul Station',color:'#003499',emoji:'🚄',lines:[{n:'Line 1',c:'#003499'},{n:'Line 4',c:'#00A5DE'},{n:'AREX',c:'#0052A4'},{n:'KTX',c:'#CC0000'}],exits:[{num:'1',dest:'Main exit',detail:'KTX, bus terminal',tag:'Transport'},{num:'10',dest:'Airport Railroad',detail:'Incheon 43min',tag:'✈️'}]},
+  jamsil:{kr:'잠실',en:'Jamsil',color:'#00A84D',emoji:'🎡',lines:[{n:'Line 2',c:'#00A84D'},{n:'Line 8',c:'#E51E79'}],exits:[{num:'1',dest:'Lotte World Mall',detail:'Shopping & aquarium',tag:'Popular'},{num:'4',dest:'Lotte World Tower',detail:'555m observation',tag:'View'},{num:'3',dest:'Seokchon Lake',detail:'Cherry blossoms!',tag:'Nature'}]},
+  haeundae:{kr:'해운대',en:'Haeundae',color:'#0052A4',emoji:'🌊',lines:[{n:'Busan Line 2',c:'#0052A4'}],exits:[{num:'3',dest:'Haeundae Beach',detail:'5min walk',tag:'Beach'},{num:'5',dest:'Aquarium',detail:'Sea Life Busan',tag:'Fun'},{num:'7',dest:'Dongbaek Island',detail:'Scenic walk',tag:'Nature'}]},
+  dongdaemun:{kr:'동대문',en:'DDP',color:'#00A84D',emoji:'🌙',lines:[{n:'Line 2/4/5',c:'#00A84D'}],exits:[{num:'1',dest:'DDP (Dongdaemun Design Plaza)',detail:'Zaha Hadid landmark',tag:'Popular'},{num:'14',dest:'Fashion market',detail:'Open midnight-6am!',tag:'Night'}]},
+  anguk:{kr:'안국',en:'Anguk',color:'#EF7C1C',emoji:'🏘️',lines:[{n:'Line 3',c:'#EF7C1C'}],exits:[{num:'1',dest:'Bukchon Hanok Village',detail:'Traditional houses',tag:'Popular'},{num:'2',dest:'Changdeokgung',detail:'UNESCO palace',tag:'Heritage'},{num:'3',dest:'Insadong',detail:'Traditional crafts',tag:'Shopping'}]},
+};
+
+// ═══════════════════════════════════════════════════════
+// 🎬 DRAMA ROUTES
+// ═══════════════════════════════════════════════════════
+const DRAMA_ROUTES = {
+  goblin:{
+    id:'goblin',title:'도깨비',titleEn:'Goblin (Guardian)',year:'2016',
+    cast:'Gong Yoo · Kim Go-eun · Lee Dong-wook',genre:'Fantasy Romance',
+    emoji:'🌊',color:'#1A2F6E',colorLight:'#EEF1FB',colorAccent:'#F5A623',
+    description:"A 939-year-old goblin seeks a human bride to break his immortal curse. One of Korea's most iconic dramas — beautiful, heartbreaking, and unforgettable.",
+    stops:[
+      {order:1,name:'Jumunjin Bus Stop',nameKr:'주문진 버스정류장',
+       address:'강원도 강릉시 주문진읍 주문리 684-1',addressEn:'Jumunjin-eup, Gangneung, Gangwon',
+       scene:'Ep.1 — Eun-tak meets Goblin at the bus stop by the sea',
+       scene_kr:'은탁이 바닷가 버스정류장에서 도깨비를 처음 만나는 장면',
+       transport:'Bus 302 from Gangneung Station · 40 min',
+       tip:'🌊 Arrive at sunrise for the same magical atmosphere. BTS also filmed "You Never Walk Alone" MV here!',
+       photo_tip:'Stand at the bus stop and face the sea — golden hour shots are stunning',
+       open:'Always open',tag:'Iconic',tagColor:'#E8392A'},
+      {order:2,name:'Jumunjin Beach',nameKr:'주문진 해변',
+       address:'강원도 강릉시 주문진읍 해안로',addressEn:'Jumunjin Beach, Gangneung, Gangwon',
+       scene:'Ep.1 & 6 — Red umbrella beach scene / Goblin walks into the sea',
+       scene_kr:'빨간 우산 해변 장면 / 도깨비가 바다로 걸어들어가는 장면',
+       transport:'Walk 5 min from Jumunjin Bus Stop',
+       tip:'☂️ Bring a RED umbrella for the iconic photo!',
+       photo_tip:"Walk to the water's edge holding a red umbrella — recreate the exact drama shot",
+       open:'Always open · Best at dawn',tag:'Must Photo',tagColor:'#C0392B'},
+      {order:3,name:'Deoksugung Stone Wall Road',nameKr:'덕수궁 돌담길',
+       address:'서울특별시 중구 덕수궁길 15',addressEn:'Deoksugung-gil, Jung-gu, Seoul',
+       scene:'Ep.3 & 8 — Goblin and Reaper walk the stone wall road together',
+       scene_kr:'도깨비와 저승사자가 나란히 걷는 돌담길 장면',
+       transport:'Line 1/2 · City Hall Exit 2 · Walk 3 min',
+       tip:'🍂 Most beautiful in autumn (Oct–Nov). Called "the road couples break up" — a famous Seoul superstition!',
+       photo_tip:'Walk from City Hall toward Deoksugung gate — the full wall stretch is about 900m',
+       open:'Always open',tag:'Romantic Walk',tagColor:'#7C3AED'},
+      {order:4,name:'Incheon Sinpo-dong',nameKr:'인천 신포동 골목',
+       address:'인천광역시 중구 신포동',addressEn:'Sinpo-dong, Jung-gu, Incheon',
+       scene:'Ep.1 — Goblin first appears through a portal in this alley',
+       scene_kr:'도깨비가 처음 문을 열고 나타나는 골목 (퀘벡 골목으로 묘사)',
+       transport:'Line 1 · Incheon Station Exit 1 · Walk 10 min',
+       tip:'🏙️ Filmed as streets of Quebec, Canada. Walk to Incheon Chinatown right next door!',
+       photo_tip:'Find the narrow alley between old buildings — it looks just like the drama at dusk',
+       open:'Always open',tag:'Hidden Gem',tagColor:'#1EB87A'},
+      {order:5,name:'Namhansanseong Fortress',nameKr:'남한산성',
+       address:'경기도 광주시 남한산성면 남한산성로 731',addressEn:'Namhansanseong, Gwangju-si, Gyeonggi',
+       scene:'Ep.1 — Goryeo-era flashback battle scenes',
+       scene_kr:'고려 시대 전쟁 회상 장면 촬영지',
+       transport:'Line 8 · Sanseong Exit 2 · Bus 9 · 20 min',
+       tip:'🏯 UNESCO World Heritage fortress. Stunning hiking trail through the fortress walls.',
+       photo_tip:'Walk the fortress wall trail for sweeping valley views that match the epic drama feel',
+       open:'Daily 9AM–6PM · ₩2,000',tag:'UNESCO',tagColor:'#0D1B2A'},
+      {order:6,name:'Sinchon Station Exit 3',nameKr:'신촌역 3번 출구',
+       address:'서울특별시 서대문구 신촌역로 12',addressEn:'Sinchon Station, Seodaemun-gu, Seoul',
+       scene:'Ep.2 — Eun-tak summons the Goblin from the phone booth',
+       scene_kr:'은탁이 전화박스에서 도깨비를 부르는 장면',
+       transport:'Line 2 · Sinchon Exit 3',
+       tip:'📞 The phone booth is still there near Exit 3! Recreate the famous summoning scene.',
+       photo_tip:'Find the old phone booth near Exit 3 and look toward the busy street',
+       open:'Always open',tag:'Fan Spot',tagColor:'#F5A623'},
+    ],
+    travel_tips:['🚄 Gangneung stops best done as a day trip via KTX (2hrs from Seoul)',
+      '🚶 Seoul stops walkable from City Hall and Sinchon areas',
+      '📅 Best: October–November (autumn) or January (snow at Jumunjin)',
+      '📸 Bring a red umbrella — THE Goblin prop!',
+      '🗺️ Full route: 2 days — Day 1 Seoul, Day 2 Gangneung'],
+    ost:['있었는데요 없었습니다 — Melomance','Stay With Me — Chanyeol & Punch','My Person — Kim Kyung Hee','Beautiful — Crush'],
+  }
+};
+
+// ═══════════════════════════════════════════════════════
+// 🎤 VOICE RECOGNITION
+// ═══════════════════════════════════════════════════════
+const SPEECH_LANG_MAP = {auto:'',en:'en-US',ja:'ja-JP',cn:'zh-CN',es:'es-ES',ar:'ar-SA',ko:'ko-KR'};
+function startVoiceRecognition({onResult, onListening, lang='auto'}){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ alert(t('voiceNotSupported')); return; }
+  if(recognitionRef){ recognitionRef.stop(); recognitionRef=null; onListening(false); return; }
+  const r = new SR();
+  r.continuous=false; r.interimResults=false;
+  if(lang!=='auto' && SPEECH_LANG_MAP[lang]) r.lang=SPEECH_LANG_MAP[lang];
+  recognitionRef=r;
+  onListening(true);
+  r.onresult=e=>{ onResult(e.results[0][0].transcript); onListening(false); recognitionRef=null; };
+  r.onerror=e=>{ if(e.error!=='no-speech') alert('Voice error: '+e.error); onListening(false); recognitionRef=null; };
+  r.onend=()=>{ onListening(false); recognitionRef=null; };
+  r.start();
+}
+
+// ═══════════════════════════════════════════════════════
+// 🤖 CLAUDE API
+// ═══════════════════════════════════════════════════════
+async function callClaude(system, user, maxTokens=800){
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':ANTHROPIC_KEY,'anthropic-version':'2023-06-01'},
+    body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:maxTokens,system,messages:[{role:'user',content:user}]}),
+  });
+  const data=await res.json();
+  if(data.error) throw new Error(data.error.message);
+  return data.content[0].text;
+}
+function checkApiKey(){ if(ANTHROPIC_KEY==='YOUR_ANTHROPIC_API_KEY'){ alert('ANTHROPIC_KEY를 입력해 주세요!\nhttps://console.anthropic.com'); return false; } return true; }
+
+// ═══════════════════════════════════════════════════════
+// 🎨 RENDER ENGINE
+// ═══════════════════════════════════════════════════════
+function setState(updates){ Object.assign(state,updates); render(); }
+function h(tag,attrs,inner){
+  const el=document.createElement(tag);
+  if(attrs) Object.entries(attrs).forEach(([k,v])=>{
+    if(k==='style'&&typeof v==='object') Object.assign(el.style,v);
+    else if(k.startsWith('on')) el.addEventListener(k.slice(2).toLowerCase(),v);
+    else if(k==='className') el.className=v;
+    else if(k==='placeholder') el.placeholder=v;
+    else if(k==='value'){ el.value=v||''; }
+    else if(k==='type') el.type=v;
+    else if(k==='disabled') el.disabled=v;
+    else if(k==='rows') el.rows=v;
+    else el.setAttribute(k,v);
+  });
+  if(typeof inner==='string') el.innerHTML=inner;
+  else if(Array.isArray(inner)) inner.filter(Boolean).forEach(c=>{ if(typeof c==='string'){el.insertAdjacentHTML('beforeend',c);}else el.appendChild(c);});
+  else if(inner instanceof HTMLElement) el.appendChild(inner);
+  return el;
+}
+function div(cls,inner,style){ return h('div',{className:cls,style:style||{}},inner); }
+function span(cls,text){ const el=document.createElement('span'); el.className=cls||''; el.textContent=text||''; return el; }
+function btn(cls,text,onClick,disabled){ 
+  const el=h('button',{className:cls,onClick,disabled:disabled||false},text);
+  return el;
+}
+function input_(cls,ph,val,onChange){
+  const el=h('input',{className:cls,placeholder:ph,value:val,type:'text'});
+  el.addEventListener('input',e=>onChange(e.target.value));
+  return el;
+}
+function textarea_(cls,ph,val,onChange,rows){
+  const el=h('textarea',{className:cls,placeholder:ph,rows:rows||4});
+  el.value=val||'';
+  el.addEventListener('input',e=>onChange(e.target.value));
+  return el;
+}
+
+// ─── LANG ROW ───
+function renderLangRow(){
+  const LANGS=[{code:'en',flag:'🇬🇧',label:'EN'},{code:'cn',flag:'🇨🇳',label:'CN'},
+    {code:'ja',flag:'🇯🇵',label:'JP'},{code:'ko',flag:'🇰🇷',label:'KO'},
+    {code:'es',flag:'🇪🇸',label:'ES'},{code:'ar',flag:'🇸🇦',label:'AR'}];
+  const row=document.getElementById('langRow');
+  row.innerHTML='';
+  LANGS.forEach(l=>{
+    const p=h('button',{className:'lang-pill'+(state.lang===l.code?' active':''),
+      onClick:()=>setState({lang:l.code})}, l.flag+' '+l.label);
+    row.appendChild(p);
+  });
+  document.getElementById('headerSub').textContent=t('sub');
+}
+
+// ─── TAB BAR ───
+function renderTabBar(){
+  const bar=document.getElementById('tabBar');
+  bar.innerHTML='';
+  t('tabs').forEach((label,i)=>{
+    const b=h('button',{className:'tab-btn'+(state.tab===i?' active':''),
+      onClick:()=>setState({tab:i})},label);
+    bar.appendChild(b);
+  });
+}
+
+// ─── ADDRESS TAB ───
+function renderAddressTab(){
+  const frag=[];
+
+  // Search card
+  const card=div('card');
+  card.innerHTML=`<div class="card-title">📋 SEARCH ANY LOCATION IN KOREA</div>`;
+
+  // Input row
+  const inputRow=div('row gap8',null,{marginBottom:'10px',position:'relative'});
+  const inp=input_('',state.addrInput===''?'Gyeongbokgung, Hongdae, HYBE...':undefined,
+    state.addrInput,v=>{ state.addrInput=v; });
+  inp.style.cssText='flex:1;padding-right:50px;';
+  inp.placeholder='Type any Korean location...';
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter') doSearch(); });
+
+  // Voice button
+  const vbtn=h('button',{
+    className:'voice-btn',
+    style:{position:'absolute',right:'8px',top:'50%',transform:'translateY(-50%)',
+      background:state.addrListening?'var(--red)':'var(--navy)',width:'34px',height:'34px'},
+    onClick:()=>startVoiceRecognition({
+      onResult:v=>{ state.addrInput=v; render(); doSearch(); },
+      onListening:v=>setState({addrListening:v}),lang:state.lang,
+    })
+  },state.addrListening?'⏹️':'🎤');
+
+  inputRow.appendChild(inp);
+  inputRow.appendChild(vbtn);
+  card.appendChild(inputRow);
+
+  // Voice listening bar
+  if(state.addrListening){
+    card.appendChild(div('listening-bar',`<span class="spinner"></span><span style="font-size:13px;font-weight:700;color:var(--red)">🎤 Listening... Speak now!</span>`));
+  }
+
+  // Search button
+  const sb=btn('btn-primary btn-blue',
+    state.addrLoading?'<span class="spinner"></span>  Searching...':'🔍 '+t('searchBtn'),
+    doSearch,state.addrLoading);
+  sb.style.marginTop='8px';
+  card.appendChild(sb);
+
+  frag.push(card);
+
+  // Error
+  if(state.addrError){
+    frag.push(div('error-box',`<div style="font-size:13px;font-weight:700;color:var(--red)">❌ ${state.addrError}</div>`));
+  }
+
+  // Result
+  if(state.addrResult){
+    const r=state.addrResult;
+    // Source badge
+    const srcBadge = r.source==='kakao'?'<span class="badge badge-kakao">KAKAO</span>':
+      r.source==='naver'?'<span class="badge badge-naver">NAVER</span>':
+      '<span class="badge badge-offline">OFFLINE DB</span>';
+
+    const resCard=div('card');
+    resCard.innerHTML=`
+      <div class="result-main">
+        <div class="row gap8 center mb8">${srcBadge}<span class="result-label">${t('addressFound')}</span></div>
+        <div class="result-korean">${r.korean_address}</div>
+        <div class="result-en">${r.location_name_english||''} · ${r.district||''}</div>
+        ${r.subway?`<div style="font-size:12px;color:var(--blue);margin-top:4px">🚇 ${r.subway}</div>`:''}
+        ${r.travel_tip?`<div class="result-tip">💡 ${r.travel_tip}</div>`:''}
+      </div>`;
+
+    // Map buttons
+    const mapBtns=div('map-btns');
+    const addr=encodeURIComponent(r.korean_address);
+    [
+      {label:t('openKakao'),bg:'#FEE500',tc:'#3C1E1E',url:`https://map.kakao.com/?q=${addr}`},
+      {label:t('openNaver'),bg:'#03C75A',tc:'#fff',url:`https://map.naver.com/v5/search/${addr}`},
+      {label:t('openGoogle'),bg:'#1E6FE8',tc:'#fff',url:`https://maps.google.com/?q=${addr}`},
+    ].forEach(m=>{
+      const b=h('button',{className:'map-btn',
+        style:{background:m.bg,color:m.tc},onClick:()=>window.open(m.url,'_blank')},m.label);
+      mapBtns.appendChild(b);
+    });
+    resCard.appendChild(mapBtns);
+
+    // Nearby tips
+    if(r.nearby_tips?.length){
+      const nb=div('nearby-box');
+      nb.innerHTML=`<div class="fs11 fw700 mb8" style="color:#8A6010">💡 NEARBY TIPS</div>`;
+      r.nearby_tips.forEach(tip=>{
+        const t_=div('',`• ${tip}`);
+        t_.style.cssText='font-size:13px;color:var(--navy);margin-bottom:4px;';
+        nb.appendChild(t_);
+      });
+      resCard.appendChild(nb);
+    }
+
+    // Taxi card
+    const taxi=div('taxi-card');
+    taxi.innerHTML=`
+      <div class="fs11 fw700 text-gold ls1 mb8">${t('taxiCard')}</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-bottom:10px">${t('taxiSub')}</div>
+      <div class="taxi-inner">
+        <div style="font-size:18px;font-weight:800;color:#fff;line-height:1.4">${r.korean_address}</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:4px">${r.location_name_english||''}</div>
+      </div>`;
+    const copyBtn=btn('btn-primary',state.addrCopied?t('copied'):t('copyAddr'),()=>{
+      navigator.clipboard.writeText(r.korean_address).catch(()=>{});
+      setState({addrCopied:true});
+      setTimeout(()=>setState({addrCopied:false}),2000);
+    });
+    copyBtn.style.cssText='background:transparent;border:1px solid var(--gold);color:var(--gold);margin-top:10px;';
+    taxi.appendChild(copyBtn);
+    resCard.appendChild(taxi);
+    frag.push(resCard);
+  }
+
+  // History
+  if(state.addrHistory.length){
+    const hCard=div('card');
+    hCard.innerHTML=`<div class="card-title">${t('recentSearches')}</div>`;
+    state.addrHistory.forEach(h_=>{
+      const item=div('history-item');
+      item.innerHTML=`<span style="font-size:20px">📍</span>
+        <div><div style="font-size:13px;font-weight:600;color:var(--navy)">${h_.korean_address}</div>
+        <div style="font-size:11px;color:var(--gray3)">${h_.district||''}</div></div>`;
+      item.onclick=()=>setState({addrResult:h_,addrError:''});
+      hCard.appendChild(item);
+    });
+    frag.push(hCard);
+  }
+
+  return frag;
+}
+
+async function doSearch(){
+  if(!state.addrInput.trim()) return;
+  setState({addrLoading:true,addrError:'',addrResult:null});
+  let result=searchOffline(state.addrInput);
+  if(!result) result=await searchKakao(state.addrInput);
+  if(result){
+    const hist=[result,...state.addrHistory.filter(h=>h.korean_address!==result.korean_address)].slice(0,5);
+    setState({addrResult:result,addrLoading:false,addrHistory:hist});
+  } else {
+    setState({addrError:t('notFound')+' Try: Gyeongbokgung, Hongdae, Haeundae...',addrLoading:false});
+  }
+}
+
+// ─── SUBWAY TAB ───
+function renderSubwayTab(){
+  const frag=[];
+  const card=div('card');
+  card.innerHTML=`<div class="card-title">${t('subwayTitle')}</div>`;
+
+  const inputRow=div('row gap8',null,{marginBottom:'14px'});
+  const inp=input_('','Station name (e.g. Hongdae, 명동, Gangnam...)',state.subwayInput,v=>{ state.subwayInput=v; });
+  inp.style.flex='1';
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter') doSubwaySearch(); });
+  const sb=btn('btn-primary btn-blue','Go',doSubwaySearch);
+  sb.style.cssText='width:auto;margin-top:0;padding:11px 18px;';
+  inputRow.appendChild(inp);
+  inputRow.appendChild(sb);
+  card.appendChild(inputRow);
+  frag.push(card);
+
+  if(state.subwayStation){
+    const st=state.subwayStation;
+    const detCard=div('card');
+    // Header
+    const hdr=div('',null,{background:st.color,borderRadius:'12px',padding:'14px',marginBottom:'14px'});
+    hdr.innerHTML=`<div class="row gap10 center mb8">
+      <div style="width:44px;height:44px;border-radius:22px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:22px">${st.emoji}</div>
+      <div><div style="font-size:18px;font-weight:800;color:#fff">${st.kr}</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.75)">${st.en}</div></div></div>
+      <div class="row gap6 wrap">
+      ${(st.lines||[]).map(l=>`<span style="background:${l.c};color:#fff;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">${l.n}</span>`).join('')}
+      </div>`;
+    detCard.appendChild(hdr);
+
+    // Exits
+    detCard.innerHTML+=`<div class="card-title">🚪 EXITS</div>`;
+    const exitGrid=div('exit-grid');
+    (st.exits||[]).forEach(e=>{
+      const ec=div('exit-card');
+      ec.innerHTML=`
+        <div class="row gap8 center mb6">
+          <div style="width:28px;height:28px;border-radius:14px;background:${st.color};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#fff;flex-shrink:0">${e.num}</div>
+          <div style="font-size:13px;font-weight:700;color:var(--navy)">${e.dest}</div>
+        </div>
+        <div style="font-size:11px;color:var(--gray4);margin-bottom:6px">${e.detail}</div>
+        <span style="background:var(--blue-light);color:var(--blue);border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700">${e.tag}</span>`;
+      exitGrid.appendChild(ec);
+    });
+    detCard.appendChild(exitGrid);
+
+    const mapBtn=btn('btn-primary','🗺️ Open in KakaoMap',()=>{
+      window.open(`https://map.kakao.com/?q=${encodeURIComponent(st.kr+'역')}`, '_blank');
+    });
+    detCard.appendChild(mapBtn);
+    frag.push(detCard);
+  } else {
+    // Station grid
+    const grid=div('station-grid');
+    Object.entries(STATIONS).forEach(([id,st])=>{
+      const c=div('station-card');
+      c.innerHTML=`
+        <div style="border-top:3px solid ${st.color};border-radius:4px 4px 0 0;margin:-14px -14px 10px;padding:10px 14px;background:${st.color}15">
+          <span style="font-size:22px">${st.emoji}</span>
+        </div>
+        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:3px">${st.kr}</div>
+        <div style="font-size:11px;color:var(--gray3);margin-bottom:8px">${st.en}</div>
+        <div class="row gap4 wrap">
+          ${(st.lines||[]).map(l=>`<span style="background:${l.c};color:#fff;border-radius:10px;padding:2px 7px;font-size:10px;font-weight:700">${l.n}</span>`).join('')}
+        </div>`;
+      c.onclick=()=>setState({subwayStation:st});
+      grid.appendChild(c);
+    });
+    frag.push(grid);
+
+    // Tips
+    const tipCard=div('card');
+    tipCard.innerHTML=`<div class="card-title">💡 SUBWAY TIPS</div>`;
+    [{icon:'💳',title:'T-Money Card',sub:'Works on subway, bus and taxi. Buy at GS25/CU'},
+      {icon:'✈️',title:'Airport Railroad',sub:'Incheon Airport ↔ Seoul Station: 43min, ₩9,500'},
+      {icon:'📶',title:'Free WiFi',sub:'Connect to Seoul_Subway_WiFi on all lines'},
+      {icon:'♿',title:'Accessibility',sub:'Elevator exits marked with ♿ symbol'},
+    ].forEach(item=>{
+      const row=div('row gap10 center',null,{padding:'10px 0',borderBottom:'1px solid var(--gray1)'});
+      row.innerHTML=`<span style="font-size:24px">${item.icon}</span>
+        <div><div style="font-size:14px;font-weight:700;color:var(--navy)">${item.title}</div>
+        <div style="font-size:12px;color:var(--gray4);margin-top:2px">${item.sub}</div></div>`;
+      tipCard.appendChild(row);
+    });
+    frag.push(tipCard);
+  }
+  return frag;
+}
+
+function doSubwaySearch(){
+  const q=(state.subwayInput||'').toLowerCase().trim();
+  if(!q) return;
+  const found=Object.values(STATIONS).find(st=>
+    st.kr.includes(q)||st.en.toLowerCase().includes(q)||
+    Object.keys(STATIONS).find(id=>id.includes(q))
+  );
+  setState({subwayStation:found||null});
+  if(!found) alert('Station not found. Try: Hongdae, 명동, Gangnam, Haeundae...');
+}
+
+// ─── DISCOVER TAB ───
+const DISCOVER_SPOTS=[
+  {id:'1',emoji:'🍜',name:'Yoogane Dak Galbi',kr:'유가네 닭갈비',cat:'food',rating:4.8,open:true,badge:'Famous',dist:'120m',tip:'Order the fried rice at the end!'},
+  {id:'2',emoji:'☕',name:'Cafe Bora',kr:'카페 보라',cat:'cafe',rating:4.9,open:true,badge:'Instagram',dist:'200m',tip:'Purple taro latte is the must-order'},
+  {id:'3',emoji:'🏯',name:'Gyeongbokgung Palace',kr:'경복궁',cat:'attraction',rating:4.9,open:true,badge:'UNESCO',dist:'2.1km',tip:'Free entry with Hanbok rental'},
+  {id:'4',emoji:'🍻',name:'Craftworks Taproom',kr:'크래프트웍스',cat:'bar',rating:4.7,open:false,badge:'Craft Beer',dist:'350m',tip:'Best craft beer selection in Hongdae'},
+  {id:'5',emoji:'👜',name:'Ader Error',kr:'아더에러',cat:'shopping',rating:4.4,open:true,badge:'K-Brand',dist:'520m',tip:'Iconic Korean fashion brand'},
+  {id:'6',emoji:'🎭',name:'Sangsangmadang',kr:'상상마당',cat:'attraction',rating:4.6,open:true,badge:'Art Hub',dist:'650m',tip:'Best indie art & culture center'},
+  {id:'7',emoji:'🍦',name:'Softree Ice Cream',kr:'소프트리',cat:'cafe',rating:4.7,open:true,badge:'Must Try',dist:'90m',tip:'Honeycomb soft serve is legendary'},
+  {id:'8',emoji:'🌮',name:'Bao Bar',kr:'바오바',cat:'food',rating:4.5,open:true,badge:'Fusion',dist:'180m',tip:'Korean-Chinese fusion bao buns'},
+];
+
+function renderDiscoverTab(){
+  const frag=[];
+  const header=div('card');
+  header.innerHTML=`
+    <div class="row gap8 center mb4">
+      <div style="width:40px;height:40px;background:var(--red-pale);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px">📍</div>
+      <div><div style="font-size:15px;font-weight:800;color:var(--navy)">Near Hongdae</div>
+      <div style="font-size:12px;color:var(--gray3)">Top picks within 1km</div></div>
+    </div>`;
+
+  const filters=['All','🍜 Food','☕ Cafes','🏛️ Sights','🍻 Bar','🛍️ Shop'];
+  const filterRow=div('filter-row');
+  filters.forEach((f,i)=>{
+    const cat=i===0?'All':['food','cafe','attraction','bar','shopping'][i-1];
+    const active=state.discoverFilter===f;
+    const p=h('button',{className:'filter-pill'+(active?' active':''),
+      onClick:()=>setState({discoverFilter:f})},f);
+    filterRow.appendChild(p);
+  });
+  header.appendChild(filterRow);
+  frag.push(header);
+
+  DISCOVER_SPOTS.filter(s=>{
+    if(state.discoverFilter==='All') return true;
+    if(state.discoverFilter.includes('Food')) return s.cat==='food';
+    if(state.discoverFilter.includes('Cafes')) return s.cat==='cafe';
+    if(state.discoverFilter.includes('Sights')) return s.cat==='attraction';
+    if(state.discoverFilter.includes('Bar')) return s.cat==='bar';
+    if(state.discoverFilter.includes('Shop')) return s.cat==='shopping';
+    return true;
+  }).forEach(spot=>{
+    const card=div('spot-card');
+    const bgColors={food:'#FFF5F5',cafe:'#F0F9FF',attraction:'#FFF8EC',bar:'#F3EEFF',shopping:'#F0FFF4'};
+    card.innerHTML=`
+      <div class="spot-header" style="background:${bgColors[spot.cat]||'#F7F8FA'}">
+        <span style="font-size:48px">${spot.emoji}</span>
+        <span style="position:absolute;top:8px;right:8px;background:var(--red);color:#fff;border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700">${spot.badge}</span>
+        <span style="position:absolute;top:8px;left:8px;background:${spot.open?'var(--green)':'var(--gray3)'};color:#fff;border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700">${spot.open?'Open':'Closed'}</span>
+      </div>
+      <div style="padding:12px">
+        <div class="row sb center mb4">
+          <div style="font-size:15px;font-weight:700;color:var(--navy)">${spot.name}</div>
+          <div style="font-size:12px;font-weight:700;color:var(--gold)">⭐ ${spot.rating}</div>
+        </div>
+        <div style="font-size:12px;color:var(--gray3);margin-bottom:8px">${spot.kr} · ${spot.dist}</div>
+        <div style="font-size:12px;color:var(--gray4);background:var(--gold-light);border-radius:8px;padding:8px">💡 ${spot.tip}</div>
+      </div>`;
+    frag.push(card);
+  });
+  return frag;
+}
+
+// ─── DRAMA ROUTE TAB ───
+function renderDramaTab(){
+  const frag=[];
+
+  if(!state.selectedDrama){
+    // Banner
+    const banner=div('bg-navy br14',null,{padding:'18px',marginBottom:'16px'});
+    banner.innerHTML=`
+      <div style="font-size:11px;font-weight:700;color:var(--gold);letter-spacing:2px;margin-bottom:6px">🎬 K-DRAMA FILMING ROUTES</div>
+      <div style="font-size:20px;font-weight:800;color:#fff;line-height:1.4;margin-bottom:6px">Follow the footsteps<br>of your favorite dramas</div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.6)">Real filming locations · Maps · Scene info · Travel tips</div>`;
+    frag.push(banner);
+
+    // Drama cards
+    Object.values(DRAMA_ROUTES).forEach(drama=>{
+      const card=div('drama-card cursor');
+      card.innerHTML=`
+        <div style="background:${drama.color};padding:16px">
+          <div class="row gap10 center mb8">
+            <span style="font-size:36px">${drama.emoji}</span>
+            <div style="flex:1">
+              <div style="font-size:22px;font-weight:900;color:#fff">${drama.title}</div>
+              <div style="font-size:13px;color:rgba(255,255,255,0.8)">${drama.titleEn}</div>
+            </div>
+            <span style="background:rgba(255,255,255,0.2);color:#fff;border-radius:8px;padding:4px 9px;font-size:12px;font-weight:700">${drama.year}</span>
+          </div>
+          <div class="row gap6">
+            <span style="background:rgba(255,255,255,0.15);color:#fff;border-radius:20px;padding:3px 10px;font-size:11px">🎭 ${drama.genre}</span>
+            <span style="background:rgba(255,255,255,0.15);color:#fff;border-radius:20px;padding:3px 10px;font-size:11px">📍 ${drama.stops.length} locations</span>
+          </div>
+        </div>
+        <div style="padding:14px">
+          <div style="font-size:12px;color:var(--gray3);font-weight:600;margin-bottom:6px">🎬 ${drama.cast}</div>
+          <div style="font-size:13px;color:var(--gray4);line-height:1.6;margin-bottom:12px">${drama.description}</div>
+          <div style="background:${drama.colorLight};border-radius:10px;padding:10px;margin-bottom:12px">
+            <div style="font-size:11px;font-weight:700;color:${drama.color};margin-bottom:8px;letter-spacing:0.5px">📍 FILMING LOCATIONS</div>
+            ${drama.stops.slice(0,3).map(s=>`
+              <div class="row gap8 center" style="margin-bottom:5px">
+                <div style="width:22px;height:22px;border-radius:11px;background:${drama.color};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#fff;flex-shrink:0">${s.order}</div>
+                <span style="font-size:12px;font-weight:600;color:var(--navy);flex:1">${s.name}</span>
+                <span style="background:${s.tagColor}22;color:${s.tagColor};border-radius:6px;padding:2px 6px;font-size:10px;font-weight:700">${s.tag}</span>
+              </div>`).join('')}
+            <div style="font-size:11px;color:var(--gray3);margin-top:4px">+${drama.stops.length-3} more locations →</div>
+          </div>
+          <div style="font-size:11px;color:var(--gray4);margin-bottom:12px">🎵 OST: ${drama.ost[0]}, ${drama.ost[1]}</div>
+        </div>`;
+      const viewBtn=btn('btn-primary','🗺️ View Full Route →',()=>setState({selectedDrama:drama}));
+      viewBtn.style.cssText='margin:0 14px 14px;width:calc(100% - 28px)';
+      viewBtn.style.background=drama.color;
+      card.appendChild(viewBtn);
+      card.querySelector('.drama-card div:first-child').onclick=()=>setState({selectedDrama:drama});
+      frag.push(card);
+    });
+
+    // Coming soon
+    ['사랑의 불시착','이태원클라쓰','킹덤','더 글로리','오징어게임'].forEach(title=>{
+      const c=div('card row gap12 center',null,{opacity:'0.6',marginBottom:'10px'});
+      c.innerHTML=`<span style="font-size:28px">🎬</span>
+        <div style="flex:1">
+          <div style="font-size:15px;font-weight:700;color:var(--navy)">${title}</div>
+          <div style="font-size:12px;color:var(--gray3)">Route coming soon...</div>
+        </div>
+        <span style="background:var(--gray1);color:var(--gray4);border-radius:8px;padding:4px 8px;font-size:11px;font-weight:600">준비중</span>`;
+      frag.push(c);
+    });
+
+  } else if(!state.selectedStop){
+    const drama=state.selectedDrama;
+    // Back button
+    const back=btn('','← All Dramas',()=>setState({selectedDrama:null,selectedStop:null}));
+    back.style.cssText='background:transparent;border:none;color:var(--blue);font-size:14px;font-weight:600;cursor:pointer;padding:0;margin-bottom:14px;font-family:inherit;';
+    frag.push(back);
+
+    // Drama header
+    const hdr=div('',null,{background:drama.color,borderRadius:'16px',padding:'18px',marginBottom:'16px'});
+    hdr.innerHTML=`
+      <div class="row gap12 center mb10">
+        <span style="font-size:40px">${drama.emoji}</span>
+        <div style="flex:1">
+          <div style="font-size:26px;font-weight:900;color:#fff">${drama.title}</div>
+          <div style="font-size:14px;color:rgba(255,255,255,0.8)">${drama.titleEn} · ${drama.year}</div>
+        </div>
+      </div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.85);line-height:1.6;margin-bottom:10px">${drama.description}</div>`;
+    frag.push(hdr);
+
+    // Travel tips
+    const tipBox=div('',null,{background:'var(--gold-light)',border:'1.5px solid #FBDFA0',borderRadius:'12px',padding:'14px',marginBottom:'16px'});
+    tipBox.innerHTML=`<div style="font-size:11px;font-weight:700;color:#8A6010;margin-bottom:8px;letter-spacing:0.5px">💡 TRAVEL TIPS FOR THIS ROUTE</div>
+      ${drama.travel_tips.map(tip=>`<div style="font-size:12px;color:var(--navy);line-height:1.7;margin-bottom:2px">${tip}</div>`).join('')}`;
+    frag.push(tipBox);
+
+    // OST
+    const ostBox=div('',null,{background:'var(--purple-light)',border:'1.5px solid #D4C0FF',borderRadius:'12px',padding:'14px',marginBottom:'16px'});
+    ostBox.innerHTML=`<div style="font-size:11px;font-weight:700;color:var(--purple);margin-bottom:8px;letter-spacing:0.5px">🎵 SOUNDTRACK</div>
+      ${drama.ost.map((s,i)=>`<div style="font-size:13px;color:var(--navy);margin-bottom:4px"><span style="color:var(--purple);font-weight:700">${i+1}.</span> ${s}</div>`).join('')}`;
+    frag.push(ostBox);
+
+    // Stops
+    const stopsTitle=div('card-title','📍 ALL FILMING LOCATIONS',{marginBottom:'10px'});
+    frag.push(stopsTitle);
+
+    drama.stops.forEach(stop=>{
+      const c=div('stop-card cursor');
+      c.innerHTML=`
+        <div class="row gap10">
+          <div style="width:32px;height:32px;border-radius:16px;background:${drama.color};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#fff;flex-shrink:0;margin-top:2px">${stop.order}</div>
+          <div style="flex:1">
+            <div class="row gap6 center mb4">
+              <div style="font-size:15px;font-weight:800;color:var(--navy);flex:1">${stop.name}</div>
+              <span style="background:${stop.tagColor}22;color:${stop.tagColor};border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700">${stop.tag}</span>
+            </div>
+            <div style="font-size:12px;color:var(--gray3);margin-bottom:6px">${stop.nameKr}</div>
+            <div style="background:${drama.colorLight};border-radius:8px;padding:8px;margin-bottom:6px">
+              <div style="font-size:12px;color:${drama.color};font-weight:600;line-height:1.6">🎬 ${stop.scene}</div>
+            </div>
+            <div style="font-size:11px;color:var(--gray3)">🚇 ${stop.transport}</div>
+          </div>
+        </div>
+        <div class="row gap8" style="margin-top:10px">
+          <button onclick="window.open('https://map.kakao.com/?q='+encodeURIComponent('${stop.address.replace(/'/g,"\\'")}'),'_blank')"
+            style="flex:1;background:#FEE500;color:#3C1E1E;border:none;border-radius:8px;padding:9px;font-size:12px;font-weight:700;cursor:pointer">🗺️ KakaoMap</button>
+        </div>`;
+      c.onclick=(e)=>{ if(e.target.tagName!=='BUTTON') setState({selectedStop:stop}); };
+      frag.push(c);
+    });
+
+  } else {
+    const stop=state.selectedStop;
+    const drama=state.selectedDrama;
+
+    const back=btn('','← '+drama.title+' Route',()=>setState({selectedStop:null}));
+    back.style.cssText='background:transparent;border:none;color:var(--blue);font-size:14px;font-weight:600;cursor:pointer;padding:0;margin-bottom:14px;font-family:inherit;';
+    frag.push(back);
+
+    // Stop header
+    const hdr=div('',null,{background:drama.color,borderRadius:'16px',padding:'18px',marginBottom:'14px'});
+    hdr.innerHTML=`
+      <div class="row gap10 center mb10">
+        <div style="width:40px;height:40px;border-radius:20px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex-shrink:0;text-align:center">Stop<br>${stop.order}</div>
+        <div style="flex:1">
+          <div style="font-size:20px;font-weight:900;color:#fff">${stop.name}</div>
+          <div style="font-size:13px;color:rgba(255,255,255,0.75)">${stop.nameKr}</div>
+        </div>
+        <span style="background:${stop.tagColor};color:#fff;border-radius:8px;padding:4px 9px;font-size:11px;font-weight:700">${stop.tag}</span>
+      </div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.7)">${stop.addressEn}</div>`;
+    frag.push(hdr);
+
+    [{bg:drama.colorLight,bc:drama.color+'40',lbl:'🎬 DRAMA SCENE',content:`<div style="font-size:15px;font-weight:700;color:var(--navy);line-height:1.5;margin-bottom:6px">${stop.scene}</div><div style="font-size:13px;color:var(--gray4)">${stop.scene_kr}</div>`},
+      {bg:'var(--navy)',bc:'transparent',lbl:'🚕 SHOW TO TAXI DRIVER',content:`<div style="font-size:18px;font-weight:800;color:#fff;line-height:1.4;margin-bottom:4px">${stop.address}</div><div style="font-size:12px;color:rgba(255,255,255,0.5)">${stop.addressEn}</div>`},
+      {bg:'#fff',bc:'var(--gray1)',lbl:'🚇 HOW TO GET THERE',content:`<div style="font-size:14px;font-weight:600;color:var(--navy)">${stop.transport}</div>`},
+      {bg:'var(--gold-light)',bc:'#FBDFA0',lbl:'💡 TRAVELER\'S TIP',content:`<div style="font-size:14px;color:var(--navy);line-height:1.6">${stop.tip}</div>`},
+      {bg:'var(--purple-light)',bc:'#D4C0FF',lbl:'📸 PHOTO TIP',content:`<div style="font-size:14px;color:var(--navy);line-height:1.6">${stop.photo_tip}</div>`},
+      {bg:'var(--green-light)',bc:'#9FE1CB',lbl:'🕐 VISITING HOURS',content:`<div style="font-size:14px;font-weight:600;color:var(--navy)">${stop.open}</div>`},
+    ].forEach(box=>{
+      const d=div('',null,{background:box.bg,border:`1.5px solid ${box.bc}`,borderRadius:'14px',padding:'14px',marginBottom:'12px'});
+      d.innerHTML=`<div style="font-size:11px;font-weight:700;color:var(--gray4);letter-spacing:1px;margin-bottom:8px;text-transform:uppercase">${box.lbl}</div>${box.content}`;
+      frag.push(d);
+    });
+
+    // Map buttons
+    const mapBtns=div('row gap8',null,{marginBottom:'8px'});
+    const addr=stop.address;
+    [{label:'🗺️ KakaoMap',bg:'#FEE500',tc:'#3C1E1E',url:`https://map.kakao.com/?q=${encodeURIComponent(addr)}`},
+      {label:'🗺️ Naver',bg:'#03C75A',tc:'#fff',url:`https://map.naver.com/v5/search/${encodeURIComponent(addr)}`},
+      {label:'🗺️ Google',bg:'#1E6FE8',tc:'#fff',url:`https://maps.google.com/?q=${encodeURIComponent(addr)}`},
+    ].forEach(m=>{
+      const b=h('button',{style:{flex:'1',background:m.bg,color:m.tc,border:'none',borderRadius:'10px',padding:'11px 4px',fontSize:'12px',fontWeight:'700',cursor:'pointer'},onClick:()=>window.open(m.url,'_blank')},m.label);
+      mapBtns.appendChild(b);
+    });
+    frag.push(mapBtns);
+
+    // Prev/Next
+    const nav=div('row gap8');
+    if(stop.order>1){
+      const pb=btn('',`← Stop ${stop.order-1}`,()=>setState({selectedStop:drama.stops[stop.order-2]}));
+      pb.style.cssText=`flex:1;background:#fff;border:1.5px solid var(--gray2);border-radius:10px;padding:12px;font-size:12px;font-weight:700;color:var(--navy);cursor:pointer;font-family:inherit;`;
+      nav.appendChild(pb);
+    }
+    if(stop.order<drama.stops.length){
+      const nb=btn('',`Stop ${stop.order+1} →`,()=>setState({selectedStop:drama.stops[stop.order]}));
+      nb.style.cssText=`flex:1;background:${drama.color};border:none;border-radius:10px;padding:12px;font-size:12px;font-weight:700;color:#fff;cursor:pointer;font-family:inherit;`;
+      nav.appendChild(nb);
+    }
+    frag.push(nav);
+  }
+  return frag;
+}
+
+// ─── TRAVELERS TAB ───
+function renderTravelersTab(){
+  const frag=[];
+
+  // AI INTERPRETER HEADER
+  const aiHdr=div('bg-navy br14',null,{padding:'16px',marginBottom:'14px'});
+  aiHdr.innerHTML=`<div class="row gap8 center">
+    <span style="font-size:22px">🤖</span>
+    <div>
+      <div style="font-size:16px;font-weight:800;color:#fff">AI Live Interpreter</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.55)">Powered by Claude AI · 6 languages → Korean</div>
+    </div>
+  </div>`;
+  frag.push(aiHdr);
+
+  // Mode tabs
+  const modeTabs=div('mode-tabs');
+  [{id:'translate',icon:'💬',label:'Translate'},{id:'menu',icon:'🍜',label:'Menu'},{id:'convo',icon:'🗣️',label:'Conversation'}].forEach(m=>{
+    const b=h('button',{className:'mode-tab'+(state.transTab===m.id?' active':''),
+      onClick:()=>setState({transTab:m.id,transResult:null,transError:'',transInput:''})},
+      `<div style="font-size:16px">${m.icon}</div><div style="font-size:10px;font-weight:${state.transTab===m.id?'800':'500'};color:${state.transTab===m.id?'var(--navy)':'var(--gray3)'};margin-top:2px">${m.label}</div>`);
+    modeTabs.appendChild(b);
+  });
+  frag.push(modeTabs);
+
+  const LANG_OPTS=[{code:'auto',label:'Auto',flag:'🌐'},{code:'en',label:'English',flag:'🇺🇸'},{code:'ja',label:'日本語',flag:'🇯🇵'},{code:'cn',label:'中文',flag:'🇨🇳'},{code:'es',label:'Español',flag:'🇪🇸'},{code:'ar',label:'العربية',flag:'🇸🇦'},{code:'ko',label:'한국어',flag:'🇰🇷'}];
+
+  // ── TRANSLATE ──
+  if(state.transTab==='translate'){
+    const card=div('card');
+    card.innerHTML=`<div class="card-title">💬 TEXT TRANSLATOR</div>`;
+
+    const chips=div('lang-chips',null,{marginBottom:'10px'});
+    LANG_OPTS.forEach(l=>{
+      const c=h('button',{className:'lang-chip'+(state.transFromLang===l.code?' active':''),
+        onClick:()=>setState({transFromLang:l.code})},l.flag+' '+l.label);
+      chips.appendChild(c);
+    });
+    card.appendChild(chips);
+
+    if(state.transListening){
+      card.appendChild(div('listening-bar',`<span class="spinner" style="border-top-color:var(--red);border-color:rgba(232,57,42,0.3)"></span><span style="font-size:13px;font-weight:700;color:var(--red);flex:1">🎤 Listening... Speak now!</span>`));
+    }
+
+    const inputWrap=div('',null,{position:'relative',marginBottom:'10px'});
+    const ta=textarea_('',`Type or speak in any language...\n\ne.g. "Where is the bathroom?"\ne.g. "I am allergic to peanuts"`,state.transInput,v=>{ state.transInput=v; },4);
+    ta.style.paddingRight='50px';
+    const vb=h('button',{style:{position:'absolute',bottom:'10px',right:'10px',width:'36px',height:'36px',borderRadius:'50%',border:'none',background:state.transListening?'var(--red)':'var(--navy)',cursor:'pointer',fontSize:'16px'},
+      onClick:()=>startVoiceRecognition({onResult:v=>setState({transInput:v}),onListening:v=>setState({transListening:v}),lang:state.transFromLang})
+    },state.transListening?'⏹️':'🎤');
+    inputWrap.appendChild(ta);
+    inputWrap.appendChild(vb);
+    card.appendChild(inputWrap);
+
+    const sb=btn('btn-primary btn-blue',state.transLoading?'<span class="spinner"></span>  Translating...':'🔤 Translate to Korean',async()=>{
+      if(!state.transInput.trim()) return;
+      if(!checkApiKey()) return;
+      setState({transLoading:true,transResult:null,transError:''});
+      try{
+        const sys=`You are an expert Korean travel interpreter. Translate text to Korean.
+Return ONLY valid JSON:
+{"korean":"Korean translation","romanization":"pronunciation guide","detected_language":"input language","context":"1-sentence travel context","usage_tip":"practical tip for using this in Korea","related_phrases":["phrase1","phrase2"]}`;
+        const raw=await callClaude(sys,state.transInput,600);
+        setState({transResult:JSON.parse(raw.replace(/```json|```/g,'').trim()),transLoading:false});
+      }catch(e){ setState({transError:'Translation failed. Check your API key.',transLoading:false}); }
+    },state.transLoading);
+    card.appendChild(sb);
+
+    if(state.transError) card.appendChild(div('error-box',`<div style="font-size:12px;color:var(--red)">${state.transError}</div>`));
+
+    if(state.transResult&&!state.transResult.type){
+      const r=state.transResult;
+      card.appendChild(div('',`
+        <div style="background:var(--green-light);border:1.5px solid var(--green);border-radius:12px;padding:14px;margin-top:12px;margin-bottom:10px">
+          <div style="font-size:11px;font-weight:700;color:var(--green);letter-spacing:1px;margin-bottom:6px">🇰🇷 KOREAN</div>
+          <div style="font-size:22px;font-weight:800;color:var(--navy);line-height:1.4;margin-bottom:4px">${r.korean||''}</div>
+          <div style="font-size:14px;color:var(--gray4);font-style:italic">${r.romanization||''}</div>
+        </div>
+        <div class="row gap8 mb10">
+          <div style="flex:1;background:var(--blue-light);border-radius:10px;padding:10px">
+            <div style="font-size:10px;color:var(--blue);font-weight:700;margin-bottom:2px">DETECTED</div>
+            <div style="font-size:13px;font-weight:600;color:var(--navy)">${r.detected_language||''}</div>
+          </div>
+          <div style="flex:2;background:var(--gray0);border-radius:10px;padding:10px">
+            <div style="font-size:10px;color:var(--gray4);font-weight:700;margin-bottom:2px">CONTEXT</div>
+            <div style="font-size:12px;color:var(--navy);line-height:1.5">${r.context||''}</div>
+          </div>
+        </div>
+        <div style="background:var(--gold-light);border:1px solid #FBDFA0;border-radius:10px;padding:12px;margin-bottom:10px">
+          <div style="font-size:10px;font-weight:700;color:#8A6010;margin-bottom:4px">💡 TRAVEL TIP</div>
+          <div style="font-size:13px;color:var(--navy);line-height:1.6">${r.usage_tip||''}</div>
+        </div>
+        ${(r.related_phrases||[]).map(p=>`<div style="background:var(--gray0);border:1px solid var(--gray1);border-radius:8px;padding:10px;margin-bottom:6px;font-size:14px;color:var(--navy);font-weight:600">${p}</div>`).join('')}
+      `));
+    }
+    frag.push(card);
+  }
+
+  // ── MENU ──
+  if(state.transTab==='menu'){
+    const card=div('card');
+    card.innerHTML=`<div class="card-title">🍜 MENU INTERPRETER</div>
+      <div style="background:var(--blue-light);border-radius:10px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--blue);line-height:1.6">
+        📷 메뉴판의 한국어 텍스트를 입력해 주세요.<br>예) 삼겹살, 된장찌개, 냉면, 비빔밥
+      </div>`;
+
+    if(state.transListening){
+      card.appendChild(div('listening-bar',`<span class="spinner" style="border-top-color:var(--red);border-color:rgba(232,57,42,0.3)"></span><span style="font-size:13px;font-weight:700;color:var(--red)">🎤 Listening in Korean...</span>`));
+    }
+
+    const iw=div('',null,{position:'relative',marginBottom:'10px'});
+    const ta=textarea_('',`Type Korean menu items...\n예) 삼겹살 18,000\n예) 된장찌개 9,000\n예) 냉면 12,000`,state.transInput,v=>{ state.transInput=v; },4);
+    ta.style.paddingRight='50px';
+    const vb=h('button',{style:{position:'absolute',bottom:'10px',right:'10px',width:'36px',height:'36px',borderRadius:'50%',border:'none',background:state.transListening?'var(--red)':'var(--green)',cursor:'pointer',fontSize:'16px'},
+      onClick:()=>startVoiceRecognition({onResult:v=>setState({transInput:prev=>prev?prev+'\n'+v:v}),onListening:v=>setState({transListening:v}),lang:'ko'})
+    },state.transListening?'⏹️':'🎤');
+    iw.appendChild(ta); iw.appendChild(vb);
+    card.appendChild(iw);
+
+    const sb=btn('btn-primary btn-green',state.transLoading?'<span class="spinner"></span>  Analyzing...':'🍽️ Analyze Menu',async()=>{
+      if(!state.transInput.trim()) return;
+      if(!checkApiKey()) return;
+      setState({transLoading:true,transResult:null,transError:''});
+      try{
+        const sys=`You are a Korean food expert helping tourists understand menus.
+Return ONLY valid JSON:
+{"items":[{"korean":"name","english":"English name","price_note":"price","description":"what it is","spicy_level":"mild/medium/hot/very hot/not spicy","allergen_note":"allergens","must_try":true/false}],"restaurant_type":"type","ordering_tip":"tip"}`;
+        const raw=await callClaude(sys,`Menu: ${state.transInput}`,1000);
+        const parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());
+        setState({transResult:{type:'menu',...parsed},transLoading:false});
+      }catch(e){ setState({transError:'Menu analysis failed.',transLoading:false}); }
+    },state.transLoading);
+    card.appendChild(sb);
+
+    if(state.transError) card.appendChild(div('error-box',`<div style="font-size:12px;color:var(--red)">${state.transError}</div>`));
+
+    if(state.transResult?.type==='menu'){
+      const r=state.transResult;
+      const summary=div('',null,{background:'var(--green-light)',borderRadius:'10px',padding:'10px',margin:'12px 0 10px'});
+      summary.innerHTML=`<div style="font-size:12px;font-weight:700;color:var(--green)">🏪 ${r.restaurant_type||''}</div>
+        <div style="font-size:12px;color:var(--gray4);margin-top:3px">💡 ${r.ordering_tip||''}</div>`;
+      card.appendChild(summary);
+      (r.items||[]).forEach(item=>{
+        const ic=div('',null,{background:'#fff',borderRadius:'12px',border:`1.5px solid ${item.must_try?'var(--gold)':'var(--gray1)'}`,padding:'12px',marginBottom:'8px'});
+        ic.innerHTML=`
+          <div class="row sb center mb6">
+            <div><div style="font-size:16px;font-weight:800;color:var(--navy)">${item.korean}</div>
+            <div style="font-size:13px;color:var(--blue);font-weight:600">${item.english}</div></div>
+            <div style="text-align:right">
+              ${item.must_try?'<div style="background:var(--gold);color:var(--navy);border-radius:6px;padding:2px 7px;font-size:10px;font-weight:800;margin-bottom:4px">⭐ MUST TRY</div>':''}
+              ${item.price_note?`<div style="font-size:13px;font-weight:700;color:var(--green)">${item.price_note}</div>`:''}
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--gray4);line-height:1.6;margin-bottom:6px">${item.description}</div>
+          <div class="row gap6 wrap">
+            <span style="background:${item.spicy_level?.includes('hot')?'var(--red-pale)':'var(--gray0)'};color:${item.spicy_level?.includes('hot')?'var(--red)':'var(--gray4)'};border-radius:6px;padding:3px 7px;font-size:11px">🌶️ ${item.spicy_level||''}</span>
+            ${item.allergen_note?`<span style="background:#FFF8E1;color:#F57F17;border-radius:6px;padding:3px 7px;font-size:11px">⚠️ ${item.allergen_note}</span>`:''}
+          </div>`;
+        card.appendChild(ic);
+      });
+    }
+    frag.push(card);
+  }
+
+  // ── CONVERSATION ──
+  if(state.transTab==='convo'){
+    const card=div('card');
+    card.innerHTML=`<div class="card-title">🗣️ CONVERSATION HELPER</div>
+      <div style="background:var(--purple-light);border-radius:10px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--purple);line-height:1.6">
+        직원이나 현지인과 대화할 때 필요한 말을 입력하면<br>한국어로 말하는 방법과 상대방 답변까지 알려드려요!
+      </div>`;
+
+    // Quick examples
+    if(state.convoHistory.length===0){
+      const exRow=div('',null,{overflowX:'auto',marginBottom:'12px',whiteSpace:'nowrap'});
+      const exInner=div('row gap6',null,{display:'inline-flex'});
+      ['How much is this?','I am vegetarian','No spicy please','Where is the restroom?','Can I pay by card?','Take out please'].forEach(ex=>{
+        const b=h('button',{style:{background:'var(--blue-light)',border:'1px solid rgba(30,111,232,0.27)',borderRadius:'20px',padding:'7px 12px',fontSize:'12px',color:'var(--blue)',fontWeight:'600',cursor:'pointer',whiteSpace:'nowrap',fontFamily:'inherit'},
+          onClick:()=>setState({convoInput:ex})},ex);
+        exInner.appendChild(b);
+      });
+      exRow.appendChild(exInner);
+      card.appendChild(exRow);
+    }
+
+    // Conversation history
+    state.convoHistory.forEach(msg=>{
+      if(msg.role==='user'){
+        const w=div('convo-msg-user');
+        w.innerHTML=`<div class="bubble-user">${msg.text}</div>`;
+        card.appendChild(w);
+      } else if(msg.parsed){
+        const p=msg.parsed;
+        const w=div('convo-msg-ai');
+        const bubble=div('bubble-ai');
+        bubble.innerHTML=`
+          <div style="background:var(--green-light);border-radius:8px;padding:10px;margin-bottom:8px">
+            <div style="font-size:10px;font-weight:700;color:var(--green);margin-bottom:4px">🇰🇷 SAY THIS</div>
+            <div style="font-size:17px;font-weight:800;color:var(--navy)">${p.say_in_korean||''}</div>
+            <div style="font-size:12px;color:var(--gray4);font-style:italic;margin-top:2px">${p.romanization||''}</div>
+          </div>
+          <div style="background:var(--gray1);border-radius:8px;padding:10px;margin-bottom:6px">
+            <div style="font-size:10px;font-weight:700;color:var(--gray4);margin-bottom:4px">💬 THEY MIGHT SAY</div>
+            <div style="font-size:14px;font-weight:600;color:var(--navy)">${p.typical_reply||''}</div>
+            <div style="font-size:12px;color:var(--blue);margin-top:2px">→ ${p.reply_meaning||''}</div>
+          </div>
+          <div style="font-size:11px;color:var(--gray4)">💡 ${p.follow_up_tip||''}</div>`;
+        w.appendChild(bubble);
+        card.appendChild(w);
+      }
+    });
+
+    if(state.convoLoading){
+      const w=div('convo-msg-ai');
+      w.innerHTML=`<div class="bubble-ai"><span class="spinner spinner-dark"></span></div>`;
+      card.appendChild(w);
+    }
+
+    if(state.convoListening){
+      card.appendChild(div('listening-bar',`<span class="spinner" style="border-top-color:var(--red);border-color:rgba(232,57,42,0.3)"></span><span style="font-size:13px;font-weight:700;color:var(--red)">🎤 Listening... Say what you want!</span>`));
+    }
+
+    // Input row
+    const inputRow=div('row gap8',null,{alignItems:'flex-end',marginTop:'10px'});
+    const inp=textarea_('',`Type or speak what you want to say...`,state.convoInput,v=>{ state.convoInput=v; },2);
+    inp.style.flex='1';
+    inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendConvo();} });
+
+    const vb=h('button',{style:{width:'44px',height:'44px',borderRadius:'10px',border:'none',background:state.convoListening?'var(--red)':'var(--purple)',cursor:'pointer',fontSize:'20px',flexShrink:'0'},
+      onClick:()=>startVoiceRecognition({onResult:v=>setState({convoInput:v}),onListening:v=>setState({convoListening:v}),lang:'auto'})
+    },state.convoListening?'⏹️':'🎤');
+
+    const sb=h('button',{style:{width:'44px',height:'44px',borderRadius:'10px',border:'none',background:state.convoLoading?'var(--gray2)':'var(--blue)',cursor:'pointer',fontSize:'18px',flexShrink:'0'},
+      onClick:sendConvo,disabled:state.convoLoading},'➤');
+
+    inputRow.appendChild(inp);
+    inputRow.appendChild(vb);
+    inputRow.appendChild(sb);
+    card.appendChild(inputRow);
+
+    if(state.convoHistory.length>0){
+      const clr=h('button',{style:{width:'100%',background:'transparent',border:'none',color:'var(--gray3)',fontSize:'12px',cursor:'pointer',marginTop:'10px',fontFamily:'inherit'},onClick:()=>setState({convoHistory:[]})}, '🗑️ Clear conversation');
+      card.appendChild(clr);
+    }
+    frag.push(card);
+  }
+
+  // ─ TODAY'S STORY ─
+  const storyHdr=div('bg-navy br14',null,{padding:'16px',marginBottom:'14px'});
+  storyHdr.innerHTML=`<div class="row sb center">
+    <div class="row gap8 center">
+      <span style="font-size:24px">📸</span>
+      <div>
+        <div style="font-size:15px;font-weight:900;color:#fff">Today's Story</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.55)">AI 감성 스토리 카드 만들기</div>
+      </div>
+    </div>
+    <button onclick="window._toggleStory()" style="background:${state.storyMode?'var(--red)':'rgba(255,255,255,0.15)'};border:none;color:#fff;border-radius:20px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
+      ${state.storyMode?'✕ Close':'✨ Create'}
+    </button>
+  </div>`;
+  window._toggleStory=()=>setState({storyMode:!state.storyMode,storyTheme:null,storyError:''});
+  frag.push(storyHdr);
+
+  if(state.storyMode){
+    if(!state.storyTheme){
+      const sc=div('card');
+      sc.innerHTML=`<div class="card-title">✍️ WRITE YOUR STORY</div>
+        <div style="font-size:11px;font-weight:700;color:var(--gray4);margin-bottom:5px">📍 PLACE</div>`;
+      const placeInp=input_('','e.g. Gyeongbokgung Palace, Hongdae...',state.storyPlace,v=>{ state.storyPlace=v; });
+      placeInp.style.marginBottom='10px';
+      sc.appendChild(placeInp);
+      sc.innerHTML+=`<div style="font-size:11px;font-weight:700;color:var(--gray4);margin:0 0 5px">💬 YOUR STORY</div>`;
+      const stTa=textarea_('',`한 줄 감상을 남겨보세요!\n\ne.g. "The palace at dawn was absolutely magical"`,state.storyText,v=>{ state.storyText=v; },4);
+      stTa.style.marginBottom='12px';
+      sc.appendChild(stTa);
+
+      // Quick examples
+      const exRow=div('',null,{overflowX:'auto',marginBottom:'12px'});
+      const exInner=div('row gap6',null,{display:'inline-flex'});
+      [{place:'경복궁',text:'새벽 궁궐의 고요함이 평생 잊히지 않을 것 같아요'},
+        {place:'홍대',text:'길거리 공연에 두 시간을 서 있었는데 전혀 지치지 않았어요'},
+        {place:'남산타워',text:'서울 야경을 보며 사랑의 자물쇠를 달았어요'},
+        {place:'부산 해운대',text:'파도 소리와 함께 먹은 해물파전이 최고였어요'},
+      ].forEach(ex=>{
+        const b=h('button',{style:{background:'var(--blue-light)',border:'1px solid rgba(30,111,232,0.27)',borderRadius:'12px',padding:'10px',maxWidth:'180px',cursor:'pointer',textAlign:'left',fontFamily:'inherit',flexShrink:'0'},
+          onClick:()=>setState({storyPlace:ex.place,storyText:ex.text})},
+          `<div style="font-size:11px;font-weight:700;color:var(--blue);margin-bottom:2px">📍 ${ex.place}</div><div style="font-size:11px;color:var(--navy);line-height:1.4;white-space:normal">${ex.text}</div>`);
+        exInner.appendChild(b);
+      });
+      exRow.appendChild(exInner);
+      sc.appendChild(exRow);
+
+      if(state.storyError) sc.appendChild(div('error-box',`<div style="font-size:12px;color:var(--red)">${state.storyError}</div>`));
+
+      const genBtn=btn('btn-primary',state.storyLoading?'<span class="spinner"></span>  Generating magic...':'✨ Generate Story Card',async()=>{
+        if(!state.storyText.trim()||!state.storyPlace.trim()){ alert('장소와 후기를 모두 입력해 주세요 😊'); return; }
+        if(!checkApiKey()) return;
+        setState({storyLoading:true,storyError:''});
+        try{
+          const sys=`You are a poetic Korean travel story designer. Return ONLY valid JSON:
+{"headline":"short poetic English headline max 6 words","headline_kr":"한국어 헤드라인 6자 이내","quote":"beautiful 1-2 sentence poetic version in English","quote_kr":"한국어 감성 문구 1-2문장","theme":"one of: sunset|night|dawn|forest|ocean|city|vintage|minimal|dreamy|neon","emoji_set":["emoji1","emoji2","emoji3"],"hashtags":["#tag1","#tag2","#tag3","#tag4","#KMapLinker"],"mood":"one word mood"}`;
+          const raw=await callClaude(sys,`Place: ${state.storyPlace}\nStory: ${state.storyText}`,600);
+          setState({storyTheme:JSON.parse(raw.replace(/```json|```/g,'').trim()),storyLoading:false});
+        }catch(e){ setState({storyError:'Story generation failed.',storyLoading:false}); }
+      },state.storyLoading);
+      genBtn.style.background='#7C3AED';
+      sc.appendChild(genBtn);
+      frag.push(sc);
+
+    } else {
+      const THEMES={
+        sunset:{bg:'linear-gradient(135deg,#FF6B35,#F7C59F)',fg:'#FFFFFF',accent:'#FFE4CC',star:'☀️'},
+        night:{bg:'linear-gradient(135deg,#0D1B2A,#1A2F5A)',fg:'#FFFFFF',accent:'#F5A623',star:'🌙'},
+        dawn:{bg:'linear-gradient(135deg,#667EEA,#764BA2)',fg:'#FFFFFF',accent:'#E0D4FF',star:'🌅'},
+        forest:{bg:'linear-gradient(135deg,#134E5E,#71B280)',fg:'#FFFFFF',accent:'#C8F0D8',star:'🌿'},
+        ocean:{bg:'linear-gradient(135deg,#0052A4,#00C9FF)',fg:'#FFFFFF',accent:'#CCF0FF',star:'🌊'},
+        city:{bg:'linear-gradient(135deg,#1A1A2E,#16213E)',fg:'#FFFFFF',accent:'#E94560',star:'🏙️'},
+        vintage:{bg:'linear-gradient(135deg,#8B6F47,#C8A882)',fg:'#FFFFFF',accent:'#F5E6D3',star:'📷'},
+        minimal:{bg:'linear-gradient(135deg,#F5F6FA,#EEEEF2)',fg:'#0D1B2A',accent:'#9299A8',star:'✦'},
+        dreamy:{bg:'linear-gradient(135deg,#F093FB,#F5576C)',fg:'#FFFFFF',accent:'#FFD6E7',star:'💫'},
+        neon:{bg:'linear-gradient(135deg,#0D0D0D,#1A1A1A)',fg:'#FFFFFF',accent:'#39FF14',star:'⚡'},
+      };
+      const th=THEMES[state.storyTheme.theme]||THEMES.night;
+      const story=state.storyTheme;
+      const now=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+
+      // Story card
+      const sc=div('story-card');
+      sc.style.cssText=`border-radius:20px;overflow:hidden;margin-bottom:14px;aspect-ratio:9/16;width:100%;position:relative;box-shadow:0 8px 24px rgba(0,0,0,0.3);background:${th.bg};display:flex;flex-direction:column;`;
+
+      sc.innerHTML=`
+        <div style="padding:22px 22px 0;display:flex;justify-content:space-between;align-items:center">
+          <div style="display:flex;align-items:center;gap:7px">
+            <div style="width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:14px">🗺️</div>
+            <span style="font-size:12px;font-weight:800;color:${th.fg};letter-spacing:0.5px">K-Map Linker</span>
+          </div>
+          <span style="font-size:11px;color:${th.fg};opacity:0.6">${now}</span>
+        </div>
+        <div style="flex:1;padding:22px;display:flex;flex-direction:column;justify-content:center">
+          <div style="font-size:36px;text-align:center;letter-spacing:8px;margin-bottom:16px">${(story.emoji_set||[]).join(' ')}</div>
+          <div style="align-self:center;background:rgba(255,255,255,0.18);border-radius:20px;padding:5px 14px;margin-bottom:16px;border:1px solid rgba(255,255,255,0.25)">
+            <span style="font-size:12px;font-weight:700;color:${th.fg}">📍 ${state.storyPlace}</span>
+          </div>
+          <div style="font-size:28px;font-weight:900;color:${th.fg};text-align:center;line-height:1.2;margin-bottom:8px">${story.headline||''}</div>
+          <div style="font-size:16px;font-weight:700;color:${th.accent};text-align:center;margin-bottom:20px;letter-spacing:0.5px">${story.headline_kr||''}</div>
+          <div style="height:1px;background:rgba(255,255,255,0.2);margin-bottom:18px"></div>
+          <div style="font-size:13px;color:${th.fg};opacity:0.9;text-align:center;line-height:1.7;font-style:italic;margin-bottom:8px">"${story.quote||''}"</div>
+          <div style="font-size:12px;color:${th.accent};text-align:center;line-height:1.6">${story.quote_kr||''}</div>
+        </div>
+        <div style="padding:22px 22px">
+          <div style="text-align:center;font-size:11px;color:${th.accent};font-weight:700;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px">${th.star} ${story.mood||''}</div>
+          <div style="font-size:11px;color:${th.fg};opacity:0.6;text-align:center;line-height:1.6">${(story.hashtags||[]).join(' ')}</div>
+        </div>`;
+      frag.push(sc);
+
+      // Theme switcher
+      const thDiv=div('');
+      thDiv.innerHTML=`<div style="font-size:11px;font-weight:700;color:var(--gray4);margin-bottom:8px">🎨 CHANGE THEME</div>`;
+      const THEME_COLORS={sunset:'#FF6B35',night:'#0D1B2A',dawn:'#667EEA',forest:'#134E5E',ocean:'#0052A4',city:'#1A1A2E',vintage:'#8B6F47',minimal:'#9299A8',dreamy:'#F093FB',neon:'#1a1a1a'};
+      const swRow=div('theme-swatches');
+      Object.entries(THEME_COLORS).forEach(([id,color])=>{
+        const s=h('button',{className:'theme-swatch'+(story.theme===id?' active':''),
+          style:{background:color},onClick:()=>setState({storyTheme:{...story,theme:id}})},id);
+        swRow.appendChild(s);
+      });
+      thDiv.appendChild(swRow);
+      frag.push(thDiv);
+
+      // Action buttons
+      const actions=div('row gap8',null,{marginTop:'14px'});
+      const editBtn=btn('',`✏️ Edit`,()=>setState({storyTheme:null}));
+      editBtn.style.cssText='flex:1;border-radius:12px;border:1.5px solid var(--gray2);padding:13px;font-size:13px;font-weight:700;color:var(--navy);cursor:pointer;background:#fff;font-family:inherit;';
+
+      const postBtn=btn('',`📤 Post to Community`,()=>{
+        const newPost={id:String(Date.now()),user:'You',flag:'📸',time:'just now',
+          loc:state.storyPlace,liked:false,likes:0,comments:[],
+          text:`📸 Today's Story\n\n📍 ${state.storyPlace}\n"${story.quote_kr}"\n\n${state.storyText}`};
+        setState({posts:[newPost,...state.posts],storyMode:false,storyTheme:null,storyText:'',storyPlace:'',tab:3});
+        alert('✅ 커뮤니티에 스토리를 게시했어요!');
+      });
+      postBtn.style.cssText='flex:1;border-radius:12px;border:none;padding:13px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;background:var(--green);font-family:inherit;';
+
+      const shareBtn=btn('',`📲 Share`,async()=>{
+        const shareData={title:`K-Map Linker · ${state.storyPlace}`,
+          text:`📍 ${state.storyPlace}\n\n${story.headline}\n${story.headline_kr}\n\n"${story.quote}"\n${story.quote_kr}\n\n${state.storyText}\n\n${(story.hashtags||[]).join(' ')}\n\n🗺️ Shared via K-Map Linker`};
+        if(navigator.share) await navigator.share(shareData).catch(()=>{});
+        else{ await navigator.clipboard.writeText(shareData.text).catch(()=>{}); alert('Story copied to clipboard! Paste into Instagram/KakaoTalk 📋'); }
+      });
+      shareBtn.style.cssText='flex:1;border-radius:12px;border:none;padding:13px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;background:#7C3AED;font-family:inherit;';
+
+      actions.appendChild(editBtn);
+      actions.appendChild(postBtn);
+      actions.appendChild(shareBtn);
+      frag.push(actions);
+    }
+  }
+
+  // ─ COMMUNITY DIVIDER ─
+  const divider=div('row center gap10',null,{margin:'16px 0'});
+  divider.innerHTML=`<div style="flex:1;height:1px;background:var(--gray1)"></div>
+    <span style="font-size:11px;color:var(--gray3);font-weight:600">✈️ TRAVELER COMMUNITY</span>
+    <div style="flex:1;height:1px;background:var(--gray1)"></div>`;
+  frag.push(divider);
+
+  // ─ POST FORM ─
+  const postCard=div('card');
+  postCard.innerHTML=`<div class="card-title">✍️ SHARE A TIP</div>`;
+  const ptRow=div('row gap10',null,{alignItems:'flex-start'});
+  ptRow.innerHTML=`<div style="width:38px;height:38px;border-radius:19px;background:var(--red-pale);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">😊</div>`;
+  const ta=textarea_('',`Share a travel tip or find travel buddies...`,state.postText,v=>{ state.postText=v; },3);
+  ta.style.flex='1';
+  ptRow.appendChild(ta);
+  postCard.appendChild(ptRow);
+  const btmRow=div('row sb center',null,{marginTop:'10px'});
+  const locBtn=h('button',{style:{background:'var(--gray0)',border:'1.5px solid var(--gray1)',borderRadius:'20px',padding:'5px 12px',fontSize:'12px',fontWeight:'600',color:'var(--gray4)',cursor:'pointer',fontFamily:'inherit'},
+    onClick:()=>{ state.postText='📍 Seoul  '+state.postText; render(); }},'📍 Add Location');
+  const postBtn_=h('button',{style:{background:'var(--navy)',borderRadius:'12px',padding:'9px 20px',border:'none',color:'#fff',fontSize:'14px',fontWeight:'700',cursor:'pointer',fontFamily:'inherit'},
+    onClick:()=>{
+      if(!state.postText.trim()){ alert('Write something first!'); return; }
+      setState({posts:[{id:String(Date.now()),user:'You',flag:'😊',time:'just now',loc:'Seoul',liked:false,likes:0,comments:[],text:state.postText.trim()},...state.posts],postText:''});
+    }},'Post');
+  btmRow.appendChild(locBtn);
+  btmRow.appendChild(postBtn_);
+  postCard.appendChild(btmRow);
+  frag.push(postCard);
+
+  // ─ ONLINE BADGE ─
+  const onlineBadge=div('row center gap7',null,{marginBottom:'12px'});
+  onlineBadge.innerHTML=`<div style="width:8px;height:8px;border-radius:4px;background:var(--green)"></div>
+    <span style="font-size:12px;color:var(--gray3);font-weight:600">47 travelers online in Seoul now</span>`;
+  frag.push(onlineBadge);
+
+  // ─ POSTS ─
+  state.posts.forEach(post=>{
+    const pc=div('post-card');
+    pc.innerHTML=`
+      <div class="row gap10 center mb10">
+        <div style="width:36px;height:36px;border-radius:18px;background:var(--gray1);display:flex;align-items:center;justify-content:center;font-size:18px">${post.flag}</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:var(--navy)">${post.user}</div>
+          <div style="font-size:11px;color:var(--gray3)">${post.loc} · ${post.time}</div>
+        </div>
+      </div>
+      <div style="font-size:14px;color:var(--navy);line-height:1.6;margin-bottom:12px;white-space:pre-wrap">${post.text}</div>
+      <div class="row gap16">
+        <button onclick="window._toggleLike('${post.id}')" style="background:transparent;border:none;cursor:pointer;font-size:13px;font-weight:600;color:${post.liked?'var(--red)':'var(--gray3)'};font-family:inherit">
+          ${post.liked?'❤️':'🤍'} ${post.likes}
+        </button>
+        <button onclick="window._toggleComments('${post.id}')" style="background:transparent;border:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--gray3);font-family:inherit">
+          💬 ${(post.comments||[]).length}
+        </button>
+      </div>`;
+    frag.push(pc);
+  });
+
+  window._toggleLike=(id)=>{
+    setState({posts:state.posts.map(p=>p.id===id?{...p,liked:!p.liked,likes:p.liked?p.likes-1:p.likes+1}:p)});
+  };
+  window._toggleComments=(id)=>{
+    setState({posts:state.posts.map(p=>p.id===id?{...p,showComments:!p.showComments}:p)});
+  };
+
+  return frag;
+}
+
+async function sendConvo(){
+  if(!state.convoInput.trim()) return;
+  if(!checkApiKey()) return;
+  const userMsg=state.convoInput.trim();
+  setState({convoInput:'',convoLoading:true,convoHistory:[...state.convoHistory,{role:'user',text:userMsg}]});
+  try{
+    const sys=`You are a friendly Korean travel interpreter. When user types what they want to say, provide:
+Return ONLY valid JSON: {"say_in_korean":"Korean phrase","romanization":"pronunciation","typical_reply":"what they might hear back","reply_meaning":"English meaning","follow_up_tip":"quick tip"}`;
+    const raw=await callClaude(sys,userMsg,500);
+    const parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    setState({convoLoading:false,convoHistory:[...state.convoHistory,{role:'user',text:userMsg},{role:'assistant',text:userMsg,parsed}]});
+  }catch(e){
+    setState({convoLoading:false,convoHistory:[...state.convoHistory,{role:'user',text:userMsg},{role:'assistant',text:'Translation failed.',parsed:null}]});
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// 🔄 MAIN RENDER
+// ═══════════════════════════════════════════════════════
+function render(){
+  renderLangRow();
+  renderTabBar();
+  const content=document.getElementById('tabContent');
+  content.innerHTML='';
+
+  let nodes=[];
+  if(state.tab===0) nodes=renderAddressTab();
+  else if(state.tab===1) nodes=renderSubwayTab();
+  else if(state.tab===2) nodes=renderDiscoverTab();
+  else if(state.tab===3) nodes=renderTravelersTab();
+  else if(state.tab===4) nodes=renderDramaTab();
+
+  nodes.forEach(n=>{ if(n instanceof HTMLElement) content.appendChild(n); });
+
+  // Sync input values after render (React-like controlled inputs)
+  const addrInp=content.querySelector('input[placeholder*="Korean location"]');
+  if(addrInp&&state.addrInput) addrInp.value=state.addrInput;
+  const subInp=content.querySelector('input[placeholder*="Station name"]');
+  if(subInp&&state.subwayInput) subInp.value=state.subwayInput;
+}
+
+// ═══════════════════════════════════════════════════════
+// 🚀 INIT
+// ═══════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded',()=>{
+  render();
+  // Hide splash after 3.5s
+  setTimeout(()=>{
+    const splash=document.getElementById('splash');
+    if(splash){ splash.style.display='none'; }
+  },3600);
+});
+</script>
+</body>
+</html>
