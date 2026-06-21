@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>K-Buddy — Your Korea Companion</title>
+<meta name="description" content="Search any place in Seoul, get the Korean address to show your taxi driver, browse popular Korean dishes."/>
+<meta name="theme-color" content="#FFFFFF"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+KR:wght@500;700;900&family=Noto+Sans+SC:wght@500;700&family=Noto+Sans+JP:wght@500;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#EDEEF1;
+  --surface:#FFFFFF;
+  --muted:#F5F6FA;
+  --border:#D9DCE3;
+  --ink:#0D0D14;
+  --sub:#5B6470;
+  --sub2:#9AA1AC;
+  --pink:#FF2D78;
+  --purple:#7C3AED;
+  --grad:linear-gradient(135deg,#FF2D78 0%,#7C3AED 100%);
+  --veg-bg:#E8F7EE;
+  --veg-border:#BFE6CE;
+  --veg-ink:#1E8049;
+}
+html,body{height:100%}
+body{
+  font-family:'Inter',-apple-system,system-ui,sans-serif;
+  background:var(--bg);
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+  -webkit-text-size-adjust:100%;
+}
+.kr{font-family:'Noto Sans KR',sans-serif}
+.sc{font-family:'Noto Sans SC',sans-serif}
+.jp{font-family:'Noto Sans JP',sans-serif}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+svg{display:block}
+
+/* ─── App shell: mobile-first, framed on wider screens ─── */
+.app{
+  min-height:100vh;
+  min-height:100dvh;
+  display:flex;
+  flex-direction:column;
+  background:var(--surface);
+  position:relative;
+  max-width:440px;
+  margin:0 auto;
+}
+@media (min-width:560px){
+  body{display:flex;align-items:center;justify-content:center;padding:32px 24px}
+  .app{
+    height:874px;
+    min-height:0;
+    max-height:calc(100vh - 64px);
+    border-radius:44px;
+    overflow:hidden;
+    box-shadow:0 30px 80px rgba(13,13,20,.18), 0 0 0 10px #0D0D14, 0 0 0 11px #2a2a30;
+  }
+}
+
+.scroll{
+  flex:1;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  padding:max(62px,env(safe-area-inset-top,18px) + 18px) 20px calc(120px + env(safe-area-inset-bottom,0px));
+}
+
+/* ─── Greeting row ─── */
+.greet{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.greet-left{display:flex;align-items:center;gap:10px}
+.avatar{
+  width:36px;height:36px;border-radius:50%;
+  background:var(--pink);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:14px;
+}
+.greet-name{display:flex;flex-direction:column}
+.greet-hello{font-size:11px;color:var(--sub);line-height:1;letter-spacing:.02em}
+.greet-user{font-size:14px;font-weight:600;line-height:1.3;margin-top:3px}
+.lang{
+  display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;
+  border:1px solid var(--border);border-radius:999px;background:#fff;
+  font-size:12px;font-weight:600;
+}
+
+/* ─── Title ─── */
+.h1{margin:0;font-size:28px;line-height:1.2;font-weight:800;letter-spacing:-.02em}
+.h1 .accent{color:var(--pink)}
+.lede{margin:6px 0 18px;font-size:13px;color:var(--sub);line-height:1.5}
+
+/* ─── Search ─── */
+.search{
+  display:flex;align-items:center;gap:10px;height:52px;
+  background:var(--muted);border:1px solid var(--border);border-radius:14px;
+  padding:0 14px;margin-bottom:14px;
+}
+.search input{
+  flex:1;border:none;background:transparent;outline:none;
+  font-size:15px;color:var(--ink);font-family:inherit;
+}
+.search input::placeholder{color:var(--sub2)}
+.mic{
+  width:32px;height:32px;border-radius:50%;
+  background:var(--grad);
+  display:flex;align-items:center;justify-content:center;flex:none;
+}
+
+/* ─── Quick chips ─── */
+.chips{display:flex;gap:8px;margin-bottom:24px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{
+  flex:none;display:flex;align-items:center;gap:6px;
+  height:34px;padding:0 12px;border-radius:999px;
+  border:1px solid var(--border);background:#fff;color:var(--ink);
+  font-size:12px;font-weight:500;white-space:nowrap;
+}
+.chip.is-active{background:var(--ink);color:#fff;border-color:var(--ink);font-weight:600}
+
+/* ─── Hero (taxi card) ─── */
+.taxi{
+  border:1px solid var(--border);border-radius:16px;
+  background:#fff;padding:18px;margin-bottom:24px;
+}
+.taxi-eyebrow{display:flex;align-items:center;gap:6px;margin-bottom:12px}
+.taxi-dot{width:6px;height:6px;border-radius:50%;background:var(--pink)}
+.taxi-label{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--pink)}
+.taxi-addr{
+  font-family:'Noto Sans KR',sans-serif;
+  font-size:22px;font-weight:900;line-height:1.35;letter-spacing:-.01em;
+}
+.taxi-meta{
+  display:flex;align-items:center;gap:6px;
+  margin-top:10px;padding-top:12px;border-top:1px solid var(--border);
+}
+.taxi-meta-text{font-size:12px;color:var(--sub);line-height:1.4;flex:1}
+.taxi-actions{display:flex;gap:8px;margin-top:14px}
+.btn{
+  height:40px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  font-size:13px;font-weight:600;
+  transition:transform .12s ease, background .15s ease;
+}
+.btn:active{transform:scale(.97)}
+.btn-ghost{flex:1;border:1px solid var(--border);background:#fff;color:var(--ink)}
+.btn-primary{
+  padding:0 14px;background:var(--grad);color:#fff;font-weight:700;
+}
+
+/* ─── Section header ─── */
+.sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sec-title{margin:0;font-size:16px;font-weight:700;letter-spacing:-.01em}
+.sec-link{font-size:12px;color:var(--sub);font-weight:500;background:none;border:none;cursor:pointer}
+
+/* ─── Recent list ─── */
+.recent{display:flex;flex-direction:column;gap:10px;margin-bottom:24px}
+.recent-row{
+  display:flex;align-items:center;gap:12px;padding:12px;
+  background:var(--muted);border:1px solid var(--border);border-radius:14px;
+}
+.recent-ico{
+  width:44px;height:44px;border-radius:12px;
+  background:#fff;border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;font-size:20px;flex:none;
+}
+.recent-body{flex:1;min-width:0}
+.recent-name{font-size:14px;font-weight:600;margin-bottom:2px}
+.recent-addr{
+  font-family:'Noto Sans KR',sans-serif;font-size:12px;color:var(--sub);line-height:1.4;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.recent-dist{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex:none}
+.recent-km{font-size:12px;font-weight:700}
+.recent-min{font-size:10px;color:var(--sub)}
+
+/* ─── Trending rail ─── */
+.rail{
+  display:flex;gap:12px;overflow-x:auto;
+  margin:0 -20px;padding:4px 20px;scrollbar-width:none;
+}
+.rail::-webkit-scrollbar{display:none}
+.trend{
+  flex:none;width:170px;border-radius:14px;overflow:hidden;
+  border:1px solid var(--border);background:#fff;
+}
+.trend-img{
+  height:100px;background:var(--muted);
+  display:flex;align-items:flex-end;justify-content:space-between;padding:10px;
+}
+.trend-badge{
+  font-size:10px;font-weight:700;color:#fff;background:var(--ink);
+  padding:3px 7px;border-radius:6px;
+}
+.trend-emoji{font-size:28px;opacity:.5}
+.trend-body{padding:10px 12px 12px}
+.trend-name{font-size:13px;font-weight:700}
+.trend-area{font-family:'Noto Sans KR',sans-serif;font-size:11px;color:var(--sub);margin-top:2px}
+
+/* ─── Food cards ─── */
+.food-head{margin-bottom:18px}
+.food-kicker{
+  font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--sub);
+  text-transform:uppercase;margin-bottom:6px;
+}
+.food-h1{margin:0;font-size:24px;font-weight:800;letter-spacing:-.02em}
+.food-sub{margin:4px 0 0;font-size:13px;color:var(--sub);line-height:1.5}
+
+.food-list{display:flex;flex-direction:column;gap:16px;margin-bottom:16px}
+.food-card{
+  position:relative;background:#fff;border:1px solid var(--border);
+  border-radius:16px;padding:14px;display:flex;gap:14px;
+}
+.must-try{
+  position:absolute;top:10px;right:10px;height:22px;
+  padding:0 9px;border-radius:999px;background:var(--grad);color:#fff;
+  font-size:10px;font-weight:800;letter-spacing:.04em;
+  display:flex;align-items:center;gap:4px;
+}
+.food-img{
+  flex:none;width:96px;height:96px;border-radius:12px;
+  background:var(--muted);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;font-size:42px;
+}
+.food-info{flex:1;min-width:0;display:flex;flex-direction:column}
+.food-info.has-badge{padding-right:60px}
+.food-names{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
+.food-kr{font-family:'Noto Sans KR',sans-serif;font-size:18px;font-weight:900;letter-spacing:-.01em;line-height:1.2}
+.food-en{font-size:13px;font-weight:600}
+.food-alt{
+  display:flex;align-items:center;gap:8px;margin-top:3px;
+  font-size:12px;color:var(--sub);line-height:1.4;
+}
+.food-alt .dot{width:2px;height:2px;border-radius:50%;background:var(--sub);opacity:.5}
+
+.spicy{display:flex;align-items:center;gap:3px;margin-top:10px}
+.spicy-label{font-size:10px;font-weight:700;margin-left:3px;letter-spacing:.04em}
+.spicy.mild .spicy-label,.spicy.none .spicy-label{color:var(--sub)}
+.spicy.hot .spicy-label,.spicy.extreme .spicy-label{color:var(--pink)}
+
+.tags{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
+.tag{
+  height:20px;padding:0 8px;border-radius:6px;
+  background:var(--muted);border:1px solid var(--border);
+  font-size:10px;font-weight:600;color:var(--sub);
+  display:inline-flex;align-items:center;gap:3px;
+}
+.tag.veg{background:var(--veg-bg);border-color:var(--veg-border);color:var(--veg-ink);font-weight:700}
+
+.anatomy{
+  margin-top:8px;padding:14px;border:1px dashed var(--border);
+  border-radius:12px;font-size:11px;color:var(--sub);line-height:1.6;
+}
+.anatomy strong{color:var(--ink)}
+
+/* ─── Placeholder tabs ─── */
+.placeholder{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:64px 24px;color:var(--sub);
+}
+.placeholder-emoji{font-size:48px;margin-bottom:12px}
+.placeholder-title{font-size:18px;font-weight:700;color:var(--ink);margin-bottom:6px}
+.placeholder-text{font-size:13px;line-height:1.5;max-width:280px}
+
+/* ─── Bottom tab bar ─── */
+.tabbar{
+  position:absolute;left:0;right:0;bottom:0;
+  padding:10px 16px calc(28px + env(safe-area-inset-bottom,0px));
+  background:rgba(255,255,255,.92);
+  -webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);
+  border-top:1px solid var(--border);
+  display:grid;grid-template-columns:repeat(4,1fr);align-items:center;
+}
+.tab{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  background:none;border:none;padding:4px 0;cursor:pointer;
+}
+.tab-ico{position:relative;width:48px;height:30px;display:flex;align-items:center;justify-content:center}
+.tab-ico .glow{
+  position:absolute;inset:0;border-radius:999px;
+  background:var(--grad);opacity:0;transition:opacity .2s ease;
+}
+.tab.is-active .tab-ico .glow{opacity:.12}
+.tab-label{font-size:10px;font-weight:600;color:var(--sub)}
+.tab.is-active .tab-label{
+  font-weight:700;
+  background:var(--grad);-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:transparent;
+}
+.tab .stroke{stroke:var(--sub)}
+.tab.is-active .stroke{stroke:url(#tab-grad)}
+.tab.is-active .fill{fill:url(#tab-grad)}
+
+.view{display:none}
+.view.is-active{display:block}
+</style>
+</head>
+<body>
+
+<!-- Shared SVG gradient for active tab icons -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="tab-grad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FF2D78"/>
+      <stop offset="1" stop-color="#7C3AED"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<div class="app">
+  <main class="scroll" id="scroll">
+
+    <!-- ════════════ ADDRESS VIEW ════════════ -->
+    <section class="view is-active" id="view-address">
+
+      <div class="greet">
+        <div class="greet-left">
+          <div class="avatar">S</div>
+          <div class="greet-name">
+            <span class="greet-hello">ANNYEONG 안녕</span>
+            <span class="greet-user">Sakura</span>
+          </div>
+        </div>
+        <button class="lang" type="button" aria-label="Change language">
+          <span>🌐</span><span>EN</span>
+          <svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 4l3 3 3-3" stroke="#5B6470" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        </button>
+      </div>
+
+      <h1 class="h1">Where to in <span class="accent">Seoul</span>?</h1>
+      <p class="lede">Search any place. We'll give you the Korean address.</p>
+
+      <form class="search" role="search" onsubmit="event.preventDefault()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="#5B6470" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="#5B6470" stroke-width="2" stroke-linecap="round"/></svg>
+        <input type="search" placeholder="Hongdae, Gyeongbokgung…" aria-label="Search a place"/>
+        <button type="button" class="mic" aria-label="Voice search">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="9" y="3" width="6" height="12" rx="3" fill="#fff"/><path d="M6 11a6 6 0 0012 0M12 17v4" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </form>
+
+      <div class="chips" role="tablist" aria-label="Quick filters">
+        <button class="chip is-active" type="button"><span>📍</span><span>Near me</span></button>
+        <button class="chip" type="button"><span>🏨</span><span>Hotel</span></button>
+        <button class="chip" type="button"><span>🚇</span><span>Subway</span></button>
+        <button class="chip" type="button"><span>✈️</span><span>Airport</span></button>
+        <button class="chip" type="button"><span>🏪</span><span>Convenience</span></button>
+      </div>
+
+      <article class="taxi">
+        <div class="taxi-eyebrow">
+          <div class="taxi-dot"></div>
+          <span class="taxi-label">SHOW THIS TO YOUR TAXI DRIVER</span>
+        </div>
+        <div class="taxi-addr" id="taxi-addr">서울특별시 마포구<br>양화로 188<br>L7 홍대 호텔</div>
+        <div class="taxi-meta">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8z" stroke="#5B6470" stroke-width="1.8"/><circle cx="12" cy="10" r="3" stroke="#5B6470" stroke-width="1.8"/></svg>
+          <span class="taxi-meta-text">L7 Hongdae by Lotte · Mapo-gu, Seoul</span>
+        </div>
+        <div class="taxi-actions">
+          <button class="btn btn-ghost" type="button" id="copy-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="8" y="8" width="13" height="13" rx="2" stroke="#0D0D14" stroke-width="1.8"/><path d="M16 8V5a2 2 0 00-2-2H5a2 2 0 00-2 2v9a2 2 0 002 2h3" stroke="#0D0D14" stroke-width="1.8"/></svg>
+            <span id="copy-label">Copy</span>
+          </button>
+          <button class="btn btn-ghost" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="18" cy="5" r="3" stroke="#0D0D14" stroke-width="1.8"/><circle cx="6" cy="12" r="3" stroke="#0D0D14" stroke-width="1.8"/><circle cx="18" cy="19" r="3" stroke="#0D0D14" stroke-width="1.8"/><path d="M8.5 10.5l7-4M8.5 13.5l7 4" stroke="#0D0D14" stroke-width="1.8"/></svg>
+            Share
+          </button>
+          <button class="btn btn-primary" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 11l18-8-8 18-2-8-8-2z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>
+            Route
+          </button>
+        </div>
+      </article>
+
+      <div class="sec-head">
+        <h2 class="sec-title">Recent</h2>
+        <button class="sec-link" type="button">See all</button>
+      </div>
+      <div class="recent" id="recent-list"></div>
+
+      <div class="sec-head">
+        <h2 class="sec-title">Trending near you</h2>
+      </div>
+      <div class="rail" id="trending-rail"></div>
+
+    </section>
+
+    <!-- ════════════ FOOD VIEW ════════════ -->
+    <section class="view" id="view-food">
+      <div class="food-head">
+        <div class="food-kicker">Component · Food Card</div>
+        <h1 class="food-h1">Popular Korean Dishes</h1>
+        <p class="food-sub">4 states · default, must-try, vegetarian, allergen-heavy</p>
+      </div>
+      <div class="food-list" id="food-list"></div>
+      <div class="anatomy">
+        <strong>Anatomy</strong> · 96×96 image · 한/EN baseline title · 中·日 sub · 0–3 chili level · VEG badge (green) · allergen chips (neutral) · MUST&nbsp;TRY (gradient, top-right)
+      </div>
+    </section>
+
+    <!-- ════════════ TRAVELERS VIEW (placeholder) ════════════ -->
+    <section class="view" id="view-travelers">
+      <div class="placeholder">
+        <div class="placeholder-emoji">🗣️</div>
+        <div class="placeholder-title">Travelers</div>
+        <p class="placeholder-text">AI interpreter in 6 languages. Coming up next.</p>
+      </div>
+    </section>
+
+    <!-- ════════════ DRAMA ROUTE VIEW (placeholder) ════════════ -->
+    <section class="view" id="view-drama">
+      <div class="placeholder">
+        <div class="placeholder-emoji">🎬</div>
+        <div class="placeholder-title">Drama Route</div>
+        <p class="placeholder-text">Walk in your favorite K-Drama's footsteps. Coming up next.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ════════════ BOTTOM TAB BAR ════════════ -->
+  <nav class="tabbar" role="tablist" aria-label="Main">
+
+    <button class="tab is-active" type="button" data-view="address" role="tab" aria-selected="true">
+      <span class="tab-ico">
+        <span class="glow"></span>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path class="stroke" d="M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8z" stroke-width="2"/>
+          <circle class="fill" cx="12" cy="10" r="3" fill="#5B6470"/>
+        </svg>
+      </span>
+      <span class="tab-label">Address</span>
+    </button>
+
+    <button class="tab" type="button" data-view="food" role="tab" aria-selected="false">
+      <span class="tab-ico">
+        <span class="glow"></span>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path class="stroke" d="M7 2v8a3 3 0 003 3v9M7 2v8M10 2v8M16 2c-1 0-3 1.5-3 5v4h3v9" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="tab-label">Food</span>
+    </button>
+
+    <button class="tab" type="button" data-view="travelers" role="tab" aria-selected="false">
+      <span class="tab-ico">
+        <span class="glow"></span>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path class="stroke" d="M3 5h10M8 3v2c0 4-3 7-5 8" stroke-width="1.8" stroke-linecap="round"/>
+          <path class="stroke" d="M5 9c2 3 5 5 8 6" stroke-width="1.8" stroke-linecap="round"/>
+          <path class="stroke" d="M13 21l4-10 4 10M14.5 17h5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="tab-label">Travelers</span>
+    </button>
+
+    <button class="tab" type="button" data-view="drama" role="tab" aria-selected="false">
+      <span class="tab-ico">
+        <span class="glow"></span>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <rect class="stroke" x="2" y="6" width="15" height="12" rx="2" stroke-width="1.8"/>
+          <path class="stroke" d="M17 10l5-3v10l-5-3z" stroke-width="1.8" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="tab-label">Drama Route</span>
+    </button>
+
+  </nav>
+</div>
+
+<script>
+// ─── Data ───────────────────────────────────────────────
+const RECENT = [
+  { emoji:'🛕', name:'Gyeongbokgung Palace', addr:'서울 종로구 사직로 161', km:'3.2 km', min:'15 min' },
+  { emoji:'🗼', name:'N Seoul Tower',         addr:'서울 용산구 남산공원길 105', km:'5.8 km', min:'22 min' },
+  { emoji:'🛍️', name:'Myeongdong Shopping St.', addr:'서울 중구 명동길 14', km:'1.4 km', min:'8 min' },
+];
+
+const TRENDING = [
+  { emoji:'☕', badge:'🔥 #1 today', name:'Seongsu Cafe Alley', area:'성동구 성수동' },
+  { emoji:'🏯', badge:'📺 Drama',    name:'Bukchon Hanok',     area:'종로구 가회동' },
+];
+
+const FOODS = [
+  {
+    emoji:'🌶️', kr:'불닭', en:'Buldak', sc:'火鸡肉', jp:'プルダック',
+    mustTry:true, spicy:3,
+    tags:[{label:'⚠ Gluten'},{label:'⚠ Dairy'},{label:'⚠ Soy'}],
+  },
+  {
+    emoji:'🥗', kr:'비빔밥', en:'Bibimbap', sc:'拌饭', jp:'ビビンバ',
+    mustTry:true, spicy:0,
+    tags:[{label:'VEG',veg:true},{label:'⚠ Sesame'}],
+  },
+  {
+    emoji:'🍢', kr:'떡볶이', en:'Tteokbokki', sc:'辣炒年糕', jp:'トッポッキ',
+    mustTry:false, spicy:2,
+    tags:[{label:'⚠ Gluten'},{label:'⚠ Soy'}],
+  },
+  {
+    emoji:'🍜', kr:'잡채', en:'Japchae', sc:'杂菜', jp:'チャプチェ',
+    mustTry:false, spicy:1,
+    tags:[{label:'VEG',veg:true},{label:'⚠ Soy'},{label:'⚠ Sesame'}],
+  },
+];
+
+const SPICY_LABELS = ['MILD','MILD','SPICY','EXTREME'];
+const SPICY_CLASS  = ['none','mild','hot','extreme'];
+
+const CHILI = '<path d="M14 3c-1 0-2 .5-2.5 1.5C10 6 8 7 6 9c-3 3-3 8 0 11s8 3 11 0c3-2 4-6 3-9-1-2-2-4-3-5-1-1-2-1.5-3-3z"/>';
+const STAR  = '<path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.9 5.8 21.3l2.4-7.4L2 9.4h7.6z"/>';
+const LEAF  = '<path d="M17 8C8 10 5.9 16.2 3.8 22h2c2.3-5.9 4.5-9.5 13.7-9.5C19.5 12.5 22 9 17 8z"/>';
+
+// ─── Render: recent ────────────────────────────────────
+document.getElementById('recent-list').innerHTML = RECENT.map(r => `
+  <button class="recent-row" type="button">
+    <span class="recent-ico">${r.emoji}</span>
+    <span class="recent-body">
+      <div class="recent-name">${r.name}</div>
+      <div class="recent-addr">${r.addr}</div>
+    </span>
+    <span class="recent-dist">
+      <span class="recent-km">${r.km}</span>
+      <span class="recent-min">${r.min}</span>
+    </span>
+  </button>
+`).join('');
+
+// ─── Render: trending ──────────────────────────────────
+document.getElementById('trending-rail').innerHTML = TRENDING.map(t => `
+  <button class="trend" type="button">
+    <div class="trend-img">
+      <span class="trend-badge">${t.badge}</span>
+      <span class="trend-emoji">${t.emoji}</span>
+    </div>
+    <div class="trend-body">
+      <div class="trend-name">${t.name}</div>
+      <div class="trend-area">${t.area}</div>
+    </div>
+  </button>
+`).join('');
+
+// ─── Render: food cards ────────────────────────────────
+function chili(active){
+  const color = active ? '#FF2D78' : '#D9DCE3';
+  return `<svg width="13" height="13" viewBox="0 0 24 24" fill="${color}">${CHILI}</svg>`;
+}
+function renderTags(tags){
+  return tags.map(t => `<span class="tag${t.veg ? ' veg' : ''}">${
+    t.veg
+      ? `<svg width="9" height="9" viewBox="0 0 24 24" fill="#1E8049">${LEAF}</svg>${t.label}`
+      : t.label
+  }</span>`).join('');
+}
+document.getElementById('food-list').innerHTML = FOODS.map(f => {
+  const lvl = Math.min(3, Math.max(0, f.spicy));
+  const chilis = [chili(lvl>=1), chili(lvl>=2), chili(lvl>=3)].join('');
+  const label = SPICY_LABELS[lvl];
+  const cls   = SPICY_CLASS[lvl];
+  return `
+    <article class="food-card">
+      ${f.mustTry ? `
+        <span class="must-try">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="#fff">${STAR}</svg>
+          MUST TRY
+        </span>` : ''}
+      <div class="food-img">${f.emoji}</div>
+      <div class="food-info${f.mustTry ? ' has-badge' : ''}">
+        <div class="food-names">
+          <span class="food-kr">${f.kr}</span>
+          <span class="food-en">${f.en}</span>
+        </div>
+        <div class="food-alt">
+          <span class="sc">${f.sc}</span>
+          <span class="dot"></span>
+          <span class="jp">${f.jp}</span>
+        </div>
+        <div class="spicy ${cls}">
+          ${chilis}
+          <span class="spicy-label">${label}</span>
+        </div>
+        <div class="tags">${renderTags(f.tags)}</div>
+      </div>
+    </article>
+  `;
+}).join('');
+
+// ─── Tab switching ─────────────────────────────────────
+const tabs  = document.querySelectorAll('.tab');
+const views = document.querySelectorAll('.view');
+const scroll = document.getElementById('scroll');
+tabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    const target = tab.dataset.view;
+    tabs.forEach(t => {
+      const on = t === tab;
+      t.classList.toggle('is-active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    views.forEach(v => v.classList.toggle('is-active', v.id === `view-${target}`));
+    scroll.scrollTop = 0;
+  });
+});
+
+// ─── Copy address ──────────────────────────────────────
+const copyBtn = document.getElementById('copy-btn');
+const copyLabel = document.getElementById('copy-label');
+copyBtn.addEventListener('click', async () => {
+  const text = document.getElementById('taxi-addr').innerText.replace(/\n+/g, ' ');
+  try {
+    await navigator.clipboard.writeText(text);
+    copyLabel.textContent = 'Copied!';
+    setTimeout(() => copyLabel.textContent = 'Copy', 1400);
+  } catch {
+    copyLabel.textContent = 'Copy failed';
+    setTimeout(() => copyLabel.textContent = 'Copy', 1400);
+  }
+});
+
+// ─── Chip toggle (visual only) ─────────────────────────
+document.querySelectorAll('.chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('is-active'));
+    chip.classList.add('is-active');
+  });
+});
+</script>
+</body>
+</html>
