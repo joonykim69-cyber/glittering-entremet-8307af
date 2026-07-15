@@ -56,6 +56,14 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 .demo-chip { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--sub); border:1px dashed var(--mute); padding:5px 12px; border-radius:999px; margin-top:14px; }
 
 /* MODE TABS */
+.mode-tabs-wrap { position:relative; }
+.mode-tabs-wrap::before, .mode-tabs-wrap::after {
+  content:''; position:absolute; top:18px; bottom:0; width:28px; z-index:2; pointer-events:none; transition:opacity .2s;
+}
+.mode-tabs-wrap::before { left:0; background:linear-gradient(90deg, var(--bg), transparent); opacity:0; }
+.mode-tabs-wrap::after { right:0; background:linear-gradient(270deg, var(--bg), transparent); opacity:0; }
+.mode-tabs-wrap.scroll-l::before { opacity:1; }
+.mode-tabs-wrap.scroll-r::after { opacity:1; }
 .mode-tabs { display:flex; gap:8px; overflow-x:auto; padding:18px 0 0; scrollbar-width:none; }
 .mode-tabs::-webkit-scrollbar { display:none; }
 .mode-tabs button { flex:none; font:inherit; font-size:14px; font-weight:700; cursor:pointer; background:var(--bg); border:1.5px solid var(--line); color:var(--sub); padding:10px 20px; border-radius:999px; transition:all .2s; }
@@ -218,13 +226,15 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
     <p>법원·지역·가격대·유찰횟수로 원하는 물건을 좁히고, 카드마다 AI 리포트로 권리분석과 적정가를 확인하세요.</p>
     <span class="demo-chip">🔧 아래 물건·필터·리포트는 모두 예시 데이터입니다 — 실 데이터 연동은 다음 단계</span>
 
-    <div class="mode-tabs" id="modeTabs">
-      <button data-mode="search" class="on">경매검색</button>
-      <button data-mode="upcoming">예정물건</button>
-      <button data-mode="new">경매신건</button>
-      <button data-mode="popular">인기물건</button>
-      <button data-mode="hot">인기검색</button>
-      <button data-mode="sold">매각결과</button>
+    <div class="mode-tabs-wrap" id="modeTabsWrap">
+      <div class="mode-tabs" id="modeTabs">
+        <button data-mode="search" class="on">경매검색</button>
+        <button data-mode="upcoming">예정물건</button>
+        <button data-mode="new">경매신건</button>
+        <button data-mode="popular">인기물건</button>
+        <button data-mode="hot">인기검색</button>
+        <button data-mode="sold">매각결과</button>
+      </div>
     </div>
 
     <div class="filter-bar">
@@ -577,6 +587,18 @@ function logoutDemo() {
 })();
 
 applyFilters();
+
+// 모드 탭이 가로 스크롤 가능함을 좌우 페이드로 힌트 표시
+const modeTabsEl = document.getElementById('modeTabs');
+const modeTabsWrapEl = document.getElementById('modeTabsWrap');
+function updateTabsFade() {
+  const { scrollLeft, scrollWidth, clientWidth } = modeTabsEl;
+  modeTabsWrapEl.classList.toggle('scroll-l', scrollLeft > 4);
+  modeTabsWrapEl.classList.toggle('scroll-r', scrollLeft + clientWidth < scrollWidth - 4);
+}
+modeTabsEl.addEventListener('scroll', updateTabsFade);
+window.addEventListener('resize', updateTabsFade);
+updateTabsFade();
 
 function toggleMobileNav() {
   document.getElementById('mobileNav').classList.toggle('open');
