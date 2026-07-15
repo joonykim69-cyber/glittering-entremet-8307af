@@ -576,7 +576,7 @@ footer .copy { margin-top: 26px; font-size: 12px; color: var(--mute); }
 <nav>
   <a class="logo" href="#"><span class="logo-mark">予</span>낙찰예보</a>
   <ul class="nav-links">
-    <li><a href="#search">물건 검색</a></li>
+    <li><a href="bidcast-list.html">물건 검색</a></li>
     <li><a href="#predict">AI 예측</a></li>
     <li><a href="#acc">적중률</a></li>
     <li><a href="#cal">캘린더</a></li>
@@ -595,11 +595,11 @@ footer .copy { margin-top: 26px; font-size: 12px; color: var(--mute); }
     <h1><span class="signal" aria-hidden="true"><i class="go"></i><i class="stop"></i></span>지금 들어가도 될까?<br/><span class="grad">AI가 신호로 알려드립니다</span></h1>
     <p class="sub">부동산만이 아닙니다. 차량·동산·기계장비·유가증권까지 — 온비드 공매 전 자산군의 과거 낙찰 데이터를 학습한 예측 엔진이 예상 낙찰가 범위와 입찰 신호를 보여드립니다.</p>
 
-    <form class="searchbar" onsubmit="return startSearchWaitlist(event);" aria-label="물건 검색(사전 공개 단계)">
+    <form class="searchbar" onsubmit="return goToSearch(event);" aria-label="물건 검색">
       <input type="text" id="heroSearchInput" placeholder="지역, 자산 종류, 물건명으로 검색해 보세요 (예: 시흥시 토지)"/>
       <button type="submit">예측 검색</button>
     </form>
-    <p class="hero-note">※ 지금은 사전 공개 단계입니다 — 검색하시면 오픈 알림 신청으로 연결됩니다. 예측 정보는 과거 낙찰 데이터 기반의 통계적 참고자료이며, 입찰 결과를 보장하지 않습니다.</p>
+    <p class="hero-note">※ 예측 정보는 과거 낙찰 데이터 기반의 통계적 참고자료이며, 입찰 결과를 보장하지 않습니다. 지금은 예시 데이터로 동작합니다.</p>
 
     <!-- 스탯 타일 · 출처: 온비드 공개 통계(2021 누적) -->
     <div class="stat-row">
@@ -641,21 +641,16 @@ footer .copy { margin-top: 26px; font-size: 12px; color: var(--mute); }
 
 <!--
   ════════════════════════════════════════════════════════════════
-  TODO(다음 단계 — 실물건 검색 구현 메모, 이번 작업 범위 아님):
-  현재 이 섹션과 히어로 검색창은 정적 UI로, 클릭 시 사전 알림
-  신청(가입 모달)으로만 연결됨. 실제 검색으로 교체하려면:
+  물건 검색 페이지는 bidcast-list.html로 분리 구현됨 (6모드 탭 +
+  법원/지역/가격대/유찰횟수/물건종류 필터 + AI 리포트 4탭 모달,
+  로그인 전 핵심 수치 블러 게이팅). 현재는 예시 데이터(ITEMS 배열)로
+  동작함.
 
-  1) 데이터 연동 — 공공데이터포털 "온비드 공매물건 조회서비스" API
-     인증키 발급 후, netlify/functions/claude.js와 동일한 패턴으로
-     서버 프록시 함수를 새로 만들어 키를 서버 쪽에 숨길 것
-     (예: netlify/functions/onbid-search.js)
-  2) 필터 스키마 이식 — 요이땅(yoiddang.co.kr) /list.php 기준
-     법원 / 지역(시도→시군구→동) / 가격대 / 유찰횟수 / 물건종류
-     필터가 온비드 API 응답 필드와 거의 1:1 매핑됨. 이 asset-grid
-     자리에 실제 검색 결과 리스트 + 필터 바를 얹으면 됨
-  3) 탭 모드 — 경매검색/예정물건/신건/인기물건/매각결과는 화면을
-     따로 만들 필요 없이 API 쿼리 파라미터(상태·정렬)만 바꿔
-     같은 리스트 컴포넌트를 재사용
+  TODO(다음 단계 — 실 데이터 연동, 이번 작업 범위 아님):
+  공공데이터포털 "온비드 공매물건 조회서비스" API 인증키 발급 후,
+  netlify/functions/claude.js와 동일한 패턴으로 서버 프록시 함수를
+  새로 만들어(예: netlify/functions/onbid-search.js) bidcast-list.html의
+  ITEMS 정적 배열을 실제 API 응답으로 교체할 것.
   ════════════════════════════════════════════════════════════════
 -->
 <!-- ═══════════════ 빠른 검색 (자산유형) ═══════════════ -->
@@ -667,34 +662,34 @@ footer .copy { margin-top: 26px; font-size: 12px; color: var(--mute); }
         <h2 class="title reveal">자산 종류로 바로 시작</h2>
         <p class="lead reveal">압류재산·국유재산·수탁재산 등 처분 방식과 무관하게, 자산 종류만 고르면 관련 물건과 예측 데이터를 한 번에 볼 수 있습니다.</p>
       </div>
-      <span class="demo-chip reveal">검색 오픈 준비중 — 클릭하면 알림 신청</span>
+      <span class="demo-chip reveal">🔧 예시 데이터로 검색 가능 — 실 데이터 연동은 다음 단계</span>
     </div>
 
     <div class="asset-grid">
-      <div class="asset reveal" onclick="openAuth('signup', '부동산 물건이 열리면 가장 먼저 알려드릴게요.')" role="button" tabindex="0" onkeydown="if(event.key==='Enter')this.click()">
+      <a class="asset reveal" href="bidcast-list.html" style="text-decoration:none;color:inherit;">
         <span class="ico">🏢</span>
         <h3>부동산</h3>
         <p>토지 · 주거 · 상가 · 공장. 감정가와 유찰 횟수 기반 예측 정확도가 가장 높은 자산군.</p>
         <span class="tag">데이터 최다</span>
-      </div>
-      <div class="asset reveal" onclick="openAuth('signup', '차량 물건이 열리면 가장 먼저 알려드릴게요.')" role="button" tabindex="0" onkeydown="if(event.key==='Enter')this.click()">
+      </a>
+      <a class="asset reveal" href="bidcast-list.html?type=차량" style="text-decoration:none;color:inherit;">
         <span class="ico">🚗</span>
         <h3>차량</h3>
         <p>승용 · 화물 · 특수차량. 연식·주행거리 표준화가 쉬워 모델 적용이 빠릅니다.</p>
         <span class="tag">표준화 용이</span>
-      </div>
-      <div class="asset reveal" onclick="openAuth('signup', '동산·기계장비 물건이 열리면 가장 먼저 알려드릴게요.')" role="button" tabindex="0" onkeydown="if(event.key==='Enter')this.click()">
+      </a>
+      <a class="asset reveal" href="bidcast-list.html?type=기계장비" style="text-decoration:none;color:inherit;">
         <span class="ico">⚙️</span>
         <h3>동산 · 기계장비</h3>
         <p>공장설비 · 재고자산 · 압수품. 기존 서비스가 다루지 않는 영역입니다.</p>
         <span class="tag new">틈새 자산군</span>
-      </div>
-      <div class="asset reveal" onclick="openAuth('signup', '유가증권 물건이 열리면 가장 먼저 알려드릴게요.')" role="button" tabindex="0" onkeydown="if(event.key==='Enter')this.click()">
+      </a>
+      <a class="asset reveal" href="bidcast-list.html?type=유가증권" style="text-decoration:none;color:inherit;">
         <span class="ico">📈</span>
         <h3>유가증권 · 기타</h3>
         <p>비상장주식 · 회원권 · 특허권 등. 유사 사례 통계로 경향을 제시합니다.</p>
         <span class="tag new">틈새 자산군</span>
-      </div>
+      </a>
     </div>
   </div>
 </section>
@@ -767,6 +762,9 @@ footer .copy { margin-top: 26px; font-size: 12px; color: var(--mute); }
         </div>
       </article>
     </div>
+    <div style="text-align:center;margin-top:32px;">
+      <a href="bidcast-list.html" class="find-else a" style="text-decoration:none;font-size:13.5px;font-weight:700;color:var(--sub);background:var(--surface);border:1px solid var(--line);padding:10px 22px;border-radius:999px;transition:all .2s;display:inline-block;">🗂 전체 물건 리스트에서 더 보기 →</a>
+    </div>
   </div>
 </section>
 
@@ -827,7 +825,7 @@ footer .copy { margin-top: 26px; font-size: 12px; color: var(--mute); }
     </div>
 
     <div class="find-else reveal">
-      <a href="#search">🗂 전체 리스트로 찾기</a>
+      <a href="bidcast-list.html">🗂 전체 리스트로 찾기</a>
       <a href="#" title="준비중">🗺 지도로 찾기 (준비중)</a>
       <a href="#onboarding">⚡ 3초 추천으로 찾기</a>
       <a href="#acc">🎯 적중률 먼저 보기</a>
@@ -964,7 +962,7 @@ footer .copy { margin-top: 26px; font-size: 12px; color: var(--mute); }
       <div>
         <h5>서비스</h5>
         <ul>
-          <li><a href="#search">물건 검색</a></li>
+          <li><a href="bidcast-list.html">물건 검색</a></li>
           <li><a href="#onboarding">3초 AI 추천</a></li>
           <li><a href="#acc">적중률 공개</a></li>
           <li><a href="#cal">입찰 캘린더</a></li>
@@ -1108,14 +1106,19 @@ document.querySelectorAll('.chips').forEach(group => {
     });
   });
 });
+const ONB_TYPE_MAP = { '아파트·주거':'아파트', '토지':'토지', '상가·건물':'상가', '차량':'차량', '기계장비':'기계장비', '유가증권':'유가증권' };
 function showOnbResult() {
   if (!picks.type || !picks.region || !picks.budget) return;
   const el = document.getElementById('onbResult');
   const msg = `${picks.region} · ${picks.type} · ${picks.budget} 조건에 맞는 물건이 열리면 가장 먼저 알려드릴게요.`;
-  el.innerHTML = `🚶 <b>${picks.region} · ${picks.type} · ${picks.budget}</b> 조건에 맞는 진행 중 물건을 찾으면, AI 예상 낙찰가와 함께 바로 보여드릴게요. 지금은 사전 공개 단계라 신청하시면 오픈 즉시 추천 결과를 보내드립니다.<br/><button type="button" class="onb-cta-btn" id="onbCtaBtn">사전 알림 신청하기 →</button><span class="note">※ 데모 화면입니다 — 실제 추천은 서비스 오픈 후 제공됩니다.</span>`;
+  const listType = ONB_TYPE_MAP[picks.type] || '';
+  el.innerHTML = `🚶 <b>${picks.region} · ${picks.type} · ${picks.budget}</b> 조건에 맞는 예시 물건을 지금 바로 볼 수 있어요. 실제 조건에 맞는 신규 물건이 열리면 알림도 보내드립니다.<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;"><button type="button" class="onb-cta-btn" id="onbListBtn">예시 물건 바로 보기 →</button><button type="button" class="onb-cta-btn" id="onbCtaBtn" style="background:var(--surface);color:var(--green-deep);border:1.5px solid var(--green);">알림만 신청하기</button></div><span class="note">※ 물건 리스트는 예시 데이터입니다 — 실 데이터 연동은 다음 단계</span>`;
   el.classList.add('show');
   // 인라인 onclick에 한글 문자열을 넣으면 따옴표 충돌로 깨지므로 addEventListener 사용
   document.getElementById('onbCtaBtn').addEventListener('click', () => openAuth('signup', msg));
+  document.getElementById('onbListBtn').addEventListener('click', () => {
+    location.href = 'bidcast-list.html' + (listType ? '?type=' + encodeURIComponent(listType) : '');
+  });
 }
 
 // ═══════════════════════════════════════
@@ -1134,14 +1137,11 @@ function openAuth(mode, subtitleOverride) {
   document.body.style.overflow = 'hidden';
 }
 
-// 검색 기능은 다음 단계 구현 예정 — 지금은 검색 시도를 사전 알림 신청으로 연결
-function startSearchWaitlist(e) {
+// 물건 검색 페이지(bidcast-list.html)로 이동 — 실 데이터 연동 전까지는 예시 데이터로 동작
+function goToSearch(e) {
   e.preventDefault();
   const q = document.getElementById('heroSearchInput').value.trim();
-  const msg = q
-    ? `"${q}" 조건에 맞는 물건이 열리면 가장 먼저 알려드릴게요.`
-    : '찾으시는 물건이 열리면 가장 먼저 알려드릴게요.';
-  openAuth('signup', msg);
+  location.href = 'bidcast-list.html' + (q ? '?q=' + encodeURIComponent(q) : '');
   return false;
 }
 function closeAuth() {

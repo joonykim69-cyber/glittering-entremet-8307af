@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>물건 검색 — 낙찰예보</title>
+<meta name="description" content="온비드 공매 전 자산군을 법원·지역·가격대·유찰횟수로 검색하고, 물건별 AI 리포트(권리분석·적정가 분석)를 확인하세요."/>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"/>
+<style>
+/* ═══════════════════════════════════════
+   RESET & 토큰 — bidcast.html과 동일 팔레트(밤의 보행 신호등)
+═══════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:#F6FAF7; --surface:#FFFFFF; --ink:#10201A; --sub:#55655D; --mute:#93A29A; --line:#E1EAE4;
+  --green:#00A86B; --green-deep:#00744B; --green-soft:#E4F7EE;
+  --red:#E5484D; --red-soft:#FDEBEB;
+  --grad:linear-gradient(120deg,#00C87F 0%,#00A86B 55%,#009E8A 100%);
+  --glow:0 0 0 4px rgba(0,200,127,.14), 0 10px 34px rgba(0,168,107,.35);
+  --radius:18px; --ease:cubic-bezier(.16,1,.3,1);
+}
+html { scroll-behavior: smooth; }
+body { font-family:'Pretendard Variable',Pretendard,-apple-system,'Malgun Gothic',sans-serif; background:var(--bg); color:var(--ink); line-height:1.6; word-break:keep-all; -webkit-font-smoothing:antialiased; }
+.wrap { width:min(1160px,92%); margin:0 auto; }
+a { color:inherit; }
+
+/* NAV */
+nav { position:sticky; top:0; z-index:100; background:rgba(255,255,255,.9); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-bottom:1px solid var(--line); }
+nav .wrap { display:flex; align-items:center; justify-content:space-between; padding:14px 0; }
+.logo { display:flex; align-items:center; gap:9px; font-weight:900; font-size:17px; letter-spacing:-0.02em; text-decoration:none; color:var(--ink); }
+.logo-mark { width:28px; height:28px; border-radius:9px; background:var(--grad); display:grid; place-items:center; color:#fff; font-size:13px; font-weight:900; box-shadow:0 0 12px rgba(0,200,127,.5); }
+.nav-links { display:flex; gap:20px; list-style:none; }
+.nav-links a { text-decoration:none; color:var(--sub); font-size:14px; font-weight:600; transition:color .2s; }
+.nav-links a.on, .nav-links a:hover { color:var(--green-deep); }
+.nav-right { display:flex; align-items:center; gap:10px; }
+.nav-login { background:none; border:1px solid var(--line); color:var(--sub); cursor:pointer; font:inherit; font-size:13.5px; font-weight:700; padding:8px 16px; border-radius:999px; transition:all .2s; }
+.nav-login:hover { border-color:var(--green); color:var(--green-deep); }
+.nav-cta { background:var(--grad); color:#fff; border:none; cursor:pointer; font:inherit; font-size:13.5px; font-weight:700; padding:9px 18px; border-radius:999px; transition:transform .2s var(--ease), box-shadow .2s; }
+.nav-cta:hover { transform:translateY(-1px); box-shadow:var(--glow); }
+.nav-user { display:inline-flex; align-items:center; gap:8px; background:var(--green-soft); border:1px solid #C4EBD8; padding:7px 14px; border-radius:999px; font-size:12.5px; font-weight:800; color:var(--green-deep); }
+.nav-user .dot { width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 7px rgba(0,200,127,.7); }
+.nav-user button { background:none; border:none; cursor:pointer; font:inherit; font-size:11.5px; font-weight:700; color:var(--sub); padding:0 0 0 8px; border-left:1px solid #C4EBD8; }
+@media (max-width:900px) { .nav-links { display:none; } }
+
+/* PAGE HEAD */
+.page-head { padding:40px 0 24px; border-bottom:1px solid var(--line); background:var(--surface); }
+.page-head h1 { font-size:clamp(24px,3.4vw,32px); font-weight:900; letter-spacing:-0.03em; }
+.page-head p { color:var(--sub); font-size:14.5px; margin-top:8px; }
+.demo-chip { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--sub); border:1px dashed var(--mute); padding:5px 12px; border-radius:999px; margin-top:14px; }
+
+/* MODE TABS */
+.mode-tabs { display:flex; gap:8px; overflow-x:auto; padding:18px 0 0; scrollbar-width:none; }
+.mode-tabs::-webkit-scrollbar { display:none; }
+.mode-tabs button { flex:none; font:inherit; font-size:14px; font-weight:700; cursor:pointer; background:var(--bg); border:1.5px solid var(--line); color:var(--sub); padding:10px 20px; border-radius:999px; transition:all .2s; }
+.mode-tabs button:hover { border-color:var(--green); color:var(--green-deep); }
+.mode-tabs button.on { background:var(--green); border-color:var(--green); color:#fff; box-shadow:0 0 14px rgba(0,168,107,.4); }
+
+/* FILTER BAR */
+.filter-bar { display:flex; flex-wrap:wrap; gap:10px; padding:18px 0; align-items:center; }
+.filter-bar select {
+  font:inherit; font-size:13.5px; font-weight:600; color:var(--ink);
+  background:var(--surface); border:1.5px solid var(--line); border-radius:12px;
+  padding:10px 14px; cursor:pointer; outline:none; transition:border-color .2s;
+}
+.filter-bar select:focus { border-color:var(--green); }
+.filter-count { margin-left:auto; font-size:13px; color:var(--sub); }
+.filter-count b { color:var(--green-deep); font-weight:800; }
+.type-chips { display:flex; flex-wrap:wrap; gap:7px; padding-bottom:18px; }
+.type-chips button { font:inherit; font-size:12.5px; font-weight:700; cursor:pointer; background:var(--surface); border:1.5px solid var(--line); color:var(--sub); padding:7px 14px; border-radius:999px; transition:all .2s; }
+.type-chips button:hover { border-color:var(--green); }
+.type-chips button.on { background:var(--green-soft); border-color:var(--green); color:var(--green-deep); }
+
+/* LIST */
+.list-wrap { padding:8px 0 80px; }
+.item-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+@media (max-width:980px) { .item-grid { grid-template-columns:repeat(2,1fr); } }
+@media (max-width:640px) { .item-grid { grid-template-columns:1fr; } }
+.item-card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; transition:transform .25s var(--ease), box-shadow .25s; display:flex; flex-direction:column; }
+.item-card:hover { transform:translateY(-4px); box-shadow:0 16px 40px rgba(16,32,26,.09); }
+.item-thumb { height:120px; background:linear-gradient(140deg,#E9F8F0,#F2FBF6); display:grid; place-items:center; font-size:34px; position:relative; }
+.item-thumb .heart { position:absolute; top:10px; right:10px; width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,.85); border:1px solid var(--line); display:grid; place-items:center; cursor:pointer; font-size:15px; transition:all .2s; }
+.item-thumb .heart.on { background:var(--red-soft); border-color:var(--red); color:var(--red); }
+.item-thumb .fail-badge { position:absolute; top:10px; left:10px; font-size:11px; font-weight:800; background:var(--red); color:#fff; padding:4px 10px; border-radius:999px; }
+.item-body { padding:16px 18px 18px; flex:1; display:flex; flex-direction:column; }
+.item-kind { font-size:11.5px; font-weight:800; color:var(--green-deep); }
+.item-title { font-size:15.5px; font-weight:800; letter-spacing:-0.02em; margin:5px 0 4px; }
+.item-meta { font-size:12.5px; color:var(--sub); }
+.item-tags { display:flex; flex-wrap:wrap; gap:5px; margin-top:9px; }
+.item-tags span { font-size:10.5px; font-weight:700; color:var(--sub); background:var(--bg); border:1px solid var(--line); padding:3px 8px; border-radius:999px; }
+.item-price { margin-top:12px; padding-top:12px; border-top:1px solid var(--line); font-size:12px; color:var(--sub); display:flex; justify-content:space-between; }
+.item-price b { color:var(--ink); font-weight:800; font-size:14px; }
+.item-foot { margin-top:12px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.item-views { font-size:11px; color:var(--mute); }
+.report-btn { font:inherit; font-size:12.5px; font-weight:800; cursor:pointer; background:var(--ink); color:#fff; border:none; padding:8px 16px; border-radius:10px; transition:background .2s, transform .15s var(--ease); }
+.report-btn:hover { background:var(--green-deep); transform:translateY(-1px); }
+.empty-state { text-align:center; padding:80px 0; color:var(--sub); font-size:14px; }
+
+/* REPORT MODAL */
+.rp-overlay { position:fixed; inset:0; z-index:210; display:none; align-items:flex-start; justify-content:center; padding:min(6vh,60px) 16px 40px; background:rgba(16,32,26,.5); backdrop-filter:blur(6px); overflow-y:auto; opacity:0; transition:opacity .25s var(--ease); }
+.rp-overlay.open { display:flex; }
+.rp-overlay.vis { opacity:1; }
+.rp-modal { width:100%; max-width:680px; background:var(--surface); border:1px solid var(--line); border-radius:24px; padding:0; box-shadow:0 30px 80px rgba(16,32,26,.28); transform:scale(.97) translateY(10px); transition:transform .25s var(--ease); }
+.rp-overlay.vis .rp-modal { transform:none; }
+.rp-head { padding:24px 26px 0; position:relative; }
+.rp-close { position:absolute; top:18px; right:18px; background:var(--bg); border:1px solid var(--line); color:var(--sub); cursor:pointer; width:32px; height:32px; border-radius:50%; font-size:14px; }
+.rp-tag { font-size:11.5px; font-weight:800; color:var(--green-deep); background:var(--green-soft); padding:4px 11px; border-radius:999px; }
+.rp-title { font-size:19px; font-weight:900; letter-spacing:-0.02em; margin-top:10px; }
+.rp-tabs { display:flex; gap:4px; margin-top:18px; border-bottom:1px solid var(--line); padding:0 0; }
+.rp-tabs button { font:inherit; font-size:13.5px; font-weight:700; cursor:pointer; background:none; border:none; color:var(--sub); padding:12px 16px; border-bottom:2.5px solid transparent; transition:all .2s; }
+.rp-tabs button.on { color:var(--green-deep); border-bottom-color:var(--green); }
+.rp-body { padding:22px 26px 26px; min-height:220px; }
+.rp-pane { display:none; }
+.rp-pane.on { display:block; }
+.rp-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.rp-tile { background:var(--bg); border:1px solid var(--line); border-radius:14px; padding:14px 16px; }
+.rp-tile .k { font-size:11.5px; color:var(--sub); font-weight:700; }
+.rp-tile .v { font-size:15px; font-weight:800; margin-top:4px; }
+.rp-safety { display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:800; padding:7px 14px; border-radius:999px; margin-top:14px; }
+.rp-safety.safe { background:var(--green-soft); color:var(--green-deep); border:1px solid #C4EBD8; }
+.rp-safety.warn { background:var(--red-soft); color:var(--red); border:1px solid #F6C9CB; }
+.rp-safety .dot { width:8px; height:8px; border-radius:50%; }
+.rp-safety.safe .dot { background:var(--green); box-shadow:0 0 8px rgba(0,200,127,.7); }
+.rp-safety.warn .dot { background:var(--red); box-shadow:0 0 8px rgba(229,72,77,.6); }
+.rp-list { list-style:none; display:grid; gap:9px; margin-top:14px; }
+.rp-list li { display:flex; gap:9px; font-size:13.5px; color:var(--sub); }
+.rp-list li b { color:var(--ink); font-weight:700; }
+.rp-blur-wrap { position:relative; margin-top:16px; }
+.rp-blur-wrap.locked .rp-blur-target { filter:blur(7px); user-select:none; pointer-events:none; }
+.rp-lock-cta {
+  display:none; position:absolute; inset:0; align-items:center; justify-content:center; flex-direction:column; gap:8px;
+  background:rgba(255,255,255,.55); border-radius:14px; text-align:center; padding:14px;
+}
+.rp-blur-wrap.locked .rp-lock-cta { display:flex; }
+.rp-lock-cta button { font:inherit; font-size:12.5px; font-weight:800; cursor:pointer; background:var(--grad); color:#fff; border:none; padding:9px 18px; border-radius:999px; box-shadow:0 8px 20px rgba(0,168,107,.35); }
+.rp-lock-cta p { font-size:11.5px; color:var(--sub); font-weight:700; }
+.rp-foot-note { margin-top:18px; font-size:11.5px; color:var(--mute); border-top:1px solid var(--line); padding-top:14px; }
+
+/* AUTH MODAL (bidcast.html과 동일 컴포넌트) */
+.auth-overlay { position:fixed; inset:0; z-index:220; display:none; align-items:center; justify-content:center; padding:20px; background:rgba(16,32,26,.45); backdrop-filter:blur(8px); opacity:0; transition:opacity .25s var(--ease); }
+.auth-overlay.open { display:flex; }
+.auth-overlay.vis { opacity:1; }
+.auth-modal { width:100%; max-width:420px; max-height:calc(100vh - 40px); overflow-y:auto; background:var(--surface); border:1px solid var(--line); border-radius:26px; padding:28px 28px 24px; position:relative; box-shadow:0 30px 80px rgba(16,32,26,.25); transform:scale(.96) translateY(8px); transition:transform .25s var(--ease); }
+.auth-overlay.vis .auth-modal { transform:none; }
+.auth-close { position:absolute; top:16px; right:16px; background:var(--bg); border:1px solid var(--line); color:var(--sub); cursor:pointer; width:32px; height:32px; border-radius:50%; font-size:14px; }
+.auth-head { text-align:center; margin-bottom:20px; }
+.auth-head h3 { font-size:19px; font-weight:800; margin-top:10px; }
+.auth-head p { font-size:12px; color:var(--sub); margin-top:4px; }
+.sns-btns { display:grid; gap:9px; }
+.sns-btn { display:flex; align-items:center; gap:11px; width:100%; font:inherit; font-size:14px; font-weight:700; cursor:pointer; border:none; border-radius:13px; padding:12px 16px; transition:transform .15s var(--ease); }
+.sns-btn:hover { transform:translateY(-1px); }
+.sns-btn .sb-ico { width:22px; height:22px; border-radius:6px; display:grid; place-items:center; font-size:12px; font-weight:900; flex:none; }
+.sns-btn.kakao { background:#FEE500; color:#191919; } .sns-btn.kakao .sb-ico { background:#191919; color:#FEE500; }
+.sns-btn.naver { background:#03C75A; color:#fff; } .sns-btn.naver .sb-ico { background:#fff; color:#03C75A; }
+.sns-btn.google { background:#fff; color:#333; border:1.5px solid var(--line); }
+.sns-btn .sb-note { margin-left:auto; font-size:11px; font-weight:600; opacity:.65; }
+.auth-sep { display:flex; align-items:center; gap:10px; margin:18px 0 14px; }
+.auth-sep::before, .auth-sep::after { content:''; flex:1; height:1px; background:var(--line); }
+.auth-sep span { font-size:11px; font-weight:700; color:var(--mute); }
+.auth-field label { display:block; font-size:12px; font-weight:700; color:var(--sub); margin-bottom:6px; }
+.auth-field input { width:100%; font:inherit; font-size:14.5px; color:var(--ink); background:var(--bg); border:1.5px solid var(--line); border-radius:12px; padding:12px 15px; outline:none; }
+.auth-field input:focus { border-color:var(--green); box-shadow:0 0 0 3px rgba(0,200,127,.15); }
+.auth-submit { width:100%; margin-top:14px; font:inherit; font-size:14.5px; font-weight:800; cursor:pointer; background:var(--grad); color:#fff; border:none; border-radius:13px; padding:13px; }
+.demo-note { margin-top:14px; text-align:center; font-size:10.5px; color:var(--mute); }
+
+/* FOOTER */
+footer { border-top:1px solid var(--line); background:var(--surface); padding:48px 0 36px; margin-top:20px; }
+footer .cols { display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:36px; }
+footer .brand { font-weight:900; font-size:17px; } footer .brand span { color:var(--green); }
+footer h5 { font-size:12.5px; font-weight:800; color:var(--ink); margin-bottom:12px; }
+footer ul { list-style:none; display:grid; gap:8px; }
+footer ul a { text-decoration:none; font-size:13px; color:var(--sub); }
+footer ul a:hover { color:var(--green-deep); }
+footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
+@media (max-width:860px) { footer .cols { grid-template-columns:1fr 1fr; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="logo" href="bidcast.html"><span class="logo-mark">予</span>낙찰예보</a>
+    <ul class="nav-links">
+      <li><a href="bidcast-list.html" class="on">물건검색</a></li>
+      <li><a href="bidcast-map.html">지도</a></li>
+      <li><a href="bidcast-lab.html">적중률</a></li>
+      <li><a href="bidcast-calendar.html">캘린더</a></li>
+      <li><a href="bidcast-insight.html">인사이트</a></li>
+    </ul>
+    <div class="nav-right" id="navRight">
+      <button class="nav-login" type="button" onclick="openAuth('login')">로그인</button>
+      <button class="nav-cta" type="button" onclick="openAuth('signup')">사전 알림 신청</button>
+    </div>
+  </div>
+</nav>
+
+<header class="page-head">
+  <div class="wrap">
+    <h1>물건 검색</h1>
+    <p>법원·지역·가격대·유찰횟수로 원하는 물건을 좁히고, 카드마다 AI 리포트로 권리분석과 적정가를 확인하세요.</p>
+    <span class="demo-chip">🔧 아래 물건·필터·리포트는 모두 예시 데이터입니다 — 실 데이터 연동은 다음 단계</span>
+
+    <div class="mode-tabs" id="modeTabs">
+      <button data-mode="search" class="on">경매검색</button>
+      <button data-mode="upcoming">예정물건</button>
+      <button data-mode="new">경매신건</button>
+      <button data-mode="popular">인기물건</button>
+      <button data-mode="hot">인기검색</button>
+      <button data-mode="sold">매각결과</button>
+    </div>
+
+    <div class="filter-bar">
+      <input type="text" id="fQuery" placeholder="🔍 물건명, 지역으로 검색" style="font:inherit;font-size:13.5px;font-weight:600;color:var(--ink);background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:10px 14px;outline:none;min-width:200px;"/>
+      <select id="fCourt"><option value="">법원 전체</option><option>서울중앙지방법원</option><option>서울동부지방법원</option><option>수원지방법원</option><option>인천지방법원</option><option>부산지방법원</option></select>
+      <select id="fRegion"><option value="">지역 전체</option><option>서울</option><option>경기</option><option>인천</option><option>부산</option><option>대구</option></select>
+      <select id="fPrice"><option value="">가격대 전체</option><option value="0-5000">5천만 이하</option><option value="5000-10000">5천만~1억</option><option value="10000-50000">1억~5억</option><option value="50000-999999">5억 이상</option></select>
+      <select id="fFail"><option value="">유찰횟수 전체</option><option value="0">신건(유찰없음)</option><option value="1">1회</option><option value="2">2회 이상</option></select>
+      <select id="fStatus"><option value="">상태 전체</option><option>진행</option><option>유찰</option><option>낙찰</option></select>
+      <select id="fSort"><option value="latest">최신순</option><option value="views">조회수순</option><option value="price-asc">낮은 가격순</option><option value="price-desc">높은 가격순</option></select>
+      <span class="filter-count"><b id="resultCount">0</b>건의 물건</span>
+    </div>
+
+    <div class="type-chips" id="typeChips">
+      <button data-type="아파트" class="on">아파트</button>
+      <button data-type="토지" class="on">토지</button>
+      <button data-type="상가" class="on">상가</button>
+      <button data-type="차량" class="on">차량</button>
+      <button data-type="기계장비" class="on">기계장비</button>
+      <button data-type="유가증권" class="on">유가증권</button>
+    </div>
+  </div>
+</header>
+
+<main class="list-wrap">
+  <div class="wrap">
+    <div class="item-grid" id="itemGrid"></div>
+    <div class="empty-state" id="emptyState" style="display:none;">조건에 맞는 예시 물건이 없습니다. 필터를 조정해 보세요.</div>
+  </div>
+</main>
+
+<!-- AI 리포트 모달 -->
+<div class="rp-overlay" id="rpOverlay" role="dialog" aria-modal="true">
+  <div class="rp-modal">
+    <div class="rp-head">
+      <button class="rp-close" type="button" onclick="closeReport()" aria-label="닫기">✕</button>
+      <span class="rp-tag" id="rpTag">AI 리포트 · 예시</span>
+      <div class="rp-title" id="rpTitle">물건명</div>
+      <div class="rp-tabs" id="rpTabs">
+        <button data-tab="basic" class="on">기본정보</button>
+        <button data-tab="summary">종합분석</button>
+        <button data-tab="rights">권리분석</button>
+        <button data-tab="price">적정가 분석</button>
+      </div>
+    </div>
+    <div class="rp-body">
+      <div class="rp-pane on" id="rpBasic"></div>
+      <div class="rp-pane" id="rpSummary"></div>
+      <div class="rp-pane" id="rpRights"></div>
+      <div class="rp-pane" id="rpPrice"></div>
+      <p class="rp-foot-note">본 리포트는 과거 낙찰 데이터 기반의 통계적 참고자료(예시)이며, 법률적 판단이나 투자 권유가 아닙니다. 최종 판단과 책임은 이용자 본인에게 있습니다.</p>
+    </div>
+  </div>
+</div>
+
+<!-- 간편로그인 모달 (bidcast.html과 동일 컴포넌트) -->
+<div class="auth-overlay" id="authOverlay" role="dialog" aria-modal="true">
+  <div class="auth-modal">
+    <button class="auth-close" type="button" onclick="closeAuth()" aria-label="닫기">✕</button>
+    <div class="auth-head">
+      <span style="display:inline-flex;align-items:center;gap:8px;font-weight:900;font-size:16px;"><span class="logo-mark" style="width:24px;height:24px;font-size:11px;">予</span>낙찰예보</span>
+      <h3 id="authTitle">간편하게 시작하기</h3>
+      <p id="authSub">로그인하면 AI 리포트의 추천 입찰가를 바로 볼 수 있어요.</p>
+    </div>
+    <div class="sns-btns">
+      <button class="sns-btn kakao" type="button" onclick="snsFlow('카카오')"><span class="sb-ico">K</span> 카카오로 계속하기 <span class="sb-note">가장 빨라요</span></button>
+      <button class="sns-btn naver" type="button" onclick="snsFlow('네이버')"><span class="sb-ico">N</span> 네이버로 계속하기</button>
+      <button class="sns-btn google" type="button" onclick="snsFlow('Google')"><span class="sb-ico">G</span> Google로 계속하기 <span class="sb-note">Gmail</span></button>
+    </div>
+    <div class="auth-sep"><span>또는 이메일로 간편 가입</span></div>
+    <div class="auth-field">
+      <label for="authEmail">이메일 주소</label>
+      <input type="email" id="authEmail" placeholder="name@gmail.com"/>
+    </div>
+    <button class="auth-submit" type="button" onclick="emailDemoLogin()">인증코드로 계속하기</button>
+    <p class="demo-note">※ 데모 화면입니다 — 클릭 즉시 로그인 처리됩니다.</p>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <div class="brand">낙찰<span>예보</span></div>
+        <p style="font-size:12.5px;color:var(--sub);margin-top:8px;max-width:320px;">공공데이터포털의 온비드 공식 API 데이터를 기반으로 한 공매 낙찰가 예측 서비스입니다.</p>
+      </div>
+      <div><h5>서비스</h5><ul><li><a href="bidcast-list.html">물건 검색</a></li><li><a href="bidcast-map.html">지도로 보기</a></li><li><a href="bidcast-lab.html">적중률 공개</a></li><li><a href="bidcast-calendar.html">입찰 캘린더</a></li></ul></div>
+      <div><h5>콘텐츠</h5><ul><li><a href="bidcast-insight.html">인사이트</a></li><li><a href="bidcast.html#onboarding">3초 AI 추천</a></li></ul></div>
+      <div><h5>바로가기</h5><ul><li><a href="bidcast.html">홈으로</a></li></ul></div>
+    </div>
+    <p class="copy">© 2026 낙찰예보. All rights reserved. 예측 정보는 통계적 참고자료이며 투자 판단의 책임은 이용자 본인에게 있습니다.</p>
+  </div>
+</footer>
+
+<script>
+// ═══════════════════════════════════════
+// 예시 물건 데이터셋 (데모) — 실 데이터는 온비드 API 연동 후 교체
+// ═══════════════════════════════════════
+const ITEMS = [
+  { id:1, mode:['search','popular'], type:'아파트', region:'서울', court:'서울중앙지방법원', title:'서울 강남구 역삼동 아파트 24평', address:'강남구 역삼동', appr:65000, min:52000, fail:1, status:'진행', tags:['#재매각','#선순위임차인'], views:2140, thumb:'🏢', caseNo:'2026타경1021' },
+  { id:2, mode:['search','new'], type:'토지', region:'경기', court:'수원지방법원', title:'경기 시흥시 배곧동 대지 152㎡', address:'시흥시 배곧동', appr:84000, min:84000, fail:0, status:'진행', tags:['#신건'], views:640, thumb:'🏞️', caseNo:'2026타경0492' },
+  { id:3, mode:['search','sold'], type:'상가', region:'서울', court:'서울동부지방법원', title:'서울 서대문구 충정로 상가 1층', address:'서대문구 충정로3가', appr:41000, min:41000, fail:0, status:'낙찰', tags:['#매각완료'], views:980, thumb:'🏬', caseNo:'2025타경7710' },
+  { id:4, mode:['search','popular','hot'], type:'차량', region:'경기', court:'인천지방법원', title:'5톤 카고트럭 (2021년식)', address:'인천 남동구', appr:3200, min:2240, fail:1, status:'진행', tags:['#재매각'], views:1520, thumb:'🚚', caseNo:'2026타경0310' },
+  { id:5, mode:['search'], type:'기계장비', region:'대구', court:'서울중앙지방법원', title:'CNC 머시닝센터 외 3점', address:'대구 달서구', appr:11000, min:4510, fail:3, status:'진행', tags:['#일괄매각','#3회유찰'], views:410, thumb:'🏭', caseNo:'2025타경5521' },
+  { id:6, mode:['search','upcoming'], type:'유가증권', region:'서울', court:'서울중앙지방법원', title:'비상장주식 A사 지분 3%', address:'서울 강남구', appr:9800, min:9800, fail:0, status:'진행', tags:['#신건'], views:220, thumb:'📈', caseNo:'2026타경1188' },
+  { id:7, mode:['search','upcoming'], type:'아파트', region:'부산', court:'부산지방법원', title:'부산 해운대구 우동 아파트 32평', address:'해운대구 우동', appr:98000, min:78400, fail:1, status:'진행', tags:['#대항력있는임차인'], views:1870, thumb:'🏢', caseNo:'2026타경0877' },
+  { id:8, mode:['search','new'], type:'토지', region:'인천', court:'인천지방법원', title:'인천 서구 청라동 임야 3,120㎡', address:'서구 청라동', appr:56000, min:56000, fail:0, status:'진행', tags:['#신건'], views:305, thumb:'🌲', caseNo:'2026타경0512' },
+  { id:9, mode:['search','sold'], type:'차량', region:'서울', court:'서울동부지방법원', title:'승용차 그랜저 (2020년식)', address:'서울 송파구', appr:1850, min:1850, fail:0, status:'낙찰', tags:['#매각완료'], views:760, thumb:'🚗', caseNo:'2025타경9042' },
+];
+
+let activeMode = 'search';
+let activeTypes = new Set(['아파트','토지','상가','차량','기계장비','유가증권']);
+let likedIds = new Set();
+let qTerm = '';
+
+function fmtWon(man) {
+  if (man >= 10000) return (man / 10000).toFixed(man % 10000 === 0 ? 0 : 1) + '억';
+  return man.toLocaleString() + '만';
+}
+
+function applyFilters() {
+  const court = document.getElementById('fCourt').value;
+  const region = document.getElementById('fRegion').value;
+  const priceRange = document.getElementById('fPrice').value;
+  const failVal = document.getElementById('fFail').value;
+  const status = document.getElementById('fStatus').value;
+  const sort = document.getElementById('fSort').value;
+
+  let list = ITEMS.filter(it => it.mode.includes(activeMode));
+  list = list.filter(it => activeTypes.has(it.type));
+  if (qTerm) {
+    const q = qTerm.toLowerCase();
+    list = list.filter(it => it.title.toLowerCase().includes(q) || it.address.toLowerCase().includes(q) || it.type.toLowerCase().includes(q));
+  }
+  if (court) list = list.filter(it => it.court === court);
+  if (region) list = list.filter(it => it.region === region);
+  if (status) list = list.filter(it => it.status === status);
+  if (failVal !== '') {
+    const fv = parseInt(failVal, 10);
+    list = list.filter(it => fv === 2 ? it.fail >= 2 : it.fail === fv);
+  }
+  if (priceRange) {
+    const [lo, hi] = priceRange.split('-').map(Number);
+    list = list.filter(it => it.appr >= lo && it.appr <= hi);
+  }
+  if (sort === 'views') list = [...list].sort((a, b) => b.views - a.views);
+  else if (sort === 'price-asc') list = [...list].sort((a, b) => a.appr - b.appr);
+  else if (sort === 'price-desc') list = [...list].sort((a, b) => b.appr - a.appr);
+  else list = [...list].sort((a, b) => b.id - a.id);
+
+  renderList(list);
+}
+
+function renderList(list) {
+  const grid = document.getElementById('itemGrid');
+  document.getElementById('resultCount').textContent = list.length;
+  document.getElementById('emptyState').style.display = list.length ? 'none' : 'block';
+  grid.innerHTML = list.map(it => `
+    <article class="item-card">
+      <div class="item-thumb">${it.thumb}
+        ${it.fail > 0 ? `<span class="fail-badge">유찰 ${it.fail}회</span>` : ''}
+        <span class="heart ${likedIds.has(it.id) ? 'on' : ''}" onclick="toggleLike(${it.id}, this)">♥</span>
+      </div>
+      <div class="item-body">
+        <span class="item-kind">${it.court} · ${it.type}</span>
+        <div class="item-title">${it.title}</div>
+        <div class="item-meta">${it.caseNo} · ${it.address}</div>
+        <div class="item-tags">${it.tags.map(t => `<span>${t}</span>`).join('')}</div>
+        <div class="item-price"><span>감정가</span><b>${fmtWon(it.appr)}</b></div>
+        <div class="item-price" style="margin-top:2px;border:none;padding-top:0;"><span>최저가</span><b>${fmtWon(it.min)}</b></div>
+        <div class="item-foot">
+          <span class="item-views">조회 ${it.views.toLocaleString()}</span>
+          <button class="report-btn" type="button" onclick="openReport(${it.id})">리포트 보기</button>
+        </div>
+      </div>
+    </article>
+  `).join('');
+}
+
+function toggleLike(id, el) {
+  if (likedIds.has(id)) { likedIds.delete(id); el.classList.remove('on'); }
+  else { likedIds.add(id); el.classList.add('on'); }
+}
+
+document.querySelectorAll('#modeTabs button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#modeTabs button').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    activeMode = btn.dataset.mode;
+    applyFilters();
+  });
+});
+document.querySelectorAll('#typeChips button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const t = btn.dataset.type;
+    if (activeTypes.has(t)) { activeTypes.delete(t); btn.classList.remove('on'); }
+    else { activeTypes.add(t); btn.classList.add('on'); }
+    applyFilters();
+  });
+});
+['fCourt','fRegion','fPrice','fFail','fStatus','fSort'].forEach(id => document.getElementById(id).addEventListener('change', applyFilters));
+document.getElementById('fQuery').addEventListener('input', (e) => { qTerm = e.target.value.trim(); applyFilters(); });
+
+// ═══════════════════════════════════════
+// AI 리포트 모달 — 4탭, 비로그인 시 핵심 수치 블러 처리
+// ═══════════════════════════════════════
+const rpOverlay = document.getElementById('rpOverlay');
+let userLoggedIn = false;
+let currentReportItem = null;
+
+function openReport(id) {
+  currentReportItem = ITEMS.find(it => it.id === id);
+  renderReport(currentReportItem);
+  rpOverlay.classList.add('open');
+  requestAnimationFrame(() => rpOverlay.classList.add('vis'));
+  document.body.style.overflow = 'hidden';
+  switchReportTab('basic');
+}
+function closeReport() {
+  rpOverlay.classList.remove('vis');
+  document.body.style.overflow = '';
+  setTimeout(() => rpOverlay.classList.remove('open'), 250);
+}
+rpOverlay.addEventListener('click', e => { if (e.target === rpOverlay) closeReport(); });
+
+document.querySelectorAll('#rpTabs button').forEach(btn => {
+  btn.addEventListener('click', () => switchReportTab(btn.dataset.tab));
+});
+function switchReportTab(tab) {
+  document.querySelectorAll('#rpTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  document.querySelectorAll('.rp-pane').forEach(p => p.classList.remove('on'));
+  document.getElementById('rp' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('on');
+}
+
+function grade(it) {
+  if (it.fail >= 2) return { g:'B', safe:false, note:'유찰이 잦아 시세 대비 저평가 구간이나, 하자 가능성도 함께 점검 필요' };
+  const risky = it.tags.some(t => t.includes('대항력') || t.includes('임차인'));
+  return risky ? { g:'B+', safe:false, note:'선순위 임차인 관련 권리관계 확인이 필요합니다' } : { g:'A', safe:true, note:'등기상 인수 위험이 낮은 편입니다' };
+}
+
+function renderReport(it) {
+  const g = grade(it);
+  document.getElementById('rpTag').textContent = `AI 리포트 · 예시 · ${it.caseNo}`;
+  document.getElementById('rpTitle').textContent = it.title;
+
+  document.getElementById('rpBasic').innerHTML = `
+    <div class="rp-grid2">
+      <div class="rp-tile"><div class="k">사건번호</div><div class="v">${it.caseNo}</div></div>
+      <div class="rp-tile"><div class="k">담당 법원</div><div class="v">${it.court}</div></div>
+      <div class="rp-tile"><div class="k">소재지</div><div class="v">${it.address}</div></div>
+      <div class="rp-tile"><div class="k">물건 종류</div><div class="v">${it.type}</div></div>
+      <div class="rp-tile"><div class="k">감정가</div><div class="v">${fmtWon(it.appr)}</div></div>
+      <div class="rp-tile"><div class="k">최저입찰가</div><div class="v">${fmtWon(it.min)}</div></div>
+    </div>`;
+
+  document.getElementById('rpSummary').innerHTML = `
+    <span class="rp-safety ${g.safe ? 'safe' : 'warn'}"><span class="dot"></span>투자등급 ${g.g} · ${g.safe ? '안전' : '주의'}</span>
+    <ul class="rp-list">
+      <li>🔎 <b>${g.note}</b></li>
+      <li>📊 유찰 <b>${it.fail}회</b> · 최저가는 감정가 대비 <b>${Math.round(it.min / it.appr * 100)}%</b> 수준</li>
+      <li>🏷️ 특징 태그: ${it.tags.join(' ')}</li>
+    </ul>
+    <div class="rp-blur-wrap ${userLoggedIn ? '' : 'locked'}">
+      <div class="rp-blur-target">
+        <ul class="rp-list">
+          <li>💰 AI 추천 입찰가: <b>${fmtWon(Math.round(it.min * 1.12))} ~ ${fmtWon(Math.round(it.min * 1.2))}</b></li>
+          <li>📈 예상 낙찰가율: <b>${Math.round((it.min * 1.16) / it.appr * 100)}%</b></li>
+        </ul>
+      </div>
+      <div class="rp-lock-cta">
+        <p>추천 입찰가는 로그인 후 확인할 수 있어요</p>
+        <button type="button" onclick="closeReport(); openAuth('login');">로그인하고 확인하기</button>
+      </div>
+    </div>`;
+
+  document.getElementById('rpRights').innerHTML = `
+    <span class="rp-safety ${g.safe ? 'safe' : 'warn'}"><span class="dot"></span>${g.safe ? '인수 위험 낮음' : '권리관계 확인 필요'}</span>
+    <ul class="rp-list">
+      <li>말소기준권리: <b>근저당권 (예시 · 2021년 설정)</b> — 이후 등기상 권리는 매각으로 소멸</li>
+      <li>선순위 인수 권리: <b>${g.safe ? '없음' : '확인 필요 — 매각물건명세서 재확인 권장'}</b></li>
+      <li>임차인 대항력: <b>${it.tags.some(t=>t.includes('임차인')) ? '대항력 있음 (선순위 전입 추정)' : '해당 없음'}</b></li>
+    </ul>`;
+
+  const ratio = Math.round((it.min * 1.16) / it.appr * 100);
+  document.getElementById('rpPrice').innerHTML = `
+    <div class="rp-grid2">
+      <div class="rp-tile"><div class="k">감정가</div><div class="v">${fmtWon(it.appr)}</div></div>
+      <div class="rp-tile"><div class="k">최저입찰가 (감정가 대비)</div><div class="v">${Math.round(it.min/it.appr*100)}%</div></div>
+    </div>
+    <div class="rp-blur-wrap ${userLoggedIn ? '' : 'locked'}" style="margin-top:14px;">
+      <div class="rp-blur-target">
+        <div class="rp-tile"><div class="k">AI 추천 입찰가 (낙찰가율 ${ratio}% 기준)</div><div class="v">${fmtWon(Math.round(it.min*1.16))}</div></div>
+      </div>
+      <div class="rp-lock-cta">
+        <p>추천 입찰가는 로그인 후 확인할 수 있어요</p>
+        <button type="button" onclick="closeReport(); openAuth('login');">로그인하고 확인하기</button>
+      </div>
+    </div>`;
+}
+
+// ═══════════════════════════════════════
+// 간편로그인 (데모) — 로그인 성공 시 리포트 블러 즉시 해제
+// ═══════════════════════════════════════
+const authOverlay = document.getElementById('authOverlay');
+function openAuth(mode) {
+  document.getElementById('authTitle').textContent = mode === 'login' ? '다시 오셨네요' : '간편하게 시작하기';
+  authOverlay.classList.add('open');
+  requestAnimationFrame(() => authOverlay.classList.add('vis'));
+  document.body.style.overflow = 'hidden';
+}
+function closeAuth() {
+  authOverlay.classList.remove('vis');
+  document.body.style.overflow = currentReportItem ? 'hidden' : '';
+  setTimeout(() => authOverlay.classList.remove('open'), 250);
+}
+authOverlay.addEventListener('click', e => { if (e.target === authOverlay) closeAuth(); });
+
+function snsFlow(provider) { finishAuth(provider === 'Google' ? 'Gmail 계정' : `${provider} 계정`); }
+function emailDemoLogin() {
+  const email = document.getElementById('authEmail').value.trim() || 'name@gmail.com';
+  finishAuth(email);
+}
+function finishAuth(identity) {
+  userLoggedIn = true;
+  closeAuth();
+  const navRight = document.getElementById('navRight');
+  navRight.innerHTML = `<span class="nav-user"><span class="dot"></span>${identity} <button type="button" onclick="logoutDemo()">로그아웃</button></span>`;
+  if (currentReportItem) renderReport(currentReportItem);
+}
+function logoutDemo() {
+  userLoggedIn = false;
+  const navRight = document.getElementById('navRight');
+  navRight.innerHTML = `<button class="nav-login" type="button" onclick="openAuth('login')">로그인</button><button class="nav-cta" type="button" onclick="openAuth('signup')">사전 알림 신청</button>`;
+  if (currentReportItem) renderReport(currentReportItem);
+}
+
+// 검색결과 페이지 진입 시 랜딩에서 넘어온 쿼리(q, type) 반영
+(function initFromQuery() {
+  const params = new URLSearchParams(location.search);
+  const type = params.get('type');
+  const q = params.get('q');
+  if (type && ITEMS.some(it => it.type === type)) {
+    activeTypes = new Set([type]);
+    document.querySelectorAll('#typeChips button').forEach(b => b.classList.toggle('on', b.dataset.type === type));
+  }
+  if (q) {
+    qTerm = q;
+    document.getElementById('fQuery').value = q;
+  }
+})();
+
+applyFilters();
+</script>
+</body>
+</html>
