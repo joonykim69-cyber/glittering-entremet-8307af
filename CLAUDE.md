@@ -4,15 +4,32 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repository is
 
-A static site deployed on Netlify for **K-Map Linker / K-Buddy**, a set of Korea-travel web apps. There is no package.json, no build step, no test suite, and no linter. Each page is a single self-contained HTML file with all CSS and JavaScript inlined — keep it that way when editing; do not introduce bundlers, frameworks, or external JS files.
+A static site deployed on Netlify hosting two unrelated projects: **K-Map Linker / K-Buddy** (Korea-travel web apps) and **낙찰예보 (BidCast)** (an Onbid public-auction price-prediction prototype). There is no package.json, no build step, no test suite, and no linter. Each page is a single self-contained HTML file with all CSS and JavaScript inlined — keep it that way when editing; do not introduce bundlers, frameworks, or external JS files.
 
 ## Files
+
+### K-Map Linker / K-Buddy
 
 - `index.html` — Marketing/landing page for K-Map Linker (sections: hero, features, how, drama, reviews, download).
 - `kmaplinker_web.html` — The main mobile-web app prototype. A vanilla-JS SPA with five tabs: Address, Subway, Discover, Drama Route, Travelers.
 - `kbuddy.html` — K-Buddy, a fully offline mobile web app (views: address, food, travelers, drama). Views are static `<section class="view">` blocks toggled with the `is-active` class; no fetch calls at all.
 - `netlify/functions/claude.js` — Serverless proxy for the Anthropic Messages API.
 - `netlify.toml` — Points Netlify at `netlify/functions` with the esbuild bundler.
+
+### 낙찰예보 (BidCast)
+
+A 10-page static prototype (`bidcast*.html`) for an Onbid auction winning-bid prediction service, benchmarking `yoiddang.co.kr`'s information architecture. Every page ships with **all example data clearly labeled** (예시 데이터 chips) — there is no backend, no real Onbid API call, and no persistence; "login" and "search" are client-side demos only.
+
+- `bidcast.html` — Landing page. Hero, 3-step onboarding widget (`#onboarding`), asset-type quick search, example AI-forecast cards, mini accuracy/calendar previews, mock-bid simulation, insight teaser.
+- `bidcast-list.html` — Product search: 6 mode tabs (경매검색/예정물건/신건/인기물건/인기검색/매각결과), court/region/price/fail-count/type filters, and an **AI report modal** (기본정보/종합분석/권리분석/적정가 분석 tabs) that blurs the recommended-bid figures until the demo login completes.
+- `bidcast-lab.html` — Full accuracy-disclosure page (error-range distribution, per-asset-type accuracy, 3-model cross-verification explainer, monthly trend).
+- `bidcast-calendar.html` — Full bidding calendar (weekday/monthly bid-count breakdown).
+- `bidcast-map.html` — Stylized map mockup (CSS grid background + absolutely-positioned pins) — **no real map API key**; do not wire one in without asking.
+- `bidcast-bot.html` — "예보봇" chat demo: preset Q&A plus a canned fallback response for free-text input.
+- `bidcast-insight.html` — 부동산소식 + 전문가컬럼 merged into one page (kind tabs → category chips → article-detail modal).
+- `bidcast-category.html` — Region/type/court 3-axis SEO template; hub view with no query params, leaf view via `?axis=region|type|court&value=...`.
+- `bidcast-partner.html` — CPA partner-program landing with a revenue slider simulator and an accordion FAQ.
+- `bidcast-support.html` — 8-tab support hub (공지/이벤트/FAQ/1:1문의/자유게시판/가이드/언론기사/제휴문의); tabs are addressable via URL hash (`bidcast-support.html#faq`).
 
 ## Development commands
 
@@ -46,9 +63,19 @@ Data is layered: an embedded offline `PLACE_DB` is checked first, then the Kakao
 
 **Known inconsistency:** `kmaplinker_web.html`'s `callClaude()` still calls `api.anthropic.com` directly using a client-side `ANTHROPIC_KEY` constant (currently the placeholder `'YOUR_ANTHROPIC_API_KEY'`, next to a hardcoded `KAKAO_KEY`). Any new or modified AI feature should call the proxy at `/.netlify/functions/claude` instead of the Anthropic API directly, and migrating `callClaude()` to the proxy is the intended direction.
 
+### bidcast-list.html search engine
+
+`ITEMS` is a hardcoded example array (region/court/type/price/fail-count/tags). `applyFilters()` combines the active mode tab, active type chips, free-text query, and the five `<select>` filters, then calls `renderList()`. The AI report modal (`openReport(id)`) renders four tabs from `grade()`/`renderReport()`; the "advice" figures live inside `.rp-blur-wrap.locked`, which CSS-blurs until `userLoggedIn` flips true via the shared demo auth flow.
+
+### Shared auth modal pattern
+
+Every `bidcast-*.html` page repeats the same self-contained auth modal (`#authOverlay`, `openAuth()/closeAuth()/snsFlow()/finishAuth()/logoutDemo()`) rather than importing a shared component, per the single-file convention. It is a **pure front-end demo**: any SNS button or email code instantly "logs in" and swaps the nav-right buttons for a `.nav-user` badge — there is no real OAuth, email delivery, or session storage. Keep new pages consistent with this pattern rather than inventing a new auth UI.
+
 ## Conventions
 
 - Comments and some UI copy are in Korean; the apps themselves are multilingual (language tables in each file). Preserve both.
 - Section banners in the big HTML files use box-drawing/`═` comment dividers — follow that style when adding sections.
 - Styling is plain CSS with custom properties defined in `:root` per file (each app has its own palette); reuse the existing variables rather than hardcoding colors.
 - The mobile apps are built mobile-first with a fixed max-width shell (`max-width: 420–440px`) centered on desktop.
+- **BidCast palette** ("night pedestrian-signal"): light neutral background (`--bg:#F6FAF7`), green accent (`--green:#00A86B`) for go/primary actions, red (`--red:#E5484D`) reserved for warnings — always paired with an icon/label, never color alone. All 10 `bidcast-*.html` pages share this token set and a standardized 7-item top nav (물건검색/지도/카테고리/적중률/캘린더/인사이트/예보봇); keep new BidCast pages' nav and footer in sync with the others rather than drifting.
+- Every BidCast data point that isn't wired to a real API must carry a visible "예시 데이터" disclosure — this is a hard requirement from the legal-risk notes in the original product memo, not just a style choice.
