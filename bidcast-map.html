@@ -358,6 +358,13 @@ document.addEventListener('click', (e) => {
     mn.classList.remove('open');
   }
 });
+
+// ESC 키로 열려있는 모달 닫기 (우선순위: 리포트/기사 모달 > 로그인 모달)
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (document.getElementById('authOverlay').classList.contains('open')) { closeAuth(); return; }
+  if (document.getElementById('mapPopup').classList.contains('show')) { closePopup(); return; }
+});
 </script>
 </body>
 </html>
