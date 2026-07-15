@@ -37,6 +37,13 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 .nav-user button { background:none; border:none; cursor:pointer; font:inherit; font-size:11.5px; font-weight:700; color:var(--sub); padding:0 0 0 8px; border-left:1px solid #C4EBD8; }
 @media (max-width:900px) { .nav-links { display:none; } }
 
+.nav-hamburger { display:none; background:none; border:1px solid var(--line); border-radius:10px; width:38px; height:38px; cursor:pointer; font-size:16px; color:var(--ink); align-items:center; justify-content:center; flex:none; }
+@media (max-width:900px) { .nav-hamburger { display:flex; } }
+.mobile-nav { display:none; flex-direction:column; gap:2px; padding:10px; background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:0 16px 36px rgba(16,32,26,.14); position:absolute; top:calc(100% + 8px); left:16px; right:16px; z-index:150; }
+.mobile-nav.open { display:flex; }
+.mobile-nav a { text-decoration:none; color:var(--sub); font-size:14.5px; font-weight:700; padding:12px 14px; border-radius:10px; }
+.mobile-nav a.on, .mobile-nav a:hover { background:var(--green-soft); color:var(--green-deep); }
+
 .eyebrow { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:700; letter-spacing:.1em; color:var(--green); text-transform:uppercase; margin-bottom:12px; }
 .eyebrow::before { content:''; width:20px; height:2px; background:var(--grad); border-radius:2px; }
 h1.title, h2.title { font-size:clamp(24px,3.6vw,38px); font-weight:900; letter-spacing:-0.03em; }
@@ -127,6 +134,16 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
       <button class="nav-login" type="button" onclick="openAuth('login')">로그인</button>
       <button class="nav-cta" type="button" onclick="openAuth('signup')">사전 알림 신청</button>
     </div>
+    <button class="nav-hamburger" type="button" onclick="toggleMobileNav()" aria-label="메뉴 열기">☰</button>
+    <div class="mobile-nav" id="mobileNav">
+    <a href="bidcast-list.html">물건검색</a>
+    <a href="bidcast-map.html">지도</a>
+    <a href="bidcast-category.html">카테고리</a>
+    <a href="bidcast-lab.html">적중률</a>
+    <a href="bidcast-calendar.html">캘린더</a>
+    <a href="bidcast-insight.html">인사이트</a>
+    <a href="bidcast-bot.html">예보봇</a>
+  </div>
   </div>
 </nav>
 
@@ -280,6 +297,17 @@ function finishAuth(identity) {
 function logoutDemo() {
   document.getElementById('navRight').innerHTML = `<button class="nav-login" type="button" onclick="openAuth('login')">로그인</button><button class="nav-cta" type="button" onclick="openAuth('signup')">사전 알림 신청</button>`;
 }
+
+function toggleMobileNav() {
+  document.getElementById('mobileNav').classList.toggle('open');
+}
+document.addEventListener('click', (e) => {
+  const mn = document.getElementById('mobileNav');
+  const hb = document.querySelector('.nav-hamburger');
+  if (mn && mn.classList.contains('open') && !mn.contains(e.target) && e.target !== hb && !hb.contains(e.target)) {
+    mn.classList.remove('open');
+  }
+});
 </script>
 </body>
 </html>
