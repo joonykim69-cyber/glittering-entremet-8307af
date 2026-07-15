@@ -208,6 +208,12 @@ nav {
 .onb-result.show { display: block; }
 .onb-result b { font-weight: 800; }
 .onb-result .note { display: block; margin-top: 6px; font-size: 12px; color: var(--sub); }
+.onb-cta-btn {
+  margin-top: 12px; font: inherit; font-size: 13.5px; font-weight: 800; cursor: pointer;
+  background: var(--green-deep); color: #fff; border: none; border-radius: 10px; padding: 10px 18px;
+  transition: transform .15s var(--ease), box-shadow .2s;
+}
+.onb-cta-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(0,116,75,.3); }
 
 /* ═══════════════════════════════════════
    빠른 검색 — 자산유형 (온비드 구조 벤치마킹)
@@ -219,6 +225,7 @@ nav {
   transition: transform .3s var(--ease), box-shadow .3s var(--ease), border-color .3s;
 }
 .asset:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(16,32,26,.08); border-color: rgba(0,168,107,.45); }
+.asset:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 .asset .ico {
   width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center;
   font-size: 22px; background: var(--green-soft); margin-bottom: 16px;
@@ -409,7 +416,8 @@ nav {
 .cta p { color: var(--sub); margin: 18px auto 34px; max-width: 520px; }
 .btn-primary {
   display: inline-block; background: var(--grad); color: #fff; text-decoration: none;
-  font-size: 17px; font-weight: 800; padding: 17px 44px; border-radius: 999px;
+  font: inherit; font-size: 17px; font-weight: 800; padding: 17px 44px; border-radius: 999px;
+  border: none; cursor: pointer;
   box-shadow: 0 10px 30px rgba(0,168,107,.3);
   transition: transform .25s var(--ease), box-shadow .25s;
 }
@@ -587,11 +595,11 @@ footer .copy { margin-top: 26px; font-size: 12px; color: var(--mute); }
     <h1><span class="signal" aria-hidden="true"><i class="go"></i><i class="stop"></i></span>지금 들어가도 될까?<br/><span class="grad">AI가 신호로 알려드립니다</span></h1>
     <p class="sub">부동산만이 아닙니다. 차량·동산·기계장비·유가증권까지 — 온비드 공매 전 자산군의 과거 낙찰 데이터를 학습한 예측 엔진이 예상 낙찰가 범위와 입찰 신호를 보여드립니다.</p>
 
-    <form class="searchbar" onsubmit="return false;" aria-label="물건 검색(데모)">
-      <input type="text" placeholder="지역, 자산 종류, 물건명으로 검색해 보세요 (예: 시흥시 토지)"/>
+    <form class="searchbar" onsubmit="return startSearchWaitlist(event);" aria-label="물건 검색(사전 공개 단계)">
+      <input type="text" id="heroSearchInput" placeholder="지역, 자산 종류, 물건명으로 검색해 보세요 (예: 시흥시 토지)"/>
       <button type="submit">예측 검색</button>
     </form>
-    <p class="hero-note">※ 예측 정보는 과거 낙찰 데이터 기반의 통계적 참고자료이며, 입찰 결과를 보장하지 않습니다.</p>
+    <p class="hero-note">※ 지금은 사전 공개 단계입니다 — 검색하시면 오픈 알림 신청으로 연결됩니다. 예측 정보는 과거 낙찰 데이터 기반의 통계적 참고자료이며, 입찰 결과를 보장하지 않습니다.</p>
 
     <!-- 스탯 타일 · 출처: 온비드 공개 통계(2021 누적) -->
     <div class="stat-row">
@@ -631,33 +639,57 @@ footer .copy { margin-top: 26px; font-size: 12px; color: var(--mute); }
   </div>
 </div>
 
+<!--
+  ════════════════════════════════════════════════════════════════
+  TODO(다음 단계 — 실물건 검색 구현 메모, 이번 작업 범위 아님):
+  현재 이 섹션과 히어로 검색창은 정적 UI로, 클릭 시 사전 알림
+  신청(가입 모달)으로만 연결됨. 실제 검색으로 교체하려면:
+
+  1) 데이터 연동 — 공공데이터포털 "온비드 공매물건 조회서비스" API
+     인증키 발급 후, netlify/functions/claude.js와 동일한 패턴으로
+     서버 프록시 함수를 새로 만들어 키를 서버 쪽에 숨길 것
+     (예: netlify/functions/onbid-search.js)
+  2) 필터 스키마 이식 — 요이땅(yoiddang.co.kr) /list.php 기준
+     법원 / 지역(시도→시군구→동) / 가격대 / 유찰횟수 / 물건종류
+     필터가 온비드 API 응답 필드와 거의 1:1 매핑됨. 이 asset-grid
+     자리에 실제 검색 결과 리스트 + 필터 바를 얹으면 됨
+  3) 탭 모드 — 경매검색/예정물건/신건/인기물건/매각결과는 화면을
+     따로 만들 필요 없이 API 쿼리 파라미터(상태·정렬)만 바꿔
+     같은 리스트 컴포넌트를 재사용
+  ════════════════════════════════════════════════════════════════
+-->
 <!-- ═══════════════ 빠른 검색 (자산유형) ═══════════════ -->
 <section class="section" id="search">
   <div class="wrap">
-    <span class="eyebrow reveal">Quick Search</span>
-    <h2 class="title reveal">자산 종류로 바로 시작</h2>
-    <p class="lead reveal">압류재산·국유재산·수탁재산 등 처분 방식과 무관하게, 자산 종류만 고르면 관련 물건과 예측 데이터를 한 번에 볼 수 있습니다.</p>
+    <div class="listing-head">
+      <div>
+        <span class="eyebrow reveal">Quick Search</span>
+        <h2 class="title reveal">자산 종류로 바로 시작</h2>
+        <p class="lead reveal">압류재산·국유재산·수탁재산 등 처분 방식과 무관하게, 자산 종류만 고르면 관련 물건과 예측 데이터를 한 번에 볼 수 있습니다.</p>
+      </div>
+      <span class="demo-chip reveal">검색 오픈 준비중 — 클릭하면 알림 신청</span>
+    </div>
 
     <div class="asset-grid">
-      <div class="asset reveal">
+      <div class="asset reveal" onclick="openAuth('signup', '부동산 물건이 열리면 가장 먼저 알려드릴게요.')" role="button" tabindex="0" onkeydown="if(event.key==='Enter')this.click()">
         <span class="ico">🏢</span>
         <h3>부동산</h3>
         <p>토지 · 주거 · 상가 · 공장. 감정가와 유찰 횟수 기반 예측 정확도가 가장 높은 자산군.</p>
         <span class="tag">데이터 최다</span>
       </div>
-      <div class="asset reveal">
+      <div class="asset reveal" onclick="openAuth('signup', '차량 물건이 열리면 가장 먼저 알려드릴게요.')" role="button" tabindex="0" onkeydown="if(event.key==='Enter')this.click()">
         <span class="ico">🚗</span>
         <h3>차량</h3>
         <p>승용 · 화물 · 특수차량. 연식·주행거리 표준화가 쉬워 모델 적용이 빠릅니다.</p>
         <span class="tag">표준화 용이</span>
       </div>
-      <div class="asset reveal">
+      <div class="asset reveal" onclick="openAuth('signup', '동산·기계장비 물건이 열리면 가장 먼저 알려드릴게요.')" role="button" tabindex="0" onkeydown="if(event.key==='Enter')this.click()">
         <span class="ico">⚙️</span>
         <h3>동산 · 기계장비</h3>
         <p>공장설비 · 재고자산 · 압수품. 기존 서비스가 다루지 않는 영역입니다.</p>
         <span class="tag new">틈새 자산군</span>
       </div>
-      <div class="asset reveal">
+      <div class="asset reveal" onclick="openAuth('signup', '유가증권 물건이 열리면 가장 먼저 알려드릴게요.')" role="button" tabindex="0" onkeydown="if(event.key==='Enter')this.click()">
         <span class="ico">📈</span>
         <h3>유가증권 · 기타</h3>
         <p>비상장주식 · 회원권 · 특허권 등. 유사 사례 통계로 경향을 제시합니다.</p>
@@ -916,7 +948,7 @@ footer .copy { margin-top: 26px; font-size: 12px; color: var(--mute); }
   <div class="wrap">
     <h2 class="reveal">공매 입찰, 감이 아니라<br/>데이터로 준비하세요</h2>
     <p class="reveal">출시 알림을 신청하시면 오픈 시 얼리버드 혜택과 함께 가장 먼저 알려드립니다.</p>
-    <a class="btn-primary reveal" href="#">사전 알림 신청하기</a>
+    <button class="btn-primary reveal" type="button" onclick="openAuth('signup')">사전 알림 신청하기</button>
     <p class="fine reveal">신청은 무료이며, 언제든 취소할 수 있습니다.</p>
   </div>
 </section>
@@ -1079,8 +1111,11 @@ document.querySelectorAll('.chips').forEach(group => {
 function showOnbResult() {
   if (!picks.type || !picks.region || !picks.budget) return;
   const el = document.getElementById('onbResult');
-  el.innerHTML = `🚶 <b>${picks.region} · ${picks.type} · ${picks.budget}</b> 조건에 맞는 진행 중 물건을 찾으면, AI 예상 낙찰가와 함께 바로 보여드릴게요. 지금은 사전 공개 단계라 <b>사전 알림 신청</b>을 하시면 오픈 즉시 추천 결과를 보내드립니다.<span class="note">※ 데모 화면입니다 — 실제 추천은 서비스 오픈 후 제공됩니다.</span>`;
+  const msg = `${picks.region} · ${picks.type} · ${picks.budget} 조건에 맞는 물건이 열리면 가장 먼저 알려드릴게요.`;
+  el.innerHTML = `🚶 <b>${picks.region} · ${picks.type} · ${picks.budget}</b> 조건에 맞는 진행 중 물건을 찾으면, AI 예상 낙찰가와 함께 바로 보여드릴게요. 지금은 사전 공개 단계라 신청하시면 오픈 즉시 추천 결과를 보내드립니다.<br/><button type="button" class="onb-cta-btn" id="onbCtaBtn">사전 알림 신청하기 →</button><span class="note">※ 데모 화면입니다 — 실제 추천은 서비스 오픈 후 제공됩니다.</span>`;
   el.classList.add('show');
+  // 인라인 onclick에 한글 문자열을 넣으면 따옴표 충돌로 깨지므로 addEventListener 사용
+  document.getElementById('onbCtaBtn').addEventListener('click', () => openAuth('signup', msg));
 }
 
 // ═══════════════════════════════════════
@@ -1090,12 +1125,24 @@ const authOverlay = document.getElementById('authOverlay');
 let authMode = 'login';
 let userLoggedIn = false;
 
-function openAuth(mode) {
+function openAuth(mode, subtitleOverride) {
   switchTab(mode);
+  if (subtitleOverride) document.getElementById('authSub').textContent = subtitleOverride;
   showPanel('apMain');
   authOverlay.classList.add('open');
   requestAnimationFrame(() => authOverlay.classList.add('vis'));
   document.body.style.overflow = 'hidden';
+}
+
+// 검색 기능은 다음 단계 구현 예정 — 지금은 검색 시도를 사전 알림 신청으로 연결
+function startSearchWaitlist(e) {
+  e.preventDefault();
+  const q = document.getElementById('heroSearchInput').value.trim();
+  const msg = q
+    ? `"${q}" 조건에 맞는 물건이 열리면 가장 먼저 알려드릴게요.`
+    : '찾으시는 물건이 열리면 가장 먼저 알려드릴게요.';
+  openAuth('signup', msg);
+  return false;
 }
 function closeAuth() {
   authOverlay.classList.remove('vis');
