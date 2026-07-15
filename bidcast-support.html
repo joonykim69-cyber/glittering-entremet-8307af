@@ -115,9 +115,11 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); width:min(108
     <a class="logo" href="bidcast.html"><span class="logo-mark">予</span>낙찰예보</a>
     <ul class="nav-links">
       <li><a href="bidcast-list.html">물건검색</a></li>
+      <li><a href="bidcast-map.html">지도</a></li>
+      <li><a href="bidcast-lab.html">적중률</a></li>
+      <li><a href="bidcast-calendar.html">캘린더</a></li>
+      <li><a href="bidcast-insight.html">인사이트</a></li>
       <li><a href="bidcast-bot.html">예보봇</a></li>
-      <li><a href="bidcast-partner.html">파트너</a></li>
-      <li><a href="bidcast-support.html" class="on">고객지원</a></li>
     </ul>
     <div class="nav-right" id="navRight">
       <button class="nav-login" type="button" onclick="openAuth('login')">로그인</button>
@@ -285,9 +287,17 @@ document.querySelectorAll('#sideTabs button').forEach(btn => {
     document.querySelectorAll('#sideTabs button').forEach(b => b.classList.remove('on'));
     btn.classList.add('on');
     currentTab = btn.dataset.tab;
+    location.hash = currentTab;
     renderPanel();
   });
 });
+
+// 다른 페이지에서 #faq, #qna 등 해시로 바로 들어오면 해당 탭을 열어줌
+const hashTab = location.hash.replace('#', '');
+if (hashTab && document.querySelector(`#sideTabs button[data-tab="${hashTab}"]`)) {
+  document.querySelectorAll('#sideTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === hashTab));
+  currentTab = hashTab;
+}
 renderPanel();
 
 // 간편로그인 (공용 데모 컴포넌트)
