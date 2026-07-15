@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>파트너 프로그램 — 낙찰예보</title>
+<meta name="description" content="추천 링크로 회원을 유입시키고 건당 수익을 정산받는 낙찰예보 파트너 프로그램."/>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"/>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:#F6FAF7; --surface:#FFFFFF; --ink:#10201A; --sub:#55655D; --mute:#93A29A; --line:#E1EAE4;
+  --green:#00A86B; --green-deep:#00744B; --green-soft:#E4F7EE;
+  --red:#E5484D; --red-soft:#FDEBEB;
+  --grad:linear-gradient(120deg,#00C87F 0%,#00A86B 55%,#009E8A 100%);
+  --glow:0 0 0 4px rgba(0,200,127,.14), 0 10px 34px rgba(0,168,107,.35);
+  --radius:20px; --ease:cubic-bezier(.16,1,.3,1);
+}
+html { scroll-behavior: smooth; }
+body { font-family:'Pretendard Variable',Pretendard,-apple-system,'Malgun Gothic',sans-serif; background:var(--bg); color:var(--ink); line-height:1.65; word-break:keep-all; -webkit-font-smoothing:antialiased; }
+.wrap { width:min(1000px,92%); margin:0 auto; }
+.section { padding:52px 0; }
+a { color:inherit; }
+
+nav { position:sticky; top:0; z-index:100; background:rgba(255,255,255,.9); backdrop-filter:blur(14px); border-bottom:1px solid var(--line); }
+nav .wrap { display:flex; align-items:center; justify-content:space-between; padding:14px 0; }
+.logo { display:flex; align-items:center; gap:9px; font-weight:900; font-size:17px; text-decoration:none; color:var(--ink); }
+.logo-mark { width:28px; height:28px; border-radius:9px; background:var(--grad); display:grid; place-items:center; color:#fff; font-size:13px; font-weight:900; box-shadow:0 0 12px rgba(0,200,127,.5); }
+.nav-links { display:flex; gap:20px; list-style:none; }
+.nav-links a { text-decoration:none; color:var(--sub); font-size:14px; font-weight:600; }
+.nav-links a.on, .nav-links a:hover { color:var(--green-deep); }
+.nav-right { display:flex; align-items:center; gap:10px; }
+.nav-login { background:none; border:1px solid var(--line); color:var(--sub); cursor:pointer; font:inherit; font-size:13.5px; font-weight:700; padding:8px 16px; border-radius:999px; }
+.nav-cta { background:var(--grad); color:#fff; border:none; cursor:pointer; font:inherit; font-size:13.5px; font-weight:700; padding:9px 18px; border-radius:999px; }
+.nav-user { display:inline-flex; align-items:center; gap:8px; background:var(--green-soft); border:1px solid #C4EBD8; padding:7px 14px; border-radius:999px; font-size:12.5px; font-weight:800; color:var(--green-deep); }
+.nav-user .dot { width:7px; height:7px; border-radius:50%; background:var(--green); }
+.nav-user button { background:none; border:none; cursor:pointer; font:inherit; font-size:11.5px; font-weight:700; color:var(--sub); padding:0 0 0 8px; border-left:1px solid #C4EBD8; }
+@media (max-width:900px) { .nav-links { display:none; } }
+
+.eyebrow { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:700; letter-spacing:.1em; color:var(--green); text-transform:uppercase; margin-bottom:12px; }
+.eyebrow::before { content:''; width:20px; height:2px; background:var(--grad); border-radius:2px; }
+h1.title, h2.title { font-size:clamp(24px,3.6vw,38px); font-weight:900; letter-spacing:-0.03em; }
+p.lead { color:var(--sub); font-size:15px; margin-top:12px; max-width:560px; }
+
+.p-hero { background:var(--surface); border-bottom:1px solid var(--line); padding:56px 0; text-align:center; }
+.p-hero h1 { font-size:clamp(30px,4.6vw,46px); }
+.p-hero h1 .grad { background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.p-hero p.lead { margin-left:auto; margin-right:auto; }
+.p-hero .btn-primary { display:inline-block; margin-top:26px; background:var(--grad); color:#fff; font:inherit; font-size:15.5px; font-weight:800; padding:15px 36px; border-radius:999px; border:none; cursor:pointer; box-shadow:0 10px 28px rgba(0,168,107,.3); }
+
+.steps-row { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:26px; }
+.step-card { background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:24px; }
+.step-card .n { width:34px; height:34px; border-radius:50%; background:var(--grad); color:#fff; display:grid; place-items:center; font-weight:900; font-size:15px; }
+.step-card h4 { font-size:15px; font-weight:800; margin-top:14px; }
+.step-card p { font-size:13px; color:var(--sub); margin-top:8px; }
+@media (max-width:760px) { .steps-row { grid-template-columns:1fr; } }
+
+.benefit-row { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:26px; }
+.benefit { background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:22px; }
+.benefit .ico { font-size:24px; }
+.benefit h4 { font-size:14.5px; font-weight:800; margin-top:10px; }
+.benefit p { font-size:12.5px; color:var(--sub); margin-top:6px; }
+@media (max-width:760px) { .benefit-row { grid-template-columns:1fr; } }
+
+/* 수익 시뮬레이터 */
+.sim-card { background:var(--surface); border:1px solid var(--line); border-radius:24px; padding:28px 30px; margin-top:26px; }
+.sim-row { margin-top:18px; }
+.sim-row label { display:flex; justify-content:space-between; font-size:13.5px; font-weight:700; color:var(--sub); margin-bottom:10px; }
+.sim-row label b { color:var(--green-deep); font-variant-numeric:tabular-nums; }
+.sim-row input[type=range] { width:100%; accent-color:var(--green); }
+.sim-result { margin-top:22px; padding:20px 22px; border-radius:16px; background:var(--green-soft); border:1px solid #C4EBD8; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; }
+.sim-result .k { font-size:12.5px; color:var(--sub); font-weight:700; }
+.sim-result .v { font-size:24px; font-weight:900; color:var(--green-deep); }
+
+.faq-item { background:var(--surface); border:1px solid var(--line); border-radius:16px; margin-top:10px; overflow:hidden; }
+.faq-q { width:100%; text-align:left; font:inherit; font-size:14px; font-weight:700; cursor:pointer; background:none; border:none; padding:16px 20px; display:flex; justify-content:space-between; align-items:center; }
+.faq-q .arrow { transition:transform .2s; color:var(--mute); }
+.faq-item.open .faq-q .arrow { transform:rotate(180deg); color:var(--green); }
+.faq-a { max-height:0; overflow:hidden; transition:max-height .3s var(--ease); font-size:13px; color:var(--sub); padding:0 20px; }
+.faq-item.open .faq-a { max-height:200px; padding:0 20px 16px; }
+
+.settle-note { margin-top:24px; font-size:12px; color:var(--sub); background:var(--bg); border:1px solid var(--line); border-radius:14px; padding:16px 18px; line-height:1.8; }
+
+.auth-overlay { position:fixed; inset:0; z-index:220; display:none; align-items:center; justify-content:center; padding:20px; background:rgba(16,32,26,.45); backdrop-filter:blur(8px); opacity:0; transition:opacity .25s var(--ease); }
+.auth-overlay.open { display:flex; } .auth-overlay.vis { opacity:1; }
+.auth-modal { width:100%; max-width:420px; background:var(--surface); border:1px solid var(--line); border-radius:26px; padding:28px 28px 24px; position:relative; box-shadow:0 30px 80px rgba(16,32,26,.25); transform:scale(.96) translateY(8px); transition:transform .25s var(--ease); }
+.auth-overlay.vis .auth-modal { transform:none; }
+.auth-close { position:absolute; top:16px; right:16px; background:var(--bg); border:1px solid var(--line); color:var(--sub); cursor:pointer; width:32px; height:32px; border-radius:50%; font-size:14px; }
+.auth-head { text-align:center; margin-bottom:20px; }
+.auth-head h3 { font-size:19px; font-weight:800; margin-top:10px; }
+.auth-head p { font-size:12px; color:var(--sub); margin-top:4px; }
+.sns-btns { display:grid; gap:9px; }
+.sns-btn { display:flex; align-items:center; gap:11px; width:100%; font:inherit; font-size:14px; font-weight:700; cursor:pointer; border:none; border-radius:13px; padding:12px 16px; }
+.sns-btn .sb-ico { width:22px; height:22px; border-radius:6px; display:grid; place-items:center; font-size:12px; font-weight:900; flex:none; }
+.sns-btn.kakao { background:#FEE500; color:#191919; } .sns-btn.kakao .sb-ico { background:#191919; color:#FEE500; }
+.sns-btn.naver { background:#03C75A; color:#fff; } .sns-btn.naver .sb-ico { background:#fff; color:#03C75A; }
+.sns-btn.google { background:#fff; color:#333; border:1.5px solid var(--line); }
+.sns-btn .sb-note { margin-left:auto; font-size:11px; font-weight:600; opacity:.65; }
+.demo-note { margin-top:14px; text-align:center; font-size:10.5px; color:var(--mute); }
+
+footer { border-top:1px solid var(--line); background:var(--surface); padding:44px 0 32px; }
+footer .cols { display:grid; grid-template-columns:2fr 1fr 1fr; gap:32px; }
+footer .brand { font-weight:900; font-size:16px; } footer .brand span { color:var(--green); }
+footer h5 { font-size:12px; font-weight:800; margin-bottom:10px; }
+footer ul { list-style:none; display:grid; gap:7px; }
+footer ul a { text-decoration:none; font-size:12.5px; color:var(--sub); }
+footer ul a:hover { color:var(--green-deep); }
+footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
+@media (max-width:700px) { footer .cols { grid-template-columns:1fr 1fr; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap" style="max-width:1080px;">
+    <a class="logo" href="bidcast.html"><span class="logo-mark">予</span>낙찰예보</a>
+    <ul class="nav-links">
+      <li><a href="bidcast-list.html">물건검색</a></li>
+      <li><a href="bidcast-lab.html">적중률</a></li>
+      <li><a href="bidcast-partner.html" class="on">파트너</a></li>
+      <li><a href="bidcast-support.html">고객지원</a></li>
+    </ul>
+    <div class="nav-right" id="navRight">
+      <button class="nav-login" type="button" onclick="openAuth('login')">로그인</button>
+      <button class="nav-cta" type="button" onclick="openAuth('signup')">사전 알림 신청</button>
+    </div>
+  </div>
+</nav>
+
+<header class="p-hero">
+  <div class="wrap">
+    <span class="eyebrow">Partner Program</span>
+    <h1 class="title">추천할수록, <span class="grad">쌓이는 수익</span></h1>
+    <p class="lead">낙찰예보를 소개하고 건당 CPA 수익을 매월 정산받으세요. 심사 없이 3단계면 시작할 수 있습니다.</p>
+    <button class="btn-primary" type="button" onclick="openAuth('signup')">파트너 신청하기</button>
+  </div>
+</header>
+
+<section class="section">
+  <div class="wrap">
+    <span class="eyebrow">How It Works</span>
+    <h2 class="title">신청 3단계</h2>
+    <div class="steps-row">
+      <div class="step-card"><span class="n">1</span><h4>파트너 신청</h4><p>간편 가입으로 파트너 계정을 생성합니다. 별도 심사 없이 즉시 시작할 수 있습니다.</p></div>
+      <div class="step-card"><span class="n">2</span><h4>추천 링크 공유</h4><p>발급된 나만의 추천 링크를 블로그·SNS·커뮤니티에 공유합니다.</p></div>
+      <div class="step-card"><span class="n">3</span><h4>매월 수익 정산</h4><p>추천을 통해 가입·전환된 건에 대해 매월 자동으로 정산해 드립니다.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" style="padding-top:0;">
+  <div class="wrap">
+    <span class="eyebrow">Benefits</span>
+    <h2 class="title">파트너 혜택</h2>
+    <div class="benefit-row">
+      <div class="benefit"><span class="ico">💰</span><h4>건당 CPA 수익</h4><p>가입 완료 건마다 고정 수익을 지급합니다. 노출·클릭이 아닌 실제 전환 기준이라 투명합니다.</p></div>
+      <div class="benefit"><span class="ico">📊</span><h4>실시간 대시보드</h4><p>클릭 수, 가입 전환, 예상 정산액을 실시간으로 확인할 수 있습니다.</p></div>
+      <div class="benefit"><span class="ico">🗓️</span><h4>매월 자동 정산</h4><p>별도 신청 없이 매월 정해진 날짜에 등록 계좌로 자동 입금됩니다.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" style="padding-top:0;">
+  <div class="wrap">
+    <span class="eyebrow">Simulator</span>
+    <h2 class="title">예상 수익 시뮬레이션</h2>
+    <p class="lead">월 추천 클릭 수와 가입 전환율을 조절해 예상 수익을 확인해 보세요. (예시 계산)</p>
+    <div class="sim-card">
+      <div class="sim-row">
+        <label><span>월 추천 클릭 수</span><b id="clickVal">500</b></label>
+        <input type="range" id="clickSlider" min="0" max="5000" step="50" value="500"/>
+      </div>
+      <div class="sim-row">
+        <label><span>가입 전환율</span><b id="convVal">8%</b></label>
+        <input type="range" id="convSlider" min="1" max="30" step="1" value="8"/>
+      </div>
+      <div class="sim-result">
+        <div><div class="k">예상 월 가입 전환 건수</div><div class="v" id="simConv">40건</div></div>
+        <div><div class="k">건당 CPA 단가 (예시)</div><div class="v" style="font-size:18px;">5,000원</div></div>
+        <div><div class="k">예상 월 수익</div><div class="v" id="simRevenue">200,000원</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" style="padding-top:0;">
+  <div class="wrap">
+    <span class="eyebrow">FAQ</span>
+    <h2 class="title">자주 묻는 질문</h2>
+    <div id="faqList"></div>
+    <div class="settle-note">
+      💡 정산 안내: 개인 파트너는 사업소득 <b>3.3% 원천징수</b> 후 지급되며, 사업자(법인)는 <b>세금계산서 발행</b> 기준으로 정산됩니다. 파트너 활동 규정(허위 클릭, 스팸성 홍보 등)을 위반할 경우 정산이 보류되거나 자격이 제한될 수 있습니다.
+    </div>
+  </div>
+</section>
+
+<div class="auth-overlay" id="authOverlay" role="dialog" aria-modal="true">
+  <div class="auth-modal">
+    <button class="auth-close" type="button" onclick="closeAuth()" aria-label="닫기">✕</button>
+    <div class="auth-head">
+      <span style="display:inline-flex;align-items:center;gap:8px;font-weight:900;font-size:16px;"><span class="logo-mark" style="width:24px;height:24px;font-size:11px;">予</span>낙찰예보</span>
+      <h3 id="authTitle">파트너로 시작하기</h3>
+      <p id="authSub">간편 가입 후 바로 추천 링크가 발급됩니다.</p>
+    </div>
+    <div class="sns-btns">
+      <button class="sns-btn kakao" type="button" onclick="snsFlow('카카오')"><span class="sb-ico">K</span> 카카오로 계속하기 <span class="sb-note">가장 빨라요</span></button>
+      <button class="sns-btn naver" type="button" onclick="snsFlow('네이버')"><span class="sb-ico">N</span> 네이버로 계속하기</button>
+      <button class="sns-btn google" type="button" onclick="snsFlow('Google')"><span class="sb-ico">G</span> Google로 계속하기 <span class="sb-note">Gmail</span></button>
+    </div>
+    <p class="demo-note">※ 데모 화면입니다 — 클릭 즉시 로그인 처리됩니다.</p>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap" style="max-width:1080px;">
+    <div class="cols">
+      <div>
+        <div class="brand">낙찰<span>예보</span></div>
+        <p style="font-size:12.5px;color:var(--sub);margin-top:8px;max-width:320px;">공공데이터포털의 온비드 공식 API 데이터를 기반으로 한 공매 낙찰가 예측 서비스입니다.</p>
+      </div>
+      <div><h5>서비스</h5><ul><li><a href="bidcast-list.html">물건 검색</a></li><li><a href="bidcast-lab.html">적중률 공개</a></li></ul></div>
+      <div><h5>바로가기</h5><ul><li><a href="bidcast.html">홈으로</a></li><li><a href="bidcast-support.html">고객지원</a></li></ul></div>
+    </div>
+    <p class="copy">© 2026 낙찰예보. All rights reserved.</p>
+  </div>
+</footer>
+
+<script>
+const clickSlider = document.getElementById('clickSlider');
+const convSlider = document.getElementById('convSlider');
+const CPA = 5000;
+function updateSim() {
+  const clicks = parseInt(clickSlider.value, 10);
+  const conv = parseInt(convSlider.value, 10);
+  document.getElementById('clickVal').textContent = clicks.toLocaleString();
+  document.getElementById('convVal').textContent = conv + '%';
+  const signups = Math.round(clicks * conv / 100);
+  const revenue = signups * CPA;
+  document.getElementById('simConv').textContent = signups.toLocaleString() + '건';
+  document.getElementById('simRevenue').textContent = revenue.toLocaleString() + '원';
+}
+clickSlider.addEventListener('input', updateSim);
+convSlider.addEventListener('input', updateSim);
+updateSim();
+
+const FAQS = [
+  { q:'파트너 신청에 자격 제한이 있나요?', a:'별도 심사 없이 누구나 간편 가입으로 신청할 수 있습니다. 다만 허위 클릭이나 스팸성 홍보 등 부정 행위가 확인되면 자격이 제한될 수 있습니다.' },
+  { q:'정산은 언제, 어떻게 받나요?', a:'매월 정해진 날짜에 전월 실적을 기준으로 등록하신 계좌로 자동 입금됩니다. 개인은 3.3% 원천징수 후 지급되며, 사업자는 세금계산서 발행 기준입니다.' },
+  { q:'추천 링크는 어디에 공유해도 되나요?', a:'블로그, SNS, 커뮤니티 등 대부분의 채널에 공유 가능합니다. 다만 스팸성 대량 발송이나 허위·과장 광고는 금지됩니다.' },
+  { q:'클릭과 가입 전환은 어떻게 확인하나요?', a:'파트너 대시보드(오픈 예정)에서 실시간으로 클릭 수, 가입 전환, 예상 정산액을 확인할 수 있습니다.' },
+];
+document.getElementById('faqList').innerHTML = FAQS.map((f,i) => `
+  <div class="faq-item" id="faq${i}">
+    <button class="faq-q" onclick="toggleFaq(${i})"><span>${f.q}</span><span class="arrow">⌄</span></button>
+    <div class="faq-a">${f.a}</div>
+  </div>`).join('');
+function toggleFaq(i) { document.getElementById('faq'+i).classList.toggle('open'); }
+
+// 간편로그인 (공용 데모 컴포넌트)
+const authOverlay = document.getElementById('authOverlay');
+function openAuth(mode) {
+  authOverlay.classList.add('open');
+  requestAnimationFrame(() => authOverlay.classList.add('vis'));
+  document.body.style.overflow = 'hidden';
+}
+function closeAuth() {
+  authOverlay.classList.remove('vis');
+  document.body.style.overflow = '';
+  setTimeout(() => authOverlay.classList.remove('open'), 250);
+}
+authOverlay.addEventListener('click', e => { if (e.target === authOverlay) closeAuth(); });
+function snsFlow(provider) { finishAuth(provider === 'Google' ? 'Gmail 계정' : `${provider} 계정`); }
+function finishAuth(identity) {
+  closeAuth();
+  document.getElementById('navRight').innerHTML = `<span class="nav-user"><span class="dot"></span>${identity} <button type="button" onclick="logoutDemo()">로그아웃</button></span>`;
+}
+function logoutDemo() {
+  document.getElementById('navRight').innerHTML = `<button class="nav-login" type="button" onclick="openAuth('login')">로그인</button><button class="nav-cta" type="button" onclick="openAuth('signup')">사전 알림 신청</button>`;
+}
+</script>
+</body>
+</html>
