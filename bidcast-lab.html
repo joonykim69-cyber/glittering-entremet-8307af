@@ -101,7 +101,7 @@ p.lead { color:var(--sub); font-size:15.5px; margin-top:12px; max-width:640px; }
 
 /* 추이 */
 .trend-card { background:var(--surface); border:1px solid var(--line); border-radius:24px; padding:28px 30px; margin-top:24px; }
-.trend-bars { display:flex; align-items:flex-end; gap:10px; height:140px; margin-top:20px; }
+.trend-bars { display:flex; align-items:flex-end; gap:10px; height:190px; margin-top:20px; }
 .trend-bars .col { flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; }
 .trend-bars .b { width:100%; border-radius:6px 6px 0 0; background:var(--green); position:relative; }
 .trend-bars .m { font-size:10.5px; color:var(--mute); }
@@ -317,7 +317,7 @@ const TREND = [
 document.getElementById('trendBars').innerHTML = TREND.map(t => `
   <div class="col">
     <div class="v">${t.v}%</div>
-    <div class="b" style="height:${t.v}%;"></div>
+    <div class="b" style="height:${Math.round(t.v / 100 * 130)}px;"></div>
     <div class="m">${t.m}</div>
   </div>`).join('');
 
