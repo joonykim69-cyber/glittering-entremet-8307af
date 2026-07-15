@@ -59,6 +59,7 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 .map-side h4 { font-size:12.5px; font-weight:800; color:var(--sub); margin-bottom:10px; }
 .side-item { display:flex; gap:10px; align-items:center; padding:10px; border-radius:12px; cursor:pointer; transition:background .2s; }
 .side-item:hover, .side-item.active { background:var(--green-soft); }
+.side-item:focus-visible { outline:2px solid var(--green); outline-offset:2px; }
 .side-item .ico { width:34px; height:34px; border-radius:10px; background:var(--bg); display:grid; place-items:center; font-size:16px; flex:none; }
 .side-item .t { font-size:12.5px; font-weight:700; }
 .side-item .m { font-size:11px; color:var(--sub); }
@@ -202,8 +203,8 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
       </div>
       <div class="me-pin" style="left:50%; top:52%;"><div class="dot"></div></div>
       <div class="map-controls">
-        <button type="button" onclick="alert('데모 화면입니다. 실제 확대/축소는 지도 API 연동 후 제공됩니다.')">＋</button>
-        <button type="button" onclick="alert('데모 화면입니다. 실제 확대/축소는 지도 API 연동 후 제공됩니다.')">－</button>
+        <button type="button" onclick="alert('데모 화면입니다. 실제 확대/축소는 지도 API 연동 후 제공됩니다.')" aria-label="지도 확대">＋</button>
+        <button type="button" onclick="alert('데모 화면입니다. 실제 확대/축소는 지도 API 연동 후 제공됩니다.')" aria-label="지도 축소">－</button>
       </div>
       <div class="map-popup" id="mapPopup">
         <button class="close" type="button" onclick="closePopup()">✕</button>
@@ -276,7 +277,7 @@ function renderPins(list) {
   });
   document.getElementById('sideCount').textContent = `지도 안의 물건 (${list.length})`;
   document.getElementById('sideList').innerHTML = list.map(pin => `
-    <div class="side-item" onclick="focusPin(${pin.id})">
+    <div class="side-item" onclick="focusPin(${pin.id})" role="button" tabindex="0" onkeydown="if(event.key==='Enter')focusPin(${pin.id})">
       <span class="ico">${ {아파트:'🏢',토지:'🏞️',상가:'🏬',차량:'🚗',기계장비:'🏭',유가증권:'📈'}[pin.type] || '📍' }</span>
       <div><div class="t">${pin.title}</div><div class="m">${pin.meta} · ${pin.price}</div></div>
     </div>`).join('');

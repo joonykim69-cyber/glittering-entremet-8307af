@@ -93,7 +93,7 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 .item-card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; transition:transform .25s var(--ease), box-shadow .25s; display:flex; flex-direction:column; }
 .item-card:hover { transform:translateY(-4px); box-shadow:0 16px 40px rgba(16,32,26,.09); }
 .item-thumb { height:120px; background:linear-gradient(140deg,#E9F8F0,#F2FBF6); display:grid; place-items:center; font-size:34px; position:relative; }
-.item-thumb .heart { position:absolute; top:10px; right:10px; width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,.85); border:1px solid var(--line); display:grid; place-items:center; cursor:pointer; font-size:15px; transition:all .2s; }
+.item-thumb .heart { position:absolute; top:10px; right:10px; width:32px; height:32px; padding:0; border-radius:50%; background:rgba(255,255,255,.85); border:1px solid var(--line); display:grid; place-items:center; cursor:pointer; font:inherit; font-size:15px; color:var(--sub); transition:all .2s; }
 .item-thumb .heart.on { background:var(--red-soft); border-color:var(--red); color:var(--red); }
 .item-thumb .fail-badge { position:absolute; top:10px; left:10px; font-size:11px; font-weight:800; background:var(--red); color:#fff; padding:4px 10px; border-radius:999px; }
 .item-body { padding:16px 18px 18px; flex:1; display:flex; flex-direction:column; }
@@ -396,7 +396,7 @@ function renderList(list) {
     <article class="item-card">
       <div class="item-thumb">${it.thumb}
         ${it.fail > 0 ? `<span class="fail-badge">유찰 ${it.fail}회</span>` : ''}
-        <span class="heart ${likedIds.has(it.id) ? 'on' : ''}" onclick="toggleLike(${it.id}, this)">♥</span>
+        <button type="button" class="heart ${likedIds.has(it.id) ? 'on' : ''}" onclick="toggleLike(${it.id}, this)" aria-label="관심물건 등록" aria-pressed="${likedIds.has(it.id)}">♥</button>
       </div>
       <div class="item-body">
         <span class="item-kind">${it.court} · ${it.type}</span>
@@ -417,6 +417,8 @@ function renderList(list) {
 function toggleLike(id, el) {
   if (likedIds.has(id)) { likedIds.delete(id); el.classList.remove('on'); }
   else { likedIds.add(id); el.classList.add('on'); }
+  el.setAttribute('aria-pressed', likedIds.has(id));
+  el.setAttribute('aria-label', likedIds.has(id) ? '관심물건 해제' : '관심물건 등록');
 }
 
 document.querySelectorAll('#modeTabs button').forEach(btn => {
