@@ -14,6 +14,7 @@ A static site deployed on Netlify hosting two unrelated projects: **K-Map Linker
 - `kmaplinker_web.html` — The main mobile-web app prototype. A vanilla-JS SPA with five tabs: Address, Subway, Discover, Drama Route, Travelers.
 - `kbuddy.html` — K-Buddy, a fully offline mobile web app (views: address, food, travelers, drama). Views are static `<section class="view">` blocks toggled with the `is-active` class; no fetch calls at all.
 - `netlify/functions/claude.js` — Serverless proxy for the Anthropic Messages API.
+- `netlify/functions/onbid-search.js` — Serverless proxy for the 온비드(Onbid/KAMCO) auction-listing API, feeding `bidcast-list.html`. See the BidCast real-data section below — **the exact endpoint and field names are still unconfirmed** pending the live service key.
 - `netlify.toml` — Points Netlify at `netlify/functions` with the esbuild bundler.
 
 ### 낙찰예보 (BidCast)
@@ -39,11 +40,11 @@ There is nothing to build or test. To work locally:
 # Static pages: open the HTML file directly, or serve the repo root
 python3 -m http.server 8000
 
-# To exercise the serverless function locally (requires Netlify CLI):
-ANTHROPIC_API_KEY=sk-... netlify dev
+# To exercise the serverless functions locally (requires Netlify CLI):
+ANTHROPIC_API_KEY=sk-... ONBID_SERVICE_KEY=... ONBID_API_URL=https://apis.data.go.kr/... netlify dev
 ```
 
-Deployment happens through Netlify on push (the initial commit was created via Netlify). The `ANTHROPIC_API_KEY` environment variable is configured in the Netlify dashboard, never in code.
+Deployment happens through Netlify on push (the initial commit was created via Netlify). `ANTHROPIC_API_KEY`, `ONBID_SERVICE_KEY`, and `ONBID_API_URL` are configured in the Netlify dashboard, never in code.
 
 ## Architecture
 
@@ -65,7 +66,17 @@ Data is layered: an embedded offline `PLACE_DB` is checked first, then the Kakao
 
 ### bidcast-list.html search engine
 
-`ITEMS` is a hardcoded example array (region/court/type/price/fail-count/tags). `applyFilters()` combines the active mode tab, active type chips, free-text query, and the five `<select>` filters, then calls `renderList()`. The AI report modal (`openReport(id)`) renders four tabs from `grade()`/`renderReport()`; the "advice" figures live inside `.rp-blur-wrap.locked`, which CSS-blurs until `userLoggedIn` flips true via the shared demo auth flow.
+`ITEMS` (`let`, not `const`) starts as a hardcoded example array (region/court/type/price/fail-count/tags) and is replaced in place by `loadRealItems()` on page load if `/.netlify/functions/onbid-search` returns usable data; on any failure (function not deployed, key not configured, API error, network error) it silently keeps the example array and updates the `#dataSourceChip` label to say so — the page must never break or show empty state just because live data isn't wired up yet. `applyFilters()` combines the active mode tab, active type chips, free-text query, and the five `<select>` filters, then calls `renderList()`. The AI report modal (`openReport(id)`) renders four tabs from `grade()`/`renderReport()`; the "advice" figures live inside `.rp-blur-wrap.locked`, which CSS-blurs until `userLoggedIn` flips true via the shared demo auth flow.
+
+### onbid-search.js — real-data integration status (unfinished, needs a human with a service key)
+
+`netlify/functions/onbid-search.js` proxies data.go.kr's Onbid/KAMCO auction-listing API, mirroring `claude.js`'s pattern (env-var key, CORS, clear 500 if unconfigured). **What's confirmed:** data.go.kr's universal conventions — `serviceKey` query param, `pageNo`/`numOfRows` pagination, and the `{ response: { header, body: { items: { item }, totalCount } } }` JSON envelope — these are identical across every data.go.kr service and can be trusted as-is.
+
+**What's NOT confirmed** (data.go.kr blocks automated fetches with a 403, so this couldn't be verified against the live Swagger doc while building it):
+- The exact End Point URL — set it via the `ONBID_API_URL` env var (function returns a clear 500 if unset, same UX as a missing key). There are at least two API generations registered under different data.go.kr listings (구버전 "온비드 캠코공매물건 조회서비스" #15000851 vs 차세대 "온비드 부동산 물건목록 조회서비스" #15157207) — confirm which one the service key was issued for.
+- The response field names inside `mapOnbidItem()` (`CLTR_MNMT_NO`, `APSL_ASES_AVG_AMT`, etc.) are best-effort guesses for this dataset family, not verified against a live response.
+
+**To finish this integration:** get a real response sample from the data.go.kr "미리보기" preview tool (or a live call once the key is issued), then fix `ONBID_API_URL` and the field names in `mapOnbidItem()` to match — that function is the single place the mapping lives, and the rest of the pipeline (Netlify env vars → front-end fetch → fallback → render) is already wired and tested.
 
 ### Shared auth modal pattern
 
