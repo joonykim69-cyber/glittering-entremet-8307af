@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>낙찰예보 — AI 공매 낙찰가 예측</title>
+<meta name="description" content="온비드 공매 전 자산군(부동산·차량·동산·유가증권)의 과거 낙찰 데이터를 학습한 AI가 예상 낙찰가 범위를 알려드립니다. 예측 정보는 통계 기반 참고자료입니다."/>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"/>
+<style>
+/* ═══════════════════════════════════════
+   RESET & 토큰
+   ─ 밝은 바탕 + 야간 보행자 신호등 팔레트:
+     초록(#00A86B, 진행/기회) · 빨강(#E5484D, 주의/정지)
+     야간 글로우는 box-shadow 광원 효과로 표현
+═══════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #F6FAF7;
+  --surface:   #FFFFFF;
+  --ink:       #10201A;
+  --sub:       #55655D;
+  --mute:      #93A29A;
+  --line:      #E1EAE4;
+  --green:     #00A86B;   /* 보행 신호 초록 — 기본 액센트/데이터 */
+  --green-deep:#00744B;
+  --green-soft:#E4F7EE;
+  --red:       #E5484D;   /* 정지 신호 빨강 — 주의/강조 (라벨 동반) */
+  --red-soft:  #FDEBEB;
+  --grad:      linear-gradient(120deg, #00C87F 0%, #00A86B 55%, #009E8A 100%);
+  --glow:      0 0 0 4px rgba(0,200,127,.14), 0 10px 34px rgba(0,168,107,.35);
+  --radius:    20px;
+  --ease:      cubic-bezier(.16,1,.3,1);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Pretendard Variable', Pretendard, -apple-system, 'Malgun Gothic', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.65;
+  word-break: keep-all;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { width: min(1160px, 92%); margin: 0 auto; }
+.section { padding: 92px 0; }
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 700; letter-spacing: .12em;
+  color: var(--green); text-transform: uppercase; margin-bottom: 14px;
+}
+.eyebrow::before { content:''; width: 22px; height: 2px; background: var(--grad); border-radius: 2px; }
+h2.title { font-size: clamp(28px, 4vw, 44px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.2; }
+p.lead { color: var(--sub); font-size: 17px; margin-top: 14px; max-width: 580px; }
+
+/* 스크롤 리빌 */
+.reveal { opacity: 0; transform: translateY(24px); transition: opacity .7s var(--ease), transform .7s var(--ease); }
+.reveal.in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+}
+
+/* ═══════════════════════════════════════
+   NAV — 글래스 스티키
+═══════════════════════════════════════ */
+nav {
+  position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+  width: min(1160px, 94%); z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 18px; border-radius: 999px;
+  background: rgba(255,255,255,.78);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(16,32,26,.08);
+  box-shadow: 0 8px 30px rgba(16,32,26,.06);
+}
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 900; font-size: 18px; letter-spacing: -0.02em; text-decoration: none; color: var(--ink); }
+.logo-mark {
+  width: 30px; height: 30px; border-radius: 10px; background: var(--grad);
+  display: grid; place-items: center; color: #fff; font-size: 14px; font-weight: 900;
+  box-shadow: 0 0 14px rgba(0,200,127,.5);
+}
+.nav-links { display: flex; gap: 22px; list-style: none; }
+.nav-links a { text-decoration: none; color: var(--sub); font-size: 14.5px; font-weight: 600; transition: color .2s; }
+.nav-links a:hover { color: var(--green-deep); }
+.nav-right { display: flex; align-items: center; gap: 10px; }
+.nav-login {
+  background: none; border: 1px solid var(--line); color: var(--sub); cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 700;
+  padding: 9px 18px; border-radius: 999px; transition: border-color .2s, color .2s;
+}
+.nav-login:hover { border-color: var(--green); color: var(--green-deep); }
+.nav-cta {
+  background: var(--grad); color: #fff; border: none; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 700;
+  padding: 10px 20px; border-radius: 999px; transition: transform .2s var(--ease), box-shadow .2s;
+}
+.nav-cta:hover { transform: translateY(-1px); box-shadow: var(--glow); }
+@media (max-width: 860px) { .nav-links, .nav-login { display: none; } }
+.nav-hamburger { display: none; background: none; border: 1px solid var(--line); border-radius: 10px; width: 38px; height: 38px; cursor: pointer; font-size: 16px; color: var(--ink); align-items: center; justify-content: center; flex: none; }
+@media (max-width: 860px) { .nav-hamburger { display: flex; } }
+.mobile-nav { display: none; flex-direction: column; gap: 2px; padding: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; box-shadow: 0 16px 36px rgba(16,32,26,.14); position: absolute; top: calc(100% + 10px); left: 0; right: 0; z-index: 150; }
+.mobile-nav.open { display: flex; }
+.mobile-nav a { text-decoration: none; color: var(--sub); font-size: 14.5px; font-weight: 700; padding: 12px 14px; border-radius: 12px; }
+.mobile-nav a.on, .mobile-nav a:hover { background: var(--green-soft); color: var(--green-deep); }
+
+/* ═══════════════════════════════════════
+   HERO — 밝은 배경 + 신호등 글로우
+═══════════════════════════════════════ */
+.hero {
+  position: relative; background: var(--surface);
+  padding: 168px 0 96px; overflow: hidden;
+  border-bottom: 1px solid var(--line);
+}
+.hero::before, .hero::after {
+  content: ''; position: absolute; border-radius: 50%; filter: blur(90px); pointer-events: none;
+}
+.hero::before { width: 560px; height: 560px; background: rgba(0,200,127,.28); top: -200px; right: -120px; }
+.hero::after  { width: 380px; height: 380px; background: rgba(229,72,77,.14); bottom: -200px; left: -120px; }
+.hero .wrap { position: relative; z-index: 1; }
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--green-soft); border: 1px solid #C4EBD8;
+  padding: 7px 16px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--green-deep);
+}
+.hero h1 {
+  font-size: clamp(38px, 6vw, 70px); font-weight: 900; letter-spacing: -0.04em;
+  line-height: 1.12; margin: 26px 0 20px; max-width: 800px;
+}
+.hero h1 .grad { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero p.sub { font-size: 18px; color: var(--sub); max-width: 640px; }
+
+/* 신호등 도트 — 야간 점등 느낌 */
+.signal { display: inline-flex; gap: 6px; vertical-align: middle; margin-right: 10px; }
+.signal i { width: 14px; height: 14px; border-radius: 50%; }
+.signal .go   { background: #00C87F; box-shadow: 0 0 12px rgba(0,200,127,.8); animation: pulse 2.4s infinite; }
+.signal .stop { background: var(--red); box-shadow: 0 0 12px rgba(229,72,77,.7); animation: pulse 2.4s 1.2s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .signal .go, .signal .stop { animation: none; } }
+
+/* 검색바 */
+.searchbar {
+  margin-top: 36px; display: flex; gap: 10px; max-width: 640px;
+  background: var(--surface); border: 1.5px solid var(--line);
+  border-radius: 18px; padding: 10px;
+  box-shadow: 0 10px 34px rgba(16,32,26,.06);
+}
+.searchbar:focus-within { border-color: var(--green); box-shadow: var(--glow); }
+.searchbar input {
+  flex: 1; min-width: 0; background: transparent; border: none; outline: none;
+  color: var(--ink); font: inherit; font-size: 16px; padding: 8px 12px;
+}
+.searchbar input::placeholder { color: var(--mute); }
+.searchbar button {
+  background: var(--grad); color: #fff; border: none; cursor: pointer;
+  font: inherit; font-size: 15px; font-weight: 800;
+  padding: 12px 26px; border-radius: 12px; white-space: nowrap;
+  transition: transform .2s var(--ease), box-shadow .2s;
+}
+.searchbar button:hover { transform: translateY(-2px); box-shadow: var(--glow); }
+@media (max-width: 560px) {
+  .searchbar { flex-wrap: wrap; }
+  .searchbar button { width: 100%; }
+}
+.hero-note { margin-top: 14px; font-size: 12.5px; color: var(--mute); }
+
+/* 히어로 스탯 타일 */
+.stat-row {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+  margin-top: 56px; max-width: 860px;
+}
+.stat {
+  background: var(--bg); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 22px 24px;
+}
+.stat .num { font-size: clamp(24px, 3vw, 34px); font-weight: 900; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; color: var(--green-deep); }
+.stat .lbl { font-size: 13px; color: var(--sub); margin-top: 6px; }
+@media (max-width: 640px) { .stat-row { grid-template-columns: 1fr; } }
+
+/* ═══════════════════════════════════════
+   3초 AI 추천 온보딩 (요이땅 /onboarding.php 벤치마킹)
+═══════════════════════════════════════ */
+.onb {
+  margin-top: -46px; position: relative; z-index: 2;
+}
+.onb-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 24px;
+  padding: 30px 32px; box-shadow: 0 24px 60px rgba(16,32,26,.09);
+}
+.onb-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.onb-head h3 { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
+.onb-head .steps { font-size: 12.5px; font-weight: 700; color: var(--mute); }
+.onb-head .steps b { color: var(--green-deep); }
+.onb-row { margin-top: 18px; }
+.onb-row .q { font-size: 13.5px; font-weight: 700; color: var(--sub); margin-bottom: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips button {
+  font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  background: var(--bg); border: 1.5px solid var(--line); color: var(--sub);
+  padding: 9px 18px; border-radius: 999px; transition: all .2s;
+}
+.chips button:hover { border-color: var(--green); color: var(--green-deep); }
+.chips button.on {
+  background: var(--green-soft); border-color: var(--green); color: var(--green-deep);
+  box-shadow: 0 0 10px rgba(0,200,127,.25);
+}
+.onb-result {
+  margin-top: 20px; padding: 18px 20px; border-radius: 16px;
+  background: var(--green-soft); border: 1px solid #C4EBD8;
+  font-size: 14.5px; color: var(--green-deep); display: none;
+}
+.onb-result.show { display: block; }
+.onb-result b { font-weight: 800; }
+.onb-result .note { display: block; margin-top: 6px; font-size: 12px; color: var(--sub); }
+.onb-cta-btn {
+  margin-top: 12px; font: inherit; font-size: 13.5px; font-weight: 800; cursor: pointer;
+  background: var(--green-deep); color: #fff; border: none; border-radius: 10px; padding: 10px 18px;
+  transition: transform .15s var(--ease), box-shadow .2s;
+}
+.onb-cta-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(0,116,75,.3); }
+
+/* ═══════════════════════════════════════
+   빠른 검색 — 자산유형 (온비드 구조 벤치마킹)
+═══════════════════════════════════════ */
+.asset-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 44px; }
+.asset {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 26px 24px; cursor: pointer;
+  transition: transform .3s var(--ease), box-shadow .3s var(--ease), border-color .3s;
+}
+.asset:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(16,32,26,.08); border-color: rgba(0,168,107,.45); }
+.asset:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.asset .ico {
+  width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center;
+  font-size: 22px; background: var(--green-soft); margin-bottom: 16px;
+}
+.asset h3 { font-size: 17px; font-weight: 800; letter-spacing: -0.02em; }
+.asset p { font-size: 13.5px; color: var(--sub); margin-top: 6px; }
+.asset .tag { display: inline-block; margin-top: 12px; font-size: 11.5px; font-weight: 700; color: var(--green-deep); background: var(--green-soft); padding: 3px 10px; border-radius: 999px; }
+.asset .tag.new { color: var(--red); background: var(--red-soft); }
+@media (max-width: 900px) { .asset-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 520px) { .asset-grid { grid-template-columns: 1fr; } }
+
+/* ═══════════════════════════════════════
+   주요 물건 카드 — AI 예측 + 입찰 신호 (예시 데이터)
+═══════════════════════════════════════ */
+.listing-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.demo-chip {
+  font-size: 12px; font-weight: 700; color: var(--sub);
+  border: 1px dashed var(--mute); padding: 5px 12px; border-radius: 999px;
+}
+.listing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 40px; }
+.listing {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  overflow: hidden; transition: transform .3s var(--ease), box-shadow .3s var(--ease);
+}
+.listing:hover { transform: translateY(-5px); box-shadow: 0 20px 50px rgba(16,32,26,.1); }
+.listing .thumb {
+  height: 150px; display: grid; place-items: center; font-size: 40px;
+  background: linear-gradient(140deg, #E9F8F0, #F2FBF6);
+  position: relative;
+}
+/* 입찰 신호 배지 — 색+아이콘+텍스트 3중 표기 (색맹 대응) */
+.sig-badge {
+  position: absolute; top: 12px; left: 12px;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 800; padding: 5px 12px; border-radius: 999px;
+}
+.sig-badge.go   { background: var(--green); color: #fff; box-shadow: 0 0 14px rgba(0,168,107,.55); }
+.sig-badge.wait { background: var(--red);   color: #fff; box-shadow: 0 0 14px rgba(229,72,77,.5); }
+.listing .body { padding: 20px 22px 22px; }
+.listing .kind { font-size: 12px; font-weight: 700; color: var(--green-deep); }
+.listing h4 { font-size: 16.5px; font-weight: 800; letter-spacing: -0.02em; margin: 6px 0 4px; }
+.listing .meta { font-size: 13px; color: var(--sub); }
+.pred {
+  margin-top: 16px; padding: 14px 16px; border-radius: 14px;
+  background: var(--green-soft); border: 1px solid #C4EBD8;
+}
+.pred .pl { font-size: 11.5px; font-weight: 700; letter-spacing: .08em; color: var(--green-deep); }
+.pred .pv { font-size: 21px; font-weight: 900; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.pred .range { position: relative; height: 6px; border-radius: 3px; background: #CBEBDA; margin: 12px 0 6px; }
+.pred .range .fill { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: var(--green); }
+.pred .range-lbl { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--sub); font-variant-numeric: tabular-nums; }
+.pred .base { margin-top: 10px; font-size: 12.5px; color: var(--sub); }
+.pred .base b { color: var(--ink); font-weight: 700; }
+@media (max-width: 900px) { .listing-grid { grid-template-columns: 1fr; max-width: 460px; } }
+
+/* ═══════════════════════════════════════
+   적중률 공개 — 예측 성적표 (요이땅랩 /accuracy.php 벤치마킹)
+═══════════════════════════════════════ */
+.acc { background: var(--surface); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.acc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; margin-top: 10px; }
+.acc-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 30px; }
+.acc-tile { background: var(--bg); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; }
+.acc-tile .v { font-size: 26px; font-weight: 900; letter-spacing: -0.03em; color: var(--green-deep); font-variant-numeric: tabular-nums; }
+.acc-tile .k { font-size: 12.5px; color: var(--sub); margin-top: 4px; }
+/* 오차범위 분포 — 단일 색상(초록) 순차 표현, 값 라벨 동반 · 예시 수치 */
+.acc-chart { background: var(--bg); border: 1px solid var(--line); border-radius: 24px; padding: 28px 30px; }
+.acc-chart .ct { font-size: 13px; font-weight: 700; color: var(--sub); }
+.acc-chart .ct b { color: var(--ink); }
+.acc-bar { margin-top: 18px; }
+.acc-bar .lbl { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+.acc-bar .lbl b { font-variant-numeric: tabular-nums; font-weight: 800; color: var(--green-deep); }
+.acc-bar .track { height: 12px; border-radius: 6px; background: #DDEDE4; overflow: hidden; }
+.acc-bar .track i { display: block; height: 100%; border-radius: 6px; background: var(--green); }
+.acc-chart .foot { margin-top: 18px; font-size: 12px; color: var(--mute); }
+@media (max-width: 900px) { .acc-grid { grid-template-columns: 1fr; gap: 36px; } }
+
+/* ═══════════════════════════════════════
+   공매 캘린더 미리보기 (요이땅 /calendar/ 벤치마킹)
+═══════════════════════════════════════ */
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-top: 40px; }
+.cal-day {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+  padding: 16px 10px; text-align: center;
+  transition: transform .25s var(--ease), box-shadow .25s;
+}
+.cal-day:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(16,32,26,.08); }
+.cal-day .dow { font-size: 12px; font-weight: 700; color: var(--mute); }
+.cal-day .cnt { font-size: 22px; font-weight: 900; margin-top: 6px; color: var(--green-deep); font-variant-numeric: tabular-nums; }
+.cal-day .u { font-size: 11px; color: var(--sub); }
+.cal-day.hot { border-color: var(--green); background: var(--green-soft); box-shadow: 0 0 16px rgba(0,200,127,.2); }
+.find-else { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 26px; }
+.find-else a {
+  text-decoration: none; font-size: 13.5px; font-weight: 700; color: var(--sub);
+  background: var(--surface); border: 1px solid var(--line);
+  padding: 10px 20px; border-radius: 999px; transition: all .2s;
+}
+.find-else a:hover { border-color: var(--green); color: var(--green-deep); }
+@media (max-width: 720px) { .cal-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 460px) { .cal-grid { grid-template-columns: repeat(2, 1fr); } }
+
+/* ═══════════════════════════════════════
+   기능 벤토 그리드
+═══════════════════════════════════════ */
+.bento { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; margin-top: 44px; }
+.cell {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 30px 28px; transition: transform .3s var(--ease), box-shadow .3s var(--ease);
+}
+.cell:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(16,32,26,.07); }
+.cell.big { grid-column: span 3; }
+.cell.mid { grid-column: span 2; }
+.cell .ci { font-size: 26px; margin-bottom: 16px; display: block; }
+.cell h3 { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
+.cell p { font-size: 14.5px; color: var(--sub); margin-top: 8px; }
+.cell.hl { background: var(--grad); border-color: transparent; color: #fff; box-shadow: 0 14px 40px rgba(0,168,107,.3); }
+.cell.hl p { color: rgba(255,255,255,.85); }
+.cell.hl .chip { background: rgba(255,255,255,.2); color: #fff; }
+.chip {
+  display: inline-block; margin-top: 16px; font-size: 12px; font-weight: 700;
+  background: var(--green-soft); color: var(--green-deep); padding: 4px 12px; border-radius: 999px;
+}
+@media (max-width: 900px) {
+  .bento { grid-template-columns: 1fr 1fr; }
+  .cell.big, .cell.mid { grid-column: span 2; }
+}
+
+/* ═══════════════════════════════════════
+   모의 입찰 시뮬레이션 — 초록 신호 패널
+═══════════════════════════════════════ */
+.sim {
+  background: var(--grad); color: #fff;
+  border-radius: 36px; padding: 76px 0; position: relative; overflow: hidden;
+  box-shadow: 0 30px 70px rgba(0,168,107,.28);
+}
+.sim::before {
+  content: ''; position: absolute; width: 480px; height: 480px; border-radius: 50%;
+  background: rgba(255,255,255,.25); filter: blur(110px); top: -180px; left: 58%;
+}
+.sim .wrap { position: relative; z-index: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+.sim .eyebrow { color: #D9FFEE; }
+.sim .eyebrow::before { background: #fff; }
+.sim h2 { color: #fff; }
+.sim p.lead { color: rgba(255,255,255,.88); }
+.sim ul { list-style: none; margin-top: 24px; display: grid; gap: 14px; }
+.sim li { display: flex; gap: 12px; font-size: 15px; color: rgba(255,255,255,.92); }
+.sim li::before { content: '✓'; font-weight: 900; }
+/* 3자 비교 카드 목업 — 예시 수치, 항상 텍스트 라벨 동반 */
+.sim-card {
+  background: rgba(255,255,255,.96); color: var(--ink);
+  border-radius: 24px; padding: 30px; box-shadow: 0 20px 50px rgba(0,80,50,.25);
+}
+.sim-card .sc-title { font-size: 13px; font-weight: 700; color: var(--mute); letter-spacing: .06em; }
+.sim-card .row { margin-top: 20px; }
+.sim-card .row .lbl { display: flex; justify-content: space-between; font-size: 13.5px; margin-bottom: 7px; }
+.sim-card .row .lbl b { font-variant-numeric: tabular-nums; font-weight: 800; }
+.sim-card .bar { height: 10px; border-radius: 5px; background: #EDF3EF; overflow: hidden; }
+.sim-card .bar i { display: block; height: 100%; border-radius: 5px; }
+.sim-card .verdict {
+  margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--line);
+  font-size: 13.5px; color: var(--sub);
+}
+.sim-card .verdict b { color: var(--green-deep); }
+@media (max-width: 900px) { .sim .wrap { grid-template-columns: 1fr; gap: 40px; } }
+
+/* ═══════════════════════════════════════
+   인사이트 — 소식·가이드 미리보기 (요이땅 board 벤치마킹)
+═══════════════════════════════════════ */
+.ins-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 40px; }
+.ins {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 24px; transition: transform .3s var(--ease), box-shadow .3s var(--ease);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.ins:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(16,32,26,.08); }
+.ins .cat { font-size: 11.5px; font-weight: 800; color: var(--green-deep); background: var(--green-soft); align-self: flex-start; padding: 3px 10px; border-radius: 999px; }
+.ins .cat.warn { color: var(--red); background: var(--red-soft); }
+.ins h4 { font-size: 15.5px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.4; }
+.ins p { font-size: 13px; color: var(--sub); flex: 1; }
+.ins .rt { font-size: 11.5px; color: var(--mute); }
+@media (max-width: 900px) { .ins-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 520px) { .ins-grid { grid-template-columns: 1fr; } }
+
+/* ═══════════════════════════════════════
+   CTA & FOOTER
+═══════════════════════════════════════ */
+.cta { text-align: center; }
+.cta h2 { font-size: clamp(30px, 4.5vw, 52px); font-weight: 900; letter-spacing: -0.035em; line-height: 1.15; }
+.cta p { color: var(--sub); margin: 18px auto 34px; max-width: 520px; }
+.btn-primary {
+  display: inline-block; background: var(--grad); color: #fff; text-decoration: none;
+  font: inherit; font-size: 17px; font-weight: 800; padding: 17px 44px; border-radius: 999px;
+  border: none; cursor: pointer;
+  box-shadow: 0 10px 30px rgba(0,168,107,.3);
+  transition: transform .25s var(--ease), box-shadow .25s;
+}
+.btn-primary:hover { transform: translateY(-3px); box-shadow: var(--glow); }
+.cta .fine { margin-top: 16px; font-size: 12.5px; color: var(--mute); }
+
+footer { border-top: 1px solid var(--line); background: var(--surface); padding: 56px 0 44px; margin-top: 40px; }
+footer .cols { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; }
+footer .brand { font-weight: 900; font-size: 18px; letter-spacing: -0.02em; }
+footer .brand span { color: var(--green); }
+footer .about { font-size: 13px; color: var(--sub); margin-top: 10px; max-width: 340px; }
+footer h5 { font-size: 13px; font-weight: 800; letter-spacing: .04em; color: var(--ink); margin-bottom: 14px; }
+footer ul { list-style: none; display: grid; gap: 9px; }
+footer ul a { text-decoration: none; font-size: 13.5px; color: var(--sub); transition: color .2s; }
+footer ul a:hover { color: var(--green-deep); }
+footer .disclaimer {
+  margin-top: 36px; padding: 18px 22px; border-radius: 14px;
+  background: var(--bg); border: 1px solid var(--line);
+  font-size: 12.5px; color: var(--sub); line-height: 1.7;
+}
+footer .copy { margin-top: 26px; font-size: 12px; color: var(--mute); }
+@media (max-width: 860px) { footer .cols { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 520px) { footer .cols { grid-template-columns: 1fr; } }
+
+/* ═══════════════════════════════════════
+   인증 모달 — 간편로그인(SNS) + 이메일 간편가입 (데모)
+═══════════════════════════════════════ */
+.auth-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  display: none; align-items: center; justify-content: center; padding: 20px;
+  background: rgba(16,32,26,.45); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  opacity: 0; transition: opacity .25s var(--ease);
+}
+.auth-overlay.open { display: flex; }
+.auth-overlay.vis { opacity: 1; }
+.auth-modal {
+  width: 100%; max-width: 440px; max-height: calc(100vh - 40px); overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 26px;
+  padding: 30px 30px 26px; position: relative;
+  box-shadow: 0 30px 80px rgba(16,32,26,.25);
+  transform: scale(.96) translateY(8px); transition: transform .25s var(--ease);
+}
+.auth-overlay.vis .auth-modal { transform: none; }
+.auth-close {
+  position: absolute; top: 16px; right: 16px;
+  background: var(--bg); border: 1px solid var(--line); color: var(--sub); cursor: pointer;
+  width: 34px; height: 34px; border-radius: 50%; font-size: 15px; line-height: 1;
+  transition: all .2s;
+}
+.auth-close:hover { color: var(--ink); border-color: var(--mute); }
+.auth-head { text-align: center; margin-bottom: 22px; }
+.auth-head .am-logo { display: inline-flex; align-items: center; gap: 8px; font-weight: 900; font-size: 17px; }
+.auth-head .am-logo .logo-mark { width: 26px; height: 26px; font-size: 12px; }
+.auth-head h3 { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; margin-top: 12px; }
+.auth-head p { font-size: 12.5px; color: var(--sub); margin-top: 4px; }
+.auth-tabs {
+  display: flex; background: var(--bg); border: 1px solid var(--line);
+  border-radius: 14px; padding: 5px; margin-bottom: 20px;
+}
+.auth-tabs button {
+  flex: 1; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+  background: none; border: none; color: var(--sub); padding: 10px; border-radius: 10px;
+  transition: all .2s;
+}
+.auth-tabs button.on { background: var(--surface); color: var(--green-deep); box-shadow: 0 2px 10px rgba(16,32,26,.08); }
+.sns-btns { display: grid; gap: 10px; }
+.sns-btn {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  font: inherit; font-size: 14.5px; font-weight: 700; cursor: pointer;
+  border: none; border-radius: 14px; padding: 13px 18px;
+  transition: transform .15s var(--ease), box-shadow .2s;
+}
+.sns-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(16,32,26,.12); }
+.sns-btn .sb-ico {
+  width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center;
+  font-size: 13px; font-weight: 900; flex: none;
+}
+.sns-btn.kakao  { background: #FEE500; color: #191919; }
+.sns-btn.kakao .sb-ico { background: #191919; color: #FEE500; }
+.sns-btn.naver  { background: #03C75A; color: #fff; }
+.sns-btn.naver .sb-ico { background: #fff; color: #03C75A; }
+.sns-btn.google { background: #fff; color: #333; border: 1.5px solid var(--line); }
+.sns-btn .sb-note { margin-left: auto; font-size: 11.5px; font-weight: 600; opacity: .65; }
+.auth-sep { display: flex; align-items: center; gap: 12px; margin: 20px 0 16px; }
+.auth-sep::before, .auth-sep::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.auth-sep span { font-size: 11.5px; font-weight: 700; color: var(--mute); letter-spacing: .06em; }
+.auth-field label { display: block; font-size: 12.5px; font-weight: 700; color: var(--sub); margin-bottom: 7px; }
+.auth-field input {
+  width: 100%; font: inherit; font-size: 15px; color: var(--ink);
+  background: var(--bg); border: 1.5px solid var(--line); border-radius: 13px;
+  padding: 13px 16px; outline: none; transition: border-color .2s, box-shadow .2s;
+}
+.auth-field input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(0,200,127,.15); }
+.auth-field .hint { font-size: 11.5px; color: var(--mute); margin-top: 6px; }
+.auth-field .err { font-size: 12px; color: var(--red); font-weight: 700; margin-top: 6px; display: none; }
+.auth-submit {
+  width: 100%; margin-top: 14px; font: inherit; font-size: 15px; font-weight: 800; cursor: pointer;
+  background: var(--grad); color: #fff; border: none; border-radius: 14px; padding: 14px;
+  transition: transform .2s var(--ease), box-shadow .2s;
+}
+.auth-submit:hover { transform: translateY(-1px); box-shadow: var(--glow); }
+.auth-agree { display: flex; gap: 8px; align-items: flex-start; margin-top: 14px; cursor: pointer; }
+.auth-agree input { margin-top: 3px; accent-color: var(--green); }
+.auth-agree span { font-size: 11.5px; color: var(--sub); line-height: 1.55; }
+/* 인증코드 입력 */
+.code-boxes { display: flex; gap: 8px; justify-content: center; margin: 18px 0 6px; }
+.code-boxes input {
+  width: 46px; height: 54px; text-align: center; font: inherit; font-size: 22px; font-weight: 800;
+  color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px;
+  outline: none; transition: border-color .2s, box-shadow .2s;
+}
+.code-boxes input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(0,200,127,.15); }
+.auth-back {
+  background: none; border: none; cursor: pointer; font: inherit;
+  font-size: 13px; font-weight: 700; color: var(--sub); padding: 4px 0; margin-bottom: 10px;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.auth-back:hover { color: var(--green-deep); }
+/* 로더 / 성공 패널 */
+.auth-center { text-align: center; padding: 26px 0 10px; }
+.auth-spinner {
+  width: 52px; height: 52px; margin: 0 auto 18px; border-radius: 50%;
+  border: 4px solid var(--green-soft); border-top-color: var(--green);
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.auth-center h4 { font-size: 17px; font-weight: 800; }
+.auth-center p { font-size: 13px; color: var(--sub); margin-top: 6px; }
+.auth-success-ico {
+  width: 60px; height: 60px; margin: 0 auto 18px; border-radius: 50%;
+  background: var(--green-soft); border: 1.5px solid #C4EBD8;
+  display: grid; place-items: center; font-size: 26px; color: var(--green-deep);
+  box-shadow: 0 0 22px rgba(0,200,127,.35);
+}
+.auth-panel { display: none; }
+.auth-panel.on { display: block; }
+.demo-note { margin-top: 16px; text-align: center; font-size: 11px; color: var(--mute); }
+/* 로그인 상태 네비 배지 */
+.nav-user {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--green-soft); border: 1px solid #C4EBD8;
+  padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: 800; color: var(--green-deep);
+}
+.nav-user .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px rgba(0,200,127,.7); }
+.nav-user button {
+  background: none; border: none; cursor: pointer; font: inherit;
+  font-size: 12px; font-weight: 700; color: var(--sub); padding: 0 0 0 8px;
+  border-left: 1px solid #C4EBD8;
+}
+.nav-user button:hover { color: var(--red); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ NAV ═══════════════ -->
+<nav>
+  <a class="logo" href="#"><span class="logo-mark">予</span>낙찰예보</a>
+  <ul class="nav-links">
+    <li><a href="bidcast-list.html">물건검색</a></li>
+    <li><a href="bidcast-map.html">지도</a></li>
+    <li><a href="bidcast-category.html">카테고리</a></li>
+    <li><a href="bidcast-lab.html">적중률</a></li>
+    <li><a href="bidcast-calendar.html">캘린더</a></li>
+    <li><a href="bidcast-insight.html">인사이트</a></li>
+    <li><a href="bidcast-bot.html">예보봇</a></li>
+  </ul>
+  <div class="nav-right" id="navRight">
+    <button class="nav-login" type="button" onclick="openAuth('login')">로그인</button>
+    <button class="nav-cta" type="button" onclick="openAuth('signup')">사전 알림 신청</button>
+  </div>
+    <button class="nav-hamburger" type="button" onclick="toggleMobileNav()" aria-label="메뉴 열기">☰</button>
+    <div class="mobile-nav" id="mobileNav">
+    <a href="bidcast-list.html">물건검색</a>
+    <a href="bidcast-map.html">지도</a>
+    <a href="bidcast-category.html">카테고리</a>
+    <a href="bidcast-lab.html">적중률</a>
+    <a href="bidcast-calendar.html">캘린더</a>
+    <a href="bidcast-insight.html">인사이트</a>
+    <a href="bidcast-bot.html">예보봇</a>
+  </div>
+</nav>
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<header class="hero">
+  <div class="wrap">
+    <span class="hero-badge">공공데이터포털 온비드 공식 API 기반</span>
+    <h1><span class="signal" aria-hidden="true"><i class="go"></i><i class="stop"></i></span>지금 들어가도 될까?<br/><span class="grad">AI가 신호로 알려드립니다</span></h1>
+    <p class="sub">부동산만이 아닙니다. 차량·동산·기계장비·유가증권까지 — 온비드 공매 전 자산군의 과거 낙찰 데이터를 학습한 예측 엔진이 예상 낙찰가 범위와 입찰 신호를 보여드립니다.</p>
+
+    <form class="searchbar" onsubmit="return goToSearch(event);" aria-label="물건 검색">
+      <input type="text" id="heroSearchInput" placeholder="지역, 자산 종류, 물건명으로 검색해 보세요 (예: 시흥시 토지)"/>
+      <button type="submit">예측 검색</button>
+    </form>
+    <p class="hero-note">※ 예측 정보는 과거 낙찰 데이터 기반의 통계적 참고자료이며, 입찰 결과를 보장하지 않습니다. 지금은 예시 데이터로 동작합니다.</p>
+
+    <!-- 스탯 타일 · 출처: 온비드 공개 통계(2021 누적) -->
+    <div class="stat-row">
+      <div class="stat reveal"><div class="num">92조+</div><div class="lbl">온비드 누적 낙찰금액 (2021 기준)</div></div>
+      <div class="stat reveal"><div class="num">1,799건</div><div class="lbl">최근 한 회차 압류재산 공매 물건 수</div></div>
+      <div class="stat reveal"><div class="num">전 자산군</div><div class="lbl">부동산 외 동산·유가증권까지 커버</div></div>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════ 3초 AI 추천 (온보딩 위젯) ═══════════════ -->
+<div class="wrap onb" id="onboarding">
+  <div class="onb-card reveal">
+    <div class="onb-head">
+      <h3>⚡ 3초 만에 AI 추천 받기</h3>
+      <span class="steps"><b>종류 → 지역 → 예산</b> 고르면 끝</span>
+    </div>
+    <div class="onb-row">
+      <div class="q">1. 어떤 자산을 찾으세요?</div>
+      <div class="chips" data-step="type">
+        <button type="button">아파트·주거</button><button type="button">토지</button><button type="button">상가·건물</button><button type="button">차량</button><button type="button">기계장비</button><button type="button">유가증권</button>
+      </div>
+    </div>
+    <div class="onb-row">
+      <div class="q">2. 지역은요?</div>
+      <div class="chips" data-step="region">
+        <button type="button">서울</button><button type="button">경기</button><button type="button">인천</button><button type="button">부산</button><button type="button">대구</button><button type="button">그 외 전국</button>
+      </div>
+    </div>
+    <div class="onb-row">
+      <div class="q">3. 예산 범위는요?</div>
+      <div class="chips" data-step="budget">
+        <button type="button">3천만 이하</button><button type="button">3천만~1억</button><button type="button">1억~5억</button><button type="button">5억 이상</button>
+      </div>
+    </div>
+    <div class="onb-result" id="onbResult" role="status"></div>
+  </div>
+</div>
+
+<!--
+  ════════════════════════════════════════════════════════════════
+  물건 검색 페이지는 bidcast-list.html로 분리 구현됨 (6모드 탭 +
+  법원/지역/가격대/유찰횟수/물건종류 필터 + AI 리포트 4탭 모달,
+  로그인 전 핵심 수치 블러 게이팅). 현재는 예시 데이터(ITEMS 배열)로
+  동작함.
+
+  TODO(다음 단계 — 실 데이터 연동, 이번 작업 범위 아님):
+  공공데이터포털 "온비드 공매물건 조회서비스" API 인증키 발급 후,
+  netlify/functions/claude.js와 동일한 패턴으로 서버 프록시 함수를
+  새로 만들어(예: netlify/functions/onbid-search.js) bidcast-list.html의
+  ITEMS 정적 배열을 실제 API 응답으로 교체할 것.
+  ════════════════════════════════════════════════════════════════
+-->
+<!-- ═══════════════ 빠른 검색 (자산유형) ═══════════════ -->
+<section class="section" id="search">
+  <div class="wrap">
+    <div class="listing-head">
+      <div>
+        <span class="eyebrow reveal">Quick Search</span>
+        <h2 class="title reveal">자산 종류로 바로 시작</h2>
+        <p class="lead reveal">압류재산·국유재산·수탁재산 등 처분 방식과 무관하게, 자산 종류만 고르면 관련 물건과 예측 데이터를 한 번에 볼 수 있습니다.</p>
+      </div>
+      <span class="demo-chip reveal">🔧 예시 데이터로 검색 가능 — 실 데이터 연동은 다음 단계</span>
+    </div>
+
+    <div class="asset-grid">
+      <a class="asset reveal" href="bidcast-list.html" style="text-decoration:none;color:inherit;">
+        <span class="ico">🏢</span>
+        <h3>부동산</h3>
+        <p>토지 · 주거 · 상가 · 공장. 감정가와 유찰 횟수 기반 예측 정확도가 가장 높은 자산군.</p>
+        <span class="tag">데이터 최다</span>
+      </a>
+      <a class="asset reveal" href="bidcast-list.html?type=차량" style="text-decoration:none;color:inherit;">
+        <span class="ico">🚗</span>
+        <h3>차량</h3>
+        <p>승용 · 화물 · 특수차량. 연식·주행거리 표준화가 쉬워 모델 적용이 빠릅니다.</p>
+        <span class="tag">표준화 용이</span>
+      </a>
+      <a class="asset reveal" href="bidcast-list.html?type=기계장비" style="text-decoration:none;color:inherit;">
+        <span class="ico">⚙️</span>
+        <h3>동산 · 기계장비</h3>
+        <p>공장설비 · 재고자산 · 압수품. 기존 서비스가 다루지 않는 영역입니다.</p>
+        <span class="tag new">틈새 자산군</span>
+      </a>
+      <a class="asset reveal" href="bidcast-list.html?type=유가증권" style="text-decoration:none;color:inherit;">
+        <span class="ico">📈</span>
+        <h3>유가증권 · 기타</h3>
+        <p>비상장주식 · 회원권 · 특허권 등. 유사 사례 통계로 경향을 제시합니다.</p>
+        <span class="tag new">틈새 자산군</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 주요 물건 + AI 예측 (예시) ═══════════════ -->
+<section class="section" id="predict" style="padding-top: 8px;">
+  <div class="wrap">
+    <div class="listing-head">
+      <div>
+        <span class="eyebrow reveal">AI Forecast</span>
+        <h2 class="title reveal">물건마다, 범위와 신호를</h2>
+        <p class="lead reveal">감정가·최저입찰가·유찰 횟수·지역 시세 흐름을 학습한 모델이 예상 낙찰가 <b>범위</b>와 함께, 보행 신호처럼 직관적인 <b>입찰 신호</b>를 보여줍니다.</p>
+      </div>
+      <span class="demo-chip reveal">아래 카드는 예시 데이터입니다</span>
+    </div>
+
+    <div class="listing-grid">
+      <!-- 예시 물건 1 -->
+      <article class="listing reveal">
+        <div class="thumb">🏞️<span class="sig-badge go">🚶 기회 신호</span></div>
+        <div class="body">
+          <span class="kind">압류재산 · 토지</span>
+          <h4>서울 광진구 광장동 토지</h4>
+          <p class="meta">면적 152㎡ · 감정가 8.4억 · 유찰 2회</p>
+          <div class="pred">
+            <div class="pl">AI 예상 낙찰가 (예시)</div>
+            <div class="pv">6.9억 ~ 7.6억</div>
+            <div class="range" role="img" aria-label="최저입찰가 5.4억에서 감정가 8.4억 사이 중 6.9억에서 7.6억 구간">
+              <span class="fill" style="left:50%; width:23%;"></span>
+            </div>
+            <div class="range-lbl"><span>최저 5.4억</span><span>감정가 8.4억</span></div>
+            <p class="base">근거: 유사 토지 낙찰 <b>34건</b> · 평균 낙찰가율 <b>86%</b></p>
+          </div>
+        </div>
+      </article>
+      <!-- 예시 물건 2 -->
+      <article class="listing reveal">
+        <div class="thumb">🚚<span class="sig-badge go">🚶 기회 신호</span></div>
+        <div class="body">
+          <span class="kind">압류재산 · 차량</span>
+          <h4>5톤 카고트럭 (2021년식)</h4>
+          <p class="meta">주행 8.2만km · 감정가 3,200만 · 유찰 1회</p>
+          <div class="pred">
+            <div class="pl">AI 예상 낙찰가 (예시)</div>
+            <div class="pv">2,580만 ~ 2,840만</div>
+            <div class="range" role="img" aria-label="최저입찰가 2,240만에서 감정가 3,200만 사이 중 2,580만에서 2,840만 구간">
+              <span class="fill" style="left:35%; width:27%;"></span>
+            </div>
+            <div class="range-lbl"><span>최저 2,240만</span><span>감정가 3,200만</span></div>
+            <p class="base">근거: 동급 화물차 낙찰 <b>61건</b> · 평균 낙찰가율 <b>84%</b></p>
+          </div>
+        </div>
+      </article>
+      <!-- 예시 물건 3 -->
+      <article class="listing reveal">
+        <div class="thumb">🏭<span class="sig-badge wait">✋ 주의 신호</span></div>
+        <div class="body">
+          <span class="kind">압류재산 · 기계장비</span>
+          <h4>CNC 머시닝센터 외 3점</h4>
+          <p class="meta">일괄 매각 · 감정가 1.1억 · 유찰 3회</p>
+          <div class="pred">
+            <div class="pl">AI 예상 낙찰가 (예시)</div>
+            <div class="pv">5,300만 ~ 6,400만</div>
+            <div class="range" role="img" aria-label="최저입찰가 4,510만에서 감정가 1.1억 사이 중 5,300만에서 6,400만 구간">
+              <span class="fill" style="left:12%; width:17%;"></span>
+            </div>
+            <div class="range-lbl"><span>최저 4,510만</span><span>감정가 1.1억</span></div>
+            <p class="base">근거: 유사 설비 낙찰 <b>18건</b> · 평균 낙찰가율 <b>52%</b> — 표본 적음, 주의</p>
+          </div>
+        </div>
+      </article>
+    </div>
+    <div style="text-align:center;margin-top:32px;">
+      <a href="bidcast-list.html" class="find-else a" style="text-decoration:none;font-size:13.5px;font-weight:700;color:var(--sub);background:var(--surface);border:1px solid var(--line);padding:10px 22px;border-radius:999px;transition:all .2s;display:inline-block;">🗂 전체 물건 리스트에서 더 보기 →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 적중률 공개 (예측 성적표) ═══════════════ -->
+<section class="section acc" id="acc">
+  <div class="wrap">
+    <span class="eyebrow reveal">Accuracy Lab</span>
+    <h2 class="title reveal">예측 성적표를 그대로 공개합니다</h2>
+    <div class="acc-grid">
+      <div>
+        <p class="lead reveal">잘 맞은 것만 골라 보여주지 않습니다. 개찰 결과가 나올 때마다 AI 예측과 실제 낙찰가를 전수 대조해, 오차 분포를 있는 그대로 공개할 예정입니다.</p>
+        <div class="acc-tiles">
+          <div class="acc-tile reveal"><div class="v">±10%</div><div class="k">1차 목표 오차 범위 (낙찰가율 기준)</div></div>
+          <div class="acc-tile reveal"><div class="v">전수 공개</div><div class="k">적중 사례만이 아닌 전체 결과 대조</div></div>
+          <div class="acc-tile reveal"><div class="v">매 개찰일</div><div class="k">결과 발표 즉시 자동 채점·갱신</div></div>
+          <div class="acc-tile reveal"><div class="v">편향 추적</div><div class="k">고평가/저평가 비율 함께 공개</div></div>
+        </div>
+      </div>
+      <div class="acc-chart reveal" aria-label="오차 범위별 예측 비율 목표치 예시: 5퍼센트 이내 38%, 10퍼센트 이내 64%, 15퍼센트 이내 81%, 20퍼센트 이내 91%">
+        <div class="ct">오차 범위별 예측 비율 — <b>목표치 예시</b> (서비스 오픈 후 실측치로 대체)</div>
+        <div class="acc-bar">
+          <div class="lbl"><span>±5% 이내</span><b>38%</b></div>
+          <div class="track"><i style="width:38%;"></i></div>
+        </div>
+        <div class="acc-bar">
+          <div class="lbl"><span>±10% 이내</span><b>64%</b></div>
+          <div class="track"><i style="width:64%;"></i></div>
+        </div>
+        <div class="acc-bar">
+          <div class="lbl"><span>±15% 이내</span><b>81%</b></div>
+          <div class="track"><i style="width:81%;"></i></div>
+        </div>
+        <div class="acc-bar">
+          <div class="lbl"><span>±20% 이내</span><b>91%</b></div>
+          <div class="track"><i style="width:91%;"></i></div>
+        </div>
+        <div class="foot">누적 비율 기준. 자산군별 분포는 상세 페이지에서 별도 공개 예정.</div>
+      </div>
+    </div>
+    <div style="margin-top:28px;">
+      <a href="bidcast-lab.html" style="text-decoration:none;font-size:13.5px;font-weight:700;color:var(--green-deep);">낙찰예보 랩 전체 보기 →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 공매 캘린더 미리보기 ═══════════════ -->
+<section class="section" id="cal">
+  <div class="wrap">
+    <span class="eyebrow reveal">Calendar</span>
+    <h2 class="title reveal">이번 주 입찰 일정</h2>
+    <p class="lead reveal">다가오는 입찰 마감을 한눈에. 관심물건으로 등록하면 마감 전에 알림을 보내드립니다. <b>(아래 건수는 예시)</b></p>
+
+    <div class="cal-grid">
+      <div class="cal-day reveal"><div class="dow">월</div><div class="cnt">124</div><div class="u">건</div></div>
+      <div class="cal-day reveal"><div class="dow">화</div><div class="cnt">98</div><div class="u">건</div></div>
+      <div class="cal-day hot reveal"><div class="dow">수 · 최다</div><div class="cnt">312</div><div class="u">건</div></div>
+      <div class="cal-day reveal"><div class="dow">목</div><div class="cnt">176</div><div class="u">건</div></div>
+      <div class="cal-day reveal"><div class="dow">금</div><div class="cnt">143</div><div class="u">건</div></div>
+      <div class="cal-day reveal"><div class="dow">토</div><div class="cnt">—</div><div class="u">휴장</div></div>
+      <div class="cal-day reveal"><div class="dow">일</div><div class="cnt">—</div><div class="u">휴장</div></div>
+    </div>
+    <div style="margin-top:20px;">
+      <a href="bidcast-calendar.html" style="text-decoration:none;font-size:13.5px;font-weight:700;color:var(--green-deep);">전체 캘린더 보기 →</a>
+    </div>
+
+    <div class="find-else reveal">
+      <a href="bidcast-list.html">🗂 전체 리스트로 찾기</a>
+      <a href="bidcast-map.html">🗺 지도로 찾기</a>
+      <a href="#onboarding">⚡ 3초 추천으로 찾기</a>
+      <a href="bidcast-lab.html">🎯 적중률 먼저 보기</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 기능 벤토 ═══════════════ -->
+<section class="section" id="features" style="padding-top: 8px;">
+  <div class="wrap">
+    <span class="eyebrow reveal">Features</span>
+    <h2 class="title reveal">검색부터 알림까지, 입찰 준비 전 과정</h2>
+
+    <div class="bento">
+      <div class="cell big reveal">
+        <span class="ci">🤖</span>
+        <h3>AI 예측 엔진</h3>
+        <p>지역 · 감정가 · 유찰 횟수 · 자산 유형별 과거 낙찰 데이터를 학습한 통계 모델이 조건 입력 즉시 예상 낙찰가 범위를 산출합니다. 데이터가 쌓일수록 모델은 계속 고도화됩니다.</p>
+        <span class="chip">랜덤포레스트 → 딥러닝 로드맵</span>
+      </div>
+      <div class="cell big hl reveal">
+        <span class="ci">🎯</span>
+        <h3>모의 입찰 시뮬레이션</h3>
+        <p>실제 공매 물건에 가상 입찰가를 적어보세요. 개찰일 이후 실제 낙찰가 — 내 예측 — AI 예측을 3자 비교하며 감각을 무료로 훈련할 수 있습니다.</p>
+        <span class="chip">무료 학습 도구</span>
+      </div>
+      <div class="cell mid reveal">
+        <span class="ci">🔍</span>
+        <h3>유사물건 비교</h3>
+        <p>지금 보는 물건과 조건이 비슷한 과거 낙찰 사례를 자동 매칭해 근거를 투명하게 보여줍니다.</p>
+      </div>
+      <div class="cell mid reveal">
+        <span class="ci">📊</span>
+        <h3>통계 대시보드</h3>
+        <p>지역별 · 자산종류별 낙찰가율과 경쟁률 추이를 한눈에. 시장 흐름을 읽고 들어가세요.</p>
+      </div>
+      <div class="cell mid reveal">
+        <span class="ci">🔔</span>
+        <h3>관심물건 알림</h3>
+        <p>찜한 물건의 입찰 일정과 유찰 · 재공고 소식을 놓치지 않게 알려드립니다.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 모의 입찰 하이라이트 ═══════════════ -->
+<div class="wrap" id="sim">
+  <section class="sim">
+    <div class="wrap">
+      <div>
+        <span class="eyebrow reveal">Simulation</span>
+        <h2 class="title reveal">돈 걸기 전에,<br/>실력부터 확인하세요</h2>
+        <p class="lead reveal">모의 입찰은 실제 개찰 결과로 채점됩니다. 예측이 얼마나 정확한지 서비스가 스스로 증명하는 방식이기도 합니다.</p>
+        <ul>
+          <li class="reveal">실제 온비드 공고 물건으로 연습</li>
+          <li class="reveal">개찰 후 실제 낙찰가 자동 대조</li>
+          <li class="reveal">내 예측 이력과 오차 리포트 제공</li>
+        </ul>
+      </div>
+      <div class="sim-card reveal" aria-label="3자 비교 예시: 실제 낙찰가 7.21억, AI 예측 중앙값 7.25억, 내 모의입찰 6.8억">
+        <div class="sc-title">개찰 결과 3자 비교 — 예시</div>
+        <div class="row">
+          <div class="lbl"><span>실제 낙찰가</span><b>7.21억</b></div>
+          <div class="bar"><i style="width:88%; background:#93A29A;"></i></div>
+        </div>
+        <div class="row">
+          <div class="lbl"><span>AI 예측 중앙값</span><b style="color:var(--green-deep);">7.25억</b></div>
+          <div class="bar"><i style="width:89%; background:var(--green);"></i></div>
+        </div>
+        <div class="row">
+          <div class="lbl"><span>내 모의 입찰가</span><b style="color:var(--red);">6.80억</b></div>
+          <div class="bar"><i style="width:83%; background:var(--red);"></i></div>
+        </div>
+        <div class="verdict">AI 오차 <b>+0.6%</b> · 내 오차 −5.7% — 이번 라운드는 AI 승리!</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ═══════════════ 인사이트 (소식·가이드 미리보기) ═══════════════ -->
+<section class="section" id="insight">
+  <div class="wrap">
+    <span class="eyebrow reveal">Insight</span>
+    <h2 class="title reveal">공매 소식과 가이드</h2>
+    <p class="lead reveal">처음이라도 괜찮습니다. 용어부터 입찰 전략까지, 데이터와 함께 차근차근. <b>(아래는 발행 예정 콘텐츠 예시)</b></p>
+
+    <div class="ins-grid">
+      <article class="ins reveal">
+        <span class="cat">경매 가이드</span>
+        <h4>압류재산 공매, 법원경매와 뭐가 다른가요?</h4>
+        <p>절차·명도·권리분석 관점에서 두 제도의 차이를 처음부터 정리합니다.</p>
+        <span class="rt">📖 5분 읽기</span>
+      </article>
+      <article class="ins reveal">
+        <span class="cat">입찰 전략</span>
+        <h4>유찰 2회 물건, 최저가만 보고 들어가면 안 되는 이유</h4>
+        <p>유찰 횟수와 낙찰가율의 실제 관계를 데이터로 살펴봅니다.</p>
+        <span class="rt">📖 7분 읽기</span>
+      </article>
+      <article class="ins reveal">
+        <span class="cat warn">주의 사례</span>
+        <h4>동산 공매에서 초보자가 가장 많이 하는 실수 3가지</h4>
+        <p>보관·운반 비용부터 현황 확인까지, 놓치기 쉬운 함정을 짚습니다.</p>
+        <span class="rt">📖 6분 읽기</span>
+      </article>
+      <article class="ins reveal">
+        <span class="cat">시장 동향</span>
+        <h4>이번 달 공매 시장 요약 — 자산군별 낙찰가율 흐름</h4>
+        <p>지역·자산군별 경쟁률과 낙찰가율 추이를 매달 정리해 드립니다.</p>
+        <span class="rt">📖 4분 읽기</span>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ CTA ═══════════════ -->
+<section class="section cta">
+  <div class="wrap">
+    <h2 class="reveal">공매 입찰, 감이 아니라<br/>데이터로 준비하세요</h2>
+    <p class="reveal">출시 알림을 신청하시면 오픈 시 얼리버드 혜택과 함께 가장 먼저 알려드립니다.</p>
+    <button class="btn-primary reveal" type="button" onclick="openAuth('signup')">사전 알림 신청하기</button>
+    <p class="fine reveal">신청은 무료이며, 언제든 취소할 수 있습니다.</p>
+  </div>
+</section>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <div class="brand">낙찰<span>예보</span></div>
+        <p class="about">공공데이터포털의 온비드(캠코 공매물건 조회서비스) 공식 API 데이터를 기반으로 한 공매 낙찰가 예측 서비스입니다. 한국자산관리공사(캠코) 및 온비드와 무관한 독립 서비스입니다.</p>
+      </div>
+      <div>
+        <h5>서비스</h5>
+        <ul>
+          <li><a href="bidcast-list.html">물건 검색</a></li>
+          <li><a href="#onboarding">3초 AI 추천</a></li>
+          <li><a href="bidcast-category.html">카테고리로 찾기</a></li>
+          <li><a href="bidcast-lab.html">적중률 공개</a></li>
+          <li><a href="bidcast-calendar.html">입찰 캘린더</a></li>
+          <li><a href="bidcast-map.html">지도로 보기</a></li>
+          <li><a href="bidcast-bot.html">예보봇</a></li>
+        </ul>
+      </div>
+      <div>
+        <h5>고객지원</h5>
+        <ul>
+          <li><a href="bidcast-support.html#notice">공지사항</a></li>
+          <li><a href="bidcast-support.html#faq">자주 묻는 질문</a></li>
+          <li><a href="bidcast-support.html#qna">1:1 문의</a></li>
+          <li><a href="bidcast-support.html#guide">공매 가이드</a></li>
+        </ul>
+      </div>
+      <div>
+        <h5>제휴</h5>
+        <ul>
+          <li><a href="bidcast-partner.html">파트너 프로그램</a></li>
+          <li><a href="bidcast-support.html#coalition">제휴 문의</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="disclaimer">
+      본 서비스가 제공하는 예상 낙찰가 및 관련 정보는 과거 공매 낙찰 데이터에 기반한 <b>통계적 참고자료</b>로, "유사 사례 통계상 이런 경향이 있다"는 데이터 기반 정보 제공이며 특정 물건의 가치나 권리관계에 대한 법률적 판단이 아닙니다. 입찰 여부와 입찰가에 대한 최종 판단 및 그 결과에 대한 책임은 이용자 본인에게 있습니다. 권리분석 등 법률 검토가 필요한 사항은 변호사 · 법무사 등 자격을 갖춘 전문가와 상담하시기 바랍니다.
+    </div>
+    <p class="copy">© 2026 낙찰예보. All rights reserved.</p>
+  </div>
+</footer>
+
+<!-- ═══════════════ 인증 모달 (간편로그인 · 회원가입 데모) ═══════════════ -->
+<div class="auth-overlay" id="authOverlay" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+  <div class="auth-modal">
+    <button class="auth-close" type="button" onclick="closeAuth()" aria-label="닫기">✕</button>
+
+    <!-- 메인 패널: 탭 + SNS + 이메일 -->
+    <div class="auth-panel on" id="apMain">
+      <div class="auth-head">
+        <span class="am-logo"><span class="logo-mark">予</span>낙찰예보</span>
+        <h3 id="authTitle">간편하게 시작하기</h3>
+        <p id="authSub">10초면 충분합니다. 비밀번호 없이 가입하세요.</p>
+      </div>
+
+      <div class="auth-tabs" role="tablist">
+        <button type="button" id="tabLogin" class="on" onclick="switchTab('login')">로그인</button>
+        <button type="button" id="tabSignup" onclick="switchTab('signup')">회원가입</button>
+      </div>
+
+      <div class="sns-btns">
+        <button class="sns-btn kakao" type="button" onclick="snsFlow('카카오')">
+          <span class="sb-ico">K</span> 카카오로 계속하기 <span class="sb-note">가장 빨라요</span>
+        </button>
+        <button class="sns-btn naver" type="button" onclick="snsFlow('네이버')">
+          <span class="sb-ico">N</span> 네이버로 계속하기
+        </button>
+        <button class="sns-btn google" type="button" onclick="snsFlow('Google')">
+          <span class="sb-ico">G</span> Google로 계속하기 <span class="sb-note">Gmail</span>
+        </button>
+      </div>
+
+      <div class="auth-sep"><span>또는 이메일로 간편 가입</span></div>
+
+      <form onsubmit="return sendEmailCode(event)">
+        <div class="auth-field">
+          <label for="authEmail">이메일 주소</label>
+          <input type="email" id="authEmail" placeholder="name@gmail.com" autocomplete="email" required/>
+          <p class="hint">Gmail · 네이버 · 다음 등 모든 이메일 사용 가능. 비밀번호 대신 인증코드로 로그인합니다.</p>
+          <p class="err" id="emailErr">이메일 형식을 확인해 주세요.</p>
+        </div>
+        <label class="auth-agree">
+          <input type="checkbox" id="agreeChk" required/>
+          <span>(필수) 이용약관 및 개인정보처리방침에 동의합니다. 예측 정보는 통계적 참고자료이며 투자 판단의 책임은 본인에게 있음을 확인합니다.</span>
+        </label>
+        <button class="auth-submit" type="submit" id="emailSubmitBtn">인증코드 받기</button>
+      </form>
+      <p class="demo-note">※ 데모 화면입니다 — 실제 메일은 발송되지 않습니다.</p>
+    </div>
+
+    <!-- 인증코드 입력 패널 -->
+    <div class="auth-panel" id="apCode">
+      <button class="auth-back" type="button" onclick="showPanel('apMain')">← 이메일 다시 입력</button>
+      <div class="auth-head">
+        <h3>메일함을 확인해 주세요</h3>
+        <p><b id="codeSentTo">name@gmail.com</b> 으로 보낸<br/>6자리 인증코드를 입력하면 가입이 완료됩니다.</p>
+      </div>
+      <div class="code-boxes" id="codeBoxes">
+        <input type="text" inputmode="numeric" maxlength="1" aria-label="인증코드 1자리"/>
+        <input type="text" inputmode="numeric" maxlength="1" aria-label="인증코드 2자리"/>
+        <input type="text" inputmode="numeric" maxlength="1" aria-label="인증코드 3자리"/>
+        <input type="text" inputmode="numeric" maxlength="1" aria-label="인증코드 4자리"/>
+        <input type="text" inputmode="numeric" maxlength="1" aria-label="인증코드 5자리"/>
+        <input type="text" inputmode="numeric" maxlength="1" aria-label="인증코드 6자리"/>
+      </div>
+      <p class="err" id="codeErr" style="text-align:center;">6자리 숫자를 모두 입력해 주세요.</p>
+      <button class="auth-submit" type="button" onclick="verifyEmailCode()">확인하고 시작하기</button>
+      <p class="demo-note">데모: 아무 숫자 6자리나 입력하면 됩니다 · 유효시간 <b id="codeTimer">04:59</b></p>
+    </div>
+
+    <!-- 처리중 패널 -->
+    <div class="auth-panel" id="apLoading">
+      <div class="auth-center">
+        <div class="auth-spinner" aria-hidden="true"></div>
+        <h4 id="loadTitle">계정 확인 중...</h4>
+        <p id="loadSub">안전하게 프로필을 동기화하고 있습니다.</p>
+      </div>
+    </div>
+
+    <!-- 성공 패널 -->
+    <div class="auth-panel" id="apDone">
+      <div class="auth-center">
+        <div class="auth-success-ico">✓</div>
+        <h4 id="doneTitle">가입 완료! 환영합니다 🚶</h4>
+        <p id="doneSub">지금부터 관심물건 알림과 모의입찰 기록을 이용할 수 있습니다.</p>
+        <button class="auth-submit" type="button" onclick="closeAuth()" style="margin-top:22px;">낙찰예보 시작하기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// 스크롤 리빌 — IntersectionObserver
+// ═══════════════════════════════════════
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+}, { threshold: 0.12 });
+document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+// ═══════════════════════════════════════
+// 3초 AI 추천 온보딩 (데모) — 종류/지역/예산 선택 시 예시 결과 노출
+// ═══════════════════════════════════════
+const picks = { type: null, region: null, budget: null };
+document.querySelectorAll('.chips').forEach(group => {
+  const step = group.dataset.step;
+  group.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      group.querySelectorAll('button').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      picks[step] = btn.textContent;
+      showOnbResult();
+    });
+  });
+});
+const ONB_TYPE_MAP = { '아파트·주거':'아파트', '토지':'토지', '상가·건물':'상가', '차량':'차량', '기계장비':'기계장비', '유가증권':'유가증권' };
+function showOnbResult() {
+  if (!picks.type || !picks.region || !picks.budget) return;
+  const el = document.getElementById('onbResult');
+  const msg = `${picks.region} · ${picks.type} · ${picks.budget} 조건에 맞는 물건이 열리면 가장 먼저 알려드릴게요.`;
+  const listType = ONB_TYPE_MAP[picks.type] || '';
+  el.innerHTML = `🚶 <b>${picks.region} · ${picks.type} · ${picks.budget}</b> 조건에 맞는 예시 물건을 지금 바로 볼 수 있어요. 실제 조건에 맞는 신규 물건이 열리면 알림도 보내드립니다.<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;"><button type="button" class="onb-cta-btn" id="onbListBtn">예시 물건 바로 보기 →</button><button type="button" class="onb-cta-btn" id="onbCtaBtn" style="background:var(--surface);color:var(--green-deep);border:1.5px solid var(--green);">알림만 신청하기</button></div><span class="note">※ 물건 리스트는 예시 데이터입니다 — 실 데이터 연동은 다음 단계</span>`;
+  el.classList.add('show');
+  // 인라인 onclick에 한글 문자열을 넣으면 따옴표 충돌로 깨지므로 addEventListener 사용
+  document.getElementById('onbCtaBtn').addEventListener('click', () => openAuth('signup', msg));
+  document.getElementById('onbListBtn').addEventListener('click', () => {
+    location.href = 'bidcast-list.html' + (listType ? '?type=' + encodeURIComponent(listType) : '');
+  });
+}
+
+// ═══════════════════════════════════════
+// 간편로그인 · 회원가입 모달 (데모) — SNS 3종 + 이메일(Gmail 포함) 코드 인증
+// ═══════════════════════════════════════
+const authOverlay = document.getElementById('authOverlay');
+let authMode = 'login';
+let userLoggedIn = false;
+
+function openAuth(mode, subtitleOverride) {
+  switchTab(mode);
+  if (subtitleOverride) document.getElementById('authSub').textContent = subtitleOverride;
+  showPanel('apMain');
+  authOverlay.classList.add('open');
+  requestAnimationFrame(() => authOverlay.classList.add('vis'));
+  document.body.style.overflow = 'hidden';
+}
+
+// 물건 검색 페이지(bidcast-list.html)로 이동 — 실 데이터 연동 전까지는 예시 데이터로 동작
+function goToSearch(e) {
+  e.preventDefault();
+  const q = document.getElementById('heroSearchInput').value.trim();
+  location.href = 'bidcast-list.html' + (q ? '?q=' + encodeURIComponent(q) : '');
+  return false;
+}
+function closeAuth() {
+  authOverlay.classList.remove('vis');
+  document.body.style.overflow = '';
+  setTimeout(() => { authOverlay.classList.remove('open'); showPanel('apMain'); }, 250);
+}
+authOverlay.addEventListener('click', (e) => { if (e.target === authOverlay) closeAuth(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && authOverlay.classList.contains('open')) closeAuth(); });
+
+function showPanel(id) {
+  document.querySelectorAll('.auth-panel').forEach(p => p.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+}
+
+function switchTab(mode) {
+  authMode = mode;
+  document.getElementById('tabLogin').classList.toggle('on', mode === 'login');
+  document.getElementById('tabSignup').classList.toggle('on', mode === 'signup');
+  document.getElementById('authTitle').textContent = mode === 'login' ? '다시 오셨네요' : '간편하게 시작하기';
+  document.getElementById('authSub').textContent = mode === 'login'
+    ? 'SNS 또는 이메일로 3초 만에 로그인하세요.'
+    : '10초면 충분합니다. 비밀번호 없이 가입하세요.';
+  document.getElementById('emailSubmitBtn').textContent = mode === 'login' ? '인증코드로 로그인' : '인증코드 받기';
+}
+
+// SNS 간편로그인 (카카오/네이버/Google) — 데모: 승인 대기 없이 즉시 로딩 → 완료
+function snsFlow(provider) {
+  showPanel('apLoading');
+  document.getElementById('loadTitle').textContent = `${provider} 계정 확인 중...`;
+  document.getElementById('loadSub').textContent = `${provider} 인증 서버와 안전하게 통신하고 있습니다.`;
+  setTimeout(() => finishAuth(provider === 'Google' ? 'Gmail 계정' : `${provider} 계정`), 1100);
+}
+
+// 이메일 간편가입 — Gmail 포함 모든 도메인 허용, 코드 인증 방식(비밀번호 없음)
+function sendEmailCode(e) {
+  e.preventDefault();
+  const input = document.getElementById('authEmail');
+  const err = document.getElementById('emailErr');
+  const email = input.value.trim();
+  const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  if (!valid) { err.style.display = 'block'; input.focus(); return false; }
+  err.style.display = 'none';
+
+  document.getElementById('codeSentTo').textContent = email;
+  showPanel('apCode');
+  const boxes = document.querySelectorAll('#codeBoxes input');
+  boxes.forEach(b => b.value = '');
+  boxes[0].focus();
+  startCodeTimer();
+  return false;
+}
+
+// 6자리 코드 입력 박스 — 자동 다음칸 이동
+document.querySelectorAll('#codeBoxes input').forEach((box, i, list) => {
+  box.addEventListener('input', () => {
+    box.value = box.value.replace(/[^0-9]/g, '').slice(0, 1);
+    if (box.value && list[i + 1]) list[i + 1].focus();
+  });
+  box.addEventListener('keydown', (e) => {
+    if (e.key === 'Backspace' && !box.value && list[i - 1]) list[i - 1].focus();
+  });
+});
+
+let codeTimerId = null;
+function startCodeTimer() {
+  let sec = 299;
+  clearInterval(codeTimerId);
+  const el = document.getElementById('codeTimer');
+  codeTimerId = setInterval(() => {
+    sec--;
+    const m = String(Math.floor(sec / 60)).padStart(2, '0');
+    const s = String(sec % 60).padStart(2, '0');
+    el.textContent = `${m}:${s}`;
+    if (sec <= 0) { clearInterval(codeTimerId); el.textContent = '시간 만료 — 다시 시도해 주세요'; }
+  }, 1000);
+}
+
+function verifyEmailCode() {
+  const values = Array.from(document.querySelectorAll('#codeBoxes input')).map(b => b.value);
+  const err = document.getElementById('codeErr');
+  if (values.some(v => v === '')) { err.style.display = 'block'; return; }
+  err.style.display = 'none';
+  clearInterval(codeTimerId);
+
+  showPanel('apLoading');
+  document.getElementById('loadTitle').textContent = '인증코드 확인 중...';
+  document.getElementById('loadSub').textContent = '이메일 인증을 완료하고 있습니다.';
+  const email = document.getElementById('authEmail').value.trim();
+  setTimeout(() => finishAuth(email), 1000);
+}
+
+function finishAuth(identity) {
+  userLoggedIn = true;
+  showPanel('apDone');
+  document.getElementById('doneTitle').textContent = authMode === 'login' ? '로그인 완료! 다시 오신 걸 환영합니다 🚶' : '가입 완료! 환영합니다 🚶';
+  document.getElementById('doneSub').innerHTML = `<b>${identity}</b>(으)로 연동되었습니다. 지금부터 관심물건 알림과 모의입찰 기록을 이용할 수 있습니다.`;
+
+  const navRight = document.getElementById('navRight');
+  navRight.innerHTML = `<span class="nav-user"><span class="dot"></span>${identity} <button type="button" onclick="logoutDemo()">로그아웃</button></span>`;
+}
+
+function logoutDemo() {
+  userLoggedIn = false;
+  const navRight = document.getElementById('navRight');
+  navRight.innerHTML = `
+    <button class="nav-login" type="button" onclick="openAuth('login')">로그인</button>
+    <button class="nav-cta" type="button" onclick="openAuth('signup')">사전 알림 신청</button>
+  `;
+}
+
+function toggleMobileNav() {
+  document.getElementById('mobileNav').classList.toggle('open');
+}
+document.addEventListener('click', (e) => {
+  const mn = document.getElementById('mobileNav');
+  const hb = document.querySelector('.nav-hamburger');
+  if (mn && mn.classList.contains('open') && !mn.contains(e.target) && e.target !== hb && !hb.contains(e.target)) {
+    mn.classList.remove('open');
+  }
+});
+</script>
+
+</body>
+</html>

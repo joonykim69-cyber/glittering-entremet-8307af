@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>예보봇 — 낙찰예보</title>
+<meta name="description" content="공매 절차, 유찰, 입찰보증금, 예상 낙찰가까지 대화로 물어보는 AI 상담봇 예보봇."/>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"/>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:#F6FAF7; --surface:#FFFFFF; --ink:#10201A; --sub:#55655D; --mute:#93A29A; --line:#E1EAE4;
+  --green:#00A86B; --green-deep:#00744B; --green-soft:#E4F7EE;
+  --red:#E5484D; --red-soft:#FDEBEB;
+  --grad:linear-gradient(120deg,#00C87F 0%,#00A86B 55%,#009E8A 100%);
+  --glow:0 0 0 4px rgba(0,200,127,.14), 0 10px 34px rgba(0,168,107,.35);
+  --radius:20px; --ease:cubic-bezier(.16,1,.3,1);
+}
+html { scroll-behavior: smooth; }
+body { font-family:'Pretendard Variable',Pretendard,-apple-system,'Malgun Gothic',sans-serif; background:var(--bg); color:var(--ink); line-height:1.65; word-break:keep-all; -webkit-font-smoothing:antialiased; }
+.wrap { width:min(1080px,92%); margin:0 auto; }
+.section { padding:44px 0 80px; }
+a { color:inherit; }
+
+nav { position:sticky; top:0; z-index:100; background:rgba(255,255,255,.9); backdrop-filter:blur(14px); border-bottom:1px solid var(--line); }
+nav .wrap { display:flex; align-items:center; justify-content:space-between; padding:14px 0; }
+.logo { display:flex; align-items:center; gap:9px; font-weight:900; font-size:17px; text-decoration:none; color:var(--ink); }
+.logo-mark { width:28px; height:28px; border-radius:9px; background:var(--grad); display:grid; place-items:center; color:#fff; font-size:13px; font-weight:900; box-shadow:0 0 12px rgba(0,200,127,.5); }
+.nav-links { display:flex; gap:20px; list-style:none; }
+.nav-links a { text-decoration:none; color:var(--sub); font-size:14px; font-weight:600; }
+.nav-links a.on, .nav-links a:hover { color:var(--green-deep); }
+.nav-right { display:flex; align-items:center; gap:10px; }
+.nav-login { background:none; border:1px solid var(--line); color:var(--sub); cursor:pointer; font:inherit; font-size:13.5px; font-weight:700; padding:8px 16px; border-radius:999px; }
+.nav-cta { background:var(--grad); color:#fff; border:none; cursor:pointer; font:inherit; font-size:13.5px; font-weight:700; padding:9px 18px; border-radius:999px; }
+.nav-user { display:inline-flex; align-items:center; gap:8px; background:var(--green-soft); border:1px solid #C4EBD8; padding:7px 14px; border-radius:999px; font-size:12.5px; font-weight:800; color:var(--green-deep); }
+.nav-user .dot { width:7px; height:7px; border-radius:50%; background:var(--green); }
+.nav-user button { background:none; border:none; cursor:pointer; font:inherit; font-size:11.5px; font-weight:700; color:var(--sub); padding:0 0 0 8px; border-left:1px solid #C4EBD8; }
+@media (max-width:900px) { .nav-links { display:none; } }
+
+.nav-hamburger { display:none; background:none; border:1px solid var(--line); border-radius:10px; width:38px; height:38px; cursor:pointer; font-size:16px; color:var(--ink); align-items:center; justify-content:center; flex:none; }
+@media (max-width:900px) { .nav-hamburger { display:flex; } }
+.mobile-nav { display:none; flex-direction:column; gap:2px; padding:10px; background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:0 16px 36px rgba(16,32,26,.14); position:absolute; top:calc(100% + 8px); left:16px; right:16px; z-index:150; }
+.mobile-nav.open { display:flex; }
+.mobile-nav a { text-decoration:none; color:var(--sub); font-size:14.5px; font-weight:700; padding:12px 14px; border-radius:10px; }
+.mobile-nav a.on, .mobile-nav a:hover { background:var(--green-soft); color:var(--green-deep); }
+
+.eyebrow { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:700; letter-spacing:.1em; color:var(--green); text-transform:uppercase; margin-bottom:12px; }
+.eyebrow::before { content:''; width:20px; height:2px; background:var(--grad); border-radius:2px; }
+h1.title { font-size:clamp(28px,4vw,40px); font-weight:900; letter-spacing:-0.03em; line-height:1.2; }
+p.lead { color:var(--sub); font-size:15px; margin-top:12px; max-width:460px; }
+
+.bot-layout { display:grid; grid-template-columns:1fr 1.3fr; gap:36px; margin-top:36px; align-items:start; }
+@media (max-width:900px) { .bot-layout { grid-template-columns:1fr; } }
+
+.preset-list { display:grid; gap:8px; margin-top:16px; }
+.preset-list button {
+  text-align:left; font:inherit; font-size:13.5px; cursor:pointer;
+  background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:13px 16px;
+  transition:all .2s;
+}
+.preset-list button:hover { border-color:var(--green); background:var(--green-soft); }
+
+.chat-window { background:var(--surface); border:1px solid var(--line); border-radius:24px; overflow:hidden; display:flex; flex-direction:column; height:560px; box-shadow:0 20px 50px rgba(16,32,26,.08); }
+.chat-head { background:var(--bg); padding:16px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px; }
+.chat-head .av { width:38px; height:38px; border-radius:50%; background:var(--grad); display:grid; place-items:center; font-size:18px; box-shadow:0 0 12px rgba(0,168,107,.35); }
+.chat-head h4 { font-size:14px; font-weight:800; }
+.chat-head p { font-size:11.5px; color:var(--green-deep); font-weight:700; display:flex; align-items:center; gap:5px; }
+.chat-head p .dot { width:6px; height:6px; border-radius:50%; background:var(--green); box-shadow:0 0 6px rgba(0,200,127,.7); }
+.chat-body { flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:14px; }
+.msg { display:flex; gap:10px; max-width:85%; }
+.msg.user { align-self:flex-end; flex-direction:row-reverse; }
+.msg .av2 { width:28px; height:28px; border-radius:50%; background:var(--bg); display:grid; place-items:center; font-size:13px; flex:none; }
+.msg .bubble { font-size:13.5px; line-height:1.6; padding:12px 15px; border-radius:16px; }
+.msg.bot .bubble { background:var(--bg); border:1px solid var(--line); border-top-left-radius:4px; }
+.msg.user .bubble { background:var(--green); color:#fff; border-top-right-radius:4px; }
+.msg .bubble b { font-weight:800; }
+.chat-input { display:flex; gap:8px; padding:14px 16px; border-top:1px solid var(--line); }
+.chat-input input { flex:1; font:inherit; font-size:13.5px; background:var(--bg); border:1.5px solid var(--line); border-radius:12px; padding:11px 14px; outline:none; }
+.chat-input input:focus { border-color:var(--green); }
+.chat-input button { font:inherit; font-size:13px; font-weight:800; cursor:pointer; background:var(--grad); color:#fff; border:none; border-radius:12px; padding:0 20px; }
+.typing { display:flex; gap:4px; padding:4px 0; }
+.typing span { width:6px; height:6px; border-radius:50%; background:var(--mute); animation:blink 1.2s infinite; }
+.typing span:nth-child(2) { animation-delay:.2s; } .typing span:nth-child(3) { animation-delay:.4s; }
+@keyframes blink { 0%,80%,100% { opacity:.3; } 40% { opacity:1; } }
+
+.bot-note { margin-top:14px; font-size:11.5px; color:var(--mute); background:var(--bg); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
+
+.auth-overlay { position:fixed; inset:0; z-index:220; display:none; align-items:center; justify-content:center; padding:20px; background:rgba(16,32,26,.45); backdrop-filter:blur(8px); opacity:0; transition:opacity .25s var(--ease); }
+.auth-overlay.open { display:flex; } .auth-overlay.vis { opacity:1; }
+.auth-modal { width:100%; max-width:420px; background:var(--surface); border:1px solid var(--line); border-radius:26px; padding:28px 28px 24px; position:relative; box-shadow:0 30px 80px rgba(16,32,26,.25); transform:scale(.96) translateY(8px); transition:transform .25s var(--ease); }
+.auth-overlay.vis .auth-modal { transform:none; }
+.auth-close { position:absolute; top:16px; right:16px; background:var(--bg); border:1px solid var(--line); color:var(--sub); cursor:pointer; width:32px; height:32px; border-radius:50%; font-size:14px; }
+.auth-head { text-align:center; margin-bottom:20px; }
+.auth-head h3 { font-size:19px; font-weight:800; margin-top:10px; }
+.auth-head p { font-size:12px; color:var(--sub); margin-top:4px; }
+.sns-btns { display:grid; gap:9px; }
+.sns-btn { display:flex; align-items:center; gap:11px; width:100%; font:inherit; font-size:14px; font-weight:700; cursor:pointer; border:none; border-radius:13px; padding:12px 16px; }
+.sns-btn .sb-ico { width:22px; height:22px; border-radius:6px; display:grid; place-items:center; font-size:12px; font-weight:900; flex:none; }
+.sns-btn.kakao { background:#FEE500; color:#191919; } .sns-btn.kakao .sb-ico { background:#191919; color:#FEE500; }
+.sns-btn.naver { background:#03C75A; color:#fff; } .sns-btn.naver .sb-ico { background:#fff; color:#03C75A; }
+.sns-btn.google { background:#fff; color:#333; border:1.5px solid var(--line); }
+.sns-btn .sb-note { margin-left:auto; font-size:11px; font-weight:600; opacity:.65; }
+.demo-note { margin-top:14px; text-align:center; font-size:10.5px; color:var(--mute); }
+
+footer { border-top:1px solid var(--line); background:var(--surface); padding:44px 0 32px; }
+footer .cols { display:grid; grid-template-columns:2fr 1fr 1fr; gap:32px; }
+footer .brand { font-weight:900; font-size:16px; } footer .brand span { color:var(--green); }
+footer h5 { font-size:12px; font-weight:800; margin-bottom:10px; }
+footer ul { list-style:none; display:grid; gap:7px; }
+footer ul a { text-decoration:none; font-size:12.5px; color:var(--sub); }
+footer ul a:hover { color:var(--green-deep); }
+footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
+@media (max-width:700px) { footer .cols { grid-template-columns:1fr 1fr; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="logo" href="bidcast.html"><span class="logo-mark">予</span>낙찰예보</a>
+    <ul class="nav-links">
+      <li><a href="bidcast-list.html">물건검색</a></li>
+      <li><a href="bidcast-map.html">지도</a></li>
+      <li><a href="bidcast-category.html">카테고리</a></li>
+      <li><a href="bidcast-lab.html">적중률</a></li>
+      <li><a href="bidcast-calendar.html">캘린더</a></li>
+      <li><a href="bidcast-insight.html">인사이트</a></li>
+      <li><a href="bidcast-bot.html" class="on">예보봇</a></li>
+    </ul>
+    <div class="nav-right" id="navRight">
+      <button class="nav-login" type="button" onclick="openAuth('login')">로그인</button>
+      <button class="nav-cta" type="button" onclick="openAuth('signup')">사전 알림 신청</button>
+    </div>
+    <button class="nav-hamburger" type="button" onclick="toggleMobileNav()" aria-label="메뉴 열기">☰</button>
+    <div class="mobile-nav" id="mobileNav">
+    <a href="bidcast-list.html">물건검색</a>
+    <a href="bidcast-map.html">지도</a>
+    <a href="bidcast-category.html">카테고리</a>
+    <a href="bidcast-lab.html">적중률</a>
+    <a href="bidcast-calendar.html">캘린더</a>
+    <a href="bidcast-insight.html">인사이트</a>
+    <a href="bidcast-bot.html" class="on">예보봇</a>
+  </div>
+  </div>
+</nav>
+
+<section class="section">
+  <div class="wrap">
+    <span class="eyebrow">AI Consultant</span>
+    <h1 class="title">궁금한 건 바로<br/>물어보세요, <span style="background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;">예보봇</span></h1>
+    <p class="lead">공매 절차, 유찰, 입찰보증금부터 예상 낙찰가 산정 근거까지 — 대화로 쉽게 풀어드립니다.</p>
+
+    <div class="bot-layout">
+      <div>
+        <p style="font-size:13px;font-weight:700;color:var(--sub);">자주 묻는 질문을 눌러 대화를 테스트해 보세요</p>
+        <div class="preset-list" id="presetList">
+          <button data-q="1">❓ 유찰이 뭐고, 유찰될수록 왜 가격이 내려가나요?</button>
+          <button data-q="2">❓ 입찰보증금은 얼마를 준비해야 하나요?</button>
+          <button data-q="3">❓ AI 예상 낙찰가는 어떻게 계산되나요?</button>
+          <button data-q="4">❓ 낙찰 후 잔금은 언제까지 내야 하나요?</button>
+        </div>
+        <div class="bot-note">예보봇의 답변은 일반적인 공매 절차에 대한 참고 정보이며, 특정 물건의 법률적 권리관계 판단이 아닙니다. 정확한 권리분석은 변호사·법무사 등 전문가와 상담하세요.</div>
+      </div>
+
+      <div class="chat-window">
+        <div class="chat-head">
+          <span class="av">🤖</span>
+          <div><h4>예보봇</h4><p><span class="dot"></span>온라인 · 공매 절차 안내</p></div>
+        </div>
+        <div class="chat-body" id="chatBody">
+          <div class="msg bot"><span class="av2">🤖</span><div class="bubble">안녕하세요! 공매 절차와 예상 낙찰가에 대해 안내해 드리는 예보봇입니다. 왼쪽의 자주 묻는 질문을 눌러보시거나, 아래에 직접 입력해 주세요.</div></div>
+        </div>
+        <div class="chat-input">
+          <input type="text" id="chatInput" placeholder="예: 재공고는 어떤 경우에 나오나요?"/>
+          <button type="button" onclick="sendChat()">전송</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="auth-overlay" id="authOverlay" role="dialog" aria-modal="true">
+  <div class="auth-modal">
+    <button class="auth-close" type="button" onclick="closeAuth()" aria-label="닫기">✕</button>
+    <div class="auth-head">
+      <span style="display:inline-flex;align-items:center;gap:8px;font-weight:900;font-size:16px;"><span class="logo-mark" style="width:24px;height:24px;font-size:11px;">予</span>낙찰예보</span>
+      <h3 id="authTitle">간편하게 시작하기</h3>
+      <p id="authSub">10초면 충분합니다. 비밀번호 없이 가입하세요.</p>
+    </div>
+    <div class="sns-btns">
+      <button class="sns-btn kakao" type="button" onclick="snsFlow('카카오')"><span class="sb-ico">K</span> 카카오로 계속하기 <span class="sb-note">가장 빨라요</span></button>
+      <button class="sns-btn naver" type="button" onclick="snsFlow('네이버')"><span class="sb-ico">N</span> 네이버로 계속하기</button>
+      <button class="sns-btn google" type="button" onclick="snsFlow('Google')"><span class="sb-ico">G</span> Google로 계속하기 <span class="sb-note">Gmail</span></button>
+    </div>
+    <p class="demo-note">※ 데모 화면입니다 — 클릭 즉시 로그인 처리됩니다.</p>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <div class="brand">낙찰<span>예보</span></div>
+        <p style="font-size:12.5px;color:var(--sub);margin-top:8px;max-width:320px;">공공데이터포털의 온비드 공식 API 데이터를 기반으로 한 공매 낙찰가 예측 서비스입니다.</p>
+      </div>
+      <div><h5>서비스</h5><ul><li><a href="bidcast-list.html">물건 검색</a></li><li><a href="bidcast-lab.html">적중률 공개</a></li></ul></div>
+      <div><h5>바로가기</h5><ul><li><a href="bidcast.html">홈으로</a></li><li><a href="bidcast-insight.html">인사이트</a></li><li><a href="bidcast-partner.html">파트너 프로그램</a></li><li><a href="bidcast-support.html">고객지원</a></li></ul></div>
+    </div>
+    <p class="copy">© 2026 낙찰예보. All rights reserved.</p>
+  </div>
+</footer>
+
+<script>
+const PRESET_ANSWERS = {
+  1: '<b>유찰</b>은 입찰자가 없거나 최저입찰가 이상으로 응찰이 없어 매각이 성립하지 않는 것을 말해요. 온비드는 유찰될 때마다 보통 최저입찰가를 <b>10%씩 낮춰</b> 재공고합니다. 유찰이 반복될수록 가격은 내려가지만, 그만큼 권리관계나 물건 상태에 하자가 있을 가능성도 함께 점검해야 해요.',
+  2: '입찰보증금은 통상 <b>최저입찰가의 10%</b>입니다. 낙찰되면 잔금에서 차감되고, 낙찰되지 않으면 즉시 반환돼요. 단, 낙찰 후 잔금을 기한 내 납부하지 않으면 보증금이 몰취(반환되지 않음)될 수 있으니 주의하세요.',
+  3: 'AI 예상 낙찰가는 같은 지역·자산유형·감정가대·유찰횟수를 가진 <b>과거 실제 낙찰 사례</b>를 학습한 통계 모델이 산출합니다. 물건 상세 페이지의 "근거" 항목에서 참고한 유사 사례 건수와 평균 낙찰가율을 함께 확인할 수 있어요. 법률적 판단이 아닌 통계적 참고자료입니다.',
+  4: '통상 낙찰 후 <b>7일 이내 매각결정, 이후 약 30일 이내</b>에 잔금을 납부해야 해요(기관·공고에 따라 다를 수 있음). 기한 내 미납 시 재입찰에 부쳐지고 입찰보증금이 반환되지 않을 수 있으니, 자금 계획을 미리 세워두는 게 중요합니다.',
+};
+const PRESET_Q = {
+  1: '유찰이 뭐고, 유찰될수록 왜 가격이 내려가나요?',
+  2: '입찰보증금은 얼마를 준비해야 하나요?',
+  3: 'AI 예상 낙찰가는 어떻게 계산되나요?',
+  4: '낙찰 후 잔금은 언제까지 내야 하나요?',
+};
+
+const chatBody = document.getElementById('chatBody');
+function appendMsg(text, who) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + who;
+  div.innerHTML = who === 'user'
+    ? `<span class="av2">🙂</span><div class="bubble">${text}</div>`
+    : `<span class="av2">🤖</span><div class="bubble">${text}</div>`;
+  chatBody.appendChild(div);
+  chatBody.scrollTop = chatBody.scrollHeight;
+  return div;
+}
+function appendTyping() {
+  const div = document.createElement('div');
+  div.className = 'msg bot';
+  div.innerHTML = `<span class="av2">🤖</span><div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  chatBody.appendChild(div);
+  chatBody.scrollTop = chatBody.scrollHeight;
+  return div;
+}
+
+document.querySelectorAll('#presetList button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const id = btn.dataset.q;
+    appendMsg(PRESET_Q[id], 'user');
+    const t = appendTyping();
+    setTimeout(() => { t.remove(); appendMsg(PRESET_ANSWERS[id], 'bot'); }, 700);
+  });
+});
+
+function sendChat() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+  appendMsg(text, 'user');
+  input.value = '';
+  const t = appendTyping();
+  setTimeout(() => {
+    t.remove();
+    appendMsg(`"<b>${text}</b>"에 대해 답변드리려면 조금 더 구체적인 사건번호나 물건 조건이 필요해요. <a href="bidcast-list.html" style="color:var(--green-deep);font-weight:800;">물건 검색</a>에서 해당 물건을 찾아 리포트를 확인하시거나, 자주 묻는 질문 중 비슷한 항목을 참고해 보세요. (데모: 자유 입력에는 정해진 답변으로만 응답합니다)`, 'bot');
+  }, 800);
+}
+document.getElementById('chatInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
+
+// 간편로그인 (공용 데모 컴포넌트)
+const authOverlay = document.getElementById('authOverlay');
+function openAuth(mode) {
+  document.getElementById('authTitle').textContent = mode === 'login' ? '다시 오셨네요' : '간편하게 시작하기';
+  authOverlay.classList.add('open');
+  requestAnimationFrame(() => authOverlay.classList.add('vis'));
+  document.body.style.overflow = 'hidden';
+}
+function closeAuth() {
+  authOverlay.classList.remove('vis');
+  document.body.style.overflow = '';
+  setTimeout(() => authOverlay.classList.remove('open'), 250);
+}
+authOverlay.addEventListener('click', e => { if (e.target === authOverlay) closeAuth(); });
+function snsFlow(provider) { finishAuth(provider === 'Google' ? 'Gmail 계정' : `${provider} 계정`); }
+function finishAuth(identity) {
+  closeAuth();
+  document.getElementById('navRight').innerHTML = `<span class="nav-user"><span class="dot"></span>${identity} <button type="button" onclick="logoutDemo()">로그아웃</button></span>`;
+}
+function logoutDemo() {
+  document.getElementById('navRight').innerHTML = `<button class="nav-login" type="button" onclick="openAuth('login')">로그인</button><button class="nav-cta" type="button" onclick="openAuth('signup')">사전 알림 신청</button>`;
+}
+
+function toggleMobileNav() {
+  document.getElementById('mobileNav').classList.toggle('open');
+}
+document.addEventListener('click', (e) => {
+  const mn = document.getElementById('mobileNav');
+  const hb = document.querySelector('.nav-hamburger');
+  if (mn && mn.classList.contains('open') && !mn.contains(e.target) && e.target !== hb && !hb.contains(e.target)) {
+    mn.classList.remove('open');
+  }
+});
+
+// ESC 키로 열려있는 모달 닫기 (우선순위: 리포트/기사 모달 > 로그인 모달)
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (document.getElementById('authOverlay').classList.contains('open')) { closeAuth(); return; }
+});
+</script>
+</body>
+</html>

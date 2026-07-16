@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>고객지원 — 낙찰예보</title>
+<meta name="description" content="공지사항, 이벤트, 자주 묻는 질문, 1:1 문의, 경매 가이드를 한곳에서 확인하세요."/>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"/>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:#F6FAF7; --surface:#FFFFFF; --ink:#10201A; --sub:#55655D; --mute:#93A29A; --line:#E1EAE4;
+  --green:#00A86B; --green-deep:#00744B; --green-soft:#E4F7EE;
+  --red:#E5484D; --red-soft:#FDEBEB;
+  --grad:linear-gradient(120deg,#00C87F 0%,#00A86B 55%,#009E8A 100%);
+  --glow:0 0 0 4px rgba(0,200,127,.14), 0 10px 34px rgba(0,168,107,.35);
+  --radius:20px; --ease:cubic-bezier(.16,1,.3,1);
+}
+html { scroll-behavior: smooth; }
+body { font-family:'Pretendard Variable',Pretendard,-apple-system,'Malgun Gothic',sans-serif; background:var(--bg); color:var(--ink); line-height:1.65; word-break:keep-all; -webkit-font-smoothing:antialiased; }
+.wrap { width:min(1000px,92%); margin:0 auto; }
+a { color:inherit; }
+
+nav { position:sticky; top:0; z-index:100; background:rgba(255,255,255,.9); backdrop-filter:blur(14px); border-bottom:1px solid var(--line); }
+nav .wrap { display:flex; align-items:center; justify-content:space-between; padding:14px 0; max-width:1080px; }
+.logo { display:flex; align-items:center; gap:9px; font-weight:900; font-size:17px; text-decoration:none; color:var(--ink); }
+.logo-mark { width:28px; height:28px; border-radius:9px; background:var(--grad); display:grid; place-items:center; color:#fff; font-size:13px; font-weight:900; box-shadow:0 0 12px rgba(0,200,127,.5); }
+.nav-links { display:flex; gap:20px; list-style:none; }
+.nav-links a { text-decoration:none; color:var(--sub); font-size:14px; font-weight:600; }
+.nav-links a.on, .nav-links a:hover { color:var(--green-deep); }
+.nav-right { display:flex; align-items:center; gap:10px; }
+.nav-login { background:none; border:1px solid var(--line); color:var(--sub); cursor:pointer; font:inherit; font-size:13.5px; font-weight:700; padding:8px 16px; border-radius:999px; }
+.nav-cta { background:var(--grad); color:#fff; border:none; cursor:pointer; font:inherit; font-size:13.5px; font-weight:700; padding:9px 18px; border-radius:999px; }
+.nav-user { display:inline-flex; align-items:center; gap:8px; background:var(--green-soft); border:1px solid #C4EBD8; padding:7px 14px; border-radius:999px; font-size:12.5px; font-weight:800; color:var(--green-deep); }
+.nav-user .dot { width:7px; height:7px; border-radius:50%; background:var(--green); }
+.nav-user button { background:none; border:none; cursor:pointer; font:inherit; font-size:11.5px; font-weight:700; color:var(--sub); padding:0 0 0 8px; border-left:1px solid #C4EBD8; }
+@media (max-width:900px) { .nav-links { display:none; } }
+
+.nav-hamburger { display:none; background:none; border:1px solid var(--line); border-radius:10px; width:38px; height:38px; cursor:pointer; font-size:16px; color:var(--ink); align-items:center; justify-content:center; flex:none; }
+@media (max-width:900px) { .nav-hamburger { display:flex; } }
+.mobile-nav { display:none; flex-direction:column; gap:2px; padding:10px; background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:0 16px 36px rgba(16,32,26,.14); position:absolute; top:calc(100% + 8px); left:16px; right:16px; z-index:150; }
+.mobile-nav.open { display:flex; }
+.mobile-nav a { text-decoration:none; color:var(--sub); font-size:14.5px; font-weight:700; padding:12px 14px; border-radius:10px; }
+.mobile-nav a.on, .mobile-nav a:hover { background:var(--green-soft); color:var(--green-deep); }
+
+.page-head { padding:36px 0 8px; }
+.page-head h1 { font-size:clamp(24px,3.4vw,32px); font-weight:900; letter-spacing:-0.03em; }
+.page-head p { color:var(--sub); font-size:14.5px; margin-top:8px; }
+.demo-chip { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--sub); border:1px dashed var(--mute); padding:5px 12px; border-radius:999px; margin-top:12px; }
+
+.support-layout { display:grid; grid-template-columns:200px 1fr; gap:28px; padding:28px 0 70px; align-items:start; }
+@media (max-width:820px) { .support-layout { grid-template-columns:1fr; } }
+.side-tabs { display:grid; gap:4px; position:sticky; top:80px; }
+.side-tabs button { text-align:left; font:inherit; font-size:13.5px; font-weight:700; cursor:pointer; background:none; border:none; color:var(--sub); padding:11px 14px; border-radius:12px; }
+.side-tabs button.on { background:var(--green-soft); color:var(--green-deep); }
+.side-tabs button:hover:not(.on) { background:var(--surface); }
+
+.panel-title { font-size:17px; font-weight:800; margin-bottom:16px; }
+.list-item { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:15px 18px; margin-bottom:8px; cursor:pointer; transition:border-color .2s; }
+.list-item:hover { border-color:var(--green); }
+.list-item .t { font-size:13.5px; font-weight:700; display:flex; align-items:center; gap:8px; }
+.list-item .pin { font-size:10.5px; font-weight:800; color:var(--red); background:var(--red-soft); padding:2px 8px; border-radius:999px; }
+.list-item .d { font-size:11.5px; color:var(--mute); margin-top:5px; }
+.list-detail { display:none; margin-top:8px; font-size:13px; color:var(--sub); border-top:1px solid var(--line); padding-top:10px; }
+.list-item.open .list-detail { display:block; }
+
+.faq-cat-tabs { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:16px; }
+.faq-cat-tabs button { font:inherit; font-size:12.5px; font-weight:700; cursor:pointer; background:var(--surface); border:1.5px solid var(--line); color:var(--sub); padding:7px 14px; border-radius:999px; }
+.faq-cat-tabs button.on { background:var(--green-soft); border-color:var(--green); color:var(--green-deep); }
+.faq-item { background:var(--surface); border:1px solid var(--line); border-radius:14px; margin-bottom:8px; overflow:hidden; }
+.faq-q { width:100%; text-align:left; font:inherit; font-size:13.5px; font-weight:700; cursor:pointer; background:none; border:none; padding:15px 18px; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.faq-q .arrow { transition:transform .2s; color:var(--mute); flex:none; }
+.faq-item.open .faq-q .arrow { transform:rotate(180deg); color:var(--green); }
+.faq-a { max-height:0; overflow:hidden; transition:max-height .3s var(--ease); font-size:12.5px; color:var(--sub); padding:0 18px; }
+.faq-item.open .faq-a { max-height:220px; padding:0 18px 15px; }
+
+.form-card { background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:24px 26px; max-width:520px; }
+.form-card label { display:block; font-size:12.5px; font-weight:700; color:var(--sub); margin-bottom:6px; margin-top:14px; }
+.form-card label:first-child { margin-top:0; }
+.form-card input, .form-card textarea { width:100%; font:inherit; font-size:13.5px; color:var(--ink); background:var(--bg); border:1.5px solid var(--line); border-radius:12px; padding:11px 14px; outline:none; resize:vertical; }
+.form-card input:focus, .form-card textarea:focus { border-color:var(--green); }
+.form-card button { margin-top:18px; width:100%; font:inherit; font-size:14px; font-weight:800; cursor:pointer; background:var(--grad); color:#fff; border:none; border-radius:12px; padding:13px; }
+.form-ok { display:none; margin-top:14px; background:var(--green-soft); border:1px solid #C4EBD8; color:var(--green-deep); font-size:12.5px; font-weight:700; padding:12px 14px; border-radius:12px; }
+.form-ok.show { display:block; }
+
+.glossary-item { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:15px 18px; margin-bottom:8px; }
+.glossary-item .term { font-size:13.5px; font-weight:800; color:var(--green-deep); }
+.glossary-item .def { font-size:12.5px; color:var(--sub); margin-top:5px; }
+
+.auth-overlay { position:fixed; inset:0; z-index:220; display:none; align-items:center; justify-content:center; padding:20px; background:rgba(16,32,26,.45); backdrop-filter:blur(8px); opacity:0; transition:opacity .25s var(--ease); }
+.auth-overlay.open { display:flex; } .auth-overlay.vis { opacity:1; }
+.auth-modal { width:100%; max-width:420px; background:var(--surface); border:1px solid var(--line); border-radius:26px; padding:28px 28px 24px; position:relative; box-shadow:0 30px 80px rgba(16,32,26,.25); transform:scale(.96) translateY(8px); transition:transform .25s var(--ease); }
+.auth-overlay.vis .auth-modal { transform:none; }
+.auth-close { position:absolute; top:16px; right:16px; background:var(--bg); border:1px solid var(--line); color:var(--sub); cursor:pointer; width:32px; height:32px; border-radius:50%; font-size:14px; }
+.auth-head { text-align:center; margin-bottom:20px; }
+.auth-head h3 { font-size:19px; font-weight:800; margin-top:10px; }
+.auth-head p { font-size:12px; color:var(--sub); margin-top:4px; }
+.sns-btns { display:grid; gap:9px; }
+.sns-btn { display:flex; align-items:center; gap:11px; width:100%; font:inherit; font-size:14px; font-weight:700; cursor:pointer; border:none; border-radius:13px; padding:12px 16px; }
+.sns-btn .sb-ico { width:22px; height:22px; border-radius:6px; display:grid; place-items:center; font-size:12px; font-weight:900; flex:none; }
+.sns-btn.kakao { background:#FEE500; color:#191919; } .sns-btn.kakao .sb-ico { background:#191919; color:#FEE500; }
+.sns-btn.naver { background:#03C75A; color:#fff; } .sns-btn.naver .sb-ico { background:#fff; color:#03C75A; }
+.sns-btn.google { background:#fff; color:#333; border:1.5px solid var(--line); }
+.sns-btn .sb-note { margin-left:auto; font-size:11px; font-weight:600; opacity:.65; }
+.demo-note { margin-top:14px; text-align:center; font-size:10.5px; color:var(--mute); }
+
+footer { border-top:1px solid var(--line); background:var(--surface); padding:44px 0 32px; }
+footer .cols { display:grid; grid-template-columns:2fr 1fr 1fr; gap:32px; max-width:1080px; margin:0 auto; width:min(1080px,92%); }
+footer .brand { font-weight:900; font-size:16px; } footer .brand span { color:var(--green); }
+footer h5 { font-size:12px; font-weight:800; margin-bottom:10px; }
+footer ul { list-style:none; display:grid; gap:7px; }
+footer ul a { text-decoration:none; font-size:12.5px; color:var(--sub); }
+footer ul a:hover { color:var(--green-deep); }
+footer .copy { margin-top:20px; font-size:11px; color:var(--mute); width:min(1080px,92%); margin-left:auto; margin-right:auto; }
+@media (max-width:700px) { footer .cols { grid-template-columns:1fr 1fr; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="logo" href="bidcast.html"><span class="logo-mark">予</span>낙찰예보</a>
+    <ul class="nav-links">
+      <li><a href="bidcast-list.html">물건검색</a></li>
+      <li><a href="bidcast-map.html">지도</a></li>
+      <li><a href="bidcast-category.html">카테고리</a></li>
+      <li><a href="bidcast-lab.html">적중률</a></li>
+      <li><a href="bidcast-calendar.html">캘린더</a></li>
+      <li><a href="bidcast-insight.html">인사이트</a></li>
+      <li><a href="bidcast-bot.html">예보봇</a></li>
+    </ul>
+    <div class="nav-right" id="navRight">
+      <button class="nav-login" type="button" onclick="openAuth('login')">로그인</button>
+      <button class="nav-cta" type="button" onclick="openAuth('signup')">사전 알림 신청</button>
+    </div>
+    <button class="nav-hamburger" type="button" onclick="toggleMobileNav()" aria-label="메뉴 열기">☰</button>
+    <div class="mobile-nav" id="mobileNav">
+    <a href="bidcast-list.html">물건검색</a>
+    <a href="bidcast-map.html">지도</a>
+    <a href="bidcast-category.html">카테고리</a>
+    <a href="bidcast-lab.html">적중률</a>
+    <a href="bidcast-calendar.html">캘린더</a>
+    <a href="bidcast-insight.html">인사이트</a>
+    <a href="bidcast-bot.html">예보봇</a>
+  </div>
+  </div>
+</nav>
+
+<header class="page-head">
+  <div class="wrap" style="max-width:1080px;">
+    <h1>고객지원</h1>
+    <p>공지사항, 이벤트, 자주 묻는 질문, 1:1 문의를 한곳에서 확인하세요.</p>
+    <span class="demo-chip">🔧 아래 내용은 예시 데이터입니다</span>
+  </div>
+</header>
+
+<div class="wrap" style="max-width:1080px;">
+  <div class="support-layout">
+    <div class="side-tabs" id="sideTabs">
+      <button data-tab="notice" class="on">📢 공지사항</button>
+      <button data-tab="event">🎁 이벤트</button>
+      <button data-tab="faq">❓ 자주 묻는 질문</button>
+      <button data-tab="qna">✉️ 1:1 문의</button>
+      <button data-tab="free">💬 자유게시판</button>
+      <button data-tab="guide">📖 경매 가이드</button>
+      <button data-tab="press">📰 언론기사</button>
+      <button data-tab="coalition">🤝 제휴문의</button>
+    </div>
+
+    <div id="panelArea"></div>
+  </div>
+</div>
+
+<div class="auth-overlay" id="authOverlay" role="dialog" aria-modal="true">
+  <div class="auth-modal">
+    <button class="auth-close" type="button" onclick="closeAuth()" aria-label="닫기">✕</button>
+    <div class="auth-head">
+      <span style="display:inline-flex;align-items:center;gap:8px;font-weight:900;font-size:16px;"><span class="logo-mark" style="width:24px;height:24px;font-size:11px;">予</span>낙찰예보</span>
+      <h3 id="authTitle">간편하게 시작하기</h3>
+      <p id="authSub">10초면 충분합니다. 비밀번호 없이 가입하세요.</p>
+    </div>
+    <div class="sns-btns">
+      <button class="sns-btn kakao" type="button" onclick="snsFlow('카카오')"><span class="sb-ico">K</span> 카카오로 계속하기 <span class="sb-note">가장 빨라요</span></button>
+      <button class="sns-btn naver" type="button" onclick="snsFlow('네이버')"><span class="sb-ico">N</span> 네이버로 계속하기</button>
+      <button class="sns-btn google" type="button" onclick="snsFlow('Google')"><span class="sb-ico">G</span> Google로 계속하기 <span class="sb-note">Gmail</span></button>
+    </div>
+    <p class="demo-note">※ 데모 화면입니다 — 클릭 즉시 로그인 처리됩니다.</p>
+  </div>
+</div>
+
+<footer>
+  <div class="cols">
+    <div>
+      <div class="brand">낙찰<span>예보</span></div>
+      <p style="font-size:12.5px;color:var(--sub);margin-top:8px;max-width:320px;">공공데이터포털의 온비드 공식 API 데이터를 기반으로 한 공매 낙찰가 예측 서비스입니다.</p>
+    </div>
+    <div><h5>서비스</h5><ul><li><a href="bidcast-list.html">물건 검색</a></li><li><a href="bidcast-lab.html">적중률 공개</a></li></ul></div>
+    <div><h5>바로가기</h5><ul><li><a href="bidcast.html">홈으로</a></li><li><a href="bidcast-partner.html">파트너 프로그램</a></li></ul></div>
+  </div>
+  <p class="copy">© 2026 낙찰예보. All rights reserved.</p>
+</footer>
+
+<script>
+const NOTICE = [
+  { pin:true, t:'낙찰예보 서비스 사전 공개 페이지 오픈 안내', d:'2026-07-01', b:'낙찰예보 사전 공개 페이지가 오픈되었습니다. 사전 알림을 신청하시면 정식 오픈 시 가장 먼저 안내드립니다.' },
+  { t:'개인정보처리방침 개정 예정 안내', d:'2026-06-20', b:'서비스 정식 오픈에 맞춰 개인정보처리방침이 개정될 예정입니다. 자세한 내용은 오픈 시 공지됩니다.' },
+  { t:'낙찰예보 랩 예측 정확도 공개 방식 안내', d:'2026-06-10', b:'낙찰예보 랩에서 오차 범위, 자산군별 정확도 등을 어떻게 공개하는지 안내하는 글입니다.' },
+];
+const EVENT = [
+  { t:'[사전 알림 신청 이벤트] 얼리버드 전원에게 프리미엄 리포트 1개월 무료', d:'2026-07-05 ~ 오픈일까지', b:'사전 알림을 신청한 모든 분께 정식 오픈 시 프리미엄 리포트 1개월 이용권을 드립니다(예시 이벤트).' },
+  { t:'[모의입찰 체험 이벤트] 예측 vs 실제, 3자 비교 참여하기', d:'오픈 예정', b:'모의입찰 기능으로 AI 예측과 실제 낙찰가를 비교해 보고 참여 인증을 남기면 추첨을 통해 소정의 상품을 드립니다(예시 이벤트).' },
+];
+const PRESS = [
+  { t:'[예시 보도자료] 공매 전 자산군 커버하는 AI 예측 서비스 "낙찰예보" 준비 중', d:'2026-06-15', b:'부동산에 한정된 기존 경매 분석 서비스와 달리, 동산·유가증권까지 커버하는 낙찰예보가 사전 공개 페이지를 오픈했다는 예시 보도자료입니다.' },
+];
+
+const FAQ_CATS = ['전체','회원가입/로그인','경매 분석','권리분석','포인트','기타'];
+const FAQS = [
+  { cat:'회원가입/로그인', q:'회원가입 없이도 물건을 검색할 수 있나요?', a:'네, 물건 검색과 기본 정보 열람은 비회원도 가능합니다. 다만 AI 추천 입찰가 등 핵심 수치는 로그인 후 확인할 수 있습니다.' },
+  { cat:'회원가입/로그인', q:'SNS 계정으로 가입하면 이메일도 등록되나요?', a:'카카오·네이버·Google 계정으로 가입 시 해당 계정에 연동된 이메일 정보가 함께 등록됩니다.' },
+  { cat:'경매 분석', q:'예정물건과 신건은 어떻게 다른가요?', a:'예정물건은 앞으로 공고될 입찰 예정 물건, 신건은 유찰 이력 없이 처음 매각 절차에 오른 물건을 말합니다.' },
+  { cat:'권리분석', q:'AI 권리분석 결과를 100% 신뢰해도 되나요?', a:'AI 권리분석은 통계적 참고자료입니다. 실제 입찰 전에는 등기부등본과 매각물건명세서를 직접 확인하거나 전문가와 상담하시길 권장합니다.' },
+  { cat:'포인트', q:'포인트 제도가 있나요?', a:'정식 오픈 시 관심물건 등록, 모의입찰 참여 등에 대한 포인트·리워드 제도 도입을 검토 중입니다.' },
+  { cat:'기타', q:'서비스는 무료인가요?', a:'기본 검색과 물건 정보는 무료입니다. AI 추천 입찰가 등 일부 프리미엄 기능은 추후 유료 플랜으로 제공될 수 있습니다.' },
+];
+
+const GUIDE_TERMS = [
+  { term:'말소기준권리', def:'매각으로 소멸되는 권리와 낙찰자가 인수해야 하는 권리를 가르는 기준이 되는 권리.' },
+  { term:'유치권', def:'타인의 물건을 점유한 자가 그 물건에 관해 생긴 채권을 변제받을 때까지 물건을 유치할 수 있는 권리.' },
+  { term:'대항력', def:'임차인이 제3자(낙찰자 포함)에게 자신의 임차권을 주장할 수 있는 법적 효력.' },
+  { term:'유찰', def:'입찰자가 없거나 최저입찰가 이상 응찰이 없어 매각이 성립하지 않는 것.' },
+  { term:'낙찰가율', def:'낙찰가를 감정가로 나눈 비율. 시장 경쟁 강도를 가늠하는 지표로 쓰인다.' },
+];
+
+let currentTab = 'notice';
+let faqCat = '전체';
+
+function renderPanel() {
+  const area = document.getElementById('panelArea');
+  if (currentTab === 'notice' || currentTab === 'event' || currentTab === 'press') {
+    const data = { notice:NOTICE, event:EVENT, press:PRESS }[currentTab];
+    const title = { notice:'공지사항', event:'이벤트', press:'언론기사' }[currentTab];
+    area.innerHTML = `<div class="panel-title">${title}</div>` + data.map((item, i) => `
+      <div class="list-item" onclick="this.classList.toggle('open')">
+        <div class="t">${item.pin ? '<span class="pin">고정</span>' : ''}${item.t}</div>
+        <div class="d">${item.d}</div>
+        <div class="list-detail">${item.b}</div>
+      </div>`).join('');
+  } else if (currentTab === 'faq') {
+    area.innerHTML = `
+      <div class="panel-title">자주 묻는 질문</div>
+      <div class="faq-cat-tabs" id="faqCatTabs">${FAQ_CATS.map((c,i) => `<button data-cat="${c}" class="${i===0?'on':''}">${c}</button>`).join('')}</div>
+      <div id="faqListArea"></div>`;
+    document.querySelectorAll('#faqCatTabs button').forEach(btn => btn.addEventListener('click', () => {
+      document.querySelectorAll('#faqCatTabs button').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on'); faqCat = btn.dataset.cat; renderFaqList();
+    }));
+    renderFaqList();
+  } else if (currentTab === 'qna') {
+    area.innerHTML = `
+      <div class="panel-title">1:1 문의</div>
+      <div class="form-card">
+        <label>제목</label><input type="text" id="qnaTitle" placeholder="문의 제목을 입력하세요"/>
+        <label>내용</label><textarea id="qnaBody" rows="5" placeholder="문의하실 내용을 자세히 적어주세요"></textarea>
+        <label>답변받을 이메일</label><input type="email" id="qnaEmail" placeholder="name@gmail.com"/>
+        <button type="button" onclick="submitForm('qna')">문의 접수하기</button>
+        <div class="form-ok" id="qnaOk">✅ 접수되었습니다. 데모 화면이라 실제 답변은 발송되지 않습니다.</div>
+      </div>`;
+  } else if (currentTab === 'free') {
+    area.innerHTML = `<div class="panel-title">자유게시판</div>` + [
+      { t:'오픈 축하드려요! 기대하고 있습니다 🎉', d:'2026-07-08' },
+      { t:'동산 공매 예측도 지원한다니 신기하네요', d:'2026-07-06' },
+      { t:'모의입찰 기능 언제 오픈하나요?', d:'2026-07-03' },
+    ].map(item => `<div class="list-item"><div class="t">${item.t}</div><div class="d">${item.d}</div></div>`).join('');
+  } else if (currentTab === 'guide') {
+    area.innerHTML = `<div class="panel-title">경매 가이드 · 용어사전</div>` +
+      GUIDE_TERMS.map(g => `<div class="glossary-item"><div class="term">${g.term}</div><div class="def">${g.def}</div></div>`).join('') +
+      `<p style="margin-top:14px;font-size:12px;color:var(--mute);">더 많은 가이드(초보자 가이드, 절차 안내)는 <a href="bidcast-insight.html" style="color:var(--green-deep);font-weight:700;">인사이트</a>에서 확인하세요.</p>`;
+  } else if (currentTab === 'coalition') {
+    area.innerHTML = `
+      <div class="panel-title">제휴 문의</div>
+      <div class="form-card">
+        <label>회사명</label><input type="text" id="coName" placeholder="회사명을 입력하세요"/>
+        <label>담당자 이메일</label><input type="email" id="coEmail" placeholder="name@company.com"/>
+        <label>제휴 제안 내용</label><textarea id="coBody" rows="5" placeholder="제휴 제안 내용을 적어주세요"></textarea>
+        <button type="button" onclick="submitForm('co')">제휴 문의 보내기</button>
+        <div class="form-ok" id="coOk">✅ 접수되었습니다. 데모 화면이라 실제 발송되지 않습니다.</div>
+      </div>`;
+  }
+}
+
+function renderFaqList() {
+  const list = faqCat === '전체' ? FAQS : FAQS.filter(f => f.cat === faqCat);
+  document.getElementById('faqListArea').innerHTML = list.map((f,i) => `
+    <div class="faq-item" id="faqItem${i}">
+      <button class="faq-q" onclick="document.getElementById('faqItem${i}').classList.toggle('open')"><span>${f.q}</span><span class="arrow">⌄</span></button>
+      <div class="faq-a">${f.a}</div>
+    </div>`).join('');
+}
+
+function submitForm(kind) { document.getElementById(kind + 'Ok').classList.add('show'); }
+
+document.querySelectorAll('#sideTabs button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#sideTabs button').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    currentTab = btn.dataset.tab;
+    location.hash = currentTab;
+    renderPanel();
+  });
+});
+
+// 다른 페이지에서 #faq, #qna 등 해시로 바로 들어오면 해당 탭을 열어줌
+const hashTab = location.hash.replace('#', '');
+if (hashTab && document.querySelector(`#sideTabs button[data-tab="${hashTab}"]`)) {
+  document.querySelectorAll('#sideTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === hashTab));
+  currentTab = hashTab;
+}
+renderPanel();
+
+// 간편로그인 (공용 데모 컴포넌트)
+const authOverlay = document.getElementById('authOverlay');
+function openAuth(mode) {
+  document.getElementById('authTitle').textContent = mode === 'login' ? '다시 오셨네요' : '간편하게 시작하기';
+  authOverlay.classList.add('open');
+  requestAnimationFrame(() => authOverlay.classList.add('vis'));
+  document.body.style.overflow = 'hidden';
+}
+function closeAuth() {
+  authOverlay.classList.remove('vis');
+  document.body.style.overflow = '';
+  setTimeout(() => authOverlay.classList.remove('open'), 250);
+}
+authOverlay.addEventListener('click', e => { if (e.target === authOverlay) closeAuth(); });
+function snsFlow(provider) { finishAuth(provider === 'Google' ? 'Gmail 계정' : `${provider} 계정`); }
+function finishAuth(identity) {
+  closeAuth();
+  document.getElementById('navRight').innerHTML = `<span class="nav-user"><span class="dot"></span>${identity} <button type="button" onclick="logoutDemo()">로그아웃</button></span>`;
+}
+function logoutDemo() {
+  document.getElementById('navRight').innerHTML = `<button class="nav-login" type="button" onclick="openAuth('login')">로그인</button><button class="nav-cta" type="button" onclick="openAuth('signup')">사전 알림 신청</button>`;
+}
+
+function toggleMobileNav() {
+  document.getElementById('mobileNav').classList.toggle('open');
+}
+document.addEventListener('click', (e) => {
+  const mn = document.getElementById('mobileNav');
+  const hb = document.querySelector('.nav-hamburger');
+  if (mn && mn.classList.contains('open') && !mn.contains(e.target) && e.target !== hb && !hb.contains(e.target)) {
+    mn.classList.remove('open');
+  }
+});
+
+// ESC 키로 열려있는 모달 닫기 (우선순위: 리포트/기사 모달 > 로그인 모달)
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (document.getElementById('authOverlay').classList.contains('open')) { closeAuth(); return; }
+});
+</script>
+</body>
+</html>

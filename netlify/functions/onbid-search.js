@@ -1,0 +1,185 @@
+// netlify/functions/onbid-search.js
+// 온비드(캠코) 부동산 물건목록 조회 API 프록시 — bidcast-list.html의 실 데이터 연동용
+//
+// 신청된 서비스: 한국자산관리공사_차세대 온비드 부동산 물건목록 조회서비스 v1.0.0
+// Base URL: https://apis.data.go.kr/B010003/OnbidRlstListSrvc2
+// 오퍼레이션: GET /getRlstCltrList2 (부동산 물건목록 정보조회)
+// 아래 요청/응답 필드명은 2026-07-16, 사용자가 확보한 이 서비스의 Swagger 명세
+// (data.go.kr 활용신청 상세 페이지에 내장된 swagger.json)로 전부 확인된 값입니다.
+//
+// ⚠️ 범위 제한: 이 API는 "부동산"만 다룹니다. 프론트엔드(bidcast-list.html)의
+// 6개 타입 버킷 중 아파트/토지/상가만 이 API로 채워질 수 있고, 차량/기계장비/
+// 유가증권은 다른 온비드 API(동산 계열)가 필요합니다 — 아직 미연동.
+//
+// data.go.kr API는 공통적으로:
+//  - 인증키 파라미터명: serviceKey
+//  - 페이지네이션: pageNo, numOfRows
+//  - 응답 포맷: { response: { header:{resultCode,resultMsg}, body:{items:{item:[...]}, totalCount} } }
+
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+};
+
+// ONBID_API_URL은 Base URL만 담는다 (예: https://apis.data.go.kr/B010003/OnbidRlstListSrvc2).
+// 오퍼레이션 경로는 Swagger로 확인되어 코드에 고정.
+const ONBID_API_URL = process.env.ONBID_API_URL;
+const ONBID_OPERATION = '/getRlstCltrList2';
+
+// 필수 파라미터 prptDivCd(재산유형코드, 복수는 쉼표 구분) — Swagger 확인된 전체 코드값.
+// 특정 유형으로 좁히지 않는 한 전체를 요청해서 폭넓게 가져온다.
+// 0002:공유재산 0003:금융권담보재산 0004:불용품 0005:기타일반재산 0006:유입재산
+// 0007:압류재산 0008:수탁재산 0010:국유재산 0011:공공개발재산 0013:파산자산
+const ALL_PRPT_DIV_CD = '0002,0003,0004,0005,0006,0007,0008,0010,0011,0013';
+
+function fmtManwon(won) {
+  const n = Number(won);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n / 10000);
+}
+
+// 주소 앞 시/도 전체 명칭을 프론트엔드 필터 옵션(서울/경기/인천/부산/대구)의
+// 짧은 표기와 맞춘다 — 안 맞으면 지역 필터가 항상 0건을 반환하게 됨.
+const REGION_ALIASES = {
+  '서울특별시': '서울', '서울시': '서울',
+  '경기도': '경기',
+  '인천광역시': '인천',
+  '부산광역시': '부산',
+  '대구광역시': '대구',
+  '광주광역시': '광주',
+  '대전광역시': '대전',
+  '울산광역시': '울산',
+  '세종특별자치시': '세종',
+};
+function normalizeRegion(sdnm) {
+  return REGION_ALIASES[sdnm] || sdnm || '';
+}
+
+// 이 API는 부동산만 다루므로 응답의 cltrUsgSclsCtgrNm(용도소분류명, 예: 아파트/
+// 연립주택/임야/전/답/대지/근린생활시설 등)을 프론트엔드 6개 버킷 중 부동산 관련
+// 3개(아파트/토지/상가)로 키워드 매칭한다. 차량/기계장비/유가증권은 이 API로는
+// 절대 나오지 않으므로 항상 '기타'로 떨어짐 — 다른 온비드 API 연동 전까지는 정상.
+const TYPE_KEYWORDS = [
+  ['아파트', ['아파트', '연립주택', '다세대']],
+  ['토지', ['토지', '임야', '전', '답', '대지', '잡종지', '과수원', '목장용지']],
+  ['상가', ['상가', '점포', '근린', '건물', '주택', '오피스텔', '공장', '창고']],
+];
+function normalizeType(sclsCtgrNm) {
+  const s = sclsCtgrNm || '';
+  for (const [bucket, keywords] of TYPE_KEYWORDS) {
+    if (keywords.some(k => s.includes(k))) return bucket;
+  }
+  return '기타';
+}
+
+const TYPE_ICONS = { 아파트: '🏢', 토지: '🏞️', 상가: '🏬', 차량: '🚗', 기계장비: '🏭', 유가증권: '📈', 기타: '📦' };
+
+// pbctStatCd(입찰결과구분코드): 0001 입찰준비중, 0002 입찰진행중, 0003 입찰마감,
+// 0006 개찰중, 0009 수의계약가능, 0010 낙찰, 0011 유찰, 0012 취소.
+// 프론트엔드는 '진행'/'낙찰' 두 가지만 구분하므로 0010만 낙찰로 매핑.
+function mapOnbidItem(raw, idx) {
+  const apprWon = Number(raw.apslEvlAmt) || 0;
+  // lowstBidPrcIndctCont는 문자열(공개 시 금액, 비공개 시 "비공개" 등 텍스트)일 수 있어 숫자만 추출.
+  const minWonParsed = parseInt(String(raw.lowstBidPrcIndctCont || '').replace(/[^0-9]/g, ''), 10);
+  const minWon = Number.isFinite(minWonParsed) && minWonParsed > 0 ? minWonParsed : apprWon;
+  const failCount = Number(raw.usbdNft ?? 0) || 0;
+
+  const type = normalizeType(raw.cltrUsgSclsCtgrNm || raw.cltrUsgMclsCtgrNm);
+  const address = [raw.lctnSdnm, raw.lctnSggnm, raw.lctnEmdNm].filter(Boolean).join(' ');
+
+  return {
+    id: raw.cltrMngNo || idx,
+    caseNo: raw.cltrMngNo && raw.pbctCdtnNo != null ? `${raw.cltrMngNo}-${raw.pbctCdtnNo}` : (raw.cltrMngNo || '-'),
+    title: raw.onbidCltrNm || '(물건명 미상)',
+    address,
+    court: raw.orgNm || raw.rqstOrgNm || '',
+    region: normalizeRegion(raw.lctnSdnm),
+    type,
+    appr: fmtManwon(apprWon),
+    min: fmtManwon(minWon),
+    fail: failCount,
+    status: raw.pbctStatCd === '0010' ? '낙찰' : '진행',
+    tags: failCount > 0 ? ['#재매각'] : ['#신건'],
+    views: 0, // 온비드 API에 조회수 필드 없음 — 프론트엔드 표시용 기본값
+    thumb: TYPE_ICONS[type] || '📦',
+  };
+}
+
+exports.handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers: CORS, body: '' };
+  }
+  if (event.httpMethod !== 'GET') {
+    return {
+      statusCode: 405,
+      headers: CORS,
+      body: JSON.stringify({ error: { message: 'Method not allowed' } }),
+    };
+  }
+
+  const serviceKey = process.env.ONBID_SERVICE_KEY;
+  if (!serviceKey) {
+    return {
+      statusCode: 500,
+      headers: CORS,
+      body: JSON.stringify({ error: { message: 'Server service key not configured (ONBID_SERVICE_KEY)' } }),
+    };
+  }
+  if (!ONBID_API_URL) {
+    return {
+      statusCode: 500,
+      headers: CORS,
+      body: JSON.stringify({ error: { message: 'ONBID_API_URL not configured — data.go.kr에서 발급받은 Base URL을 Netlify 환경변수에 설정하세요.' } }),
+    };
+  }
+
+  const qs = event.queryStringParameters || {};
+  const pageNo = qs.page || '1';
+  const numOfRows = qs.numOfRows || '20';
+
+  const params = new URLSearchParams({
+    serviceKey,
+    pageNo,
+    numOfRows,
+    resultType: 'json',
+    prptDivCd: qs.prptDivCd || ALL_PRPT_DIV_CD,
+    pvctTrgtYn: qs.pvctTrgtYn || 'N',
+  });
+  if (qs.region) params.set('lctnSdnm', qs.region);
+  if (qs.keyword) params.set('onbidCltrNm', qs.keyword);
+  // qs.type(아파트/토지/상가 등)은 API의 용도분류 코드값을 몰라 상류로 전달하지
+  // 않는다 — mapOnbidItem()의 normalizeType()으로 응답을 받은 뒤 정규화하고,
+  // 실제 버킷 필터링은 프론트엔드의 applyFilters()가 클라이언트 사이드에서 처리.
+
+  try {
+    const r = await fetch(`${ONBID_API_URL}${ONBID_OPERATION}?${params.toString()}`);
+    const raw = await r.json();
+
+    const header = raw?.response?.header;
+    if (header && header.resultCode && header.resultCode !== '00') {
+      return {
+        statusCode: 502,
+        headers: CORS,
+        body: JSON.stringify({ error: { message: `온비드 API 오류: ${header.resultCode} ${header.resultMsg || ''}` } }),
+      };
+    }
+
+    const itemsRaw = raw?.response?.body?.items?.item || [];
+    const list = Array.isArray(itemsRaw) ? itemsRaw : [itemsRaw];
+    const items = list.map(mapOnbidItem);
+    const totalCount = raw?.response?.body?.totalCount ?? items.length;
+
+    return {
+      statusCode: 200,
+      headers: { ...CORS, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items, totalCount, pageNo: Number(pageNo), numOfRows: Number(numOfRows) }),
+    };
+  } catch (e) {
+    return {
+      statusCode: 502,
+      headers: CORS,
+      body: JSON.stringify({ error: { message: 'Proxy error: ' + e.message } }),
+    };
+  }
+};

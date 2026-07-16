@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title id="pageTitle">카테고리 — 낙찰예보</title>
+<meta name="description" content="지역별·물건유형별·법원별로 공매 물건과 AI 예측 데이터를 모아봅니다."/>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"/>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:#F6FAF7; --surface:#FFFFFF; --ink:#10201A; --sub:#55655D; --mute:#93A29A; --line:#E1EAE4;
+  --green:#00A86B; --green-deep:#00744B; --green-soft:#E4F7EE;
+  --red:#E5484D; --red-soft:#FDEBEB;
+  --grad:linear-gradient(120deg,#00C87F 0%,#00A86B 55%,#009E8A 100%);
+  --glow:0 0 0 4px rgba(0,200,127,.14), 0 10px 34px rgba(0,168,107,.35);
+  --radius:20px; --ease:cubic-bezier(.16,1,.3,1);
+}
+html { scroll-behavior: smooth; }
+body { font-family:'Pretendard Variable',Pretendard,-apple-system,'Malgun Gothic',sans-serif; background:var(--bg); color:var(--ink); line-height:1.65; word-break:keep-all; -webkit-font-smoothing:antialiased; }
+.wrap { width:min(1080px,92%); margin:0 auto; }
+a { color:inherit; }
+
+nav { position:sticky; top:0; z-index:100; background:rgba(255,255,255,.9); backdrop-filter:blur(14px); border-bottom:1px solid var(--line); }
+nav .wrap { display:flex; align-items:center; justify-content:space-between; padding:14px 0; }
+.logo { display:flex; align-items:center; gap:9px; font-weight:900; font-size:17px; text-decoration:none; color:var(--ink); }
+.logo-mark { width:28px; height:28px; border-radius:9px; background:var(--grad); display:grid; place-items:center; color:#fff; font-size:13px; font-weight:900; box-shadow:0 0 12px rgba(0,200,127,.5); }
+.nav-links { display:flex; gap:20px; list-style:none; }
+.nav-links a { text-decoration:none; color:var(--sub); font-size:14px; font-weight:600; }
+.nav-links a.on, .nav-links a:hover { color:var(--green-deep); }
+.nav-right { display:flex; align-items:center; gap:10px; }
+.nav-login { background:none; border:1px solid var(--line); color:var(--sub); cursor:pointer; font:inherit; font-size:13.5px; font-weight:700; padding:8px 16px; border-radius:999px; }
+.nav-cta { background:var(--grad); color:#fff; border:none; cursor:pointer; font:inherit; font-size:13.5px; font-weight:700; padding:9px 18px; border-radius:999px; }
+.nav-user { display:inline-flex; align-items:center; gap:8px; background:var(--green-soft); border:1px solid #C4EBD8; padding:7px 14px; border-radius:999px; font-size:12.5px; font-weight:800; color:var(--green-deep); }
+.nav-user .dot { width:7px; height:7px; border-radius:50%; background:var(--green); }
+.nav-user button { background:none; border:none; cursor:pointer; font:inherit; font-size:11.5px; font-weight:700; color:var(--sub); padding:0 0 0 8px; border-left:1px solid #C4EBD8; }
+@media (max-width:900px) { .nav-links { display:none; } }
+
+.nav-hamburger { display:none; background:none; border:1px solid var(--line); border-radius:10px; width:38px; height:38px; cursor:pointer; font-size:16px; color:var(--ink); align-items:center; justify-content:center; flex:none; }
+@media (max-width:900px) { .nav-hamburger { display:flex; } }
+.mobile-nav { display:none; flex-direction:column; gap:2px; padding:10px; background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:0 16px 36px rgba(16,32,26,.14); position:absolute; top:calc(100% + 8px); left:16px; right:16px; z-index:150; }
+.mobile-nav.open { display:flex; }
+.mobile-nav a { text-decoration:none; color:var(--sub); font-size:14.5px; font-weight:700; padding:12px 14px; border-radius:10px; }
+.mobile-nav a.on, .mobile-nav a:hover { background:var(--green-soft); color:var(--green-deep); }
+
+.page-head { padding:36px 0 8px; }
+.breadcrumb { font-size:12.5px; color:var(--mute); }
+.breadcrumb a { color:var(--sub); text-decoration:none; } .breadcrumb a:hover { color:var(--green-deep); }
+.page-head h1 { font-size:clamp(22px,3.2vw,30px); font-weight:900; letter-spacing:-0.03em; margin-top:8px; }
+.page-head p { color:var(--sub); font-size:14px; margin-top:6px; }
+.demo-chip { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--sub); border:1px dashed var(--mute); padding:5px 12px; border-radius:999px; margin-top:12px; }
+
+/* HUB (인덱스) */
+.axis-block { margin:36px 0; }
+.axis-block h3 { font-size:16px; font-weight:800; margin-bottom:14px; }
+.axis-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+@media (max-width:820px) { .axis-grid { grid-template-columns:repeat(2,1fr); } }
+@media (max-width:480px) { .axis-grid { grid-template-columns:1fr; } }
+.axis-chip { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px 16px; text-decoration:none; color:var(--ink); transition:all .2s; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.axis-chip:hover { border-color:var(--green); transform:translateY(-2px); box-shadow:0 10px 24px rgba(16,32,26,.08); }
+.axis-chip .n { font-size:13.5px; font-weight:700; }
+.axis-chip .c { font-size:12px; color:var(--green-deep); font-weight:800; white-space:nowrap; }
+
+/* LEAF */
+.leaf-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:24px; }
+.leaf-stat { background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px 18px; }
+.leaf-stat .v { font-size:20px; font-weight:900; color:var(--green-deep); }
+.leaf-stat .k { font-size:11.5px; color:var(--sub); margin-top:4px; }
+@media (max-width:700px) { .leaf-stats { grid-template-columns:1fr 1fr; } }
+
+.dist-card { background:var(--surface); border:1px solid var(--line); border-radius:20px; padding:24px 26px; margin-top:24px; }
+.dist-card h4 { font-size:14.5px; font-weight:800; margin-bottom:14px; }
+.dist-row { margin-top:12px; }
+.dist-row .lbl { display:flex; justify-content:space-between; font-size:13px; margin-bottom:6px; }
+.dist-row .lbl b { color:var(--green-deep); font-weight:800; }
+.dist-row .track { height:9px; border-radius:5px; background:#DDEDE4; overflow:hidden; }
+.dist-row .track i { display:block; height:100%; border-radius:5px; background:var(--green); }
+
+.rep-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:24px; }
+@media (max-width:820px) { .rep-grid { grid-template-columns:1fr 1fr; } }
+@media (max-width:560px) { .rep-grid { grid-template-columns:1fr; } }
+.rep-card { background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px; text-decoration:none; color:var(--ink); transition:all .2s; }
+.rep-card:hover { border-color:var(--green); transform:translateY(-3px); }
+.rep-card .th { font-size:28px; }
+.rep-card .t { font-size:13px; font-weight:800; margin-top:8px; }
+.rep-card .m { font-size:11.5px; color:var(--sub); margin-top:3px; }
+.rep-card .p { font-size:14px; font-weight:900; margin-top:8px; }
+
+.more-link { display:inline-block; margin-top:26px; text-decoration:none; font-size:13.5px; font-weight:800; color:#fff; background:var(--grad); padding:12px 26px; border-radius:999px; }
+
+.auth-overlay { position:fixed; inset:0; z-index:220; display:none; align-items:center; justify-content:center; padding:20px; background:rgba(16,32,26,.45); backdrop-filter:blur(8px); opacity:0; transition:opacity .25s var(--ease); }
+.auth-overlay.open { display:flex; } .auth-overlay.vis { opacity:1; }
+.auth-modal { width:100%; max-width:420px; background:var(--surface); border:1px solid var(--line); border-radius:26px; padding:28px 28px 24px; position:relative; box-shadow:0 30px 80px rgba(16,32,26,.25); transform:scale(.96) translateY(8px); transition:transform .25s var(--ease); }
+.auth-overlay.vis .auth-modal { transform:none; }
+.auth-close { position:absolute; top:16px; right:16px; background:var(--bg); border:1px solid var(--line); color:var(--sub); cursor:pointer; width:32px; height:32px; border-radius:50%; font-size:14px; }
+.auth-head { text-align:center; margin-bottom:20px; }
+.auth-head h3 { font-size:19px; font-weight:800; margin-top:10px; }
+.auth-head p { font-size:12px; color:var(--sub); margin-top:4px; }
+.sns-btns { display:grid; gap:9px; }
+.sns-btn { display:flex; align-items:center; gap:11px; width:100%; font:inherit; font-size:14px; font-weight:700; cursor:pointer; border:none; border-radius:13px; padding:12px 16px; }
+.sns-btn .sb-ico { width:22px; height:22px; border-radius:6px; display:grid; place-items:center; font-size:12px; font-weight:900; flex:none; }
+.sns-btn.kakao { background:#FEE500; color:#191919; } .sns-btn.kakao .sb-ico { background:#191919; color:#FEE500; }
+.sns-btn.naver { background:#03C75A; color:#fff; } .sns-btn.naver .sb-ico { background:#fff; color:#03C75A; }
+.sns-btn.google { background:#fff; color:#333; border:1.5px solid var(--line); }
+.sns-btn .sb-note { margin-left:auto; font-size:11px; font-weight:600; opacity:.65; }
+.demo-note { margin-top:14px; text-align:center; font-size:10.5px; color:var(--mute); }
+
+footer { border-top:1px solid var(--line); background:var(--surface); padding:44px 0 32px; margin-top:30px; }
+footer .cols { display:grid; grid-template-columns:2fr 1fr 1fr; gap:32px; }
+footer .brand { font-weight:900; font-size:16px; } footer .brand span { color:var(--green); }
+footer h5 { font-size:12px; font-weight:800; margin-bottom:10px; }
+footer ul { list-style:none; display:grid; gap:7px; }
+footer ul a { text-decoration:none; font-size:12.5px; color:var(--sub); }
+footer ul a:hover { color:var(--green-deep); }
+footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
+@media (max-width:700px) { footer .cols { grid-template-columns:1fr 1fr; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="logo" href="bidcast.html"><span class="logo-mark">予</span>낙찰예보</a>
+    <ul class="nav-links">
+      <li><a href="bidcast-list.html">물건검색</a></li>
+      <li><a href="bidcast-map.html">지도</a></li>
+      <li><a href="bidcast-category.html" class="on">카테고리</a></li>
+      <li><a href="bidcast-lab.html">적중률</a></li>
+      <li><a href="bidcast-calendar.html">캘린더</a></li>
+      <li><a href="bidcast-insight.html">인사이트</a></li>
+      <li><a href="bidcast-bot.html">예보봇</a></li>
+    </ul>
+    <div class="nav-right" id="navRight">
+      <button class="nav-login" type="button" onclick="openAuth('login')">로그인</button>
+      <button class="nav-cta" type="button" onclick="openAuth('signup')">사전 알림 신청</button>
+    </div>
+    <button class="nav-hamburger" type="button" onclick="toggleMobileNav()" aria-label="메뉴 열기">☰</button>
+    <div class="mobile-nav" id="mobileNav">
+    <a href="bidcast-list.html">물건검색</a>
+    <a href="bidcast-map.html">지도</a>
+    <a href="bidcast-category.html" class="on">카테고리</a>
+    <a href="bidcast-lab.html">적중률</a>
+    <a href="bidcast-calendar.html">캘린더</a>
+    <a href="bidcast-insight.html">인사이트</a>
+    <a href="bidcast-bot.html">예보봇</a>
+  </div>
+  </div>
+</nav>
+
+<header class="page-head">
+  <div class="wrap">
+    <div class="breadcrumb" id="breadcrumb"><a href="bidcast.html">홈</a> / <a href="bidcast-category.html">카테고리</a></div>
+    <h1 id="h1">카테고리로 둘러보기</h1>
+    <p id="leadP">지역별 · 물건유형별 · 법원별로 공매 물건과 AI 예측 데이터를 모아봤습니다.</p>
+    <span class="demo-chip">🔧 아래 통계와 물건은 예시 데이터입니다</span>
+  </div>
+</header>
+
+<main class="wrap" id="mainArea"></main>
+
+<div class="auth-overlay" id="authOverlay" role="dialog" aria-modal="true">
+  <div class="auth-modal">
+    <button class="auth-close" type="button" onclick="closeAuth()" aria-label="닫기">✕</button>
+    <div class="auth-head">
+      <span style="display:inline-flex;align-items:center;gap:8px;font-weight:900;font-size:16px;"><span class="logo-mark" style="width:24px;height:24px;font-size:11px;">予</span>낙찰예보</span>
+      <h3 id="authTitle">간편하게 시작하기</h3>
+      <p id="authSub">10초면 충분합니다. 비밀번호 없이 가입하세요.</p>
+    </div>
+    <div class="sns-btns">
+      <button class="sns-btn kakao" type="button" onclick="snsFlow('카카오')"><span class="sb-ico">K</span> 카카오로 계속하기 <span class="sb-note">가장 빨라요</span></button>
+      <button class="sns-btn naver" type="button" onclick="snsFlow('네이버')"><span class="sb-ico">N</span> 네이버로 계속하기</button>
+      <button class="sns-btn google" type="button" onclick="snsFlow('Google')"><span class="sb-ico">G</span> Google로 계속하기 <span class="sb-note">Gmail</span></button>
+    </div>
+    <p class="demo-note">※ 데모 화면입니다 — 클릭 즉시 로그인 처리됩니다.</p>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <div class="brand">낙찰<span>예보</span></div>
+        <p style="font-size:12.5px;color:var(--sub);margin-top:8px;max-width:320px;">공공데이터포털의 온비드 공식 API 데이터를 기반으로 한 공매 낙찰가 예측 서비스입니다.</p>
+      </div>
+      <div><h5>서비스</h5><ul><li><a href="bidcast-list.html">물건 검색</a></li><li><a href="bidcast-lab.html">적중률 공개</a></li></ul></div>
+      <div><h5>바로가기</h5><ul><li><a href="bidcast.html">홈으로</a></li><li><a href="bidcast-insight.html">인사이트</a></li></ul></div>
+    </div>
+    <p class="copy">© 2026 낙찰예보. All rights reserved.</p>
+  </div>
+</footer>
+
+<script>
+// 예시 카테고리 통계 (실 데이터는 온비드 API 연동 후 교체)
+const REGION_DATA = {
+  '서울': { count: 2499, sub: [['강서구',395],['금천구',212],['강남구',188],['서대문구',156],['그 외',1548]] },
+  '경기': { count: 1830, sub: [['시흥시',210],['수원시',180],['성남시',165],['고양시',140],['그 외',1135]] },
+  '인천': { count: 640, sub: [['서구',120],['남동구',98],['부평구',80],['그 외',342]] },
+  '부산': { count: 710, sub: [['해운대구',140],['부산진구',95],['동래구',70],['그 외',405]] },
+  '대구': { count: 380, sub: [['달서구',90],['수성구',60],['그 외',230]] },
+};
+const TYPE_DATA = {
+  '아파트': { count: 3088, region: [['서울',1120],['경기',980],['인천',320],['부산',350],['그 외',318]] },
+  '토지': { count: 1450, region: [['경기',520],['서울',280],['강원',210],['충청',180],['그 외',260]] },
+  '상가': { count: 890, region: [['서울',360],['경기',220],['부산',140],['그 외',170]] },
+  '차량': { count: 610, region: [['서울',180],['경기',150],['인천',120],['그 외',160]] },
+  '기계장비': { count: 240, region: [['경기',90],['인천',60],['대구',40],['그 외',50]] },
+  '유가증권': { count: 95, region: [['서울',70],['경기',15],['그 외',10]] },
+};
+const COURT_DATA = {
+  '서울중앙지방법원': { count: 468, type: [['아파트',210],['토지',110],['상가',80],['그 외',68]] },
+  '서울동부지방법원': { count: 312, type: [['아파트',150],['상가',80],['토지',52],['그 외',30]] },
+  '수원지방법원': { count: 540, type: [['아파트',260],['토지',180],['그 외',100]] },
+  '인천지방법원': { count: 298, type: [['아파트',120],['차량',90],['그 외',88]] },
+  '부산지방법원': { count: 355, type: [['아파트',170],['상가',95],['그 외',90]] },
+};
+const REP_ICONS = { '아파트':'🏢','토지':'🏞️','상가':'🏬','차량':'🚗','기계장비':'🏭','유가증권':'📈' };
+
+const params = new URLSearchParams(location.search);
+const axis = params.get('axis');
+const value = params.get('value');
+const main = document.getElementById('mainArea');
+
+function fmtCount(n) { return n.toLocaleString() + '건'; }
+
+function renderHub() {
+  document.getElementById('h1').textContent = '카테고리로 둘러보기';
+  document.getElementById('leadP').textContent = '지역별 · 물건유형별 · 법원별로 공매 물건과 AI 예측 데이터를 모아봤습니다.';
+  document.title = '카테고리 — 낙찰예보';
+
+  const blocks = [
+    ['지역별', 'region', REGION_DATA],
+    ['물건유형별', 'type', TYPE_DATA],
+    ['법원별', 'court', COURT_DATA],
+  ];
+  main.innerHTML = blocks.map(([label, axisKey, data]) => `
+    <div class="axis-block">
+      <h3>${label}</h3>
+      <div class="axis-grid">
+        ${Object.entries(data).map(([k, v]) => `
+          <a class="axis-chip" href="bidcast-category.html?axis=${axisKey}&value=${encodeURIComponent(k)}">
+            <span class="n">${k}</span><span class="c">${fmtCount(v.count)}</span>
+          </a>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function renderLeaf() {
+  const AXIS_LABEL = { region:'지역', type:'물건유형', court:'법원' };
+  const DATASET = { region:REGION_DATA, type:TYPE_DATA, court:COURT_DATA }[axis];
+  if (!DATASET || !DATASET[value]) { renderHub(); return; }
+  const d = DATASET[value];
+  const label = AXIS_LABEL[axis];
+
+  document.title = `${value} 공매 AI 분석 — 낙찰예보`;
+  document.getElementById('breadcrumb').innerHTML = `<a href="bidcast.html">홈</a> / <a href="bidcast-category.html">카테고리</a> / ${value}`;
+  document.getElementById('h1').textContent = `${value} 공매 AI 분석 (${fmtCount(d.count)})`;
+  document.getElementById('leadP').textContent = `${label} "${value}" 기준으로 모은 공매 물건 통계와 대표 물건입니다.`;
+
+  const distTitle = axis === 'type' ? '지역별 분포' : '물건유형 분포';
+  const distList = axis === 'type' ? d.region : (axis === 'court' ? d.type : d.sub);
+  const maxV = Math.max(...distList.map(x => x[1]));
+
+  main.innerHTML = `
+    <div class="leaf-stats">
+      <div class="leaf-stat"><div class="v">${fmtCount(d.count)}</div><div class="k">전체 진행 물건</div></div>
+      <div class="leaf-stat"><div class="v">${distList[0][0]}</div><div class="k">최다 비중 항목</div></div>
+      <div class="leaf-stat"><div class="v">±10%</div><div class="k">AI 예측 목표 오차 범위</div></div>
+      <div class="leaf-stat"><div class="v">예시</div><div class="k">실 데이터는 API 연동 후 반영</div></div>
+    </div>
+    <div class="dist-card">
+      <h4>${distTitle}</h4>
+      ${distList.map(([k,v]) => `
+        <div class="dist-row">
+          <div class="lbl"><span>${k}</span><b>${v.toLocaleString()}건</b></div>
+          <div class="track"><i style="width:${Math.round(v/maxV*100)}%;"></i></div>
+        </div>`).join('')}
+    </div>
+    <h3 style="margin-top:30px;font-size:16px;font-weight:800;">대표 물건 (예시)</h3>
+    <div class="rep-grid">
+      ${buildRepCards(axis, value).map(r => `
+        <a class="rep-card" href="bidcast-list.html">
+          <div class="th">${r.ico}</div>
+          <div class="t">${r.title}</div>
+          <div class="m">${r.meta}</div>
+          <div class="p">${r.price}</div>
+        </a>`).join('')}
+    </div>
+    <a class="more-link" href="bidcast-list.html">전체 리스트에서 더 보기 →</a>
+  `;
+}
+
+function buildRepCards(axis, value) {
+  // 간단한 예시 물건 3개를 축/값에 맞춰 생성 (실 데이터 연동 전 플레이스홀더)
+  const types = axis === 'type' ? [value] : ['아파트','토지','상가'];
+  return types.slice(0,3).map((t, i) => ({
+    ico: REP_ICONS[t] || '🏢',
+    title: axis === 'region' ? `${value} ${t} 물건 #${i+1}` : (axis === 'court' ? `${value} 관할 ${t} 물건 #${i+1}` : `${value} 대표 물건 #${i+1}`),
+    meta: axis === 'region' ? `${value} · 유찰 ${i}회` : (axis === 'court' ? `${value} · ${t}` : `전국 · 유찰 ${i}회`),
+    price: `감정가 ${(3+i*2)}.${i}억 (예시)`,
+  }));
+}
+
+if (axis && value) renderLeaf(); else renderHub();
+
+// 간편로그인 (공용 데모 컴포넌트)
+const authOverlay = document.getElementById('authOverlay');
+function openAuth(mode) {
+  document.getElementById('authTitle').textContent = mode === 'login' ? '다시 오셨네요' : '간편하게 시작하기';
+  authOverlay.classList.add('open');
+  requestAnimationFrame(() => authOverlay.classList.add('vis'));
+  document.body.style.overflow = 'hidden';
+}
+function closeAuth() {
+  authOverlay.classList.remove('vis');
+  document.body.style.overflow = '';
+  setTimeout(() => authOverlay.classList.remove('open'), 250);
+}
+authOverlay.addEventListener('click', e => { if (e.target === authOverlay) closeAuth(); });
+function snsFlow(provider) { finishAuth(provider === 'Google' ? 'Gmail 계정' : `${provider} 계정`); }
+function finishAuth(identity) {
+  closeAuth();
+  document.getElementById('navRight').innerHTML = `<span class="nav-user"><span class="dot"></span>${identity} <button type="button" onclick="logoutDemo()">로그아웃</button></span>`;
+}
+function logoutDemo() {
+  document.getElementById('navRight').innerHTML = `<button class="nav-login" type="button" onclick="openAuth('login')">로그인</button><button class="nav-cta" type="button" onclick="openAuth('signup')">사전 알림 신청</button>`;
+}
+
+function toggleMobileNav() {
+  document.getElementById('mobileNav').classList.toggle('open');
+}
+document.addEventListener('click', (e) => {
+  const mn = document.getElementById('mobileNav');
+  const hb = document.querySelector('.nav-hamburger');
+  if (mn && mn.classList.contains('open') && !mn.contains(e.target) && e.target !== hb && !hb.contains(e.target)) {
+    mn.classList.remove('open');
+  }
+});
+
+// ESC 키로 열려있는 모달 닫기 (우선순위: 리포트/기사 모달 > 로그인 모달)
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (document.getElementById('authOverlay').classList.contains('open')) { closeAuth(); return; }
+});
+</script>
+</body>
+</html>
