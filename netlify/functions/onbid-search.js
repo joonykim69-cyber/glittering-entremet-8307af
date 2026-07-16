@@ -2,12 +2,14 @@
 // 온비드(캠코) 공매물건 조회 API 프록시 — bidcast-list.html의 실 데이터 연동용
 //
 // ⚠️ 연동 전 확인 필요 (README 참고):
+// 신청된 서비스: 한국자산관리공사_차세대 온비드 부동산 물건목록 조회서비스
+// End Point: https://apis.data.go.kr/B010003/OnbidRlstListSrvc2 (확인됨, 2026-07-16)
 // data.go.kr은 자동화된 요청을 차단하고 있어(403) 이 파일 작성 시점에
-// 정확한 Swagger 명세를 직접 확인하지 못했습니다. 아래 ONBID_API_URL과
-// mapOnbidItem()의 필드명은 "한국자산관리공사_온비드 캠코공매물건 조회서비스"
-// 계열 데이터셋에서 일반적으로 쓰이는 필드명 기준의 최선 추정치입니다.
-// 실제 서비스키 발급 후 data.go.kr 활용신청 상세 페이지의 "미리보기" 기능으로
-// 진짜 응답 샘플을 확인하고, 아래 mapOnbidItem() 필드명을 맞춰 넣어야 합니다.
+// 오퍼레이션 경로와 정확한 응답 필드명은 직접 확인하지 못했습니다. 아래
+// mapOnbidItem()의 필드명은 이 서비스 계열에서 일반적으로 쓰이는 필드명
+// 기준의 최선 추정치입니다. 서비스 상세 페이지의 "활용신청 상세기능정보"
+// 또는 첨부된 OpenAPI활용가이드 문서로 진짜 오퍼레이션명·응답 샘플을
+// 확인하고, 아래 mapOnbidItem() 필드명을 맞춰 넣어야 합니다.
 //
 // data.go.kr API는 공통적으로:
 //  - 인증키 파라미터명: serviceKey (URL-Decoding 키를 그대로 사용해야 하는 경우가 많음)
@@ -21,10 +23,9 @@ const CORS = {
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
 };
 
-// TODO(확인 필요): 실제 신청한 서비스의 End Point로 교체.
-// 후보 (data.go.kr에서 검색됨, 아직 어느 쪽으로 신청했는지 미확인):
-//   - 15000851 한국자산관리공사_온비드 캠코공매물건 조회서비스 (구버전)
-//   - 15157207 한국자산관리공사_차세대 온비드 부동산 물건목록 조회서비스 (신버전)
+// 확인된 End Point: https://apis.data.go.kr/B010003/OnbidRlstListSrvc2
+// (차세대 온비드 부동산 물건목록 조회서비스). 오퍼레이션 경로(예: /getOnbidRlstList)가
+// 이 URL 뒤에 더 붙어야 할 수 있음 — 활용신청 상세기능정보에서 확인 필요.
 // 코드 재배포 없이 바꿀 수 있도록 환경변수로 뺴둠.
 const ONBID_API_URL = process.env.ONBID_API_URL;
 
