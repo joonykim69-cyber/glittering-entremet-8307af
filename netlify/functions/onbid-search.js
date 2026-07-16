@@ -87,6 +87,8 @@ function mapOnbidItem(raw, idx) {
 
   const type = normalizeType(raw.cltrUsgSclsCtgrNm || raw.cltrUsgMclsCtgrNm);
   const address = [raw.lctnSdnm, raw.lctnSggnm, raw.lctnEmdNm].filter(Boolean).join(' ');
+  // thnlImgUrlAdr(물건 썸네일 이미지 URL) — http(s) URL일 때만 통과 (HTML 삽입 안전장치)
+  const photo = /^https?:\/\//.test(raw.thnlImgUrlAdr || '') ? raw.thnlImgUrlAdr : '';
 
   return {
     id: raw.cltrMngNo || idx,
@@ -103,6 +105,7 @@ function mapOnbidItem(raw, idx) {
     tags: failCount > 0 ? ['#재매각'] : ['#신건'],
     views: 0, // 온비드 API에 조회수 필드 없음 — 프론트엔드 표시용 기본값
     thumb: TYPE_ICONS[type] || '📦',
+    photo, // 실사 썸네일 URL (없으면 빈 문자열 → 프론트엔드가 thumb 아이콘으로 폴백)
   };
 }
 
