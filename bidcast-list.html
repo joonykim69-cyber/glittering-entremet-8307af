@@ -349,7 +349,11 @@ let ITEMS = [
 
 let activeMode = 'search';
 let activeTypes = new Set(['아파트','토지','상가','차량','기계장비','유가증권']);
-let likedIds = new Set();
+// 관심물건 — localStorage에 저장해 마이페이지(bidcast-my.html)·상세 페이지와 공유.
+// 실 데이터 id는 문자열(cltrMngNo)이라 항상 String으로 정규화해 비교한다.
+const LIKES_KEY = 'bidcast:likes';
+let likedIds = new Set(JSON.parse(localStorage.getItem(LIKES_KEY) || '[]').map(String));
+function saveLikes() { localStorage.setItem(LIKES_KEY, JSON.stringify([...likedIds])); }
 let qTerm = '';
 
 function fmtWon(man) {
@@ -399,7 +403,7 @@ function renderList(list) {
       <div class="item-thumb">${it.thumb}
         ${it.photo ? `<img class="photo" src="${it.photo}" alt="" loading="lazy" onerror="this.remove()">` : ''}
         ${it.fail > 0 ? `<span class="fail-badge">유찰 ${it.fail}회</span>` : ''}
-        <button type="button" class="heart ${likedIds.has(it.id) ? 'on' : ''}" onclick="toggleLike(${it.id}, this)" aria-label="관심물건 등록" aria-pressed="${likedIds.has(it.id)}">♥</button>
+        <button type="button" class="heart ${likedIds.has(String(it.id)) ? 'on' : ''}" onclick="toggleLike('${it.id}', this)" aria-label="관심물건 등록" aria-pressed="${likedIds.has(String(it.id))}">♥</button>
       </div>
       <div class="item-body">
         <span class="item-kind">${it.court} · ${it.type}</span>
@@ -410,7 +414,7 @@ function renderList(list) {
         <div class="item-price" style="margin-top:2px;border:none;padding-top:0;"><span>최저가</span><b>${fmtWon(it.min)}</b></div>
         <div class="item-foot">
           <span class="item-views">조회 ${it.views.toLocaleString()}</span>
-          <button class="report-btn" type="button" onclick="openReport(${it.id})">리포트 보기</button>
+          <button class="report-btn" type="button" onclick="openReport('${it.id}')">리포트 보기</button>
         </div>
       </div>
     </article>
@@ -418,8 +422,10 @@ function renderList(list) {
 }
 
 function toggleLike(id, el) {
+  id = String(id);
   if (likedIds.has(id)) { likedIds.delete(id); el.classList.remove('on'); }
   else { likedIds.add(id); el.classList.add('on'); }
+  saveLikes();
   el.setAttribute('aria-pressed', likedIds.has(id));
   el.setAttribute('aria-label', likedIds.has(id) ? '관심물건 해제' : '관심물건 등록');
 }
@@ -451,7 +457,7 @@ let userLoggedIn = false;
 let currentReportItem = null;
 
 function openReport(id) {
-  currentReportItem = ITEMS.find(it => it.id === id);
+  currentReportItem = ITEMS.find(it => String(it.id) === String(id));
   renderReport(currentReportItem);
   rpOverlay.classList.add('open');
   requestAnimationFrame(() => rpOverlay.classList.add('vis'));

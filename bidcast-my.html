@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>마이페이지 — 낙찰예보</title>
+<meta name="description" content="관심물건, 최근 본 물건, 입찰 알림 설정을 한곳에서 관리하세요."/>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"/>
+<style>
+/* ═══════════════════════════════════════
+   RESET & 토큰 — bidcast.html과 동일 팔레트(밤의 보행 신호등)
+═══════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:#F6FAF7; --surface:#FFFFFF; --ink:#10201A; --sub:#55655D; --mute:#93A29A; --line:#E1EAE4;
+  --green:#00A86B; --green-deep:#00744B; --green-soft:#E4F7EE;
+  --red:#E5484D; --red-soft:#FDEBEB;
+  --grad:linear-gradient(120deg,#00C87F 0%,#00A86B 55%,#009E8A 100%);
+  --glow:0 0 0 4px rgba(0,200,127,.14), 0 10px 34px rgba(0,168,107,.35);
+  --radius:18px; --ease:cubic-bezier(.16,1,.3,1);
+}
+html { scroll-behavior: smooth; }
+body { font-family:'Pretendard Variable',Pretendard,-apple-system,'Malgun Gothic',sans-serif; background:var(--bg); color:var(--ink); line-height:1.6; word-break:keep-all; -webkit-font-smoothing:antialiased; }
+.wrap { width:min(1080px,92%); margin:0 auto; }
+a { color:inherit; }
+
+/* NAV (공용) */
+nav { position:sticky; top:0; z-index:100; background:rgba(255,255,255,.9); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-bottom:1px solid var(--line); }
+nav .wrap { display:flex; align-items:center; justify-content:space-between; padding:14px 0; }
+.logo { display:flex; align-items:center; gap:9px; font-weight:900; font-size:17px; letter-spacing:-0.02em; text-decoration:none; color:var(--ink); }
+.logo-mark { width:28px; height:28px; border-radius:9px; background:var(--grad); display:grid; place-items:center; color:#fff; font-size:13px; font-weight:900; box-shadow:0 0 12px rgba(0,200,127,.5); }
+.nav-links { display:flex; gap:20px; list-style:none; }
+.nav-links a { text-decoration:none; color:var(--sub); font-size:14px; font-weight:600; transition:color .2s; }
+.nav-links a.on, .nav-links a:hover { color:var(--green-deep); }
+.nav-right { display:flex; align-items:center; gap:10px; }
+.nav-login { background:none; border:1px solid var(--line); color:var(--sub); cursor:pointer; font:inherit; font-size:13.5px; font-weight:700; padding:8px 16px; border-radius:999px; transition:all .2s; }
+.nav-login:hover { border-color:var(--green); color:var(--green-deep); }
+.nav-cta { background:var(--grad); color:#fff; border:none; cursor:pointer; font:inherit; font-size:13.5px; font-weight:700; padding:9px 18px; border-radius:999px; transition:transform .2s var(--ease), box-shadow .2s; }
+.nav-cta:hover { transform:translateY(-1px); box-shadow:var(--glow); }
+.nav-user { display:inline-flex; align-items:center; gap:8px; background:var(--green-soft); border:1px solid #C4EBD8; padding:7px 14px; border-radius:999px; font-size:12.5px; font-weight:800; color:var(--green-deep); }
+.nav-user .dot { width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 7px rgba(0,200,127,.7); }
+.nav-user button { background:none; border:none; cursor:pointer; font:inherit; font-size:11.5px; font-weight:700; color:var(--sub); padding:0 0 0 8px; border-left:1px solid #C4EBD8; }
+@media (max-width:900px) { .nav-links { display:none; } }
+.nav-hamburger { display:none; background:none; border:1px solid var(--line); border-radius:10px; width:38px; height:38px; cursor:pointer; font-size:16px; color:var(--ink); align-items:center; justify-content:center; flex:none; }
+@media (max-width:900px) { .nav-hamburger { display:flex; } }
+.mobile-nav { display:none; flex-direction:column; gap:2px; padding:10px; background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:0 16px 36px rgba(16,32,26,.14); position:absolute; top:calc(100% + 8px); left:16px; right:16px; z-index:150; }
+.mobile-nav.open { display:flex; }
+.mobile-nav a { text-decoration:none; color:var(--sub); font-size:14.5px; font-weight:700; padding:12px 14px; border-radius:10px; }
+.mobile-nav a.on, .mobile-nav a:hover { background:var(--green-soft); color:var(--green-deep); }
+
+/* PAGE HEAD */
+.page-head { padding:40px 0 24px; border-bottom:1px solid var(--line); background:var(--surface); }
+.page-head h1 { font-size:clamp(24px,3.4vw,32px); font-weight:900; letter-spacing:-0.03em; }
+.page-head p { color:var(--sub); font-size:14.5px; margin-top:8px; }
+.demo-chip { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--sub); border:1px dashed var(--mute); padding:5px 12px; border-radius:999px; margin-top:14px; }
+
+/* 요약 스탯 */
+.stat-row { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:24px; }
+@media (max-width:640px) { .stat-row { grid-template-columns:1fr; } }
+.stat { background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:18px 20px; }
+.stat .v { font-size:24px; font-weight:900; color:var(--green-deep); font-variant-numeric:tabular-nums; }
+.stat .k { font-size:12px; color:var(--sub); font-weight:700; margin-top:2px; }
+
+/* 섹션 */
+.section { margin-top:32px; }
+.section-head { display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:14px; }
+.section h2 { font-size:17px; font-weight:900; letter-spacing:-0.02em; }
+.section-head .more { font-size:12.5px; font-weight:700; color:var(--green-deep); text-decoration:none; }
+.clear-btn { background:none; border:none; cursor:pointer; font:inherit; font-size:12px; font-weight:700; color:var(--mute); }
+.clear-btn:hover { color:var(--red); }
+
+/* 카드 그리드 (관심물건 / 최근 본 물건) */
+.my-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+@media (max-width:900px) { .my-grid { grid-template-columns:1fr 1fr; } }
+@media (max-width:580px) { .my-grid { grid-template-columns:1fr; } }
+.my-card { background:var(--surface); border:1px solid var(--line); border-radius:16px; overflow:hidden; transition:transform .2s var(--ease), box-shadow .2s; position:relative; }
+.my-card:hover { transform:translateY(-3px); box-shadow:0 12px 28px rgba(16,32,26,.08); }
+.my-thumb { height:88px; background:linear-gradient(140deg,#E9F8F0,#F2FBF6); display:grid; place-items:center; font-size:30px; position:relative; }
+.my-thumb .unheart { position:absolute; top:8px; right:8px; width:30px; height:30px; padding:0; border-radius:50%; background:var(--red-soft); border:1px solid var(--red); color:var(--red); display:grid; place-items:center; cursor:pointer; font:inherit; font-size:13px; }
+.my-body { padding:13px 15px 15px; }
+.my-body .t { font-size:13.5px; font-weight:800; }
+.my-body .t a { text-decoration:none; }
+.my-body .t a:hover { color:var(--green-deep); }
+.my-body .m { font-size:11.5px; color:var(--sub); margin-top:3px; }
+.my-body .p { font-size:13.5px; font-weight:900; color:var(--green-deep); margin-top:7px; font-variant-numeric:tabular-nums; }
+.my-body .when { font-size:11px; color:var(--mute); margin-top:5px; }
+.status-chip { position:absolute; top:8px; left:8px; font-size:10.5px; font-weight:800; padding:3px 9px; border-radius:999px; background:var(--green); color:#fff; }
+.status-chip.done { background:var(--ink); }
+
+/* 빈 상태 */
+.empty { background:var(--surface); border:1px dashed var(--line); border-radius:16px; padding:36px 20px; text-align:center; }
+.empty .ico { font-size:30px; }
+.empty p { font-size:13.5px; color:var(--sub); margin-top:8px; }
+.empty a { display:inline-block; margin-top:14px; text-decoration:none; font-size:13px; font-weight:800; color:#fff; background:var(--grad); padding:10px 22px; border-radius:999px; }
+
+/* 알림 설정 */
+.alert-card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:8px 22px; }
+.alert-row { display:flex; align-items:center; gap:14px; padding:15px 0; border-bottom:1px solid var(--line); }
+.alert-row:last-child { border-bottom:none; }
+.alert-row .ico { flex:none; width:36px; height:36px; border-radius:11px; background:var(--green-soft); display:grid; place-items:center; font-size:16px; }
+.alert-row .txt { flex:1; }
+.alert-row .t { font-size:13.5px; font-weight:800; }
+.alert-row .m { font-size:12px; color:var(--sub); margin-top:1px; }
+.toggle { flex:none; position:relative; width:46px; height:26px; border-radius:999px; background:#D5E2DA; border:none; cursor:pointer; transition:background .2s; }
+.toggle::after { content:''; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#fff; box-shadow:0 2px 6px rgba(16,32,26,.2); transition:left .2s var(--ease); }
+.toggle[aria-checked="true"] { background:var(--green); }
+.toggle[aria-checked="true"]::after { left:23px; }
+.alert-note { font-size:11.5px; color:var(--mute); margin-top:12px; }
+
+.list-pad { padding-bottom:80px; }
+
+/* AUTH MODAL (공용 데모 컴포넌트) */
+.auth-overlay { position:fixed; inset:0; z-index:220; display:none; align-items:center; justify-content:center; padding:20px; background:rgba(16,32,26,.45); backdrop-filter:blur(8px); opacity:0; transition:opacity .25s var(--ease); }
+.auth-overlay.open { display:flex; } .auth-overlay.vis { opacity:1; }
+.auth-modal { width:100%; max-width:420px; background:var(--surface); border:1px solid var(--line); border-radius:26px; padding:28px 28px 24px; position:relative; box-shadow:0 30px 80px rgba(16,32,26,.25); transform:scale(.96) translateY(8px); transition:transform .25s var(--ease); }
+.auth-overlay.vis .auth-modal { transform:none; }
+.auth-close { position:absolute; top:16px; right:16px; background:var(--bg); border:1px solid var(--line); color:var(--sub); cursor:pointer; width:32px; height:32px; border-radius:50%; font-size:14px; }
+.auth-head { text-align:center; margin-bottom:20px; }
+.auth-head h3 { font-size:19px; font-weight:800; margin-top:10px; }
+.auth-head p { font-size:12px; color:var(--sub); margin-top:4px; }
+.sns-btns { display:grid; gap:9px; }
+.sns-btn { display:flex; align-items:center; gap:10px; font:inherit; font-size:13.5px; font-weight:700; padding:13px 16px; border-radius:14px; cursor:pointer; border:1px solid var(--line); background:var(--surface); transition:transform .15s; }
+.sns-btn:hover { transform:translateY(-1px); }
+.sns-btn .sb-ico { width:22px; height:22px; border-radius:7px; display:grid; place-items:center; font-size:11px; font-weight:900; color:#fff; }
+.sns-btn.kakao { background:#FEE500; border-color:#FEE500; } .sns-btn.kakao .sb-ico { background:#3C1E1E; color:#FEE500; }
+.sns-btn.naver .sb-ico { background:#03C75A; }
+.sns-btn.google .sb-ico { background:#4285F4; }
+.sns-btn .sb-note { margin-left:auto; font-size:10.5px; font-weight:800; color:var(--green-deep); background:var(--green-soft); padding:3px 8px; border-radius:999px; }
+.demo-note { text-align:center; font-size:11px; color:var(--mute); margin-top:14px; }
+
+/* FOOTER (공용) */
+footer { border-top:1px solid var(--line); background:var(--surface); margin-top:60px; }
+footer .wrap { padding:36px 0 30px; }
+footer .cols { display:flex; flex-wrap:wrap; gap:40px; justify-content:space-between; }
+footer .brand { font-weight:900; font-size:16px; } footer .brand span { color:var(--green); }
+footer h5 { font-size:12.5px; font-weight:800; margin-bottom:10px; }
+footer ul { list-style:none; } footer li { margin-top:6px; }
+footer a { text-decoration:none; color:var(--sub); font-size:12.5px; } footer a:hover { color:var(--green-deep); }
+footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition:none !important; animation:none !important; } }
+:focus-visible { outline:2px solid var(--green); outline-offset:2px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="logo" href="bidcast.html"><span class="logo-mark">予</span>낙찰예보</a>
+    <ul class="nav-links">
+      <li><a href="bidcast-list.html">물건검색</a></li>
+      <li><a href="bidcast-map.html">지도</a></li>
+      <li><a href="bidcast-category.html">카테고리</a></li>
+      <li><a href="bidcast-lab.html">적중률</a></li>
+      <li><a href="bidcast-calendar.html">캘린더</a></li>
+      <li><a href="bidcast-insight.html">인사이트</a></li>
+      <li><a href="bidcast-bot.html">예보봇</a></li>
+    </ul>
+    <div class="nav-right" id="navRight">
+      <button class="nav-login" type="button" onclick="openAuth('login')">로그인</button>
+      <button class="nav-cta" type="button" onclick="openAuth('signup')">사전 알림 신청</button>
+    </div>
+    <button class="nav-hamburger" type="button" onclick="toggleMobileNav()" aria-label="메뉴 열기">☰</button>
+    <div class="mobile-nav" id="mobileNav">
+      <a href="bidcast-list.html">물건검색</a>
+      <a href="bidcast-map.html">지도</a>
+      <a href="bidcast-category.html">카테고리</a>
+      <a href="bidcast-lab.html">적중률</a>
+      <a href="bidcast-calendar.html">캘린더</a>
+      <a href="bidcast-insight.html">인사이트</a>
+      <a href="bidcast-bot.html">예보봇</a>
+    </div>
+  </div>
+</nav>
+
+<header class="page-head">
+  <div class="wrap">
+    <h1>마이페이지</h1>
+    <p>관심물건과 최근 본 물건을 한곳에서 확인하고, 입찰 알림을 설정하세요.</p>
+    <span class="demo-chip">🔧 데모 화면 — 관심물건·최근 본 물건은 이 브라우저에만 저장됩니다 (회원 데이터 연동 없음)</span>
+    <div class="stat-row">
+      <div class="stat"><div class="v" id="statLikes">0</div><div class="k">관심물건</div></div>
+      <div class="stat"><div class="v" id="statRecent">0</div><div class="k">최근 본 물건</div></div>
+      <div class="stat"><div class="v" id="statAlerts">0</div><div class="k">켜져 있는 알림</div></div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap list-pad">
+
+  <section class="section" aria-labelledby="secLikes">
+    <div class="section-head">
+      <h2 id="secLikes">♥ 관심물건</h2>
+      <a class="more" href="bidcast-list.html">물건 더 찾아보기 →</a>
+    </div>
+    <div id="likesArea"></div>
+  </section>
+
+  <section class="section" aria-labelledby="secRecent">
+    <div class="section-head">
+      <h2 id="secRecent">🕐 최근 본 물건</h2>
+      <button class="clear-btn" type="button" onclick="clearRecent()">기록 지우기</button>
+    </div>
+    <div id="recentArea"></div>
+  </section>
+
+  <section class="section" aria-labelledby="secAlerts">
+    <div class="section-head"><h2 id="secAlerts">🔔 알림 설정</h2></div>
+    <div class="alert-card">
+      <div class="alert-row">
+        <span class="ico">📅</span>
+        <div class="txt"><div class="t">관심물건 입찰 시작 알림</div><div class="m">입찰 시작 하루 전과 1시간 전에 알려드려요</div></div>
+        <button class="toggle" type="button" role="switch" aria-checked="false" data-alert="bidStart" aria-label="관심물건 입찰 시작 알림"></button>
+      </div>
+      <div class="alert-row">
+        <span class="ico">📉</span>
+        <div class="txt"><div class="t">관심물건 유찰(가격 인하) 알림</div><div class="m">유찰로 최저입찰가가 내려가면 바로 알려드려요</div></div>
+        <button class="toggle" type="button" role="switch" aria-checked="false" data-alert="priceDrop" aria-label="관심물건 유찰 알림"></button>
+      </div>
+      <div class="alert-row">
+        <span class="ico">🤖</span>
+        <div class="txt"><div class="t">AI 주간 추천 물건</div><div class="m">매주 월요일, 조건에 맞는 신건을 골라 보내드려요</div></div>
+        <button class="toggle" type="button" role="switch" aria-checked="false" data-alert="weekly" aria-label="AI 주간 추천 물건 알림"></button>
+      </div>
+    </div>
+    <p class="alert-note">※ 데모 설정입니다 — 실제 알림(카카오톡·이메일)은 회원 시스템 연동 후 제공됩니다.</p>
+  </section>
+
+</main>
+
+<div class="auth-overlay" id="authOverlay" role="dialog" aria-modal="true">
+  <div class="auth-modal">
+    <button class="auth-close" type="button" onclick="closeAuth()" aria-label="닫기">✕</button>
+    <div class="auth-head">
+      <span style="display:inline-flex;align-items:center;gap:8px;font-weight:900;font-size:16px;"><span class="logo-mark" style="width:24px;height:24px;font-size:11px;">予</span>낙찰예보</span>
+      <h3 id="authTitle">간편하게 시작하기</h3>
+      <p id="authSub">10초면 충분합니다. 비밀번호 없이 가입하세요.</p>
+    </div>
+    <div class="sns-btns">
+      <button class="sns-btn kakao" type="button" onclick="snsFlow('카카오')"><span class="sb-ico">K</span> 카카오로 계속하기 <span class="sb-note">가장 빨라요</span></button>
+      <button class="sns-btn naver" type="button" onclick="snsFlow('네이버')"><span class="sb-ico">N</span> 네이버로 계속하기</button>
+      <button class="sns-btn google" type="button" onclick="snsFlow('Google')"><span class="sb-ico">G</span> Google로 계속하기 <span class="sb-note">Gmail</span></button>
+    </div>
+    <p class="demo-note">※ 데모 화면입니다 — 클릭 즉시 로그인 처리됩니다.</p>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <div class="brand">낙찰<span>예보</span></div>
+        <p style="font-size:12.5px;color:var(--sub);margin-top:8px;max-width:320px;">공공데이터포털의 온비드 공식 API 데이터를 기반으로 한 공매 낙찰가 예측 서비스입니다.</p>
+      </div>
+      <div><h5>서비스</h5><ul><li><a href="bidcast-list.html">물건 검색</a></li><li><a href="bidcast-lab.html">적중률 공개</a></li><li><a href="bidcast-calendar.html">입찰 캘린더</a></li></ul></div>
+      <div><h5>바로가기</h5><ul><li><a href="bidcast.html">홈으로</a></li><li><a href="bidcast-insight.html">인사이트</a></li><li><a href="bidcast-partner.html">파트너 프로그램</a></li><li><a href="bidcast-support.html">고객지원</a></li><li><a href="bidcast-my.html">마이페이지</a></li></ul></div>
+    </div>
+    <p class="copy">© 2026 낙찰예보. All rights reserved.</p>
+  </div>
+</footer>
+
+<script>
+// ═══════════════════════════════════════
+// 예시 물건 요약 데이터셋 (데모) — bidcast-list.html ITEMS / bidcast-detail.html DETAILS와 id 일치
+// ═══════════════════════════════════════
+const SUMMARY = {
+  1: { type:'아파트', title:'서울 강남구 역삼동 아파트 24평', court:'서울중앙지방법원', min:52000, fail:1, status:'진행', thumb:'🏢' },
+  2: { type:'토지', title:'경기 시흥시 배곧동 대지 152㎡', court:'수원지방법원', min:84000, fail:0, status:'진행', thumb:'🏞️' },
+  3: { type:'상가', title:'서울 서대문구 충정로 상가 1층', court:'서울동부지방법원', min:41000, fail:0, status:'낙찰', thumb:'🏬' },
+  4: { type:'차량', title:'5톤 카고트럭 (2021년식)', court:'인천지방법원', min:2240, fail:1, status:'진행', thumb:'🚗' },
+  5: { type:'기계장비', title:'CNC 머시닝센터 외 3점', court:'서울중앙지방법원', min:4510, fail:3, status:'진행', thumb:'🏭' },
+  6: { type:'유가증권', title:'비상장주식 A사 지분 3%', court:'서울중앙지방법원', min:9800, fail:0, status:'진행', thumb:'📈' },
+  7: { type:'아파트', title:'부산 해운대구 우동 아파트 32평', court:'부산지방법원', min:78400, fail:1, status:'진행', thumb:'🏢' },
+  8: { type:'토지', title:'인천 서구 청라동 임야 890㎡', court:'인천지방법원', min:56000, fail:0, status:'진행', thumb:'🏞️' },
+  9: { type:'차량', title:'승용차 그랜저 (2020년식)', court:'서울동부지방법원', min:1850, fail:0, status:'낙찰', thumb:'🚗' },
+};
+
+const LIKES_KEY = 'bidcast:likes';
+const RECENT_KEY = 'bidcast:recent';
+const ALERTS_KEY = 'bidcast:alerts';
+
+const fmt = n => n >= 10000 ? (n/10000).toFixed(n % 10000 === 0 ? 0 : 1) + '억' : n.toLocaleString() + '만';
+const ago = ts => {
+  const m = Math.round((Date.now() - ts) / 60000);
+  if (m < 1) return '방금 전';
+  if (m < 60) return `${m}분 전`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}시간 전`;
+  return `${Math.round(h / 24)}일 전`;
+};
+
+function cardHTML(id, s, extra) {
+  return `
+  <div class="my-card">
+    <div class="my-thumb">
+      <span class="status-chip ${s.status === '낙찰' ? 'done' : ''}">${s.status === '낙찰' ? '매각완료' : '진행중'}</span>
+      ${s.thumb}
+      ${extra.unheart ? `<button type="button" class="unheart" onclick="removeLike('${id}')" aria-label="관심물건에서 삭제">✕</button>` : ''}
+    </div>
+    <div class="my-body">
+      <div class="t"><a href="bidcast-detail.html?id=${id}">${s.title}</a></div>
+      <div class="m">${s.court} · ${s.type}${s.fail > 0 ? ` · 유찰 ${s.fail}회` : ''}</div>
+      <div class="p">최저 ${fmt(s.min)}원</div>
+      ${extra.when ? `<div class="when">${extra.when} 조회</div>` : ''}
+    </div>
+  </div>`;
+}
+
+function renderLikes() {
+  const likes = JSON.parse(localStorage.getItem(LIKES_KEY) || '[]').map(String);
+  const known = likes.filter(id => SUMMARY[id]);
+  document.getElementById('statLikes').textContent = known.length;
+  const area = document.getElementById('likesArea');
+  if (!known.length) {
+    area.innerHTML = `<div class="empty"><div class="ico">♥</div><p>아직 관심물건이 없어요.<br/>물건 카드의 하트를 누르면 여기에 모아드려요.</p><a href="bidcast-list.html">물건 검색하러 가기</a></div>`;
+    return;
+  }
+  area.innerHTML = `<div class="my-grid">${known.map(id => cardHTML(id, SUMMARY[id], { unheart:true })).join('')}</div>`;
+}
+
+function removeLike(id) {
+  const likes = JSON.parse(localStorage.getItem(LIKES_KEY) || '[]').map(String).filter(k => k !== String(id));
+  localStorage.setItem(LIKES_KEY, JSON.stringify(likes));
+  renderLikes();
+}
+
+function renderRecent() {
+  const recent = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]').filter(r => SUMMARY[r.id]);
+  document.getElementById('statRecent').textContent = recent.length;
+  const area = document.getElementById('recentArea');
+  if (!recent.length) {
+    area.innerHTML = `<div class="empty"><div class="ico">🕐</div><p>최근 본 물건이 없어요.<br/>물건 상세 페이지를 열면 자동으로 기록됩니다.</p><a href="bidcast-list.html">물건 검색하러 가기</a></div>`;
+    return;
+  }
+  area.innerHTML = `<div class="my-grid">${recent.slice(0, 6).map(r => cardHTML(r.id, SUMMARY[r.id], { when: ago(r.at) })).join('')}</div>`;
+}
+
+function clearRecent() {
+  localStorage.removeItem(RECENT_KEY);
+  renderRecent();
+}
+
+// 알림 토글 (데모 — localStorage에만 저장)
+function renderAlerts() {
+  const alerts = JSON.parse(localStorage.getItem(ALERTS_KEY) || '{}');
+  let on = 0;
+  document.querySelectorAll('.toggle').forEach(btn => {
+    const checked = !!alerts[btn.dataset.alert];
+    btn.setAttribute('aria-checked', String(checked));
+    if (checked) on++;
+  });
+  document.getElementById('statAlerts').textContent = on;
+}
+document.querySelectorAll('.toggle').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const alerts = JSON.parse(localStorage.getItem(ALERTS_KEY) || '{}');
+    alerts[btn.dataset.alert] = !alerts[btn.dataset.alert];
+    localStorage.setItem(ALERTS_KEY, JSON.stringify(alerts));
+    renderAlerts();
+  });
+});
+
+renderLikes();
+renderRecent();
+renderAlerts();
+
+// 간편로그인 (공용 데모 컴포넌트)
+const authOverlay = document.getElementById('authOverlay');
+function openAuth(mode) {
+  document.getElementById('authTitle').textContent = mode === 'login' ? '다시 오셨네요' : '간편하게 시작하기';
+  authOverlay.classList.add('open');
+  requestAnimationFrame(() => authOverlay.classList.add('vis'));
+  document.body.style.overflow = 'hidden';
+}
+function closeAuth() {
+  authOverlay.classList.remove('vis');
+  document.body.style.overflow = '';
+  setTimeout(() => authOverlay.classList.remove('open'), 250);
+}
+authOverlay.addEventListener('click', e => { if (e.target === authOverlay) closeAuth(); });
+function snsFlow(provider) { finishAuth(provider === 'Google' ? 'Gmail 계정' : `${provider} 계정`); }
+function finishAuth(identity) {
+  closeAuth();
+  document.getElementById('navRight').innerHTML = `<span class="nav-user"><span class="dot"></span>${identity} <button type="button" onclick="logoutDemo()">로그아웃</button></span>`;
+}
+function logoutDemo() {
+  document.getElementById('navRight').innerHTML = `<button class="nav-login" type="button" onclick="openAuth('login')">로그인</button><button class="nav-cta" type="button" onclick="openAuth('signup')">사전 알림 신청</button>`;
+}
+
+function toggleMobileNav() {
+  document.getElementById('mobileNav').classList.toggle('open');
+}
+document.addEventListener('click', (e) => {
+  const mn = document.getElementById('mobileNav');
+  const hb = document.querySelector('.nav-hamburger');
+  if (mn && mn.classList.contains('open') && !mn.contains(e.target) && e.target !== hb && !hb.contains(e.target)) {
+    mn.classList.remove('open');
+  }
+});
+
+// ESC 키로 열려있는 모달 닫기
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (authOverlay.classList.contains('open')) closeAuth();
+});
+</script>
+</body>
+</html>

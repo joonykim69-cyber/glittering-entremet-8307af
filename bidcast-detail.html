@@ -400,7 +400,17 @@ const fmt = n => n >= 10000 ? (n/10000).toFixed(n % 10000 === 0 ? 0 : 1) + '억'
 // ?id= 파라미터로 물건 선택 — 없거나 못 찾으면 1번 예시 물건으로 폴백
 const params = new URLSearchParams(location.search);
 const id = parseInt(params.get('id'), 10);
-const it = DETAILS[id] || DETAILS[1];
+const resolvedId = DETAILS[id] ? id : 1;
+const it = DETAILS[resolvedId];
+
+// 최근 본 물건 기록 — 마이페이지(bidcast-my.html)에서 표시. 중복 제거, 최대 12건
+const RECENT_KEY = 'bidcast:recent';
+(() => {
+  const recent = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]')
+    .filter(r => String(r.id) !== String(resolvedId));
+  recent.unshift({ id: resolvedId, at: Date.now() });
+  localStorage.setItem(RECENT_KEY, JSON.stringify(recent.slice(0, 12)));
+})();
 
 document.title = `${it.title} — 낙찰예보`;
 document.getElementById('bcType').textContent = it.type;
@@ -461,11 +471,25 @@ document.getElementById('simGrid').innerHTML = simIds.slice(0, 3).map(k => {
   </a>`;
 }).join('');
 
-// 관심물건 하트 (데모 — 페이지 내 토글만)
+// 관심물건 하트 — bidcast-list.html과 같은 localStorage 키를 공유
+const LIKES_KEY = 'bidcast:likes';
+function readLikes() { return new Set(JSON.parse(localStorage.getItem(LIKES_KEY) || '[]').map(String)); }
 function toggleHeart() {
   const btn = document.getElementById('heartBtn');
-  const on = btn.classList.toggle('on');
+  const likes = readLikes();
+  const key = String(resolvedId);
+  if (likes.has(key)) likes.delete(key); else likes.add(key);
+  localStorage.setItem(LIKES_KEY, JSON.stringify([...likes]));
+  const on = likes.has(key);
+  btn.classList.toggle('on', on);
   btn.setAttribute('aria-pressed', String(on));
+  btn.setAttribute('aria-label', on ? '관심물건 해제' : '관심물건 등록');
+}
+if (readLikes().has(String(resolvedId))) {
+  const btn = document.getElementById('heartBtn');
+  btn.classList.add('on');
+  btn.setAttribute('aria-pressed', 'true');
+  btn.setAttribute('aria-label', '관심물건 해제');
 }
 
 // 간편로그인 (공용 데모 컴포넌트) — 로그인 시 AI 예보 잠금 해제
