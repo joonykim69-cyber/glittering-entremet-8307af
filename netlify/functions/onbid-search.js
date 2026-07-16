@@ -2,14 +2,18 @@
 // 온비드(캠코) 공매물건 조회 API 프록시 — bidcast-list.html의 실 데이터 연동용
 //
 // ⚠️ 연동 전 확인 필요 (README 참고):
-// 신청된 서비스: 한국자산관리공사_차세대 온비드 부동산 물건목록 조회서비스
-// End Point: https://apis.data.go.kr/B010003/OnbidRlstListSrvc2 (확인됨, 2026-07-16)
-// data.go.kr은 자동화된 요청을 차단하고 있어(403) 이 파일 작성 시점에
-// 오퍼레이션 경로와 정확한 응답 필드명은 직접 확인하지 못했습니다. 아래
-// mapOnbidItem()의 필드명은 이 서비스 계열에서 일반적으로 쓰이는 필드명
-// 기준의 최선 추정치입니다. 서비스 상세 페이지의 "활용신청 상세기능정보"
-// 또는 첨부된 OpenAPI활용가이드 문서로 진짜 오퍼레이션명·응답 샘플을
-// 확인하고, 아래 mapOnbidItem() 필드명을 맞춰 넣어야 합니다.
+// 신청된 서비스: 한국자산관리공사_차세대 온비드 부동산 물건목록 조회서비스 v1.0.0
+// Base URL: https://apis.data.go.kr/B010003/OnbidRlstListSrvc2 (확인됨, 2026-07-16)
+// 오퍼레이션: GET /getRlstCltrList2 (부동산 물건목록 정보조회) — Swagger 문서로 확인됨
+// 필수 검색조건(Swagger 설명문 기준, 실제 코드값은 미확인): 재산유형코드(prptDivCd), 수의계약가능여부(pvctTrgtYn)
+// 확인된 응답 식별자 필드: 물건관리번호(cltrMngNo), 공매조건번호(pbctCdtnNo)
+//   ↳ 이 두 값으로 "온비드 부동산 물건상세 조회 서비스"를 호출하면 상세정보 조회 가능(연동 예정, 미착수)
+//
+// data.go.kr은 자동화된 요청을 차단하고 있어(403) 나머지 응답 필드명과
+// prptDivCd/pvctTrgtYn의 정확한 코드값 목록은 아직 직접 확인하지 못했습니다.
+// mapOnbidItem()의 나머지 필드명은 최선 추정치이니, 서비스 상세 페이지의
+// Swagger "Parameters"/"Models" 섹션 또는 첨부된 OpenAPI활용가이드 문서로
+// 확인 후 맞춰 넣어야 합니다.
 //
 // data.go.kr API는 공통적으로:
 //  - 인증키 파라미터명: serviceKey (URL-Decoding 키를 그대로 사용해야 하는 경우가 많음)
@@ -23,11 +27,11 @@ const CORS = {
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
 };
 
-// 확인된 End Point: https://apis.data.go.kr/B010003/OnbidRlstListSrvc2
-// (차세대 온비드 부동산 물건목록 조회서비스). 오퍼레이션 경로(예: /getOnbidRlstList)가
-// 이 URL 뒤에 더 붙어야 할 수 있음 — 활용신청 상세기능정보에서 확인 필요.
-// 코드 재배포 없이 바꿀 수 있도록 환경변수로 뺴둠.
+// ONBID_API_URL은 Base URL만 담는다 (예: https://apis.data.go.kr/B010003/OnbidRlstListSrvc2).
+// 오퍼레이션 경로(/getRlstCltrList2)는 Swagger 문서로 확인되어 코드에 고정.
+// 코드 재배포 없이 Base URL을 바꿀 수 있도록 환경변수로 뺴둠.
 const ONBID_API_URL = process.env.ONBID_API_URL;
+const ONBID_OPERATION = '/getRlstCltrList2';
 
 function fmtManwon(won) {
   const n = Number(won);
@@ -75,28 +79,30 @@ function normalizeType(raw) {
 
 const TYPE_ICONS = { 아파트:'🏢', 토지:'🏞️', 상가:'🏬', 차량:'🚗', 기계장비:'🏭', 유가증권:'📈', 기타:'📦' };
 
-// ⚠️ 아래 필드명(CLTR_MNMT_NO 등)은 확인 전 추정치입니다.
-// 실 응답을 받으면 이 함수만 고치면 됩니다 — 프론트엔드(bidcast-list.html)는
-// 이 함수가 반환하는 정규화된 형태(id/type/region/court/title/... )만 소비합니다.
+// 확인된 필드: cltrMngNo(물건관리번호), pbctCdtnNo(공매조건번호).
+// 나머지 필드명은 Swagger 응답모델(getRlstCltrList2_response)이 미확인이라
+// camelCase 관례를 따른 추정치입니다 — 실 응답을 받으면 이 함수만 고치면
+// 됩니다. 프론트엔드(bidcast-list.html)는 이 함수가 반환하는 정규화된
+// 형태(id/type/region/court/title/... )만 소비합니다.
 function mapOnbidItem(raw, idx) {
-  const apprWon = raw.APSL_ASES_AVG_AMT ?? raw.APRSL_ASES_AMT ?? raw.AAPR_AMT ?? 0;
-  const minWon = raw.MIN_BID_PRC ?? raw.MIN_BID_PRC_AMT ?? apprWon;
-  const failCount = Number(raw.PBCT_CNT ?? raw.USCBD_CNT ?? 0) || 0;
+  const apprWon = raw.aprslAsesAvgAmt ?? raw.aprslAsesAmt ?? 0;
+  const minWon = raw.minBidPrc ?? apprWon;
+  const failCount = Number(raw.pbctCnt ?? raw.uscbdCnt ?? 0) || 0;
 
-  const type = normalizeType(raw.CTGR_FULL_NM || raw.GOODS_NM);
+  const type = normalizeType(raw.ctgrFullNm || raw.goodsNm);
 
   return {
-    id: raw.CLTR_MNMT_NO || raw.PLNM_NO || idx,
-    caseNo: raw.PLNM_NO || raw.CLTR_MNMT_NO || '-',
-    title: raw.CLTR_NM || raw.GOODS_NM || '(물건명 미상)',
-    address: raw.LDNM_ADRS || raw.NMRD_ADRS || '',
-    court: raw.ORG_NM || raw.DPSL_MTH_NM || '',
-    region: normalizeRegion(raw.LDNM_ADRS || raw.NMRD_ADRS),
+    id: raw.cltrMngNo || raw.pbctCdtnNo || idx,
+    caseNo: raw.pbctCdtnNo || raw.cltrMngNo || '-',
+    title: raw.cltrNm || raw.goodsNm || '(물건명 미상)',
+    address: raw.ldnmAdrs || raw.nmrdAdrs || '',
+    court: raw.orgNm || raw.dpslMthNm || '',
+    region: normalizeRegion(raw.ldnmAdrs || raw.nmrdAdrs),
     type,
     appr: fmtManwon(apprWon),
     min: fmtManwon(minWon),
     fail: failCount,
-    status: raw.PBCT_CLS_DTM && new Date(raw.PBCT_CLS_DTM) < new Date() ? '낙찰' : '진행',
+    status: raw.pbctClsDtm && new Date(raw.pbctClsDtm) < new Date() ? '낙찰' : '진행',
     tags: failCount > 0 ? ['#재매각'] : ['#신건'],
     views: 0, // 온비드 API에 조회수 필드 없음 — 프론트엔드 표시용 기본값
     thumb: TYPE_ICONS[type] || '📦',
@@ -141,13 +147,17 @@ exports.handler = async (event) => {
     numOfRows,
     type: 'json',
   });
-  // TODO(확인 필요): 실제 API의 지역/자산유형 검색 파라미터명으로 교체
-  if (qs.region) params.set('LDNM_ADRS', qs.region);
-  if (qs.type) params.set('CTGR_FULL_NM', qs.type);
-  if (qs.keyword) params.set('CLTR_NM', qs.keyword);
+  // 필수 검색조건 (Swagger 설명문 기준) — 코드값 목록 미확인.
+  // prptDivCd 없이 호출하면 API가 필수값 누락으로 에러를 낼 수 있음.
+  if (qs.prptDivCd) params.set('prptDivCd', qs.prptDivCd);
+  if (qs.pvctTrgtYn) params.set('pvctTrgtYn', qs.pvctTrgtYn);
+  // TODO(확인 필요): 지역/자산유형/키워드 검색 파라미터의 실제 이름으로 교체
+  if (qs.region) params.set('ldnmAdrs', qs.region);
+  if (qs.type) params.set('ctgrFullNm', qs.type);
+  if (qs.keyword) params.set('cltrNm', qs.keyword);
 
   try {
-    const r = await fetch(`${ONBID_API_URL}?${params.toString()}`);
+    const r = await fetch(`${ONBID_API_URL}${ONBID_OPERATION}?${params.toString()}`);
     const raw = await r.json();
 
     const header = raw?.response?.header;
