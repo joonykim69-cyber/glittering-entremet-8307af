@@ -19,10 +19,11 @@ A static site deployed on Netlify hosting two unrelated projects: **K-Map Linker
 
 ### 낙찰예보 (BidCast)
 
-A 10-page static prototype (`bidcast*.html`) for an Onbid auction winning-bid prediction service, benchmarking `yoiddang.co.kr`'s information architecture. Every page ships with **all example data clearly labeled** (예시 데이터 chips) — there is no backend, no real Onbid API call, and no persistence; "login" and "search" are client-side demos only.
+An 11-page static prototype (`bidcast*.html`) for an Onbid auction winning-bid prediction service, benchmarking `yoiddang.co.kr`'s information architecture. Every page ships with **all example data clearly labeled** (예시 데이터 chips) — there is no backend, no real Onbid API call, and no persistence; "login" and "search" are client-side demos only.
 
 - `bidcast.html` — Landing page. Hero, 3-step onboarding widget (`#onboarding`), asset-type quick search, example AI-forecast cards, mini accuracy/calendar previews, mock-bid simulation, insight teaser.
 - `bidcast-list.html` — Product search: 6 mode tabs (경매검색/예정물건/신건/인기물건/인기검색/매각결과), court/region/price/fail-count/type filters, and an **AI report modal** (기본정보/종합분석/권리분석/적정가 분석 tabs) that blurs the recommended-bid figures until the demo login completes.
+- `bidcast-detail.html` — Item detail page, reached from `bidcast-list.html` card titles via `?id=N`. Self-contained `DETAILS` demo dataset (ids match the list page's `ITEMS`); unknown/missing id falls back to item 1. Sections: photo hero + key facts, AI forecast card (blur-locked until demo login, same pattern as the report modal), 기본정보 table, 입찰 이력 timeline, 권리분석 요약, stylized location mock, 유사 물건 cards (same-type first). Intended to consume the separate "온비드 부동산 물건상세 조회 서비스" API later (`cltrMngNo`+`pbctCdtnNo`).
 - `bidcast-lab.html` — Full accuracy-disclosure page (error-range distribution, per-asset-type accuracy, 3-model cross-verification explainer, monthly trend).
 - `bidcast-calendar.html` — Full bidding calendar (weekday/monthly bid-count breakdown).
 - `bidcast-map.html` — Stylized map mockup (CSS grid background + absolutely-positioned pins) — **no real map API key**; do not wire one in without asking.
@@ -93,5 +94,5 @@ Every `bidcast-*.html` page repeats the same self-contained auth modal (`#authOv
 - Section banners in the big HTML files use box-drawing/`═` comment dividers — follow that style when adding sections.
 - Styling is plain CSS with custom properties defined in `:root` per file (each app has its own palette); reuse the existing variables rather than hardcoding colors.
 - The mobile apps are built mobile-first with a fixed max-width shell (`max-width: 420–440px`) centered on desktop.
-- **BidCast palette** ("night pedestrian-signal"): light neutral background (`--bg:#F6FAF7`), green accent (`--green:#00A86B`) for go/primary actions, red (`--red:#E5484D`) reserved for warnings — always paired with an icon/label, never color alone. All 10 `bidcast-*.html` pages share this token set and a standardized 7-item top nav (물건검색/지도/카테고리/적중률/캘린더/인사이트/예보봇); keep new BidCast pages' nav and footer in sync with the others rather than drifting.
+- **BidCast palette** ("night pedestrian-signal"): light neutral background (`--bg:#F6FAF7`), green accent (`--green:#00A86B`) for go/primary actions, red (`--red:#E5484D`) reserved for warnings — always paired with an icon/label, never color alone. All 11 `bidcast-*.html` pages share this token set and a standardized 7-item top nav (물건검색/지도/카테고리/적중률/캘린더/인사이트/예보봇); keep new BidCast pages' nav and footer in sync with the others rather than drifting.
 - Every BidCast data point that isn't wired to a real API must carry a visible "예시 데이터" disclosure — this is a hard requirement from the legal-risk notes in the original product memo, not just a style choice.
