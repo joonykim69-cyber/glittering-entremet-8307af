@@ -197,7 +197,15 @@ exports.handler = async (event) => {
 
     const itemsRaw = env?.body?.items?.item || [];
     const list = Array.isArray(itemsRaw) ? itemsRaw : [itemsRaw];
-    const items = list.map(mapOnbidItem);
+    // 온비드는 같은 물건을 공매조건(회차)별로 별도 행으로 반환한다 —
+    // cltrMngNo 기준 첫 행만 남겨 같은 물건 카드가 반복 표시되는 것을 방지.
+    const seen = new Set();
+    const items = list.map(mapOnbidItem).filter(it => {
+      const k = String(it.id);
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
     const totalCount = env?.body?.totalCount ?? items.length;
     console.log('[onbid-search] 정상 응답 — 매핑된 물건 수:', items.length, '/ totalCount:', totalCount);
 

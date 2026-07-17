@@ -241,7 +241,7 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
 
     <div class="filter-bar">
       <input type="text" id="fQuery" placeholder="🔍 물건명, 지역으로 검색" style="font:inherit;font-size:13.5px;font-weight:600;color:var(--ink);background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:10px 14px;outline:none;min-width:200px;"/>
-      <select id="fCourt"><option value="">법원 전체</option><option>서울중앙지방법원</option><option>서울동부지방법원</option><option>수원지방법원</option><option>인천지방법원</option><option>부산지방법원</option></select>
+      <select id="fCourt"><option value="">기관 전체</option><option>서울중앙지방법원</option><option>서울동부지방법원</option><option>수원지방법원</option><option>인천지방법원</option><option>부산지방법원</option></select>
       <select id="fRegion"><option value="">지역 전체</option><option>서울</option><option>경기</option><option>인천</option><option>부산</option><option>대구</option></select>
       <select id="fPrice"><option value="">가격대 전체</option><option value="0-5000">5천만 이하</option><option value="5000-10000">5천만~1억</option><option value="10000-50000">1억~5억</option><option value="50000-999999">5억 이상</option></select>
       <select id="fFail"><option value="">유찰횟수 전체</option><option value="0">신건(유찰없음)</option><option value="1">1회</option><option value="2">2회 이상</option></select>
@@ -609,6 +609,18 @@ function deriveModes(it) {
   return modes;
 }
 
+// 기관(공고기관) 필터를 현재 데이터셋 기준으로 재생성 — 실 데이터의 기관은
+// 법원이 아니라 캠코·신탁사 등 공고기관명이라, 하드코딩된 법원 목록으로는
+// 실 물건이 걸러지지 않는 문제 방지. 예시 데이터일 때도 동일하게 동작.
+function rebuildCourtOptions() {
+  const sel = document.getElementById('fCourt');
+  const prev = sel.value;
+  const courts = [...new Set(ITEMS.map(it => it.court).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
+  sel.innerHTML = '<option value="">기관 전체</option>' +
+    courts.map(c => `<option>${c}</option>`).join('');
+  if (courts.includes(prev)) sel.value = prev;
+}
+
 async function loadRealItems() {
   const chip = document.getElementById('dataSourceChip');
   try {
@@ -624,6 +636,7 @@ async function loadRealItems() {
     chip.textContent = '🔧 아래 물건·필터·리포트는 모두 예시 데이터입니다 — 실 데이터 연동 대기 중';
     console.info('[bidcast] 실 데이터 연동 실패, 예시 데이터로 폴백:', e.message);
   }
+  rebuildCourtOptions();
   applyFilters();
   if (typeof updateTabsFade === 'function') updateTabsFade();
 }
