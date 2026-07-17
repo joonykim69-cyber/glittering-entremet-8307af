@@ -155,12 +155,28 @@ exports.handler = async (event) => {
   // 않는다 — mapOnbidItem()의 normalizeType()으로 응답을 받은 뒤 정규화하고,
   // 실제 버킷 필터링은 프론트엔드의 applyFilters()가 클라이언트 사이드에서 처리.
 
+  const upstreamUrl = `${ONBID_API_URL}${ONBID_OPERATION}?${params.toString().replace(serviceKey, '***')}`;
   try {
     const r = await fetch(`${ONBID_API_URL}${ONBID_OPERATION}?${params.toString()}`);
-    const raw = await r.json();
+    const bodyText = await r.text();
+    console.log('[onbid-search] request:', upstreamUrl);
+    console.log('[onbid-search] upstream status:', r.status, '| body(첫 1000자):', bodyText.slice(0, 1000));
+
+    let raw;
+    try {
+      raw = JSON.parse(bodyText);
+    } catch (parseErr) {
+      // resultType=json을 요청했지만 XML/HTML 등 비-JSON 응답이 온 경우 — 위 로그의 body로 원인 확인
+      return {
+        statusCode: 502,
+        headers: CORS,
+        body: JSON.stringify({ error: { message: '온비드 API가 JSON이 아닌 응답을 반환했습니다 — Netlify Functions 로그에서 원본 응답을 확인하세요.' } }),
+      };
+    }
 
     const header = raw?.response?.header;
     if (header && header.resultCode && header.resultCode !== '00') {
+      console.log('[onbid-search] 온비드 API 오류 코드:', header.resultCode, header.resultMsg);
       return {
         statusCode: 502,
         headers: CORS,
@@ -172,6 +188,7 @@ exports.handler = async (event) => {
     const list = Array.isArray(itemsRaw) ? itemsRaw : [itemsRaw];
     const items = list.map(mapOnbidItem);
     const totalCount = raw?.response?.body?.totalCount ?? items.length;
+    console.log('[onbid-search] 정상 응답 — 매핑된 물건 수:', items.length, '/ totalCount:', totalCount);
 
     return {
       statusCode: 200,
@@ -179,6 +196,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({ items, totalCount, pageNo: Number(pageNo), numOfRows: Number(numOfRows) }),
     };
   } catch (e) {
+    console.log('[onbid-search] fetch 자체 실패:', e.message);
     return {
       statusCode: 502,
       headers: CORS,
