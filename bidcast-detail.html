@@ -313,7 +313,10 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
   </section>
 
   <section class="section" aria-labelledby="secSim">
-    <h2 id="secSim">이 물건과 유사한 물건</h2>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:14px;">
+      <h2 id="secSim" style="margin-bottom:0;">이 물건과 유사한 물건</h2>
+      <a id="cmpLink" href="bidcast-compare.html" style="font-size:12.5px;font-weight:800;color:var(--green-deep);text-decoration:none;">⚖️ 비교함에서 나란히 보기 →</a>
+    </div>
     <div class="sim-grid" id="simGrid"></div>
   </section>
 
@@ -461,6 +464,7 @@ document.getElementById('locBadge').textContent = `${it.type} · ${fmt(it.min)}`
 // 유사 물건: 같은 유형 우선, 자기 자신 제외, 최대 3개
 const simIds = Object.keys(DETAILS).map(Number).filter(k => DETAILS[k] !== it);
 simIds.sort((a, b) => (DETAILS[b].type === it.type) - (DETAILS[a].type === it.type));
+document.getElementById('cmpLink').href = `bidcast-compare.html?ids=${[resolvedId, ...simIds.slice(0, 2)].join(',')}`;
 document.getElementById('simGrid').innerHTML = simIds.slice(0, 3).map(k => {
   const s = DETAILS[k];
   return `<a class="sim-card" href="bidcast-detail.html?id=${k}">
