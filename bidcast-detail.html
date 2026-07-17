@@ -265,7 +265,7 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
         <div class="cell"><div class="k">유찰횟수</div><div class="v" id="dFail">—</div></div>
       </div>
       <div class="fact-cta">
-        <a class="primary" href="bidcast.html#onboarding">모의 입찰해보기</a>
+        <a class="primary" id="simLink" href="bidcast-simulator.html">모의 입찰해보기</a>
         <button class="ghost" type="button" onclick="openAuth('signup')">입찰 알림 받기</button>
       </div>
     </aside>
@@ -466,6 +466,7 @@ const simIds = Object.keys(DETAILS).map(Number).filter(k => DETAILS[k] !== it);
 simIds.sort((a, b) => (DETAILS[b].type === it.type) - (DETAILS[a].type === it.type));
 document.getElementById('cmpLink').href = `bidcast-compare.html?ids=${[resolvedId, ...simIds.slice(0, 2)].join(',')}`;
 document.getElementById('botLink').href = `bidcast-bot.html?item=${resolvedId}`;
+document.getElementById('simLink').href = `bidcast-simulator.html?appr=${it.appr}&ratio=${Math.round(it.min / it.appr * 100)}&id=${resolvedId}&title=${encodeURIComponent(it.title)}`;
 document.getElementById('simGrid').innerHTML = simIds.slice(0, 3).map(k => {
   const s = DETAILS[k];
   return `<a class="sim-card" href="bidcast-detail.html?id=${k}">
