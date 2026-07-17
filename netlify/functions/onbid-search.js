@@ -181,7 +181,11 @@ exports.handler = async (event) => {
       };
     }
 
-    const header = raw?.response?.header;
+    // 실 응답 확인 결과(2026-07-17), 이 차세대 API는 data.go.kr 공통 규격과 달리
+    // {response:{header,body}} 래퍼 없이 {header, body}가 최상위에 온다.
+    // 혹시 모를 규격 변경에 대비해 두 형태 모두 허용.
+    const env = raw?.response ?? raw;
+    const header = env?.header;
     if (header && header.resultCode && header.resultCode !== '00') {
       console.log('[onbid-search] 온비드 API 오류 코드:', header.resultCode, header.resultMsg);
       return {
@@ -191,10 +195,10 @@ exports.handler = async (event) => {
       };
     }
 
-    const itemsRaw = raw?.response?.body?.items?.item || [];
+    const itemsRaw = env?.body?.items?.item || [];
     const list = Array.isArray(itemsRaw) ? itemsRaw : [itemsRaw];
     const items = list.map(mapOnbidItem);
-    const totalCount = raw?.response?.body?.totalCount ?? items.length;
+    const totalCount = env?.body?.totalCount ?? items.length;
     console.log('[onbid-search] 정상 응답 — 매핑된 물건 수:', items.length, '/ totalCount:', totalCount);
 
     // ?debug=1일 때만 온비드 원본 응답 일부와 실제 요청 파라미터를 응답에 포함 —
