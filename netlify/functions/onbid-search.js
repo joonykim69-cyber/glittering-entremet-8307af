@@ -147,6 +147,10 @@ exports.handler = async (event) => {
     numOfRows,
     resultType: 'json',
     pvctTrgtYn: qs.pvctTrgtYn || 'N',
+    // data.go.kr 활용신청 상세기능정보의 요청 파라미터 표에서는 이 둘도 "필수"로 표기됨
+    // (Swagger의 required:false와 상충) — 누락 시 에러 대신 0건을 반환할 수 있어 기본값을 채운다.
+    dspsMthodCd: qs.dspsMthodCd || '0001', // 처분방식: 0001 매각
+    bidDivCd: qs.bidDivCd || '0001',       // 입찰구분: 0001 인터넷
   });
   if (qs.region) params.set('lctnSdnm', qs.region);
   if (qs.keyword) params.set('onbidCltrNm', qs.keyword);
@@ -193,9 +197,15 @@ exports.handler = async (event) => {
     const totalCount = raw?.response?.body?.totalCount ?? items.length;
     console.log('[onbid-search] 정상 응답 — 매핑된 물건 수:', items.length, '/ totalCount:', totalCount);
 
-    // ?debug=1일 때만 온비드 원본 header와 실제 요청 파라미터를 응답에 포함 —
+    // ?debug=1일 때만 온비드 원본 응답 일부와 실제 요청 파라미터를 응답에 포함 —
     // Netlify 대시보드 함수 로그 접근이 막혀있는 환경에서 브라우저로 바로 원인 확인용.
-    const debug = qs.debug ? { header, prptDivCd, pvctTrgtYn: params.get('pvctTrgtYn'), upstreamUrl } : undefined;
+    const debug = qs.debug ? {
+      header: header ?? '(response.header 없음 — rawSnippet에서 실제 구조 확인)',
+      prptDivCd, pvctTrgtYn: params.get('pvctTrgtYn'),
+      dspsMthodCd: params.get('dspsMthodCd'), bidDivCd: params.get('bidDivCd'),
+      upstreamUrl,
+      rawSnippet: bodyText.slice(0, 800),
+    } : undefined;
 
     return {
       statusCode: 200,
