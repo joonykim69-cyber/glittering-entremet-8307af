@@ -87,6 +87,8 @@ function mapOnbidItem(raw, idx) {
 
   const type = normalizeType(raw.cltrUsgSclsCtgrNm || raw.cltrUsgMclsCtgrNm);
   const address = [raw.lctnSdnm, raw.lctnSggnm, raw.lctnEmdNm].filter(Boolean).join(' ');
+  // thnlImgUrlAdr(물건 썸네일 이미지 URL) — http(s) URL일 때만 통과 (HTML 삽입 안전장치)
+  const photo = /^https?:\/\//.test(raw.thnlImgUrlAdr || '') ? raw.thnlImgUrlAdr : '';
 
   return {
     id: raw.cltrMngNo || idx,
@@ -103,6 +105,7 @@ function mapOnbidItem(raw, idx) {
     tags: failCount > 0 ? ['#재매각'] : ['#신건'],
     views: 0, // 온비드 API에 조회수 필드 없음 — 프론트엔드 표시용 기본값
     thumb: TYPE_ICONS[type] || '📦',
+    photo, // 실사 썸네일 URL (없으면 빈 문자열 → 프론트엔드가 thumb 아이콘으로 폴백)
   };
 }
 
@@ -143,21 +146,48 @@ exports.handler = async (event) => {
     pageNo,
     numOfRows,
     resultType: 'json',
-    prptDivCd: qs.prptDivCd || ALL_PRPT_DIV_CD,
     pvctTrgtYn: qs.pvctTrgtYn || 'N',
+    // data.go.kr 활용신청 상세기능정보의 요청 파라미터 표에서는 이 둘도 "필수"로 표기됨
+    // (Swagger의 required:false와 상충) — 누락 시 에러 대신 0건을 반환할 수 있어 기본값을 채운다.
+    dspsMthodCd: qs.dspsMthodCd || '0001', // 처분방식: 0001 매각
+    bidDivCd: qs.bidDivCd || '0001',       // 입찰구분: 0001 인터넷
   });
   if (qs.region) params.set('lctnSdnm', qs.region);
   if (qs.keyword) params.set('onbidCltrNm', qs.keyword);
+  // prptDivCd는 URLSearchParams에 넣지 않고 쉼표를 인코딩(%2C)하지 않은 원문 그대로 붙인다 —
+  // data.go.kr 계열 API 중 인코딩된 쉼표를 복수값 구분자로 인식하지 못하는 경우가 있음.
+  const prptDivCd = (qs.prptDivCd || ALL_PRPT_DIV_CD).replace(/[^0-9,]/g, '');
   // qs.type(아파트/토지/상가 등)은 API의 용도분류 코드값을 몰라 상류로 전달하지
   // 않는다 — mapOnbidItem()의 normalizeType()으로 응답을 받은 뒤 정규화하고,
   // 실제 버킷 필터링은 프론트엔드의 applyFilters()가 클라이언트 사이드에서 처리.
 
+  const queryString = `${params.toString()}&prptDivCd=${prptDivCd}`;
+  const upstreamUrl = `${ONBID_API_URL}${ONBID_OPERATION}?${queryString.replace(serviceKey, '***').replace(encodeURIComponent(serviceKey), '***')}`;
   try {
-    const r = await fetch(`${ONBID_API_URL}${ONBID_OPERATION}?${params.toString()}`);
-    const raw = await r.json();
+    const r = await fetch(`${ONBID_API_URL}${ONBID_OPERATION}?${queryString}`);
+    const bodyText = await r.text();
+    console.log('[onbid-search] request:', upstreamUrl);
+    console.log('[onbid-search] upstream status:', r.status, '| body(첫 1000자):', bodyText.slice(0, 1000));
 
-    const header = raw?.response?.header;
+    let raw;
+    try {
+      raw = JSON.parse(bodyText);
+    } catch (parseErr) {
+      // resultType=json을 요청했지만 XML/HTML 등 비-JSON 응답이 온 경우 — 위 로그의 body로 원인 확인
+      return {
+        statusCode: 502,
+        headers: CORS,
+        body: JSON.stringify({ error: { message: '온비드 API가 JSON이 아닌 응답을 반환했습니다 — Netlify Functions 로그에서 원본 응답을 확인하세요.' } }),
+      };
+    }
+
+    // 실 응답 확인 결과(2026-07-17), 이 차세대 API는 data.go.kr 공통 규격과 달리
+    // {response:{header,body}} 래퍼 없이 {header, body}가 최상위에 온다.
+    // 혹시 모를 규격 변경에 대비해 두 형태 모두 허용.
+    const env = raw?.response ?? raw;
+    const header = env?.header;
     if (header && header.resultCode && header.resultCode !== '00') {
+      console.log('[onbid-search] 온비드 API 오류 코드:', header.resultCode, header.resultMsg);
       return {
         statusCode: 502,
         headers: CORS,
@@ -165,17 +195,37 @@ exports.handler = async (event) => {
       };
     }
 
-    const itemsRaw = raw?.response?.body?.items?.item || [];
+    const itemsRaw = env?.body?.items?.item || [];
     const list = Array.isArray(itemsRaw) ? itemsRaw : [itemsRaw];
-    const items = list.map(mapOnbidItem);
-    const totalCount = raw?.response?.body?.totalCount ?? items.length;
+    // 온비드는 같은 물건을 공매조건(회차)별로 별도 행으로 반환한다 —
+    // cltrMngNo 기준 첫 행만 남겨 같은 물건 카드가 반복 표시되는 것을 방지.
+    const seen = new Set();
+    const items = list.map(mapOnbidItem).filter(it => {
+      const k = String(it.id);
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    const totalCount = env?.body?.totalCount ?? items.length;
+    console.log('[onbid-search] 정상 응답 — 매핑된 물건 수:', items.length, '/ totalCount:', totalCount);
+
+    // ?debug=1일 때만 온비드 원본 응답 일부와 실제 요청 파라미터를 응답에 포함 —
+    // Netlify 대시보드 함수 로그 접근이 막혀있는 환경에서 브라우저로 바로 원인 확인용.
+    const debug = qs.debug ? {
+      header: header ?? '(response.header 없음 — rawSnippet에서 실제 구조 확인)',
+      prptDivCd, pvctTrgtYn: params.get('pvctTrgtYn'),
+      dspsMthodCd: params.get('dspsMthodCd'), bidDivCd: params.get('bidDivCd'),
+      upstreamUrl,
+      rawSnippet: bodyText.slice(0, 800),
+    } : undefined;
 
     return {
       statusCode: 200,
       headers: { ...CORS, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items, totalCount, pageNo: Number(pageNo), numOfRows: Number(numOfRows) }),
+      body: JSON.stringify({ items, totalCount, pageNo: Number(pageNo), numOfRows: Number(numOfRows), ...(debug ? { debug } : {}) }),
     };
   } catch (e) {
+    console.log('[onbid-search] fetch 자체 실패:', e.message);
     return {
       statusCode: 502,
       headers: CORS,

@@ -93,12 +93,14 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 .item-card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; transition:transform .25s var(--ease), box-shadow .25s; display:flex; flex-direction:column; }
 .item-card:hover { transform:translateY(-4px); box-shadow:0 16px 40px rgba(16,32,26,.09); }
 .item-thumb { height:120px; background:linear-gradient(140deg,#E9F8F0,#F2FBF6); display:grid; place-items:center; font-size:34px; position:relative; }
+.item-thumb .photo { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
 .item-thumb .heart { position:absolute; top:10px; right:10px; width:32px; height:32px; padding:0; border-radius:50%; background:rgba(255,255,255,.85); border:1px solid var(--line); display:grid; place-items:center; cursor:pointer; font:inherit; font-size:15px; color:var(--sub); transition:all .2s; }
 .item-thumb .heart.on { background:var(--red-soft); border-color:var(--red); color:var(--red); }
 .item-thumb .fail-badge { position:absolute; top:10px; left:10px; font-size:11px; font-weight:800; background:var(--red); color:#fff; padding:4px 10px; border-radius:999px; }
 .item-body { padding:16px 18px 18px; flex:1; display:flex; flex-direction:column; }
 .item-kind { font-size:11.5px; font-weight:800; color:var(--green-deep); }
 .item-title { font-size:15.5px; font-weight:800; letter-spacing:-0.02em; margin:5px 0 4px; }
+.item-title a:hover { color:var(--green-deep); }
 .item-meta { font-size:12.5px; color:var(--sub); }
 .item-tags { display:flex; flex-wrap:wrap; gap:5px; margin-top:9px; }
 .item-tags span { font-size:10.5px; font-weight:700; color:var(--sub); background:var(--bg); border:1px solid var(--line); padding:3px 8px; border-radius:999px; }
@@ -239,13 +241,13 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
 
     <div class="filter-bar">
       <input type="text" id="fQuery" placeholder="🔍 물건명, 지역으로 검색" style="font:inherit;font-size:13.5px;font-weight:600;color:var(--ink);background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:10px 14px;outline:none;min-width:200px;"/>
-      <select id="fCourt"><option value="">법원 전체</option><option>서울중앙지방법원</option><option>서울동부지방법원</option><option>수원지방법원</option><option>인천지방법원</option><option>부산지방법원</option></select>
+      <select id="fCourt"><option value="">기관 전체</option><option>서울중앙지방법원</option><option>서울동부지방법원</option><option>수원지방법원</option><option>인천지방법원</option><option>부산지방법원</option></select>
       <select id="fRegion"><option value="">지역 전체</option><option>서울</option><option>경기</option><option>인천</option><option>부산</option><option>대구</option></select>
       <select id="fPrice"><option value="">가격대 전체</option><option value="0-5000">5천만 이하</option><option value="5000-10000">5천만~1억</option><option value="10000-50000">1억~5억</option><option value="50000-999999">5억 이상</option></select>
       <select id="fFail"><option value="">유찰횟수 전체</option><option value="0">신건(유찰없음)</option><option value="1">1회</option><option value="2">2회 이상</option></select>
       <select id="fStatus"><option value="">상태 전체</option><option>진행</option><option>유찰</option><option>낙찰</option></select>
-      <select id="fSort"><option value="latest">최신순</option><option value="views">조회수순</option><option value="price-asc">낮은 가격순</option><option value="price-desc">높은 가격순</option></select>
-      <span class="filter-count"><b id="resultCount">0</b>건의 물건</span>
+      <select id="fSort"><option value="latest">최신순</option><option value="views">조회수순</option><option value="discount">할인율 높은순</option><option value="fail-desc">유찰 많은순</option><option value="price-asc">낮은 가격순</option><option value="price-desc">높은 가격순</option></select>
+      <span class="filter-count"><b id="resultCount">0</b>건의 물건 · <a href="bidcast-compare.html" style="color:var(--green-deep);font-weight:800;text-decoration:none;">⚖️ 비교함</a></span>
     </div>
 
     <div class="type-chips" id="typeChips">
@@ -347,7 +349,11 @@ let ITEMS = [
 
 let activeMode = 'search';
 let activeTypes = new Set(['아파트','토지','상가','차량','기계장비','유가증권']);
-let likedIds = new Set();
+// 관심물건 — localStorage에 저장해 마이페이지(bidcast-my.html)·상세 페이지와 공유.
+// 실 데이터 id는 문자열(cltrMngNo)이라 항상 String으로 정규화해 비교한다.
+const LIKES_KEY = 'bidcast:likes';
+let likedIds = new Set(JSON.parse(localStorage.getItem(LIKES_KEY) || '[]').map(String));
+function saveLikes() { localStorage.setItem(LIKES_KEY, JSON.stringify([...likedIds])); }
 let qTerm = '';
 
 function fmtWon(man) {
@@ -381,6 +387,8 @@ function applyFilters() {
     list = list.filter(it => it.appr >= lo && it.appr <= hi);
   }
   if (sort === 'views') list = [...list].sort((a, b) => b.views - a.views);
+  else if (sort === 'discount') list = [...list].sort((a, b) => (a.min / a.appr) - (b.min / b.appr)); // 감정가 대비 최저가 비율 낮은순 = 할인율 높은순
+  else if (sort === 'fail-desc') list = [...list].sort((a, b) => b.fail - a.fail);
   else if (sort === 'price-asc') list = [...list].sort((a, b) => a.appr - b.appr);
   else if (sort === 'price-desc') list = [...list].sort((a, b) => b.appr - a.appr);
   else list = [...list].sort((a, b) => b.id - a.id);
@@ -395,19 +403,20 @@ function renderList(list) {
   grid.innerHTML = list.map(it => `
     <article class="item-card">
       <div class="item-thumb">${it.thumb}
+        ${it.photo ? `<img class="photo" src="${it.photo}" alt="" loading="lazy" onerror="this.remove()">` : ''}
         ${it.fail > 0 ? `<span class="fail-badge">유찰 ${it.fail}회</span>` : ''}
-        <button type="button" class="heart ${likedIds.has(it.id) ? 'on' : ''}" onclick="toggleLike(${it.id}, this)" aria-label="관심물건 등록" aria-pressed="${likedIds.has(it.id)}">♥</button>
+        <button type="button" class="heart ${likedIds.has(String(it.id)) ? 'on' : ''}" onclick="toggleLike('${it.id}', this)" aria-label="관심물건 등록" aria-pressed="${likedIds.has(String(it.id))}">♥</button>
       </div>
       <div class="item-body">
         <span class="item-kind">${it.court} · ${it.type}</span>
-        <div class="item-title">${it.title}</div>
+        <div class="item-title"><a href="bidcast-detail.html?id=${encodeURIComponent(it.id)}" style="text-decoration:none;color:inherit;">${it.title}</a></div>
         <div class="item-meta">${it.caseNo} · ${it.address}</div>
         <div class="item-tags">${it.tags.map(t => `<span>${t}</span>`).join('')}</div>
         <div class="item-price"><span>감정가</span><b>${fmtWon(it.appr)}</b></div>
         <div class="item-price" style="margin-top:2px;border:none;padding-top:0;"><span>최저가</span><b>${fmtWon(it.min)}</b></div>
         <div class="item-foot">
           <span class="item-views">조회 ${it.views.toLocaleString()}</span>
-          <button class="report-btn" type="button" onclick="openReport(${it.id})">리포트 보기</button>
+          <button class="report-btn" type="button" onclick="openReport('${it.id}')">리포트 보기</button>
         </div>
       </div>
     </article>
@@ -415,8 +424,10 @@ function renderList(list) {
 }
 
 function toggleLike(id, el) {
+  id = String(id);
   if (likedIds.has(id)) { likedIds.delete(id); el.classList.remove('on'); }
   else { likedIds.add(id); el.classList.add('on'); }
+  saveLikes();
   el.setAttribute('aria-pressed', likedIds.has(id));
   el.setAttribute('aria-label', likedIds.has(id) ? '관심물건 해제' : '관심물건 등록');
 }
@@ -448,7 +459,7 @@ let userLoggedIn = false;
 let currentReportItem = null;
 
 function openReport(id) {
-  currentReportItem = ITEMS.find(it => it.id === id);
+  currentReportItem = ITEMS.find(it => String(it.id) === String(id));
   renderReport(currentReportItem);
   rpOverlay.classList.add('open');
   requestAnimationFrame(() => rpOverlay.classList.add('vis'));
@@ -598,6 +609,18 @@ function deriveModes(it) {
   return modes;
 }
 
+// 기관(공고기관) 필터를 현재 데이터셋 기준으로 재생성 — 실 데이터의 기관은
+// 법원이 아니라 캠코·신탁사 등 공고기관명이라, 하드코딩된 법원 목록으로는
+// 실 물건이 걸러지지 않는 문제 방지. 예시 데이터일 때도 동일하게 동작.
+function rebuildCourtOptions() {
+  const sel = document.getElementById('fCourt');
+  const prev = sel.value;
+  const courts = [...new Set(ITEMS.map(it => it.court).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
+  sel.innerHTML = '<option value="">기관 전체</option>' +
+    courts.map(c => `<option>${c}</option>`).join('');
+  if (courts.includes(prev)) sel.value = prev;
+}
+
 async function loadRealItems() {
   const chip = document.getElementById('dataSourceChip');
   try {
@@ -613,6 +636,7 @@ async function loadRealItems() {
     chip.textContent = '🔧 아래 물건·필터·리포트는 모두 예시 데이터입니다 — 실 데이터 연동 대기 중';
     console.info('[bidcast] 실 데이터 연동 실패, 예시 데이터로 폴백:', e.message);
   }
+  rebuildCourtOptions();
   applyFilters();
   if (typeof updateTabsFade === 'function') updateTabsFade();
 }

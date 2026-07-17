@@ -1,5 +1,10 @@
 [build]
      functions = "netlify/functions"
 
+   # ONBID_API_URL은 공개 API의 Base URL이라 비밀값이 아님 — 시크릿 스캐너가
+   # CLAUDE.md/onbid-search.js 주석에 적힌 이 값을 오탐해 배포를 막는 것 방지
+   [build.environment]
+     SECRETS_SCAN_OMIT_KEYS = "ONBID_API_URL"
+
    [functions]
      node_bundler = "esbuild"

@@ -84,6 +84,8 @@ p.lead { color:var(--sub); font-size:15px; margin-top:12px; max-width:460px; }
 @keyframes blink { 0%,80%,100% { opacity:.3; } 40% { opacity:1; } }
 
 .bot-note { margin-top:14px; font-size:11.5px; color:var(--mute); background:var(--bg); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
+.demo-chip { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--sub); border:1px dashed var(--mute); padding:5px 12px; border-radius:999px; margin-top:14px; }
+.chat-input-note { font-size:10.5px; color:var(--mute); padding:0 16px 12px; }
 
 .auth-overlay { position:fixed; inset:0; z-index:220; display:none; align-items:center; justify-content:center; padding:20px; background:rgba(16,32,26,.45); backdrop-filter:blur(8px); opacity:0; transition:opacity .25s var(--ease); }
 .auth-overlay.open { display:flex; } .auth-overlay.vis { opacity:1; }
@@ -149,6 +151,8 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
     <span class="eyebrow">AI Consultant</span>
     <h1 class="title">궁금한 건 바로<br/>물어보세요, <span style="background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;">예보봇</span></h1>
     <p class="lead">공매 절차, 유찰, 입찰보증금부터 예상 낙찰가 산정 근거까지 — 대화로 쉽게 풀어드립니다.</p>
+    <br/>
+    <span class="demo-chip">🤖 자주 묻는 질문은 사전 작성 답변, 자유 입력은 Claude AI가 실시간으로 답변합니다 (연동 전이면 예시 응답으로 자동 전환)</span>
 
     <div class="bot-layout">
       <div>
@@ -172,8 +176,9 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
         </div>
         <div class="chat-input">
           <input type="text" id="chatInput" placeholder="예: 재공고는 어떤 경우에 나오나요?"/>
-          <button type="button" onclick="sendChat()">전송</button>
+          <button type="button" id="chatSendBtn" onclick="sendChat()">전송</button>
         </div>
+        <p class="chat-input-note">※ AI 답변은 일반 정보 참고용이며, 법률 자문을 대체하지 않습니다.</p>
       </div>
     </div>
   </div>
@@ -204,7 +209,7 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
         <p style="font-size:12.5px;color:var(--sub);margin-top:8px;max-width:320px;">공공데이터포털의 온비드 공식 API 데이터를 기반으로 한 공매 낙찰가 예측 서비스입니다.</p>
       </div>
       <div><h5>서비스</h5><ul><li><a href="bidcast-list.html">물건 검색</a></li><li><a href="bidcast-lab.html">적중률 공개</a></li></ul></div>
-      <div><h5>바로가기</h5><ul><li><a href="bidcast.html">홈으로</a></li><li><a href="bidcast-insight.html">인사이트</a></li><li><a href="bidcast-partner.html">파트너 프로그램</a></li><li><a href="bidcast-support.html">고객지원</a></li></ul></div>
+      <div><h5>바로가기</h5><ul><li><a href="bidcast.html">홈으로</a></li><li><a href="bidcast-insight.html">인사이트</a></li><li><a href="bidcast-partner.html">파트너 프로그램</a></li><li><a href="bidcast-support.html">고객지원</a></li><li><a href="bidcast-my.html">마이페이지</a></li></ul></div>
     </div>
     <p class="copy">© 2026 낙찰예보. All rights reserved.</p>
   </div>
@@ -224,13 +229,38 @@ const PRESET_Q = {
   4: '낙찰 후 잔금은 언제까지 내야 하나요?',
 };
 
+// ═══════════════════════════════════════
+// 물건 컨텍스트 (?item=N) — 상세 페이지의 "예보봇에게 질문하기"에서 진입.
+// id는 bidcast-detail.html의 DETAILS와 일치하는 예시 데이터.
+// ═══════════════════════════════════════
+const ITEM_DB = {
+  1: { type:'아파트', title:'서울 강남구 역삼동 아파트 24평', court:'서울중앙지방법원', appr:65000, min:52000, fail:1, status:'진행', thumb:'🏢' },
+  2: { type:'토지', title:'경기 시흥시 배곧동 대지 152㎡', court:'수원지방법원', appr:84000, min:84000, fail:0, status:'진행', thumb:'🏞️' },
+  3: { type:'상가', title:'서울 서대문구 충정로 상가 1층', court:'서울동부지방법원', appr:41000, min:41000, fail:0, status:'낙찰', thumb:'🏬' },
+  4: { type:'차량', title:'5톤 카고트럭 (2021년식)', court:'인천지방법원', appr:2800, min:2240, fail:1, status:'진행', thumb:'🚗' },
+  5: { type:'기계장비', title:'CNC 머시닝센터 외 3점', court:'서울중앙지방법원', appr:8200, min:4510, fail:3, status:'진행', thumb:'🏭' },
+  6: { type:'유가증권', title:'비상장주식 A사 지분 3%', court:'서울중앙지방법원', appr:9800, min:9800, fail:0, status:'진행', thumb:'📈' },
+  7: { type:'아파트', title:'부산 해운대구 우동 아파트 32평', court:'부산지방법원', appr:98000, min:78400, fail:1, status:'진행', thumb:'🏢' },
+  8: { type:'토지', title:'인천 서구 청라동 임야 890㎡', court:'인천지방법원', appr:56000, min:56000, fail:0, status:'진행', thumb:'🏞️' },
+  9: { type:'차량', title:'승용차 그랜저 (2020년식)', court:'서울동부지방법원', appr:2310, min:1850, fail:0, status:'낙찰', thumb:'🚗' },
+};
+const fmtWon = n => n >= 10000 ? (n/10000).toFixed(n % 10000 === 0 ? 0 : 1) + '억' : n.toLocaleString() + '만';
+
 const chatBody = document.getElementById('chatBody');
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+// 사용자 입력·실시간 AI 응답처럼 신뢰할 수 없는 텍스트용 — 항상 이스케이프 후 줄바꿈만 <br>로 변환.
 function appendMsg(text, who) {
+  return appendMsgHTML(escapeHtml(text).replace(/\n/g, '<br/>'), who);
+}
+// 사전 작성한 프리셋 답변·컨텍스트 칩처럼 우리가 직접 작성한 신뢰된 HTML용.
+function appendMsgHTML(html, who) {
   const div = document.createElement('div');
   div.className = 'msg ' + who;
   div.innerHTML = who === 'user'
-    ? `<span class="av2">🙂</span><div class="bubble">${text}</div>`
-    : `<span class="av2">🤖</span><div class="bubble">${text}</div>`;
+    ? `<span class="av2">🙂</span><div class="bubble">${html}</div>`
+    : `<span class="av2">🤖</span><div class="bubble">${html}</div>`;
   chatBody.appendChild(div);
   chatBody.scrollTop = chatBody.scrollHeight;
   return div;
@@ -244,26 +274,81 @@ function appendTyping() {
   return div;
 }
 
+// ?item=N 컨텍스트가 있으면 물건 맞춤 인사 + 컨텍스트 칩 표시
+const ctxId = parseInt(new URLSearchParams(location.search).get('item'), 10);
+const ctxItem = ITEM_DB[ctxId];
+if (ctxItem) {
+  const chip = document.createElement('div');
+  chip.className = 'msg bot';
+  chip.innerHTML = `<span class="av2">📌</span><div class="bubble" style="background:var(--green-soft);border:1px solid #C4EBD8;">
+    지금 보는 물건: <b>${ctxItem.thumb} ${ctxItem.title}</b><br/>
+    <a href="bidcast-detail.html?id=${ctxId}" style="color:var(--green-deep);font-weight:800;">물건 상세로 돌아가기 →</a></div>`;
+  chatBody.appendChild(chip);
+  const lo = fmtWon(Math.round(ctxItem.min * 1.02)), hi = fmtWon(Math.round(ctxItem.min * 1.13)), rec = fmtWon(Math.round(ctxItem.min * 1.07));
+  const failTxt = ctxItem.fail > 0
+    ? `지금까지 <b>${ctxItem.fail}회 유찰</b>되어 최저입찰가가 내려온 물건이에요. 유찰 사유(권리관계·물건 상태)를 상세 페이지의 권리분석에서 꼭 확인하세요.`
+    : `아직 유찰 없이 처음 나온 <b>신건</b>이라 감정가 수준에서 시작해요.`;
+  const statusTxt = ctxItem.status === '낙찰'
+    ? `이 물건은 이미 <b>매각완료</b>된 물건이라 참고용으로만 봐주세요.`
+    : `현재 <b>입찰 진행중</b>이며 최저입찰가는 <b>${fmtWon(ctxItem.min)}원</b>(감정가 ${fmtWon(ctxItem.appr)}원)입니다.`;
+  appendMsgHTML(`이 물건에 대해 물어보시는군요! ${statusTxt} ${failTxt}<br/><br/>AI 예상 낙찰가 범위는 <b>${lo} ~ ${hi}</b>, 추천 입찰가는 <b>${rec}원</b> 부근이에요 (예시 데이터 기준). 아래 자주 묻는 질문이나 자유 입력으로 이어서 질문해 주세요.`, 'bot');
+}
+
 document.querySelectorAll('#presetList button').forEach(btn => {
   btn.addEventListener('click', () => {
     const id = btn.dataset.q;
     appendMsg(PRESET_Q[id], 'user');
     const t = appendTyping();
-    setTimeout(() => { t.remove(); appendMsg(PRESET_ANSWERS[id], 'bot'); }, 700);
+    setTimeout(() => { t.remove(); appendMsgHTML(PRESET_ANSWERS[id], 'bot'); }, 700);
   });
 });
 
-function sendChat() {
+// ═══════════════════════════════════════
+// 자유 입력 응답 — /.netlify/functions/claude.js(공용 Claude 프록시)를 호출.
+// 실패(함수 미배포·키 미설정·API 오류·네트워크 문제) 시 정해진 안내 문구로 자동 폴백.
+// ═══════════════════════════════════════
+async function callBidcastAI(userText) {
+  const system = `당신은 "예보봇"입니다. 대한민국 온비드(캠코) 공매의 절차, 유찰, 입찰보증금, 권리분석 기초, 잔금납부 등 공매 관련 일반 정보를 한국어 존댓말로 친절하고 간결하게(3~5문장) 설명하는 상담봇입니다.
+- 공매·경매·부동산 관련 질문에만 답하고, 무관한 질문에는 정중히 답변 범위를 벗어난다고 안내하세요.
+- 특정 물건의 법률적 권리관계를 단정적으로 판단하지 말고, 참고 정보이며 실제 법률 자문이 아니라는 점을 필요시 언급하세요.${ctxItem ? `
+- 지금 사용자는 "${ctxItem.title}"(${ctxItem.type}, 감정가 ${fmtWon(ctxItem.appr)}원, 최저입찰가 ${fmtWon(ctxItem.min)}원, 유찰 ${ctxItem.fail}회, 상태: ${ctxItem.status})을 보고 있습니다. 관련 질문이면 이 정보를 참고해 답변하세요.` : ''}`;
+
+  const res = await fetch('/.netlify/functions/claude', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ system, messages: [{ role: 'user', content: userText }], max_tokens: 500 }),
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message || 'API error');
+  const out = data.content && data.content[0] && data.content[0].text;
+  if (!out) throw new Error('빈 응답');
+  return out;
+}
+
+let sending = false;
+async function sendChat() {
+  if (sending) return;
   const input = document.getElementById('chatInput');
   const text = input.value.trim();
   if (!text) return;
   appendMsg(text, 'user');
   input.value = '';
+  sending = true;
+  document.getElementById('chatSendBtn').disabled = true;
   const t = appendTyping();
-  setTimeout(() => {
+  try {
+    const reply = await callBidcastAI(text);
     t.remove();
-    appendMsg(`"<b>${text}</b>"에 대해 답변드리려면 조금 더 구체적인 사건번호나 물건 조건이 필요해요. <a href="bidcast-list.html" style="color:var(--green-deep);font-weight:800;">물건 검색</a>에서 해당 물건을 찾아 리포트를 확인하시거나, 자주 묻는 질문 중 비슷한 항목을 참고해 보세요. (데모: 자유 입력에는 정해진 답변으로만 응답합니다)`, 'bot');
-  }, 800);
+    appendMsg(reply, 'bot');
+  } catch (e) {
+    t.remove();
+    appendMsgHTML(`"<b>${escapeHtml(text)}</b>"에 대해 답변드리려면 조금 더 구체적인 사건번호나 물건 조건이 필요해요. <a href="bidcast-list.html" style="color:var(--green-deep);font-weight:800;">물건 검색</a>에서 해당 물건을 찾아 리포트를 확인하시거나, 자주 묻는 질문 중 비슷한 항목을 참고해 보세요.`, 'bot');
+    console.info('[bidcast] 예보봇 실 AI 연동 실패, 예시 응답으로 폴백:', e.message);
+  } finally {
+    sending = false;
+    document.getElementById('chatSendBtn').disabled = false;
+  }
 }
 document.getElementById('chatInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
 

@@ -76,6 +76,22 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 @media (max-width:900px) { .month-grid { grid-template-columns:repeat(5,1fr); } }
 @media (max-width:520px) { .month-grid { grid-template-columns:repeat(3,1fr); } }
 
+/* 날짜별 입찰 물건 */
+.sched-row { display:flex; gap:14px; align-items:center; padding:12px 4px; border-bottom:1px solid var(--line); text-decoration:none; transition:background .15s; border-radius:10px; }
+.sched-row:hover { background:var(--green-soft); }
+.sched-row:last-child { border-bottom:none; }
+.sched-date { flex:none; width:64px; text-align:center; background:var(--bg); border:1px solid var(--line); border-radius:12px; padding:7px 4px; }
+.sched-date .dd { font-size:16px; font-weight:900; color:var(--green-deep); font-variant-numeric:tabular-nums; }
+.sched-date .wd { font-size:10.5px; font-weight:700; color:var(--sub); }
+.sched-ico { flex:none; font-size:22px; }
+.sched-body { flex:1; min-width:0; }
+.sched-body .t { font-size:13.5px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sched-body .m { font-size:11.5px; color:var(--sub); margin-top:1px; }
+.sched-price { flex:none; text-align:right; }
+.sched-price .p { font-size:13.5px; font-weight:900; color:var(--green-deep); font-variant-numeric:tabular-nums; }
+.sched-price .tag { font-size:10.5px; font-weight:800; color:var(--red); }
+@media (max-width:560px) { .sched-ico { display:none; } }
+
 .find-else { display:flex; gap:10px; flex-wrap:wrap; margin-top:28px; }
 .find-else a { text-decoration:none; font-size:13.5px; font-weight:700; color:var(--sub); background:var(--surface); border:1px solid var(--line); padding:10px 20px; border-radius:999px; }
 .find-else a:hover { border-color:var(--green); color:var(--green-deep); }
@@ -174,6 +190,11 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
     </div>
 
     <div class="panel" style="margin-top:20px;">
+      <h3>📌 다가오는 입찰 물건 <span style="font-size:11.5px;font-weight:700;color:var(--mute);">— 마감일 순 · 클릭하면 상세로 이동</span></h3>
+      <div id="schedList"></div>
+    </div>
+
+    <div class="panel" style="margin-top:20px;">
       <h3>월별 입찰 건수 (과거 3개월 ~ 향후 6개월)</h3>
       <div class="month-grid" id="monthGrid"></div>
     </div>
@@ -183,6 +204,7 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
       <a href="bidcast-list.html">🗂 전체 리스트</a>
       <a href="bidcast-map.html">🗺 지도로 보기</a>
       <a href="bidcast-lab.html">🎯 낙찰예보 랩</a>
+      <a href="bidcast-compare.html">⚖️ 비교함</a>
       <a href="bidcast.html#onboarding">⚡ 3초 AI 추천</a>
     </div>
   </div>
@@ -216,7 +238,7 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
         <p style="font-size:12.5px;color:var(--sub);margin-top:8px;max-width:320px;">공공데이터포털의 온비드 공식 API 데이터를 기반으로 한 공매 낙찰가 예측 서비스입니다.</p>
       </div>
       <div><h5>서비스</h5><ul><li><a href="bidcast-list.html">물건 검색</a></li><li><a href="bidcast-lab.html">적중률 공개</a></li></ul></div>
-      <div><h5>바로가기</h5><ul><li><a href="bidcast.html">홈으로</a></li><li><a href="bidcast-insight.html">인사이트</a></li><li><a href="bidcast-partner.html">파트너 프로그램</a></li><li><a href="bidcast-support.html">고객지원</a></li></ul></div>
+      <div><h5>바로가기</h5><ul><li><a href="bidcast.html">홈으로</a></li><li><a href="bidcast-insight.html">인사이트</a></li><li><a href="bidcast-partner.html">파트너 프로그램</a></li><li><a href="bidcast-support.html">고객지원</a></li><li><a href="bidcast-my.html">마이페이지</a></li></ul></div>
     </div>
     <p class="copy">© 2026 낙찰예보. All rights reserved.</p>
   </div>
@@ -241,6 +263,24 @@ renderDayList('pastList', PAST, false);
 
 document.getElementById('sumToday').textContent = UPCOMING[0];
 document.getElementById('sumWeek').textContent = UPCOMING.reduce((a,b)=>a+b,0).toLocaleString();
+
+// 다가오는 입찰 물건 (예시 데이터) — id는 bidcast-detail.html의 DETAILS와 일치, 마감일 순
+const SCHEDULE = [
+  { id:1, dd:'7.23', wd:'수', thumb:'🏢', title:'서울 강남구 역삼동 아파트 24평', meta:'서울중앙지방법원 · 아파트', min:'5.2억', fail:1 },
+  { id:4, dd:'7.24', wd:'목', thumb:'🚗', title:'5톤 카고트럭 (2021년식)', meta:'인천지방법원 · 차량', min:'2,240만', fail:1 },
+  { id:7, dd:'7.25', wd:'금', thumb:'🏢', title:'부산 해운대구 우동 아파트 32평', meta:'부산지방법원 · 아파트', min:'7.8억', fail:1 },
+  { id:2, dd:'7.30', wd:'수', thumb:'🏞️', title:'경기 시흥시 배곧동 대지 152㎡', meta:'수원지방법원 · 토지', min:'8.4억', fail:0 },
+  { id:5, dd:'7.31', wd:'목', thumb:'🏭', title:'CNC 머시닝센터 외 3점', meta:'서울중앙지방법원 · 기계장비', min:'4,510만', fail:3 },
+  { id:6, dd:'8.6', wd:'목', thumb:'📈', title:'비상장주식 A사 지분 3%', meta:'서울중앙지방법원 · 유가증권', min:'9,800만', fail:0 },
+  { id:8, dd:'8.7', wd:'금', thumb:'🏞️', title:'인천 서구 청라동 임야 890㎡', meta:'인천지방법원 · 토지', min:'5.6억', fail:0 },
+];
+document.getElementById('schedList').innerHTML = SCHEDULE.map(s => `
+  <a class="sched-row" href="bidcast-detail.html?id=${s.id}">
+    <span class="sched-date"><span class="dd">${s.dd}</span><br/><span class="wd">${s.wd} 마감</span></span>
+    <span class="sched-ico">${s.thumb}</span>
+    <span class="sched-body"><span class="t">${s.title}</span><br/><span class="m">${s.meta}</span></span>
+    <span class="sched-price"><span class="p">최저 ${s.min}</span>${s.fail > 0 ? `<br/><span class="tag">유찰 ${s.fail}회</span>` : ''}</span>
+  </a>`).join('');
 
 const MONTHS = [
   { m:'4월', v:380 }, { m:'5월', v:410 }, { m:'6월', v:395 },
