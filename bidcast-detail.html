@@ -284,7 +284,7 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
         <button type="button" onclick="openAuth('login')">10초 간편 로그인</button>
       </div>
     </div>
-    <p class="ai-note">※ 예시 데이터 — 예측 정보는 통계 기반 참고자료이며 투자 결과를 보장하지 않습니다.</p>
+    <p class="ai-note">※ 예시 데이터 — 예측 정보는 통계 기반 참고자료이며 투자 결과를 보장하지 않습니다. <a id="botLink" href="bidcast-bot.html" style="color:var(--green-deep);font-weight:800;text-decoration:none;">🤖 예보봇에게 이 물건 질문하기 →</a></p>
   </section>
 
   <section class="section" aria-labelledby="secInfo">
@@ -465,6 +465,7 @@ document.getElementById('locBadge').textContent = `${it.type} · ${fmt(it.min)}`
 const simIds = Object.keys(DETAILS).map(Number).filter(k => DETAILS[k] !== it);
 simIds.sort((a, b) => (DETAILS[b].type === it.type) - (DETAILS[a].type === it.type));
 document.getElementById('cmpLink').href = `bidcast-compare.html?ids=${[resolvedId, ...simIds.slice(0, 2)].join(',')}`;
+document.getElementById('botLink').href = `bidcast-bot.html?item=${resolvedId}`;
 document.getElementById('simGrid').innerHTML = simIds.slice(0, 3).map(k => {
   const s = DETAILS[k];
   return `<a class="sim-card" href="bidcast-detail.html?id=${k}">

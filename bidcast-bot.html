@@ -224,6 +224,23 @@ const PRESET_Q = {
   4: '낙찰 후 잔금은 언제까지 내야 하나요?',
 };
 
+// ═══════════════════════════════════════
+// 물건 컨텍스트 (?item=N) — 상세 페이지의 "예보봇에게 질문하기"에서 진입.
+// id는 bidcast-detail.html의 DETAILS와 일치하는 예시 데이터.
+// ═══════════════════════════════════════
+const ITEM_DB = {
+  1: { type:'아파트', title:'서울 강남구 역삼동 아파트 24평', court:'서울중앙지방법원', appr:65000, min:52000, fail:1, status:'진행', thumb:'🏢' },
+  2: { type:'토지', title:'경기 시흥시 배곧동 대지 152㎡', court:'수원지방법원', appr:84000, min:84000, fail:0, status:'진행', thumb:'🏞️' },
+  3: { type:'상가', title:'서울 서대문구 충정로 상가 1층', court:'서울동부지방법원', appr:41000, min:41000, fail:0, status:'낙찰', thumb:'🏬' },
+  4: { type:'차량', title:'5톤 카고트럭 (2021년식)', court:'인천지방법원', appr:2800, min:2240, fail:1, status:'진행', thumb:'🚗' },
+  5: { type:'기계장비', title:'CNC 머시닝센터 외 3점', court:'서울중앙지방법원', appr:8200, min:4510, fail:3, status:'진행', thumb:'🏭' },
+  6: { type:'유가증권', title:'비상장주식 A사 지분 3%', court:'서울중앙지방법원', appr:9800, min:9800, fail:0, status:'진행', thumb:'📈' },
+  7: { type:'아파트', title:'부산 해운대구 우동 아파트 32평', court:'부산지방법원', appr:98000, min:78400, fail:1, status:'진행', thumb:'🏢' },
+  8: { type:'토지', title:'인천 서구 청라동 임야 890㎡', court:'인천지방법원', appr:56000, min:56000, fail:0, status:'진행', thumb:'🏞️' },
+  9: { type:'차량', title:'승용차 그랜저 (2020년식)', court:'서울동부지방법원', appr:2310, min:1850, fail:0, status:'낙찰', thumb:'🚗' },
+};
+const fmtWon = n => n >= 10000 ? (n/10000).toFixed(n % 10000 === 0 ? 0 : 1) + '억' : n.toLocaleString() + '만';
+
 const chatBody = document.getElementById('chatBody');
 function appendMsg(text, who) {
   const div = document.createElement('div');
@@ -242,6 +259,26 @@ function appendTyping() {
   chatBody.appendChild(div);
   chatBody.scrollTop = chatBody.scrollHeight;
   return div;
+}
+
+// ?item=N 컨텍스트가 있으면 물건 맞춤 인사 + 컨텍스트 칩 표시
+const ctxId = parseInt(new URLSearchParams(location.search).get('item'), 10);
+const ctxItem = ITEM_DB[ctxId];
+if (ctxItem) {
+  const chip = document.createElement('div');
+  chip.className = 'msg bot';
+  chip.innerHTML = `<span class="av2">📌</span><div class="bubble" style="background:var(--green-soft);border:1px solid #C4EBD8;">
+    지금 보는 물건: <b>${ctxItem.thumb} ${ctxItem.title}</b><br/>
+    <a href="bidcast-detail.html?id=${ctxId}" style="color:var(--green-deep);font-weight:800;">물건 상세로 돌아가기 →</a></div>`;
+  chatBody.appendChild(chip);
+  const lo = fmtWon(Math.round(ctxItem.min * 1.02)), hi = fmtWon(Math.round(ctxItem.min * 1.13)), rec = fmtWon(Math.round(ctxItem.min * 1.07));
+  const failTxt = ctxItem.fail > 0
+    ? `지금까지 <b>${ctxItem.fail}회 유찰</b>되어 최저입찰가가 내려온 물건이에요. 유찰 사유(권리관계·물건 상태)를 상세 페이지의 권리분석에서 꼭 확인하세요.`
+    : `아직 유찰 없이 처음 나온 <b>신건</b>이라 감정가 수준에서 시작해요.`;
+  const statusTxt = ctxItem.status === '낙찰'
+    ? `이 물건은 이미 <b>매각완료</b>된 물건이라 참고용으로만 봐주세요.`
+    : `현재 <b>입찰 진행중</b>이며 최저입찰가는 <b>${fmtWon(ctxItem.min)}원</b>(감정가 ${fmtWon(ctxItem.appr)}원)입니다.`;
+  appendMsg(`이 물건에 대해 물어보시는군요! ${statusTxt} ${failTxt}<br/><br/>AI 예상 낙찰가 범위는 <b>${lo} ~ ${hi}</b>, 추천 입찰가는 <b>${rec}원</b> 부근이에요 (예시 데이터 기준). 아래 자주 묻는 질문이나 자유 입력으로 이어서 질문해 주세요.`, 'bot');
 }
 
 document.querySelectorAll('#presetList button').forEach(btn => {

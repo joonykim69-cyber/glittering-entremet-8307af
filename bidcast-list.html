@@ -246,7 +246,7 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
       <select id="fPrice"><option value="">가격대 전체</option><option value="0-5000">5천만 이하</option><option value="5000-10000">5천만~1억</option><option value="10000-50000">1억~5억</option><option value="50000-999999">5억 이상</option></select>
       <select id="fFail"><option value="">유찰횟수 전체</option><option value="0">신건(유찰없음)</option><option value="1">1회</option><option value="2">2회 이상</option></select>
       <select id="fStatus"><option value="">상태 전체</option><option>진행</option><option>유찰</option><option>낙찰</option></select>
-      <select id="fSort"><option value="latest">최신순</option><option value="views">조회수순</option><option value="price-asc">낮은 가격순</option><option value="price-desc">높은 가격순</option></select>
+      <select id="fSort"><option value="latest">최신순</option><option value="views">조회수순</option><option value="discount">할인율 높은순</option><option value="fail-desc">유찰 많은순</option><option value="price-asc">낮은 가격순</option><option value="price-desc">높은 가격순</option></select>
       <span class="filter-count"><b id="resultCount">0</b>건의 물건 · <a href="bidcast-compare.html" style="color:var(--green-deep);font-weight:800;text-decoration:none;">⚖️ 비교함</a></span>
     </div>
 
@@ -387,6 +387,8 @@ function applyFilters() {
     list = list.filter(it => it.appr >= lo && it.appr <= hi);
   }
   if (sort === 'views') list = [...list].sort((a, b) => b.views - a.views);
+  else if (sort === 'discount') list = [...list].sort((a, b) => (a.min / a.appr) - (b.min / b.appr)); // 감정가 대비 최저가 비율 낮은순 = 할인율 높은순
+  else if (sort === 'fail-desc') list = [...list].sort((a, b) => b.fail - a.fail);
   else if (sort === 'price-asc') list = [...list].sort((a, b) => a.appr - b.appr);
   else if (sort === 'price-desc') list = [...list].sort((a, b) => b.appr - a.appr);
   else list = [...list].sort((a, b) => b.id - a.id);
