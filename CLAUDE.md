@@ -4,19 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repository is
 
-A static site deployed on Netlify hosting two unrelated projects: **K-Map Linker / K-Buddy** (Korea-travel web apps) and **낙찰예보 (BidCast)** (an Onbid public-auction price-prediction prototype). There is no package.json, no build step, no test suite, and no linter. Each page is a single self-contained HTML file with all CSS and JavaScript inlined — keep it that way when editing; do not introduce bundlers, frameworks, or external JS files.
+A static site deployed on Netlify for **낙찰예보 (BidCast)** — an Onbid public-auction price-prediction service. There is no package.json, no build step, no test suite, and no linter. Each page is a single self-contained HTML file with all CSS and JavaScript inlined — keep it that way when editing; do not introduce bundlers, frameworks, or external JS files. (The repo previously also hosted the K-Map Linker/K-Buddy travel apps; those files were removed 2026-07-17.)
 
 ## Files
 
-### K-Map Linker / K-Buddy
+### Serverless functions
 
-- `index.html` — Marketing/landing page for K-Map Linker (sections: hero, features, how, drama, reviews, download).
-- `kmaplinker_web.html` — The main mobile-web app prototype. A vanilla-JS SPA with five tabs: Address, Subway, Discover, Drama Route, Travelers.
-- `kbuddy.html` — K-Buddy, a fully offline mobile web app (views: address, food, travelers, drama). Views are static `<section class="view">` blocks toggled with the `is-active` class; no fetch calls at all.
-- `netlify/functions/claude.js` — Serverless proxy for the Anthropic Messages API.
+- `netlify/functions/claude.js` — Serverless proxy for the Anthropic Messages API, used by `bidcast-bot.html`'s free-text chat. Forces the model allowlist and clamps `max_tokens`; the key lives only in the `ANTHROPIC_API_KEY` env var.
 - `netlify/functions/onbid-search.js` — Serverless proxy for the 온비드(Onbid/KAMCO) auction-listing API, feeding `bidcast-list.html`. End Point is confirmed (`https://apis.data.go.kr/B010003/OnbidRlstListSrvc2`); see the BidCast real-data section below — **the exact operation path and response field names are still unconfirmed**.
 - `netlify/functions/onbid-detail.js` — Scaffold proxy for the "온비드 부동산 물건상세 조회 서비스" (looked up by `cltrMngNo`+`pbctCdtnNo`). **Intentionally unfinished**: that service hasn't been applied for on data.go.kr yet, so `ONBID_DETAIL_API_URL`/`ONBID_DETAIL_OPERATION` env vars are unset and the function returns a clean 501. The completion checklist (apply → read Swagger → set env vars → fill `mapDetail()` from a `?debug=1` sample → wire `bidcast-detail.html`) is in the file header.
-- `netlify.toml` — Points Netlify at `netlify/functions` with the esbuild bundler. Also 302-redirects `/` to `/bidcast.html` (BidCast is the primary product); the K-Map Linker landing stays reachable at `/index.html`.
+- `netlify.toml` — Points Netlify at `netlify/functions` with the esbuild bundler. Also 302-redirects `/` to `/bidcast.html` with `force = true` (Netlify serves an existing file over a redirect without it).
 
 ### 낙찰예보 (BidCast)
 
@@ -53,21 +50,9 @@ Deployment happens through Netlify on push (the initial commit was created via N
 
 ## Architecture
 
-### kmaplinker_web.html render engine
-
-The app uses a hand-rolled mini-framework defined near the middle of the file:
-
-- A single global `state` object; `setState(updates)` merges updates and triggers a full re-render.
-- `h(tag, attrs, inner)` creates DOM elements (attrs starting with `on` become event listeners, `style` objects are assigned).
-- `render()` rebuilds the active tab's content into `#tabContent`; each tab has its own render function (search for `── ADDRESS TAB ──`, `── SUBWAY TAB ──`, etc.).
-
-Data is layered: an embedded offline `PLACE_DB` is checked first, then the Kakao Local API (`searchKakao`), then Claude as the AI fallback. Voice input uses the Web Speech API (`startVoiceRecognition`). UI strings go through `t(key)` with per-language tables in `T` — add new user-facing strings there, not inline.
-
 ### Claude API calls
 
-`netlify/functions/claude.js` exists so the Anthropic key stays server-side: it accepts a POST with a Messages API payload, forces the model to `claude-haiku-4-5-20251001` (allowlist) and clamps `max_tokens` to ≤1500, then forwards to `api.anthropic.com` with CORS headers.
-
-**Known inconsistency:** `kmaplinker_web.html`'s `callClaude()` still calls `api.anthropic.com` directly using a client-side `ANTHROPIC_KEY` constant (currently the placeholder `'YOUR_ANTHROPIC_API_KEY'`, next to a hardcoded `KAKAO_KEY`). Any new or modified AI feature should call the proxy at `/.netlify/functions/claude` instead of the Anthropic API directly, and migrating `callClaude()` to the proxy is the intended direction. `bidcast-bot.html`'s free-text handler follows the intended pattern already — see its entry above.
+`netlify/functions/claude.js` exists so the Anthropic key stays server-side: it accepts a POST with a Messages API payload, forces the model to `claude-haiku-4-5-20251001` (allowlist) and clamps `max_tokens` to ≤1500, then forwards to `api.anthropic.com` with CORS headers. Any new or modified AI feature must call this proxy, never the Anthropic API directly from client code.
 
 ### bidcast-list.html search engine
 
@@ -95,9 +80,8 @@ Every `bidcast-*.html` page repeats the same self-contained auth modal (`#authOv
 
 ## Conventions
 
-- Comments and some UI copy are in Korean; the apps themselves are multilingual (language tables in each file). Preserve both.
+- Comments and UI copy are in Korean; preserve that.
 - Section banners in the big HTML files use box-drawing/`═` comment dividers — follow that style when adding sections.
-- Styling is plain CSS with custom properties defined in `:root` per file (each app has its own palette); reuse the existing variables rather than hardcoding colors.
-- The mobile apps are built mobile-first with a fixed max-width shell (`max-width: 420–440px`) centered on desktop.
+- Styling is plain CSS with custom properties defined in `:root` per file; reuse the existing variables rather than hardcoding colors.
 - **BidCast palette** ("night pedestrian-signal"): light neutral background (`--bg:#F6FAF7`), green accent (`--green:#00A86B`) for go/primary actions, red (`--red:#E5484D`) reserved for warnings — always paired with an icon/label, never color alone. All 14 `bidcast-*.html` pages share this token set and a standardized 7-item top nav (물건검색/지도/카테고리/적중률/캘린더/인사이트/예보봇); keep new BidCast pages' nav and footer in sync with the others rather than drifting.
 - Every BidCast data point that isn't wired to a real API must carry a visible "예시 데이터" disclosure — this is a hard requirement from the legal-risk notes in the original product memo, not just a style choice.

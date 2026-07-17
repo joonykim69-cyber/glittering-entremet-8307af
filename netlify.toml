@@ -9,8 +9,8 @@
    [functions]
      node_bundler = "esbuild"
 
-   # 루트(/)는 낙찰예보(BidCast) 랜딩으로 안내 — K-Map Linker 랜딩은 /index.html로 직접 접근 가능.
-   # force = true 필수: 루트에 index.html이 실존하면 Netlify는 기본적으로 리다이렉트보다 파일을 우선함.
+   # 루트(/)는 낙찰예보(BidCast) 랜딩으로 안내.
+   # force = true: 루트에 파일이 실존하면 Netlify는 기본적으로 리다이렉트보다 파일을 우선하므로 유지.
    [[redirects]]
      from = "/"
      to = "/bidcast.html"
