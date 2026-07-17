@@ -146,18 +146,21 @@ exports.handler = async (event) => {
     pageNo,
     numOfRows,
     resultType: 'json',
-    prptDivCd: qs.prptDivCd || ALL_PRPT_DIV_CD,
     pvctTrgtYn: qs.pvctTrgtYn || 'N',
   });
   if (qs.region) params.set('lctnSdnm', qs.region);
   if (qs.keyword) params.set('onbidCltrNm', qs.keyword);
+  // prptDivCd는 URLSearchParams에 넣지 않고 쉼표를 인코딩(%2C)하지 않은 원문 그대로 붙인다 —
+  // data.go.kr 계열 API 중 인코딩된 쉼표를 복수값 구분자로 인식하지 못하는 경우가 있음.
+  const prptDivCd = (qs.prptDivCd || ALL_PRPT_DIV_CD).replace(/[^0-9,]/g, '');
   // qs.type(아파트/토지/상가 등)은 API의 용도분류 코드값을 몰라 상류로 전달하지
   // 않는다 — mapOnbidItem()의 normalizeType()으로 응답을 받은 뒤 정규화하고,
   // 실제 버킷 필터링은 프론트엔드의 applyFilters()가 클라이언트 사이드에서 처리.
 
-  const upstreamUrl = `${ONBID_API_URL}${ONBID_OPERATION}?${params.toString().replace(serviceKey, '***')}`;
+  const queryString = `${params.toString()}&prptDivCd=${prptDivCd}`;
+  const upstreamUrl = `${ONBID_API_URL}${ONBID_OPERATION}?${queryString.replace(serviceKey, '***').replace(encodeURIComponent(serviceKey), '***')}`;
   try {
-    const r = await fetch(`${ONBID_API_URL}${ONBID_OPERATION}?${params.toString()}`);
+    const r = await fetch(`${ONBID_API_URL}${ONBID_OPERATION}?${queryString}`);
     const bodyText = await r.text();
     console.log('[onbid-search] request:', upstreamUrl);
     console.log('[onbid-search] upstream status:', r.status, '| body(첫 1000자):', bodyText.slice(0, 1000));
@@ -190,10 +193,14 @@ exports.handler = async (event) => {
     const totalCount = raw?.response?.body?.totalCount ?? items.length;
     console.log('[onbid-search] 정상 응답 — 매핑된 물건 수:', items.length, '/ totalCount:', totalCount);
 
+    // ?debug=1일 때만 온비드 원본 header와 실제 요청 파라미터를 응답에 포함 —
+    // Netlify 대시보드 함수 로그 접근이 막혀있는 환경에서 브라우저로 바로 원인 확인용.
+    const debug = qs.debug ? { header, prptDivCd, pvctTrgtYn: params.get('pvctTrgtYn'), upstreamUrl } : undefined;
+
     return {
       statusCode: 200,
       headers: { ...CORS, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items, totalCount, pageNo: Number(pageNo), numOfRows: Number(numOfRows) }),
+      body: JSON.stringify({ items, totalCount, pageNo: Number(pageNo), numOfRows: Number(numOfRows), ...(debug ? { debug } : {}) }),
     };
   } catch (e) {
     console.log('[onbid-search] fetch 자체 실패:', e.message);
