@@ -8,3 +8,9 @@
 
    [functions]
      node_bundler = "esbuild"
+
+   # 루트(/)는 낙찰예보(BidCast) 랜딩으로 안내 — K-Map Linker 랜딩은 /index.html로 직접 접근 가능
+   [[redirects]]
+     from = "/"
+     to = "/bidcast.html"
+     status = 302

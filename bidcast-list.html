@@ -409,7 +409,7 @@ function renderList(list) {
       </div>
       <div class="item-body">
         <span class="item-kind">${it.court} · ${it.type}</span>
-        <div class="item-title"><a href="bidcast-detail.html?id=${encodeURIComponent(it.id)}" style="text-decoration:none;color:inherit;">${it.title}</a></div>
+        <div class="item-title"><a href="bidcast-detail.html?id=${encodeURIComponent(it.id)}" style="text-decoration:none;color:inherit;" onclick="stashDetail('${String(it.id).replace(/[^0-9A-Za-z\-_.]/g, '')}')">${it.title}</a></div>
         <div class="item-meta">${it.caseNo} · ${it.address}</div>
         <div class="item-tags">${it.tags.map(t => `<span>${t}</span>`).join('')}</div>
         <div class="item-price"><span>감정가</span><b>${fmtWon(it.appr)}</b></div>
@@ -421,6 +421,13 @@ function renderList(list) {
       </div>
     </article>
   `).join('');
+}
+
+// 상세 페이지로 넘어가기 직전 클릭한 물건의 데이터를 sessionStorage에 저장 —
+// 실 데이터 물건은 상세 페이지의 데모 DETAILS에 없으므로, 이 스냅샷으로 기본정보를 렌더링한다.
+function stashDetail(id) {
+  const it = ITEMS.find(x => String(x.id) === String(id));
+  if (it) { try { sessionStorage.setItem('bidcast:detail', JSON.stringify(it)); } catch (e) {} }
 }
 
 function toggleLike(id, el) {
@@ -448,8 +455,21 @@ document.querySelectorAll('#typeChips button').forEach(btn => {
     applyFilters();
   });
 });
-['fCourt','fRegion','fPrice','fFail','fStatus','fSort'].forEach(id => document.getElementById(id).addEventListener('change', applyFilters));
-document.getElementById('fQuery').addEventListener('input', (e) => { qTerm = e.target.value.trim(); applyFilters(); });
+['fCourt','fPrice','fFail','fStatus','fSort'].forEach(id => document.getElementById(id).addEventListener('change', applyFilters));
+// 지역·키워드는 실 데이터 모드일 때 온비드 API 재조회를 함께 트리거 (전국 62,000여 건 대상 검색)
+document.getElementById('fRegion').addEventListener('change', () => {
+  applyFilters();
+  if (liveMode) loadRealItems({ region: document.getElementById('fRegion').value, keyword: qTerm });
+});
+let queryDebounce = null;
+document.getElementById('fQuery').addEventListener('input', (e) => {
+  qTerm = e.target.value.trim();
+  applyFilters();
+  if (liveMode) {
+    clearTimeout(queryDebounce);
+    queryDebounce = setTimeout(() => loadRealItems({ region: document.getElementById('fRegion').value, keyword: qTerm }), 450);
+  }
+});
 
 // ═══════════════════════════════════════
 // AI 리포트 모달 — 4탭, 비로그인 시 핵심 수치 블러 처리
@@ -621,20 +641,39 @@ function rebuildCourtOptions() {
   if (courts.includes(prev)) sel.value = prev;
 }
 
-async function loadRealItems() {
+let liveMode = false; // 실 데이터 연동 성공 여부 — 지역/키워드 변경 시 API 재조회 트리거에 사용
+let liveFetchSeq = 0;  // 연속 재조회 시 늦게 도착한 이전 응답이 최신 결과를 덮지 않도록 함
+
+// opts.region/opts.keyword가 있으면 온비드 API에 서버사이드 검색 조건으로 전달.
+// 최초 호출 실패 시에만 예시 데이터로 폴백하고, 재조회 실패 시엔 기존 목록 유지.
+async function loadRealItems(opts = {}) {
   const chip = document.getElementById('dataSourceChip');
+  const initial = !liveMode;
+  const seq = ++liveFetchSeq;
   try {
-    const res = await fetch('/.netlify/functions/onbid-search?page=1&numOfRows=30');
+    const p = new URLSearchParams({ page: '1', numOfRows: '30' });
+    if (opts.region) p.set('region', opts.region);
+    if (opts.keyword) p.set('keyword', opts.keyword);
+    const res = await fetch('/.netlify/functions/onbid-search?' + p.toString());
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    if (!Array.isArray(data.items) || data.items.length === 0) throw new Error('빈 응답');
+    if (seq !== liveFetchSeq) return; // 더 최신 요청이 이미 나감 — 이 응답은 폐기
+    if (!Array.isArray(data.items)) throw new Error('형식 오류');
+    if (initial && data.items.length === 0) throw new Error('빈 응답');
 
     ITEMS = data.items.map(it => ({ ...it, mode: deriveModes(it) }));
+    liveMode = true;
     chip.textContent = `✅ 실시간 온비드 데이터 (총 ${data.totalCount ?? data.items.length}건 중 표시)`;
   } catch (e) {
-    // 아직 ONBID_SERVICE_KEY 미설정, API 오류, 네트워크 문제 등 — 예시 데이터로 계속 동작
-    chip.textContent = '🔧 아래 물건·필터·리포트는 모두 예시 데이터입니다 — 실 데이터 연동 대기 중';
-    console.info('[bidcast] 실 데이터 연동 실패, 예시 데이터로 폴백:', e.message);
+    if (seq !== liveFetchSeq) return;
+    if (initial) {
+      // 아직 ONBID_SERVICE_KEY 미설정, API 오류, 네트워크 문제 등 — 예시 데이터로 계속 동작
+      chip.textContent = '🔧 아래 물건·필터·리포트는 모두 예시 데이터입니다 — 실 데이터 연동 대기 중';
+      console.info('[bidcast] 실 데이터 연동 실패, 예시 데이터로 폴백:', e.message);
+    } else {
+      // 재조회 실패 — 기존 목록을 유지하고 콘솔에만 기록
+      console.info('[bidcast] 실 데이터 재조회 실패, 기존 목록 유지:', e.message);
+    }
   }
   rebuildCourtOptions();
   applyFilters();

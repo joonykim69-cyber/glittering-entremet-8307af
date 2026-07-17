@@ -400,18 +400,54 @@ const DETAILS = {
 
 const fmt = n => n >= 10000 ? (n/10000).toFixed(n % 10000 === 0 ? 0 : 1) + '억' : n.toLocaleString() + '만';
 
-// ?id= 파라미터로 물건 선택 — 없거나 못 찾으면 1번 예시 물건으로 폴백
+// ?id= 파라미터로 물건 선택.
+// 1) 데모 id(1~9) → DETAILS 사용
+// 2) 실 데이터 id(cltrMngNo) → 검색 페이지가 sessionStorage에 남긴 스냅샷으로 기본정보 렌더링
+//    (입찰이력·권리분석 등 상세 항목은 "온비드 부동산 물건상세 조회 서비스" 연동 후 제공 예정)
+// 3) 둘 다 없으면 1번 예시 물건으로 폴백
 const params = new URLSearchParams(location.search);
-const id = parseInt(params.get('id'), 10);
+const rawId = params.get('id') || '';
+const id = parseInt(rawId, 10);
+
+function buildLiveDetail(s) {
+  return {
+    type: s.type || '기타', region: s.region || '', court: s.court || '', title: s.title,
+    address: s.address || '', appr: s.appr, min: s.min, fail: s.fail || 0, status: s.status || '진행',
+    thumb: s.thumb || '📦', caseNo: s.caseNo || String(s.id), photo: s.photo || '',
+    period: '물건상세 API 연동 후 제공', landArea: '—', bldArea: '—',
+    usage: s.type || '—', floor: '—', built: '—',
+    hist: [{ r: '현재', p: s.min, d: '현재 공매조건 기준 최저입찰가', tag: s.status === '낙찰' ? '낙찰' : '진행중' }],
+    rights: [
+      { ok: false, t: '권리분석 미제공 (실시간 물건)', m: '물건상세 조회 API 연동 후 제공 예정입니다. 입찰 전 반드시 온비드 원문 공고와 감정평가서를 확인하세요.' },
+    ],
+  };
+}
+
+let liveItem = null;
+if (!DETAILS[id] && rawId) {
+  try {
+    const stash = JSON.parse(sessionStorage.getItem('bidcast:detail') || 'null');
+    if (stash && String(stash.id) === rawId) liveItem = stash;
+  } catch (e) {}
+}
+const isLive = !!liveItem;
 const resolvedId = DETAILS[id] ? id : 1;
-const it = DETAILS[resolvedId];
+const it = isLive ? buildLiveDetail(liveItem) : DETAILS[resolvedId];
+// 관심물건·최근 본 물건 기록용 id — 실 물건은 cltrMngNo 문자열 그대로 사용
+const storageId = isLive ? rawId : resolvedId;
+
+if (isLive) {
+  // 실시간 물건은 예시 데이터 칩을 실데이터 안내로 교체
+  const chip = document.querySelector('.demo-chip');
+  if (chip) chip.textContent = '📡 실시간 온비드 물건 — 기본정보는 실 데이터이며, 입찰이력·권리분석 등 상세 항목은 물건상세 API 연동 후 제공됩니다';
+}
 
 // 최근 본 물건 기록 — 마이페이지(bidcast-my.html)에서 표시. 중복 제거, 최대 12건
 const RECENT_KEY = 'bidcast:recent';
 (() => {
   const recent = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]')
-    .filter(r => String(r.id) !== String(resolvedId));
-  recent.unshift({ id: resolvedId, at: Date.now() });
+    .filter(r => String(r.id) !== String(storageId));
+  recent.unshift({ id: storageId, at: Date.now() });
   localStorage.setItem(RECENT_KEY, JSON.stringify(recent.slice(0, 12)));
 })();
 
@@ -421,6 +457,16 @@ document.getElementById('bcTitle').textContent = it.title;
 document.getElementById('dTitle').textContent = it.title;
 document.getElementById('dMeta').innerHTML = `사건번호 <b>${it.caseNo}</b> · ${it.court} · ${it.address}`;
 document.getElementById('dThumb').textContent = it.thumb;
+if (it.photo && /^https?:\/\//.test(it.photo)) {
+  // 실사 썸네일 — 로딩 실패 시 이모지 폴백 (목록 카드와 동일 패턴)
+  const img = document.createElement('img');
+  img.src = it.photo;
+  img.alt = '';
+  img.onerror = () => img.remove();
+  document.getElementById('photoBox').prepend(img);
+  const note = document.querySelector('.photo-note');
+  if (note) note.textContent = '온비드 제공 실사 썸네일';
+}
 document.getElementById('headBadges').innerHTML = [
   `<span class="badge type">${it.type}</span>`,
   it.status === '낙찰' ? `<span class="badge done">매각완료</span>` : `<span class="badge live">입찰 진행중</span>`,
@@ -464,9 +510,10 @@ document.getElementById('locBadge').textContent = `${it.type} · ${fmt(it.min)}`
 // 유사 물건: 같은 유형 우선, 자기 자신 제외, 최대 3개
 const simIds = Object.keys(DETAILS).map(Number).filter(k => DETAILS[k] !== it);
 simIds.sort((a, b) => (DETAILS[b].type === it.type) - (DETAILS[a].type === it.type));
-document.getElementById('cmpLink').href = `bidcast-compare.html?ids=${[resolvedId, ...simIds.slice(0, 2)].join(',')}`;
-document.getElementById('botLink').href = `bidcast-bot.html?item=${resolvedId}`;
-document.getElementById('simLink').href = `bidcast-simulator.html?appr=${it.appr}&ratio=${Math.round(it.min / it.appr * 100)}&id=${resolvedId}&title=${encodeURIComponent(it.title)}`;
+// 실시간 물건은 비교함/예보봇의 데모 데이터셋에 없으므로 id 없이 연결 (시뮬레이터 프리필은 값 기반이라 동일 동작)
+document.getElementById('cmpLink').href = isLive ? 'bidcast-compare.html' : `bidcast-compare.html?ids=${[resolvedId, ...simIds.slice(0, 2)].join(',')}`;
+document.getElementById('botLink').href = isLive ? 'bidcast-bot.html' : `bidcast-bot.html?item=${resolvedId}`;
+document.getElementById('simLink').href = `bidcast-simulator.html?appr=${it.appr}&ratio=${Math.round(it.min / it.appr * 100)}${isLive ? '' : `&id=${resolvedId}`}&title=${encodeURIComponent(it.title)}`;
 document.getElementById('simGrid').innerHTML = simIds.slice(0, 3).map(k => {
   const s = DETAILS[k];
   return `<a class="sim-card" href="bidcast-detail.html?id=${k}">
@@ -483,7 +530,7 @@ function readLikes() { return new Set(JSON.parse(localStorage.getItem(LIKES_KEY)
 function toggleHeart() {
   const btn = document.getElementById('heartBtn');
   const likes = readLikes();
-  const key = String(resolvedId);
+  const key = String(storageId);
   if (likes.has(key)) likes.delete(key); else likes.add(key);
   localStorage.setItem(LIKES_KEY, JSON.stringify([...likes]));
   const on = likes.has(key);
@@ -491,7 +538,7 @@ function toggleHeart() {
   btn.setAttribute('aria-pressed', String(on));
   btn.setAttribute('aria-label', on ? '관심물건 해제' : '관심물건 등록');
 }
-if (readLikes().has(String(resolvedId))) {
+if (readLikes().has(String(storageId))) {
   const btn = document.getElementById('heartBtn');
   btn.classList.add('on');
   btn.setAttribute('aria-pressed', 'true');
