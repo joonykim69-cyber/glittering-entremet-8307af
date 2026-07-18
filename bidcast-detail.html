@@ -68,7 +68,7 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 .hero-grid { display:grid; grid-template-columns:1.15fr 1fr; gap:16px; margin-top:6px; }
 @media (max-width:860px) { .hero-grid { grid-template-columns:1fr; } }
 .photo-box { position:relative; border-radius:var(--radius); overflow:hidden; border:1px solid var(--line); background:linear-gradient(140deg,#E9F8F0,#F2FBF6); min-height:300px; display:grid; place-items:center; font-size:74px; }
-.photo-box img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.photo-box img { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; }
 .photo-box .heart { position:absolute; top:14px; right:14px; width:40px; height:40px; padding:0; border-radius:50%; background:rgba(255,255,255,.9); border:1px solid var(--line); display:grid; place-items:center; cursor:pointer; font:inherit; font-size:18px; color:var(--sub); transition:all .2s; z-index:2; }
 .photo-box .heart.on { background:var(--red-soft); border-color:var(--red); color:var(--red); }
 .photo-box .photo-note { position:absolute; left:14px; bottom:12px; font-size:11px; font-weight:700; color:var(--sub); background:rgba(255,255,255,.85); border:1px dashed var(--mute); padding:4px 10px; border-radius:999px; z-index:2; }
