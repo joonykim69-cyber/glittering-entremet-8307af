@@ -241,6 +241,81 @@ a{color:inherit;text-decoration:none;}
 
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important;}}
 :focus-visible{outline:2px solid var(--green);outline-offset:2px;}
+
+/* ═══ 갤러리+지도 분할 ═══ */
+.gallery-map-row{display:grid;grid-template-columns:3fr 2fr;border-bottom:1px solid var(--line);}
+@media(max-width:660px){.gallery-map-row{grid-template-columns:1fr;}}
+.gallery-panel{position:relative;overflow:hidden;background:#111;height:300px;}
+@media(max-width:660px){.gallery-panel{height:220px;}}
+.gal-inner{width:100%;height:100%;display:grid;place-items:center;font-size:80px;position:relative;overflow:hidden;}
+.gal-inner img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.gal-dim{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.5) 0%,transparent 50%);pointer-events:none;}
+.gal-nav{position:absolute;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.55);border:none;color:#fff;font-size:22px;cursor:pointer;z-index:5;display:grid;place-items:center;line-height:1;}
+.gal-prev{left:8px;}.gal-next{right:8px;}
+.gal-count{position:absolute;bottom:8px;right:10px;font-size:11px;font-weight:700;color:#fff;background:rgba(0,0,0,.5);padding:3px 9px;border-radius:999px;z-index:5;}
+.map-panel{position:relative;overflow:hidden;height:300px;border-left:1px solid rgba(255,255,255,.12);}
+@media(max-width:660px){.map-panel{height:160px;border-left:none;border-top:1px solid var(--line);}}
+.map-panel .loc-map{height:100%;border-radius:0;border:none;}
+.map-addr-bar{position:absolute;bottom:0;left:0;right:0;padding:8px 13px;background:rgba(255,255,255,.92);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);font-size:11px;color:var(--sub);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* ═══ 가격 바 ═══ */
+.price-bar{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--line);}
+@media(max-width:480px){.price-bar{grid-template-columns:1fr;}}
+.pb-cell{padding:16px 22px;}
+.pb-cell.appr{background:var(--surface);border-right:1px solid var(--line);}
+@media(max-width:480px){.pb-cell.appr{border-right:none;border-bottom:1px solid var(--line);}}
+.pb-cell.minp{background:#FFF8F0;}
+.pb-lbl{font-size:11px;font-weight:700;color:var(--sub);}
+.pb-val{font-size:21px;font-weight:900;margin-top:4px;font-variant-numeric:tabular-nums;}
+.pb-val.orange{color:#C85000;}
+.pb-note{font-size:11px;color:var(--mute);margin-top:3px;}
+
+/* ═══ 2분할 섹션 ═══ */
+.split-row{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--line);}
+@media(max-width:660px){.split-row{grid-template-columns:1fr;}}
+.split-cell{background:var(--surface);padding:18px 20px;overflow:hidden;}
+.split-cell+.split-cell{border-left:1px solid var(--line);}
+@media(max-width:660px){.split-cell+.split-cell{border-left:none;border-top:1px solid var(--line);}}
+.split-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.split-title{font-size:14px;font-weight:900;letter-spacing:-.01em;}
+.split-cnt{font-size:11.5px;font-weight:800;color:var(--green-deep);background:var(--green-soft);padding:2px 9px;border-radius:999px;}
+
+/* 당사자 테이블 */
+.party-tbl{width:100%;border-collapse:collapse;font-size:12.5px;}
+.party-tbl th{color:var(--sub);font-weight:700;font-size:11.5px;padding:8px 0;border-bottom:1px solid var(--line);width:58px;vertical-align:top;white-space:nowrap;}
+.party-tbl td{padding:8px 0 8px 10px;border-bottom:1px solid var(--line);font-weight:600;word-break:break-all;}
+.party-tbl tr:last-child th,.party-tbl tr:last-child td{border-bottom:none;}
+
+/* 기일 타임라인 */
+.sch-list{display:flex;flex-direction:column;}
+.sch-item{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);align-items:flex-start;font-size:12.5px;}
+.sch-item:last-child{border-bottom:none;}
+.sch-date{font-size:11px;font-weight:700;color:var(--sub);width:74px;flex:none;padding-top:2px;}
+.sch-body{flex:1;}
+.sch-type{font-size:13px;font-weight:700;}
+.sch-badge{display:inline-block;font-size:10px;font-weight:800;padding:2px 7px;border-radius:4px;margin-left:5px;vertical-align:middle;}
+.sch-badge.done-b{background:#E8F5E9;color:#1B5E20;}
+.sch-badge.next-b{background:var(--red-soft);color:var(--red);}
+.sch-badge.pass-b{background:var(--bg);color:var(--sub);border:1px solid var(--line);}
+.sch-note{font-size:11.5px;color:var(--sub);margin-top:2px;}
+
+/* 등기·문건 타임라인 */
+.reg-list{display:flex;flex-direction:column;}
+.reg-item{display:flex;gap:9px;padding:8px 0;border-bottom:1px solid var(--line);align-items:flex-start;font-size:12.5px;}
+.reg-item:last-child{border-bottom:none;}
+.reg-dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex:none;margin-top:4px;}
+.reg-date{font-size:11px;color:var(--sub);font-weight:600;width:62px;flex:none;padding-top:2px;}
+.reg-body{flex:1;font-weight:600;line-height:1.5;}
+.reg-tag{display:inline-block;font-size:10px;font-weight:800;padding:2px 6px;border-radius:4px;background:var(--bg);color:var(--sub);border:1px solid var(--line);margin-right:5px;}
+
+/* ═══ 경쟁평가 요약 ═══ */
+.eval-list{display:flex;flex-direction:column;gap:12px;}
+.eval-item{display:flex;gap:10px;align-items:flex-start;}
+.eval-num{width:22px;height:22px;border-radius:50%;background:var(--green);color:#fff;font-size:11px;font-weight:900;display:grid;place-items:center;flex:none;margin-top:1px;}
+.eval-lbl{font-size:12.5px;font-weight:800;margin-bottom:2px;}
+.eval-desc{font-size:12px;color:var(--sub);line-height:1.6;}
+.eval-desc b{color:var(--red);font-weight:700;}
+.eval-desc a{color:var(--green-deep);font-weight:700;text-decoration:underline;}
 </style>
 </head>
 <body>
@@ -296,7 +371,7 @@ a{color:inherit;text-decoration:none;}
     <button class="sb-btn" type="button" title="권리분석" onclick="switchTab('rights')">⚖️</button>
     <button class="sb-btn" type="button" title="적정가 분석" onclick="switchTab('price')">💰</button>
     <div class="sb-sep"></div>
-    <button class="sb-btn" type="button" title="위치" onclick="tabGo('basic','sec-loc')">📍</button>
+    <button class="sb-btn" type="button" title="위치·사진" onclick="sbGo('sec-gallery')">📍</button>
     <button class="sb-btn" type="button" title="유사 물건" onclick="tabGo('basic','sec-sim')">🔍</button>
   </aside>
 
@@ -356,17 +431,38 @@ a{color:inherit;text-decoration:none;}
       </table>
     </section>
 
-    <!-- 4. 사진 갤러리 -->
-    <section class="sec-gallery" id="sec-gallery">
-      <div class="gallery-empty" id="galleryEmpty">
-        <div class="ge-ico" id="galleryThumb">🏢</div>
-        <div class="ge-txt" id="galleryNote">실사 이미지는 온비드 API 연동 후 표시됩니다</div>
+    <!-- 4. 갤러리 + 지도 분할 -->
+    <section class="gallery-map-row" id="sec-gallery">
+      <div class="gallery-panel">
+        <div class="gal-inner" id="galInner">
+          <span id="galleryThumb">🏢</span>
+          <div class="gal-dim"></div>
+        </div>
+        <button class="gal-nav gal-prev" type="button" id="galPrev" onclick="galNav(-1)" style="display:none" aria-label="이전 사진">‹</button>
+        <button class="gal-nav gal-next" type="button" id="galNext" onclick="galNav(1)" style="display:none" aria-label="다음 사진">›</button>
+        <span class="gal-count" id="galCount" style="display:none">1/1</span>
       </div>
-      <div class="gallery-main" id="galleryMain" style="display:none">
-        <div class="gallery-dim"></div>
-        <span class="gallery-note" id="galleryPhotoNote">온비드 제공 실사 이미지</span>
+      <div class="map-panel">
+        <div class="loc-map" style="height:100%;border-radius:0;border:none;">
+          <div class="loc-pin"><span class="b" id="locBadge">—</span><span class="s"></span></div>
+        </div>
+        <div class="map-addr-bar" id="mapAddrBar">—</div>
       </div>
     </section>
+
+    <!-- 5. 가격 바 -->
+    <div class="price-bar">
+      <div class="pb-cell appr">
+        <div class="pb-lbl">감정가 <span style="font-size:10px;opacity:.55;margin-left:3px;">예시 데이터</span></div>
+        <div class="pb-val" id="pbAppr">—</div>
+        <div class="pb-note">감정평가기관 기준</div>
+      </div>
+      <div class="pb-cell minp">
+        <div class="pb-lbl">최저입찰가 <span id="pbMinPct" style="font-size:10px;color:#C85000;margin-left:3px;font-weight:800;"></span></div>
+        <div class="pb-val orange" id="pbMin">—</div>
+        <div class="pb-note" id="pbMinNote">—</div>
+      </div>
+    </div>
 
     <!-- ══ 탭 1: 기본정보 ══ -->
     <div class="tab-panel" id="tab-basic">
@@ -380,13 +476,50 @@ a{color:inherit;text-decoration:none;}
         <h2>입찰 이력</h2>
         <div class="card history" id="histList"></div>
       </section>
-      <section class="rp-section" id="sec-loc">
-        <h2>위치</h2>
-        <div class="card">
-          <div class="loc-map"><div class="loc-pin"><span class="b" id="locBadge">—</span><span class="s"></span></div></div>
-          <p class="loc-note">※ 위치 표시는 예시 목업입니다 — 실제 지도는 지도 API 연동 후 제공됩니다. <a href="bidcast-map.html" style="color:var(--green-deep);font-weight:700;">지도에서 보기 →</a></p>
+      <!-- 6. 당사자 내역 | 기일 내역 -->
+      <div class="split-row" id="sec-parties">
+        <div class="split-cell">
+          <div class="split-hd">
+            <span class="split-title">당사자 내역</span>
+            <span class="split-cnt" id="partyCnt">—</span>
+          </div>
+          <table class="party-tbl" id="partyTable"></table>
+          <p style="font-size:11px;color:var(--mute);margin-top:10px;">※ 예시 데이터 — 실제 당사자 정보는 법원 경매정보 원문을 확인하세요.</p>
         </div>
+        <div class="split-cell">
+          <div class="split-hd">
+            <span class="split-title">기일 내역</span>
+            <span class="split-cnt" id="schedCnt">—</span>
+          </div>
+          <div class="sch-list" id="schedList"></div>
+        </div>
+      </div>
+
+      <!-- 7. 등기변동 | 문건접수 -->
+      <div class="split-row" id="sec-docs">
+        <div class="split-cell">
+          <div class="split-hd">
+            <span class="split-title">등기변동내역</span>
+            <span class="split-cnt" id="regCnt">—</span>
+          </div>
+          <div class="reg-list" id="regList"></div>
+        </div>
+        <div class="split-cell">
+          <div class="split-hd">
+            <span class="split-title">문건접수내역</span>
+            <span class="split-cnt" id="docCnt">—</span>
+          </div>
+          <div class="reg-list" id="docList"></div>
+        </div>
+      </div>
+
+      <!-- 8. 경쟁평가 요약 -->
+      <section class="rp-section" id="sec-eval">
+        <h2>경쟁평가 요약 <span class="sec-tag">예시 데이터</span></h2>
+        <div class="eval-list" id="evalList"></div>
+        <p style="font-size:11px;color:var(--mute);margin-top:14px;">※ 위 평가항목은 AI 생성 예시이며 투자 자문이 아닙니다. 실제 입찰 전 감정평가서·현황조사서 원문을 직접 열람하세요.</p>
       </section>
+
       <section class="rp-section" id="sec-sim">
         <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px;">
           <h2 style="margin-bottom:0;">이 물건과 유사한 물건</h2>
@@ -505,47 +638,92 @@ const DETAILS = {
       period:'2026.07.21 10:00 ~ 07.23 17:00', landArea:'대지권 32.4㎡', bldArea:'전용 59.8㎡', usage:'공동주택(아파트)', floor:'12층 / 총 20층', built:'2004년',
       bidType:'강제경매', deposit:5200, claim:48000, startDate:'2025.10.15', apprDate:'2025.11.20', divDate:'2026.07.10', saleDate:'2026.07.23',
       hist:[{r:'1회차',p:65000,d:'2026.06.16 ~ 06.18',tag:'유찰'},{r:'2회차',p:52000,d:'2026.07.21 ~ 07.23',tag:'진행중'}],
-      rights:[{ok:false,t:'선순위 임차인 1명',m:'대항력 있는 임차인 — 보증금 인수 가능성 검토 필요'},{ok:true,t:'말소기준권리 이후 근저당',m:'매각으로 전부 소멸 예정'},{ok:true,t:'체납관리비 확인됨',m:'공용부분 384만원 — 낙찰자 부담 관례'},{ok:true,t:'점유 현황',m:'임차인 점유 중 — 명도협의 필요'}] },
+      rights:[{ok:false,t:'선순위 임차인 1명',m:'대항력 있는 임차인 — 보증금 인수 가능성 검토 필요'},{ok:true,t:'말소기준권리 이후 근저당',m:'매각으로 전부 소멸 예정'},{ok:true,t:'체납관리비 확인됨',m:'공용부분 384만원 — 낙찰자 부담 관례'},{ok:true,t:'점유 현황',m:'임차인 점유 중 — 명도협의 필요'}],
+      parties:{debtor:'홍○○ (서울 강남구)',creditor:'○○은행 강남지점',appraiser:'○○감정평가법인',distributor:'○○은행'},
+      schedule:[{date:'2025.10.15',type:'개시결정',status:'done'},{date:'2026.06.16',type:'매각기일 1회차',status:'done',note:'유찰'},{date:'2026.07.23',type:'매각기일 2회차',status:'next'}],
+      registry:[{date:'2025.10.16',tag:'등기',content:'강제경매개시결정 기입등기'},{date:'2025.11.20',tag:'평가',content:'감정평가 완료'},{date:'2025.12.10',tag:'조사',content:'현황조사서 작성'}],
+      docs:[{date:'2025.10.16',content:'강제경매개시결정 촉탁'},{date:'2025.11.15',content:'감정평가서 접수'},{date:'2025.12.10',content:'물건명세서 작성'},{date:'2026.05.20',content:'매각기일 공고'}],
+      courtTel:'02-530-1114',courtFax:'02-530-1234' },
   2:{ type:'토지', region:'경기', court:'수원지방법원', title:'경기 시흥시 배곧동 대지 152㎡', address:'경기 시흥시 배곧동 456-7', appr:84000, min:84000, fail:0, status:'진행', thumb:'🏞️', caseNo:'2026타경0492',
       period:'2026.07.28 10:00 ~ 07.30 17:00', landArea:'대지 152.0㎡', bldArea:'—', usage:'대지(주거지역)', floor:'—', built:'—',
       bidType:'임의경매', deposit:8400, claim:72000, startDate:'2026.02.10', apprDate:'2026.03.05', divDate:'2026.08.01', saleDate:'2026.07.30',
       hist:[{r:'1회차',p:84000,d:'2026.07.28 ~ 07.30',tag:'진행중'}],
-      rights:[{ok:true,t:'권리관계 단순',m:'등기부상 인수 권리 없음'},{ok:true,t:'지분물건 아님',m:'단독 소유권 이전 가능'},{ok:false,t:'도시계획 확인 권장',m:'용도지역 변경 이력 있음 — 지자체 확인 필요'}] },
+      rights:[{ok:true,t:'권리관계 단순',m:'등기부상 인수 권리 없음'},{ok:true,t:'지분물건 아님',m:'단독 소유권 이전 가능'},{ok:false,t:'도시계획 확인 권장',m:'용도지역 변경 이력 있음 — 지자체 확인 필요'}],
+      parties:{debtor:'김○○ (경기 시흥)',creditor:'○○저축은행',appraiser:'○○감정평가법인',distributor:'○○저축은행'},
+      schedule:[{date:'2026.02.10',type:'개시결정',status:'done'},{date:'2026.07.30',type:'매각기일 1회차',status:'next'}],
+      registry:[{date:'2026.02.11',tag:'등기',content:'임의경매개시결정 기입등기'},{date:'2026.03.05',tag:'평가',content:'감정평가 완료'}],
+      docs:[{date:'2026.02.11',content:'임의경매개시결정 촉탁'},{date:'2026.03.05',content:'감정평가서 접수'},{date:'2026.06.10',content:'매각기일 공고'}],
+      courtTel:'031-210-1114',courtFax:'031-210-1234' },
   3:{ type:'상가', region:'서울', court:'서울동부지방법원', title:'서울 서대문구 충정로 상가 1층', address:'서울 서대문구 충정로3가 89', appr:41000, min:41000, fail:0, status:'낙찰', thumb:'🏬', caseNo:'2025타경7710',
       period:'2026.06.09 10:00 ~ 06.11 17:00 (마감)', landArea:'대지권 18.2㎡', bldArea:'전용 84.3㎡', usage:'근린생활시설', floor:'1층 / 총 8층', built:'1998년',
       bidType:'강제경매', deposit:4100, claim:35000, startDate:'2025.07.20', apprDate:'2025.08.18', divDate:'2026.05.28', saleDate:'2026.06.11',
       hist:[{r:'1회차',p:41000,d:'2026.06.09 ~ 06.11',tag:'낙찰'}],
-      rights:[{ok:true,t:'낙찰 완료 물건',m:'매각 결과 참고용 — 낙찰가 4.38억 (감정가 대비 107%)'},{ok:true,t:'권리관계 단순',m:'인수 권리 없이 종결'}] },
+      rights:[{ok:true,t:'낙찰 완료 물건',m:'매각 결과 참고용 — 낙찰가 4.38억 (감정가 대비 107%)'},{ok:true,t:'권리관계 단순',m:'인수 권리 없이 종결'}],
+      parties:{debtor:'박○○ (서울 서대문)',creditor:'○○캐피탈',appraiser:'○○감정원',distributor:'○○캐피탈'},
+      schedule:[{date:'2025.07.20',type:'개시결정',status:'done'},{date:'2026.06.11',type:'매각기일 1회차',status:'done',note:'낙찰'},{date:'2026.07.15',type:'매각허가결정',status:'done'}],
+      registry:[{date:'2025.07.21',tag:'등기',content:'강제경매개시결정 기입등기'},{date:'2025.08.18',tag:'평가',content:'감정평가 완료'},{date:'2026.06.15',tag:'낙찰',content:'매각허가결정'}],
+      docs:[{date:'2025.07.21',content:'강제경매개시결정 촉탁'},{date:'2025.08.18',content:'감정평가서 접수'},{date:'2026.06.11',content:'낙찰 결과 접수'}],
+      courtTel:'02-2204-2114',courtFax:'02-2204-2200' },
   4:{ type:'차량', region:'인천', court:'인천지방법원', title:'5톤 카고트럭 (2021년식)', address:'인천 서구 보관소', appr:2800, min:2240, fail:1, status:'진행', thumb:'🚗', caseNo:'2026타경2201',
       period:'2026.07.22 10:00 ~ 07.24 17:00', landArea:'—', bldArea:'—', usage:'화물자동차(5톤)', floor:'—', built:'2021년식 · 주행 8.2만km',
       bidType:'강제경매', deposit:224, claim:2500, startDate:'2026.01.15', apprDate:'2026.02.10', divDate:'2026.07.15', saleDate:'2026.07.24',
       hist:[{r:'1회차',p:2800,d:'2026.06.24 ~ 06.26',tag:'유찰'},{r:'2회차',p:2240,d:'2026.07.22 ~ 07.24',tag:'진행중'}],
-      rights:[{ok:true,t:'압류·저당 말소 예정',m:'매각으로 소멸'},{ok:false,t:'현황 확인 권장',m:'보관소 실차 확인 후 입찰 권장'}] },
+      rights:[{ok:true,t:'압류·저당 말소 예정',m:'매각으로 소멸'},{ok:false,t:'현황 확인 권장',m:'보관소 실차 확인 후 입찰 권장'}],
+      parties:{debtor:'최○○ (인천 서구)',creditor:'○○파이낸스',appraiser:'차량감정 전문기관',distributor:'○○파이낸스'},
+      schedule:[{date:'2026.01.15',type:'개시결정',status:'done'},{date:'2026.06.24',type:'매각기일 1회차',status:'done',note:'유찰'},{date:'2026.07.24',type:'매각기일 2회차',status:'next'}],
+      registry:[{date:'2026.01.16',tag:'등기',content:'강제경매개시결정 기입'},{date:'2026.02.10',tag:'평가',content:'차량 감정평가 완료'}],
+      docs:[{date:'2026.01.16',content:'강제경매개시결정 촉탁'},{date:'2026.02.10',content:'감정평가서 접수'},{date:'2026.07.22',content:'매각기일 공고'}],
+      courtTel:'032-860-1114',courtFax:'032-860-1234' },
   5:{ type:'기계장비', region:'서울', court:'서울중앙지방법원', title:'CNC 머시닝센터 외 3점', address:'경기 안산시 공장 내 보관', appr:8200, min:4510, fail:3, status:'진행', thumb:'🏭', caseNo:'2026타경0913',
       period:'2026.07.29 10:00 ~ 07.31 17:00', landArea:'—', bldArea:'—', usage:'공작기계 일괄', floor:'—', built:'2018년 도입',
       bidType:'강제경매', deposit:451, claim:7000, startDate:'2025.12.01', apprDate:'2026.01.08', divDate:'2026.07.20', saleDate:'2026.07.31',
       hist:[{r:'1회차',p:8200,d:'2026.05.13 ~ 05.15',tag:'유찰'},{r:'2회차',p:6560,d:'2026.06.10 ~ 06.12',tag:'유찰'},{r:'3회차',p:5248,d:'2026.07.01 ~ 07.03',tag:'유찰'},{r:'4회차',p:4510,d:'2026.07.29 ~ 07.31',tag:'진행중'}],
-      rights:[{ok:false,t:'3회 유찰 물건',m:'수요가 제한적 — 반출·설치 비용 견적 필수'},{ok:true,t:'일괄매각',m:'4점 분리 입찰 불가'}] },
+      rights:[{ok:false,t:'3회 유찰 물건',m:'수요가 제한적 — 반출·설치 비용 견적 필수'},{ok:true,t:'일괄매각',m:'4점 분리 입찰 불가'}],
+      parties:{debtor:'○○제조(주)',creditor:'○○중소기업금융',appraiser:'산업기계감정법인',distributor:'○○금융'},
+      schedule:[{date:'2025.12.01',type:'개시결정',status:'done'},{date:'2026.05.15',type:'매각기일 1회차',status:'done',note:'유찰'},{date:'2026.06.12',type:'매각기일 2회차',status:'done',note:'유찰'},{date:'2026.07.03',type:'매각기일 3회차',status:'done',note:'유찰'},{date:'2026.07.31',type:'매각기일 4회차',status:'next'}],
+      registry:[{date:'2025.12.02',tag:'등기',content:'강제경매개시결정 기입'},{date:'2026.01.08',tag:'평가',content:'기계장비 일괄 감정평가 완료'}],
+      docs:[{date:'2025.12.02',content:'강제경매개시결정 촉탁'},{date:'2026.01.08',content:'감정평가서 접수'},{date:'2026.07.01',content:'3회차 유찰 보고'}],
+      courtTel:'02-530-1114',courtFax:'02-530-1234' },
   6:{ type:'유가증권', region:'서울', court:'서울중앙지방법원', title:'비상장주식 A사 지분 3%', address:'—', appr:9800, min:9800, fail:0, status:'진행', thumb:'📈', caseNo:'2026타경1777',
       period:'2026.08.04 10:00 ~ 08.06 17:00', landArea:'—', bldArea:'—', usage:'비상장주식 30,000주', floor:'—', built:'—',
       bidType:'임의경매', deposit:980, claim:8500, startDate:'2026.02.22', apprDate:'2026.03.15', divDate:'2026.07.25', saleDate:'2026.08.06',
       hist:[{r:'1회차',p:9800,d:'2026.08.04 ~ 08.06',tag:'진행중'}],
-      rights:[{ok:false,t:'환금성 낮음',m:'비상장주식 — 재무제표·주주구성 검토 필수'},{ok:true,t:'명의개서 절차 확인됨',m:'낙찰 후 회사 협조 필요'}] },
+      rights:[{ok:false,t:'환금성 낮음',m:'비상장주식 — 재무제표·주주구성 검토 필수'},{ok:true,t:'명의개서 절차 확인됨',m:'낙찰 후 회사 협조 필요'}],
+      parties:{debtor:'이○○ (서울)',creditor:'○○투자증권',appraiser:'회계법인 ○○',distributor:'○○투자증권'},
+      schedule:[{date:'2026.02.22',type:'개시결정',status:'done'},{date:'2026.08.06',type:'매각기일 1회차',status:'next'}],
+      registry:[{date:'2026.02.23',tag:'등기',content:'임의경매개시결정 기입'},{date:'2026.03.15',tag:'평가',content:'주식 감정평가 완료'}],
+      docs:[{date:'2026.02.23',content:'임의경매개시결정 촉탁'},{date:'2026.03.15',content:'감정평가서 접수'},{date:'2026.07.10',content:'매각기일 공고'}],
+      courtTel:'02-530-1114',courtFax:'02-530-1234' },
   7:{ type:'아파트', region:'부산', court:'부산지방법원', title:'부산 해운대구 우동 아파트 32평', address:'부산 해운대구 우동 1408', appr:98000, min:78400, fail:1, status:'진행', thumb:'🏢', caseNo:'2026타경0644',
       period:'2026.07.23 10:00 ~ 07.25 17:00', landArea:'대지권 41.6㎡', bldArea:'전용 84.9㎡', usage:'공동주택(아파트)', floor:'21층 / 총 35층', built:'2015년',
       bidType:'강제경매', deposit:7840, claim:85000, startDate:'2025.11.05', apprDate:'2025.12.12', divDate:'2026.07.08', saleDate:'2026.07.25',
       hist:[{r:'1회차',p:98000,d:'2026.06.18 ~ 06.20',tag:'유찰'},{r:'2회차',p:78400,d:'2026.07.23 ~ 07.25',tag:'진행중'}],
-      rights:[{ok:true,t:'권리관계 단순',m:'인수 권리 없음'},{ok:true,t:'공실 상태',m:'명도 부담 낮음'}] },
+      rights:[{ok:true,t:'권리관계 단순',m:'인수 권리 없음'},{ok:true,t:'공실 상태',m:'명도 부담 낮음'}],
+      parties:{debtor:'장○○ (부산 해운대)',creditor:'○○은행 해운대지점',appraiser:'○○감정평가법인',distributor:'○○은행'},
+      schedule:[{date:'2025.11.05',type:'개시결정',status:'done'},{date:'2026.06.18',type:'매각기일 1회차',status:'done',note:'유찰'},{date:'2026.07.25',type:'매각기일 2회차',status:'next'}],
+      registry:[{date:'2025.11.06',tag:'등기',content:'강제경매개시결정 기입등기'},{date:'2025.12.12',tag:'평가',content:'감정평가 완료'},{date:'2026.01.10',tag:'조사',content:'현황조사서 작성'}],
+      docs:[{date:'2025.11.06',content:'강제경매개시결정 촉탁'},{date:'2025.12.12',content:'감정평가서 접수'},{date:'2026.06.18',content:'1회차 유찰 보고'}],
+      courtTel:'051-590-1114',courtFax:'051-590-1234' },
   8:{ type:'토지', region:'인천', court:'인천지방법원', title:'인천 서구 청라동 임야 890㎡', address:'인천 서구 청라동 산 12-3', appr:56000, min:56000, fail:0, status:'진행', thumb:'🏞️', caseNo:'2026타경1188',
       period:'2026.08.05 10:00 ~ 08.07 17:00', landArea:'임야 890.0㎡', bldArea:'—', usage:'임야(자연녹지)', floor:'—', built:'—',
       bidType:'강제경매', deposit:5600, claim:50000, startDate:'2026.03.10', apprDate:'2026.04.08', divDate:'2026.07.28', saleDate:'2026.08.07',
       hist:[{r:'1회차',p:56000,d:'2026.08.05 ~ 08.07',tag:'진행중'}],
-      rights:[{ok:false,t:'맹지 여부 확인 권장',m:'진입로 지분 포함 여부 서류 검토 필요'},{ok:true,t:'분묘 없음 확인',m:'현황조사서 기준'}] },
+      rights:[{ok:false,t:'맹지 여부 확인 권장',m:'진입로 지분 포함 여부 서류 검토 필요'},{ok:true,t:'분묘 없음 확인',m:'현황조사서 기준'}],
+      parties:{debtor:'윤○○ (인천 서구)',creditor:'○○보험사',appraiser:'○○감정평가법인',distributor:'○○보험사'},
+      schedule:[{date:'2026.03.10',type:'개시결정',status:'done'},{date:'2026.08.07',type:'매각기일 1회차',status:'next'}],
+      registry:[{date:'2026.03.11',tag:'등기',content:'강제경매개시결정 기입등기'},{date:'2026.04.08',tag:'평가',content:'토지 감정평가 완료'}],
+      docs:[{date:'2026.03.11',content:'강제경매개시결정 촉탁'},{date:'2026.04.08',content:'감정평가서 접수'},{date:'2026.07.15',content:'매각기일 공고'}],
+      courtTel:'032-860-1114',courtFax:'032-860-1234' },
   9:{ type:'차량', region:'서울', court:'서울동부지방법원', title:'승용차 그랜저 (2020년식)', address:'서울 성동구 보관소', appr:2310, min:1850, fail:0, status:'낙찰', thumb:'🚗', caseNo:'2025타경8100',
       period:'2026.06.02 10:00 ~ 06.04 17:00 (마감)', landArea:'—', bldArea:'—', usage:'승용자동차', floor:'—', built:'2020년식 · 주행 4.1만km',
       bidType:'강제경매', deposit:185, claim:2000, startDate:'2025.09.20', apprDate:'2025.10.14', divDate:'2026.05.22', saleDate:'2026.06.04',
       hist:[{r:'1회차',p:2310,d:'2026.05.07 ~ 05.09',tag:'유찰'},{r:'2회차',p:1850,d:'2026.06.02 ~ 06.04',tag:'낙찰'}],
-      rights:[{ok:true,t:'낙찰 완료 물건',m:'매각 결과 참고용 — 낙찰가 2,010만 (감정가 대비 87%)'}] },
+      rights:[{ok:true,t:'낙찰 완료 물건',m:'매각 결과 참고용 — 낙찰가 2,010만 (감정가 대비 87%)'}],
+      parties:{debtor:'조○○ (서울 성동)',creditor:'○○캐피탈 성동지점',appraiser:'차량감정 전문기관',distributor:'○○캐피탈'},
+      schedule:[{date:'2025.09.20',type:'개시결정',status:'done'},{date:'2026.05.09',type:'매각기일 1회차',status:'done',note:'유찰'},{date:'2026.06.04',type:'매각기일 2회차',status:'done',note:'낙찰'},{date:'2026.06.20',type:'매각허가결정',status:'done'}],
+      registry:[{date:'2025.09.21',tag:'등기',content:'강제경매개시결정 기입'},{date:'2025.10.14',tag:'평가',content:'차량 감정평가 완료'},{date:'2026.06.08',tag:'낙찰',content:'매각허가결정'}],
+      docs:[{date:'2025.09.21',content:'강제경매개시결정 촉탁'},{date:'2025.10.14',content:'감정평가서 접수'},{date:'2026.06.04',content:'낙찰 결과 접수'}],
+      courtTel:'02-2204-2114',courtFax:'02-2204-2200' },
 };
 
 // ─── 포맷 ───
@@ -599,6 +777,9 @@ function buildLiveDetail(s) {
     startDate:'—',apprDate:'—',divDate:'—',saleDate:'—',
     hist:[{r:'현재',p:s.min,d:'현재 공매조건 기준 최저입찰가',tag:s.status==='낙찰'?'낙찰':'진행중'}],
     rights:[{ok:false,t:'권리분석 미제공 (실시간 물건)',m:'물건상세 조회 API 연동 후 제공 예정입니다. 입찰 전 반드시 온비드 원문 공고와 감정평가서를 확인하세요.'}],
+    parties:{debtor:'온비드 원문 공고 확인',creditor:'온비드 원문 공고 확인',appraiser:'—',distributor:'—'},
+    schedule:[],registry:[],docs:[],
+    courtTel:'—',courtFax:'—',
   };
 }
 
@@ -667,19 +848,28 @@ document.getElementById('dDivDate').textContent=it.divDate||'—';
 document.getElementById('dSaleDate').textContent=it.saleDate||'—';
 
 // 사진 갤러리
+let galPhotos=[];let galIdx=0;
 document.getElementById('galleryThumb').textContent=it.thumb;
 if(it.photo&&/^https?:\/\//.test(it.photo)){
-  const img=document.createElement('img');
-  img.src=it.photo;img.alt=it.title;
-  img.onerror=()=>{img.remove();document.getElementById('galleryEmpty').style.display='';document.getElementById('galleryMain').style.display='none';};
-  const gm=document.getElementById('galleryMain');
-  gm.style.display='';
-  gm.prepend(img);
-  document.getElementById('galleryEmpty').style.display='none';
-  document.getElementById('galleryNote').textContent='온비드 제공 실사 이미지 (원본)';
-}else{
-  const note=document.getElementById('galleryNote');
-  if(note)note.textContent='실사 이미지 — 온비드 실시간 물건 클릭 시 표시됩니다';
+  galPhotos=[it.photo];
+  const img=document.createElement('img');img.src=it.photo;img.alt=it.title;
+  img.onerror=()=>{img.remove();galPhotos=[];};
+  document.getElementById('galInner').prepend(img);
+}
+if(galPhotos.length>1){
+  document.getElementById('galPrev').style.display='';
+  document.getElementById('galNext').style.display='';
+  document.getElementById('galCount').style.display='';
+  document.getElementById('galCount').textContent=`1/${galPhotos.length}`;
+}
+function galNav(dir){
+  if(!galPhotos.length)return;
+  galIdx=(galIdx+dir+galPhotos.length)%galPhotos.length;
+  document.querySelectorAll('#galInner img').forEach(im=>im.remove());
+  const img=document.createElement('img');img.src=galPhotos[galIdx];img.alt=it.title;
+  img.onerror=()=>img.remove();
+  document.getElementById('galInner').prepend(img);
+  document.getElementById('galCount').textContent=`${galIdx+1}/${galPhotos.length}`;
 }
 
 // AI 예보
@@ -715,7 +905,84 @@ document.getElementById('rightsList').innerHTML=it.rights.map(r=>`
     <div><div class="rt">${r.t}</div><div class="rm">${r.m}</div></div>
   </div>`).join('');
 
+// ─── 당사자 내역 ───
+if(it.parties){
+  const p=it.parties;
+  const rows=[['채무자',p.debtor||'—'],['채권자',p.creditor||'—'],['감정인',p.appraiser||'—'],['배당요구권자',p.distributor||'—']];
+  document.getElementById('partyTable').innerHTML=rows.map(([k,v])=>`<tr><th>${k}</th><td>${v}</td></tr>`).join('');
+  document.getElementById('partyCnt').textContent=Object.values(p).filter(v=>v&&v!=='—').length+'명';
+}
+
+// ─── 기일 내역 ───
+if(it.schedule&&it.schedule.length){
+  document.getElementById('schedCnt').textContent=it.schedule.length+'건';
+  document.getElementById('schedList').innerHTML=it.schedule.map(s=>{
+    const bcls=s.status==='done'?'done-b':s.status==='next'?'next-b':'pass-b';
+    const btxt=s.status==='done'?'완료':s.status==='next'?'예정':'대기';
+    return`<div class="sch-item">
+      <div class="sch-date">${s.date}</div>
+      <div class="sch-body"><span class="sch-type">${s.type}</span><span class="sch-badge ${bcls}">${btxt}</span>${s.note?`<div class="sch-note">${s.note}</div>`:''}</div>
+    </div>`;
+  }).join('');
+}
+
+// ─── 등기변동 내역 ───
+if(it.registry&&it.registry.length){
+  document.getElementById('regCnt').textContent=it.registry.length+'건';
+  document.getElementById('regList').innerHTML=it.registry.map(r=>`
+    <div class="reg-item"><div class="reg-dot"></div><div class="reg-date">${r.date}</div>
+    <div class="reg-body"><span class="reg-tag">${r.tag}</span>${r.content}</div></div>`).join('');
+}
+
+// ─── 문건접수 내역 ───
+if(it.docs&&it.docs.length){
+  document.getElementById('docCnt').textContent=it.docs.length+'건';
+  document.getElementById('docList').innerHTML=it.docs.map(d=>`
+    <div class="reg-item"><div class="reg-dot"></div><div class="reg-date">${d.date}</div>
+    <div class="reg-body">${d.content}</div></div>`).join('');
+}
+
+// ─── 경쟁평가 요약 ───
+const EVAL_DATA={
+  '아파트':[
+    {lbl:'수요 밀집도',desc:'단지 규모·학군 인접성을 고려할 때 <b>경쟁자 3~5인</b> 예상'},
+    {lbl:'유찰 이력 분석',desc:`${it.fail}회 유찰 → 현재 최저가 감정가 대비 ${minPct}% 수준으로 <a href="bidcast-simulator.html">입찰 시뮬레이터</a>로 직접 확인 권장`},
+    {lbl:'낙찰가 추세',desc:'인근 동일단지 최근 3건 평균 낙찰률 감정가 대비 약 107%'},
+    {lbl:'권리 리스크',desc:it.rights.filter(r=>!r.ok).length?`<b>주의</b>: ${it.rights.filter(r=>!r.ok).map(r=>r.t).join(', ')}`:'권리 리스크 낮음 — 정상 진행 예상'},
+  ],
+  '토지':[
+    {lbl:'수요 밀집도',desc:'토지 물건 특성상 <b>경쟁자 1~3인</b> 소수 예상'},
+    {lbl:'유찰 이력 분석',desc:`${it.fail}회 유찰 → 최저가 감정가 대비 ${minPct}% 수준`},
+    {lbl:'개발 가능성',desc:'용도지역·지구단위계획 확인으로 개발 가능성 판단 권장'},
+    {lbl:'권리 리스크',desc:it.rights.filter(r=>!r.ok).length?`<b>주의</b>: ${it.rights.filter(r=>!r.ok).map(r=>r.t).join(', ')}`:'권리 리스크 낮음'},
+  ],
+  '상가':[
+    {lbl:'수요 밀집도',desc:'상권 활성화 여부에 따라 <b>경쟁자 1~4인</b> 예상'},
+    {lbl:'임대 수익률',desc:'현재 임차인 여부 및 월세 확인 후 수익률 계산 권장'},
+    {lbl:'권리 리스크',desc:it.rights.filter(r=>!r.ok).length?`<b>주의</b>: ${it.rights.filter(r=>!r.ok).map(r=>r.t).join(', ')}`:'권리 리스크 낮음'},
+    {lbl:'낙찰가 추세',desc:'인근 동일 상권 최근 낙찰률 감정가 대비 약 95~110% 분포'},
+  ],
+};
+const evalItems=EVAL_DATA[it.type]||[
+  {lbl:'수요 밀집도',desc:`<b>${it.type}</b> 물건 특성상 경쟁자 1~3인 예상`},
+  {lbl:'유찰 이력 분석',desc:`${it.fail}회 유찰 → 최저가 감정가 대비 ${minPct}% 수준`},
+  {lbl:'권리 리스크',desc:it.rights.filter(r=>!r.ok).length?`<b>주의</b>: ${it.rights.filter(r=>!r.ok).map(r=>r.t).join(', ')}`:'권리 리스크 낮음'},
+];
+document.getElementById('evalList').innerHTML=evalItems.map((e,i)=>`
+  <div class="eval-item">
+    <div class="eval-num">${i+1}</div>
+    <div><div class="eval-lbl">${e.lbl}</div><div class="eval-desc">${e.desc}</div></div>
+  </div>`).join('');
+
 document.getElementById('locBadge').textContent=`${it.type} · ${fmt(it.min)}`;
+document.getElementById('mapAddrBar').textContent=it.address||'—';
+
+// 가격 바
+document.getElementById('pbAppr').textContent=fmtMwon(it.appr);
+document.getElementById('pbMin').textContent=fmtMwon(it.min);
+const minPct=Math.round(it.min/it.appr*100);
+document.getElementById('pbMinPct').textContent=`(감정가의 ${minPct}%)`;
+document.getElementById('pbMinNote').textContent=it.fail>0?`${it.fail}회 유찰 후 최저가`:'1회차 최저가';
 
 // CTA 링크
 const simIds=Object.keys(DETAILS).map(Number).filter(k=>DETAILS[k]!==it);
