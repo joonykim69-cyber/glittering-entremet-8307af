@@ -74,7 +74,15 @@ exports.handler = async (event) => {
     try {
       raw = JSON.parse(bodyText);
     } catch (e) {
-      return { statusCode: 502, headers: CORS, body: JSON.stringify({ error: { message: '온비드 상세 API가 JSON이 아닌 응답을 반환했습니다.' } }) };
+      console.log('[onbid-detail] JSON 파싱 실패 — 원본:', bodyText.slice(0, 500));
+      return {
+        statusCode: 502,
+        headers: CORS,
+        body: JSON.stringify({
+          error: { message: '온비드 상세 API가 JSON이 아닌 응답을 반환했습니다.' },
+          ...(qs.debug ? { rawBody: bodyText.slice(0, 2000), upstreamStatus: r.status } : {}),
+        }),
+      };
     }
 
     // 목록 API와 동일 패턴: {response:{header,body}} 또는 최상위 {header,body}
