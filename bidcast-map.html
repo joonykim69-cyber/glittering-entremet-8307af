@@ -4,8 +4,10 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>지도로 보기 — 낙찰예보</title>
-<meta name="description" content="지도 위에서 온비드 공매 물건 위치를 한눈에 확인하고, 사이드바 목록과 핀이 연동됩니다."/>
+<meta name="description" content="지도 위에서 온비드 공매 물건 위치를 한눈에 확인하고, 사이드바 목록과 핀이 양방향으로 연동됩니다."/>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"/>
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 <style>
 /* ═══════════════════════════════════════
    RESET & 토큰
@@ -153,80 +155,80 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 
 /* ═══ MAP CANVAS ═══ */
 .map-canvas-wrap { border-radius:18px; overflow:hidden; border:1px solid var(--line); position:relative; }
-.map-canvas {
-  position:relative; height:640px;
-  background:
-    linear-gradient(rgba(0,168,107,.04) 1px, transparent 1px) 0 0/40px 40px,
-    linear-gradient(90deg, rgba(0,168,107,.04) 1px, transparent 1px) 0 0/40px 40px,
-    #EDF5F0;
+
+/* Leaflet 지도 컨테이너 */
+#leafletMap { height:640px; width:100%; background:#EDF5F0; }
+@media (max-width:960px) { #leafletMap { height:420px; } }
+
+/* Leaflet z-index 조정 (nav 100 아래) */
+.leaflet-pane { z-index:10 !important; }
+.leaflet-top, .leaflet-bottom { z-index:20 !important; }
+
+/* 지도 로딩 오버레이 */
+.map-loading {
+  position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:12px; background:#EDF5F0; z-index:30; transition:opacity .4s;
 }
-/* 지형 레이어 — 시각적 구분용 */
-.map-region { position:absolute; border-radius:14px; pointer-events:none; }
-.map-river { position:absolute; border-radius:4px; background:rgba(59,130,246,.18); pointer-events:none; }
-.map-loading { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; background:#EDF5F0; z-index:5; transition:opacity .4s; }
 .map-spinner { width:40px; height:40px; border-radius:50%; border:4px solid var(--green-soft); border-top-color:var(--green); animation:spin .9s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
 .map-loading p { font-size:13px; color:var(--sub); font-weight:600; }
 
-/* 지역 라벨 */
-.map-label { position:absolute; font-size:10.5px; font-weight:800; color:rgba(16,32,26,.3); pointer-events:none; letter-spacing:.03em; }
-
-/* ═══ 핀 ═══ */
-.pin {
-  position:absolute; transform:translate(-50%,-100%); cursor:pointer; z-index:2;
-  display:flex; flex-direction:column; align-items:center; transition:transform .2s var(--ease), z-index 0s;
+/* ═══ Leaflet 커스텀 마커 ═══ */
+.lf-pin {
+  display:flex; flex-direction:column; align-items:center;
+  cursor:pointer; filter:drop-shadow(0 4px 8px rgba(0,168,107,.4));
+  transition:filter .2s;
 }
-.pin:hover { transform:translate(-50%,-100%) scale(1.12); z-index:6; }
-.pin.active { transform:translate(-50%,-100%) scale(1.18); z-index:8; }
-.pin-badge {
-  background:var(--green); color:#fff; font-size:10.5px; font-weight:800; padding:5px 10px; border-radius:999px 999px 999px 2px;
-  box-shadow:0 4px 14px rgba(0,168,107,.45); white-space:nowrap; max-width:120px; overflow:hidden; text-overflow:ellipsis;
-  transition:background .2s, box-shadow .2s;
+.lf-pin:hover { filter:drop-shadow(0 6px 14px rgba(0,168,107,.6)); }
+.lf-pin-badge {
+  background:var(--green); color:#fff; font-size:11px; font-weight:800;
+  padding:5px 10px; border-radius:999px 999px 999px 2px;
+  white-space:nowrap; max-width:130px; overflow:hidden; text-overflow:ellipsis;
+  box-shadow:0 4px 14px rgba(0,168,107,.45);
 }
-.pin.warn .pin-badge { background:var(--red); box-shadow:0 4px 14px rgba(229,72,77,.4); }
-.pin.sold .pin-badge { background:#6B7280; box-shadow:0 4px 14px rgba(107,114,128,.35); }
-.pin.active .pin-badge { box-shadow:0 0 0 3px rgba(0,200,127,.3), 0 6px 18px rgba(0,168,107,.5); }
-.pin-stem { width:2px; height:8px; background:currentColor; opacity:.6; }
-.pin.warn .pin-stem { color:var(--red); }
-.pin.sold .pin-stem { color:#6B7280; }
-.pin:not(.warn):not(.sold) .pin-stem { color:var(--green); }
+.lf-pin.warn .lf-pin-badge { background:var(--red); }
+.lf-pin.sold .lf-pin-badge { background:#6B7280; }
+.lf-pin.active .lf-pin-badge { box-shadow:0 0 0 3px rgba(0,200,127,.35), 0 6px 18px rgba(0,168,107,.5); }
+.lf-pin-stem { width:2px; height:8px; background:var(--green); opacity:.7; }
+.lf-pin.warn .lf-pin-stem { background:var(--red); }
+.lf-pin.sold .lf-pin-stem { background:#6B7280; }
 
-/* 내 위치 핀 */
-.me-pin { position:absolute; transform:translate(-50%,-50%); z-index:3; }
-.me-dot { width:14px; height:14px; border-radius:50%; background:#1E6FE8; border:3px solid #fff; box-shadow:0 0 0 6px rgba(30,111,232,.18); }
-
-/* ═══ 지도 컨트롤 ═══ */
-.map-controls { position:absolute; right:14px; bottom:14px; display:flex; flex-direction:column; gap:8px; z-index:4; }
-.map-controls button { width:38px; height:38px; border-radius:12px; background:var(--surface); border:1px solid var(--line); font-size:16px; cursor:pointer; box-shadow:0 4px 12px rgba(16,32,26,.1); color:var(--ink); transition:background .2s; }
-.map-controls button:hover { background:var(--green-soft); }
-
-/* 지도 목업 안내 배너 */
-.map-mock-banner { position:absolute; top:12px; left:50%; transform:translateX(-50%); z-index:4; background:rgba(255,255,255,.9); border:1px solid var(--line); border-radius:999px; padding:6px 14px; font-size:11.5px; font-weight:700; color:var(--sub); backdrop-filter:blur(8px); white-space:nowrap; box-shadow:0 4px 12px rgba(16,32,26,.08); }
-
-/* ═══ 팝업 ═══ */
-.map-popup {
-  position:absolute; z-index:10; width:240px; background:var(--surface); border:1px solid var(--line); border-radius:18px;
-  padding:16px; box-shadow:0 20px 48px rgba(16,32,26,.2); display:none; pointer-events:auto;
+/* Leaflet 팝업 스타일 오버라이드 */
+.leaflet-popup-content-wrapper {
+  border-radius:18px !important; border:1px solid var(--line) !important;
+  box-shadow:0 20px 48px rgba(16,32,26,.2) !important; padding:0 !important;
 }
-.map-popup.show { display:block; }
-.map-popup .pop-close { position:absolute; top:10px; right:12px; background:var(--bg); border:1px solid var(--line); cursor:pointer; color:var(--sub); font-size:12px; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; transition:background .2s; }
-.map-popup .pop-close:hover { background:var(--line); }
-.map-popup .pop-kind { font-size:11px; font-weight:800; color:var(--green-deep); margin-bottom:4px; }
-.map-popup h5 { font-size:13.5px; font-weight:800; line-height:1.4; margin-bottom:4px; }
-.map-popup .pop-meta { font-size:11.5px; color:var(--sub); }
-.map-popup .pop-price { margin-top:10px; display:flex; gap:10px; }
-.map-popup .pop-appr { font-size:11.5px; color:var(--sub); }
-.map-popup .pop-appr b { font-size:13px; font-weight:800; color:var(--ink); }
-.map-popup .pop-actions { display:flex; gap:8px; margin-top:12px; }
-.map-popup .pop-detail { flex:1; text-align:center; font-size:12.5px; font-weight:800; background:var(--grad); color:#fff; text-decoration:none; padding:9px; border-radius:10px; display:block; transition:opacity .2s; }
-.map-popup .pop-detail:hover { opacity:.88; }
-.map-popup .pop-bot { font-size:12px; font-weight:700; color:var(--sub); background:var(--bg); border:1.5px solid var(--line); border-radius:10px; padding:8px 10px; text-decoration:none; display:block; text-align:center; transition:all .2s; }
-.map-popup .pop-bot:hover { border-color:var(--green); color:var(--green-deep); }
+.leaflet-popup-content { margin:0 !important; width:240px !important; }
+.leaflet-popup-tip-container { display:none; }
+.lf-popup { padding:16px; }
+.lf-popup .pop-kind { font-size:11px; font-weight:800; color:var(--green-deep); margin-bottom:4px; }
+.lf-popup h5 { font-size:13.5px; font-weight:800; line-height:1.4; margin-bottom:4px; }
+.lf-popup .pop-meta { font-size:11.5px; color:var(--sub); }
+.lf-popup .pop-price { margin-top:10px; display:flex; gap:10px; }
+.lf-popup .pop-appr { font-size:11.5px; color:var(--sub); }
+.lf-popup .pop-appr b { font-size:13px; font-weight:800; color:var(--ink); }
+.lf-popup .pop-actions { display:flex; gap:8px; margin-top:12px; }
+.lf-popup .pop-detail { flex:1; text-align:center; font-size:12.5px; font-weight:800; background:var(--grad); color:#fff; text-decoration:none; padding:9px; border-radius:10px; display:block; transition:opacity .2s; }
+.lf-popup .pop-detail:hover { opacity:.88; }
+.lf-popup .pop-bot { font-size:12px; font-weight:700; color:var(--sub); background:var(--bg); border:1.5px solid var(--line); border-radius:10px; padding:8px 10px; text-decoration:none; display:block; text-align:center; transition:all .2s; }
+.lf-popup .pop-bot:hover { border-color:var(--green); color:var(--green-deep); }
 .pop-badge { display:inline-block; font-size:10px; font-weight:800; padding:2px 8px; border-radius:999px; }
 .pop-badge.s-new { background:var(--blue-soft); color:var(--blue); }
 .pop-badge.s-fail { background:var(--orange-soft); color:var(--orange); }
 .pop-badge.s-sold { background:#F3F4F6; color:#6B7280; }
 .pop-badge.s-ing { background:var(--green-soft); color:var(--green-deep); }
+
+/* 지오코딩 진행 표시 */
+.geocode-bar {
+  position:absolute; bottom:0; left:0; right:0; z-index:25;
+  background:rgba(255,255,255,.92); backdrop-filter:blur(8px);
+  padding:8px 14px; display:flex; align-items:center; gap:10px;
+  font-size:12px; font-weight:700; color:var(--sub); border-top:1px solid var(--line);
+  transition:opacity .3s;
+}
+.geocode-bar.hidden { opacity:0; pointer-events:none; }
+.gc-progress { flex:1; height:4px; background:var(--line); border-radius:99px; overflow:hidden; }
+.gc-fill { height:100%; background:var(--grad); border-radius:99px; transition:width .3s; }
 
 /* ═══ AUTH MODAL ═══ */
 .auth-overlay { position:fixed; inset:0; z-index:220; display:none; align-items:center; justify-content:center; padding:20px; background:rgba(16,32,26,.45); backdrop-filter:blur(8px); opacity:0; transition:opacity .25s var(--ease); }
@@ -294,9 +296,9 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
 <header class="page-head">
   <div class="wrap">
     <h1>지도로 보기</h1>
-    <p>지도 위 마커를 클릭하면 물건 요약이 표시됩니다. 사이드바 목록과 핀이 양방향으로 연동됩니다.</p>
+    <p>지도 위 마커를 클릭하면 물건 요약이 표시됩니다. 사이드바 목록과 마커가 양방향으로 연동됩니다.</p>
     <div class="page-head-actions">
-      <span class="demo-chip">🔧 목업 지도 — 실제 지도 API 연동 전 예시 화면</span>
+      <span class="demo-chip" id="mapDataChip">📋 예시 데이터 · OpenStreetMap</span>
       <a class="btn-list-view" href="bidcast-list.html">≡ 목록으로 보기</a>
     </div>
   </div>
@@ -397,7 +399,6 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
             <button class="cd-opt" data-v="price_desc">감정가 높은순</button>
             <button class="cd-opt" data-v="price_asc">감정가 낮은순</button>
             <button class="cd-opt" data-v="fail_desc">유찰 많은순</button>
-            <button class="cd-opt" data-v="views">조회순</button>
           </div>
         </div>
       </div>
@@ -463,66 +464,29 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
           <span id="sideCount">0건</span>
         </div>
         <div class="side-list" id="sideList">
-          <div class="side-empty">검색 중…</div>
+          <div class="side-empty">위치 정보를 불러오는 중…</div>
         </div>
         <div class="data-src-bar">
           <span class="data-src-chip" id="dataSourceChip">📋 예시 데이터</span>
         </div>
       </aside>
 
-      <!-- 지도 캔버스 -->
+      <!-- 지도 -->
       <div class="map-canvas-wrap">
-        <div class="map-canvas" id="mapCanvas">
-          <!-- 로딩 -->
-          <div class="map-loading" id="mapLoading">
-            <div class="map-spinner"></div>
-            <p>위치 정보를 불러오는 중…</p>
-          </div>
+        <!-- 로딩 오버레이 -->
+        <div class="map-loading" id="mapLoading">
+          <div class="map-spinner"></div>
+          <p>지도를 불러오는 중…</p>
+        </div>
 
-          <!-- 지형 레이어 (시각적 구분) -->
-          <div class="map-region" style="left:30%;top:18%;width:28%;height:32%;background:rgba(0,168,107,.05);border:1.5px dashed rgba(0,168,107,.15);"></div>
-          <div class="map-region" style="left:8%;top:14%;width:22%;height:28%;background:rgba(59,130,246,.04);border:1.5px dashed rgba(59,130,246,.12);"></div>
-          <div class="map-region" style="left:55%;top:55%;width:24%;height:28%;background:rgba(245,158,11,.04);border:1.5px dashed rgba(245,158,11,.14);"></div>
-          <!-- 강 표현 -->
-          <div class="map-river" style="left:38%;top:36%;width:18%;height:4px;transform:rotate(-8deg);"></div>
-          <div class="map-river" style="left:22%;top:42%;width:12%;height:4px;transform:rotate(12deg);"></div>
-          <!-- 지역 라벨 -->
-          <div class="map-label" style="left:42%;top:14%">경기</div>
-          <div class="map-label" style="left:49%;top:26%">서울</div>
-          <div class="map-label" style="left:14%;top:22%">인천</div>
-          <div class="map-label" style="left:60%;top:58%">대구</div>
-          <div class="map-label" style="left:72%;top:68%">부산</div>
-          <div class="map-label" style="left:8%;top:62%">전남</div>
-          <div class="map-label" style="left:76%;top:18%">강원</div>
+        <!-- Leaflet 지도 컨테이너 -->
+        <div id="leafletMap"></div>
 
-          <!-- 내 위치 -->
-          <div class="me-pin" style="left:50%;top:30%;"><div class="me-dot"></div></div>
-
-          <!-- 지도 컨트롤 -->
-          <div class="map-controls">
-            <button type="button" aria-label="지도 확대" onclick="showMapApiNotice()">＋</button>
-            <button type="button" aria-label="지도 축소" onclick="showMapApiNotice()">－</button>
-            <button type="button" aria-label="현재 위치" onclick="showMapApiNotice()">◎</button>
-          </div>
-
-          <!-- 목업 안내 배너 -->
-          <div class="map-mock-banner">🗺️ 예시 지도 — 좌표는 데모용 위치입니다</div>
-
-          <!-- 팝업 -->
-          <div class="map-popup" id="mapPopup">
-            <button class="pop-close" type="button" onclick="closePopup()">✕</button>
-            <div class="pop-kind" id="popKind"></div>
-            <h5 id="popTitle"></h5>
-            <p class="pop-meta" id="popMeta"></p>
-            <div class="pop-price">
-              <div class="pop-appr">감정가 <b id="popAppr"></b></div>
-              <div class="pop-appr">최저 <b id="popMin"></b></div>
-            </div>
-            <div class="pop-actions">
-              <a class="pop-detail" href="#" id="popDetail">상세 보기 →</a>
-              <a class="pop-bot" href="#" id="popBot">🤖 예보봇</a>
-            </div>
-          </div>
+        <!-- 지오코딩 진행 바 -->
+        <div class="geocode-bar hidden" id="geocodeBar">
+          <span id="geocodeText">주소 변환 중…</span>
+          <div class="gc-progress"><div class="gc-fill" id="gcFill" style="width:0%"></div></div>
+          <span id="geocodeRatio">0/0</span>
         </div>
       </div>
 
@@ -558,24 +522,27 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
       <div><h5>서비스</h5><ul><li><a href="bidcast-list.html">물건 검색</a></li><li><a href="bidcast-lab.html">적중률 공개</a></li><li><a href="bidcast-calendar.html">입찰 캘린더</a></li></ul></div>
       <div><h5>바로가기</h5><ul><li><a href="bidcast.html">홈으로</a></li><li><a href="bidcast-insight.html">인사이트</a></li><li><a href="bidcast-partner.html">파트너 프로그램</a></li><li><a href="bidcast-pricing.html">요금제</a></li><li><a href="bidcast-support.html">고객지원</a></li><li><a href="bidcast-my.html">마이페이지</a></li></ul></div>
     </div>
-    <p class="copy">© 2026 낙찰예보. All rights reserved.</p>
+    <p class="copy">© 2026 낙찰예보. All rights reserved. 지도 데이터 © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" style="color:inherit;">OpenStreetMap</a> 기여자</p>
   </div>
 </footer>
 
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLcE=" crossorigin=""></script>
 <script>
 // ═══════════════════════════════════════
-// 예시 데이터 — 실 API 연동 전 데모용 (ITEMS id, 좌표는 예시 위치)
+// 예시 데이터 — 실 API 연동 전 데모용
+// address 필드: Nominatim geocoding 쿼리에 사용
 // ═══════════════════════════════════════
 const ITEMS = [
-  { id:1, type:'아파트', region:'서울', court:'서울중앙지방법원', title:'서울 강남구 역삼동 아파트 24평', address:'강남구 역삼동', appr:65000, min:52000, fail:1, status:'진행', thumb:'🏢', caseNo:'2026타경1021', mx:52, my:34 },
-  { id:2, type:'토지',   region:'경기', court:'수원지방법원',     title:'경기 시흥시 배곧동 대지 152㎡', address:'시흥시 배곧동', appr:84000, min:84000, fail:0, status:'진행', thumb:'🏞️', caseNo:'2026타경0492', mx:37, my:26 },
-  { id:3, type:'상가',   region:'서울', court:'서울동부지방법원', title:'서울 서대문구 충정로 상가 1층', address:'서대문구 충정로3가', appr:41000, min:41000, fail:0, status:'낙찰', thumb:'🏬', caseNo:'2025타경7710', mx:48, my:31 },
-  { id:4, type:'차량',   region:'경기', court:'인천지방법원',     title:'5톤 카고트럭 (2021년식)', address:'인천 남동구', appr:3200, min:2240, fail:1, status:'진행', thumb:'🚚', caseNo:'2026타경0310', mx:24, my:33 },
-  { id:5, type:'기계장비', region:'대구', court:'서울중앙지방법원', title:'CNC 머시닝센터 외 3점', address:'대구 달서구', appr:11000, min:4510, fail:3, status:'진행', thumb:'⚙️', caseNo:'2025타경5521', mx:62, my:61 },
-  { id:6, type:'유가증권', region:'서울', court:'서울중앙지방법원', title:'비상장주식 A사 지분 3%', address:'서울 강남구', appr:9800, min:9800, fail:0, status:'진행', thumb:'📈', caseNo:'2026타경1188', mx:55, my:37 },
-  { id:7, type:'아파트', region:'부산', court:'부산지방법원',     title:'부산 해운대구 우동 아파트 32평', address:'해운대구 우동', appr:98000, min:78400, fail:1, status:'진행', thumb:'🏢', caseNo:'2026타경0877', mx:74, my:71 },
-  { id:8, type:'토지',   region:'인천', court:'인천지방법원',     title:'인천 서구 청라동 임야 3,120㎡', address:'서구 청라동', appr:56000, min:56000, fail:0, status:'진행', thumb:'🌲', caseNo:'2026타경0512', mx:20, my:29 },
-  { id:9, type:'차량',   region:'서울', court:'서울동부지방법원', title:'승용차 그랜저 (2020년식)', address:'서울 송파구', appr:1850, min:1850, fail:0, status:'낙찰', thumb:'🚗', caseNo:'2025타경9042', mx:57, my:36 },
+  { id:1, type:'아파트',   region:'서울', court:'서울중앙지방법원', title:'서울 강남구 역삼동 아파트 24평',     address:'서울 강남구 역삼동',        appr:65000, min:52000, fail:1, status:'진행', thumb:'🏢', caseNo:'2026타경1021' },
+  { id:2, type:'토지',     region:'경기', court:'수원지방법원',     title:'경기 시흥시 배곧동 대지 152㎡',      address:'경기도 시흥시 배곧동',       appr:84000, min:84000, fail:0, status:'진행', thumb:'🏞️', caseNo:'2026타경0492' },
+  { id:3, type:'상가',     region:'서울', court:'서울동부지방법원', title:'서울 서대문구 충정로 상가 1층',       address:'서울 서대문구 충정로3가',     appr:41000, min:41000, fail:0, status:'낙찰', thumb:'🏬', caseNo:'2025타경7710' },
+  { id:4, type:'차량',     region:'경기', court:'인천지방법원',     title:'5톤 카고트럭 (2021년식)',             address:'인천 남동구 논현동',         appr:3200,  min:2240,  fail:1, status:'진행', thumb:'🚚', caseNo:'2026타경0310' },
+  { id:5, type:'기계장비', region:'대구', court:'대구지방법원',     title:'CNC 머시닝센터 외 3점',              address:'대구 달서구 성서공단',       appr:11000, min:4510,  fail:3, status:'진행', thumb:'⚙️', caseNo:'2025타경5521' },
+  { id:6, type:'유가증권', region:'서울', court:'서울중앙지방법원', title:'비상장주식 A사 지분 3%',             address:'서울 강남구 테헤란로',       appr:9800,  min:9800,  fail:0, status:'진행', thumb:'📈', caseNo:'2026타경1188' },
+  { id:7, type:'아파트',   region:'부산', court:'부산지방법원',     title:'부산 해운대구 우동 아파트 32평',     address:'부산 해운대구 우동',         appr:98000, min:78400, fail:1, status:'진행', thumb:'🏢', caseNo:'2026타경0877' },
+  { id:8, type:'토지',     region:'인천', court:'인천지방법원',     title:'인천 서구 청라동 임야 3,120㎡',      address:'인천 서구 청라동',           appr:56000, min:56000, fail:0, status:'진행', thumb:'🌲', caseNo:'2026타경0512' },
+  { id:9, type:'차량',     region:'서울', court:'서울동부지방법원', title:'승용차 그랜저 (2020년식)',            address:'서울 송파구 잠실동',         appr:1850,  min:1850,  fail:0, status:'낙찰', thumb:'🚗', caseNo:'2025타경9042' },
 ];
 
 // ═══════════════════════════════════════
@@ -590,11 +557,236 @@ let filteredItems = [];
 let focusedId = null;
 
 // ═══════════════════════════════════════
+// Leaflet 지도 & 마커
+// ═══════════════════════════════════════
+let map = null;
+// id → { marker, latlng } 매핑
+const markerMap = {};
+
+function initMap() {
+  map = L.map('leafletMap', {
+    center: [36.5, 127.9],
+    zoom: 7,
+    zoomControl: true,
+    attributionControl: true,
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> 기여자',
+    maxZoom: 19,
+  }).addTo(map);
+
+  // 지도 클릭 → 팝업 닫기
+  map.on('click', () => {
+    map.closePopup();
+    deselectAll();
+  });
+}
+
+function makeIcon(it, active) {
+  const cls = ['lf-pin', it.status === '낙찰' ? 'sold' : it.fail > 0 ? 'warn' : '', active ? 'active' : ''].filter(Boolean).join(' ');
+  const html = `<div class="${cls}">
+    <span class="lf-pin-badge">${it.type} · ${fmtWon(it.min)}</span>
+    <span class="lf-pin-stem"></span>
+  </div>`;
+  return L.divIcon({ html, className:'', iconSize:[null, null], iconAnchor:[60, 38] });
+}
+
+function popupHTML(it) {
+  return `<div class="lf-popup">
+    <div class="pop-kind">${it.type} ${popBadge(it)}</div>
+    <h5>${escHtml(it.title)}</h5>
+    <p class="pop-meta">${escHtml(it.court)} · ${escHtml(it.caseNo || '')}</p>
+    <div class="pop-price">
+      <div class="pop-appr">감정가 <b>${fmtWon(it.appr)}</b></div>
+      <div class="pop-appr">최저 <b>${fmtWon(it.min)}</b></div>
+    </div>
+    <div class="pop-actions">
+      <a class="pop-detail" href="bidcast-detail.html?id=${it.id}">상세 보기 →</a>
+      <a class="pop-bot" href="bidcast-bot.html?item=${it.id}">🤖 예보봇</a>
+    </div>
+  </div>`;
+}
+
+function addMarker(it) {
+  const entry = markerMap[it.id];
+  if (!entry || entry.latlng == null) return;
+  const marker = L.marker(entry.latlng, {
+    icon: makeIcon(it, it.id === focusedId),
+    title: it.title,
+  }).addTo(map);
+
+  marker.bindPopup(popupHTML(it), {
+    maxWidth: 260,
+    minWidth: 240,
+    closeButton: false,
+    className: 'bidcast-popup',
+  });
+
+  marker.on('click', e => {
+    L.DomEvent.stopPropagation(e);
+    onMarkerClick(it.id);
+  });
+
+  marker.on('popupclose', () => {
+    if (focusedId === it.id) deselectAll();
+  });
+
+  entry.marker = marker;
+}
+
+function removeMarker(id) {
+  const entry = markerMap[id];
+  if (entry && entry.marker) {
+    entry.marker.remove();
+    entry.marker = null;
+  }
+}
+
+// ═══════════════════════════════════════
+// Nominatim Geocoding (순차, 1초 간격)
+// ═══════════════════════════════════════
+async function geocodeAll() {
+  const bar = document.getElementById('geocodeBar');
+  const fill = document.getElementById('gcFill');
+  const text = document.getElementById('geocodeText');
+  const ratio = document.getElementById('geocodeRatio');
+  const total = ITEMS.length;
+  let done = 0;
+
+  bar.classList.remove('hidden');
+
+  for (const it of ITEMS) {
+    // 이미 좌표 있으면 스킵
+    if (markerMap[it.id] && markerMap[it.id].latlng) { done++; continue; }
+    markerMap[it.id] = markerMap[it.id] || {};
+
+    try {
+      const query = encodeURIComponent(it.address + ', 대한민국');
+      const url = `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1&accept-language=ko`;
+      const res = await fetch(url, { headers: { 'User-Agent': 'BidCast/1.0 (demo)' } });
+      const data = await res.json();
+      if (data && data[0]) {
+        markerMap[it.id].latlng = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+      }
+    } catch (_) {
+      // geocoding 실패 시 해당 아이템 핀 생략
+    }
+
+    done++;
+    fill.style.width = (done / total * 100) + '%';
+    ratio.textContent = `${done}/${total}`;
+    text.textContent = `위치 변환 중 (${it.address})`;
+
+    // Nominatim 이용 정책: 1초 이상 간격
+    if (done < total) await new Promise(r => setTimeout(r, 1100));
+  }
+
+  bar.classList.add('hidden');
+  applyFilters();
+}
+
+// ═══════════════════════════════════════
+// 마커 렌더 (필터 결과 기준)
+// ═══════════════════════════════════════
+function renderMarkers(list) {
+  // 필터 결과에 없는 마커 제거
+  Object.keys(markerMap).forEach(idStr => {
+    const id = parseInt(idStr, 10);
+    if (!list.find(it => it.id === id)) removeMarker(id);
+  });
+  // 필터 결과 마커 추가
+  list.forEach(it => {
+    const entry = markerMap[it.id];
+    if (!entry || !entry.latlng) return; // 아직 geocoding 안 됨
+    if (!entry.marker) {
+      addMarker(it);
+    } else {
+      // 아이콘 active 상태 갱신
+      entry.marker.setIcon(makeIcon(it, it.id === focusedId));
+    }
+  });
+}
+
+// ═══════════════════════════════════════
+// 마커 클릭 → 팝업 + 사이드바 연동
+// ═══════════════════════════════════════
+function onMarkerClick(id) {
+  focusedId = id;
+  const it = ITEMS.find(x => x.id === id);
+  if (!it) return;
+
+  // 모든 마커 아이콘 초기화
+  filteredItems.forEach(fi => {
+    const e = markerMap[fi.id];
+    if (e && e.marker) e.marker.setIcon(makeIcon(fi, fi.id === id));
+  });
+
+  // 사이드바 highlight + 스크롤
+  document.querySelectorAll('.side-item').forEach(s => s.classList.remove('active'));
+  const sideEl = document.getElementById(`side-${id}`);
+  if (sideEl) {
+    sideEl.classList.add('active');
+    sideEl.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  }
+
+  // 팝업 열기
+  const entry = markerMap[id];
+  if (entry && entry.marker) {
+    entry.marker.openPopup();
+  }
+}
+
+// ═══════════════════════════════════════
+// 사이드바 클릭 → 지도 이동 + 마커 + 팝업
+// ═══════════════════════════════════════
+function onSideItemClick(id) {
+  const it = filteredItems.find(x => x.id === id);
+  if (!it) return;
+  focusedId = id;
+
+  // 사이드바 highlight
+  document.querySelectorAll('.side-item').forEach(s => s.classList.remove('active'));
+  const sideEl = document.getElementById(`side-${id}`);
+  if (sideEl) sideEl.classList.add('active');
+
+  // 마커 아이콘 active 갱신
+  filteredItems.forEach(fi => {
+    const e = markerMap[fi.id];
+    if (e && e.marker) e.marker.setIcon(makeIcon(fi, fi.id === id));
+  });
+
+  const entry = markerMap[id];
+  if (entry && entry.latlng) {
+    map.setView(entry.latlng, Math.max(map.getZoom(), 14), { animate:true });
+    if (entry.marker) entry.marker.openPopup();
+  }
+
+  // 모바일: 지도로 스크롤
+  if (window.innerWidth < 960) {
+    document.getElementById('leafletMap').scrollIntoView({ behavior:'smooth', block:'start' });
+  }
+}
+
+function deselectAll() {
+  focusedId = null;
+  document.querySelectorAll('.side-item').forEach(s => s.classList.remove('active'));
+  filteredItems.forEach(fi => {
+    const e = markerMap[fi.id];
+    if (e && e.marker) e.marker.setIcon(makeIcon(fi, false));
+  });
+}
+
+// ═══════════════════════════════════════
 // 유틸
 // ═══════════════════════════════════════
 function fmtWon(man) {
   if (man >= 10000) return (man / 10000).toFixed(man % 10000 === 0 ? 0 : 1) + '억';
   return man.toLocaleString() + '만';
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function sideItemBadge(it) {
@@ -660,7 +852,6 @@ function filterCdSearch(input) {
   });
 }
 
-// 드롭다운 옵션 클릭 — 이벤트 위임
 document.addEventListener('click', e => {
   const opt = e.target.closest('.cd-opt');
   if (opt) {
@@ -732,7 +923,7 @@ function rebuildCourtDropdown() {
   const courts = [...new Set(ITEMS.map(it => it.court).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
   const list = document.getElementById('cdCourtList');
   list.innerHTML = '<button class="cd-opt on" data-v="">기관 전체</button>'
-    + courts.map(c => `<button class="cd-opt" data-v="${c}">${c}</button>`).join('');
+    + courts.map(c => `<button class="cd-opt" data-v="${escHtml(c)}">${escHtml(c)}</button>`).join('');
 }
 
 // ═══════════════════════════════════════
@@ -745,56 +936,38 @@ function onSearchInput() {
 }
 
 // ═══════════════════════════════════════
-// 필터 계산 (순수 함수)
+// 필터 계산
 // ═══════════════════════════════════════
 function computeFiltered() {
   let list = [...ITEMS];
-
-  // 타입 필터
   list = list.filter(it => activeTypes.has(normalizeType(it.type)));
-
-  // 검색어
   if (qTerm) list = list.filter(it =>
     it.title.toLowerCase().includes(qTerm) ||
     (it.address || '').toLowerCase().includes(qTerm) ||
     it.region.includes(qTerm) ||
     it.court.toLowerCase().includes(qTerm)
   );
-
-  // 기관
   if (F.court) list = list.filter(it => it.court === F.court);
-
-  // 지역
   if (F.region) list = list.filter(it => it.region === F.region);
-
-  // 상태
   if (statusFilter === '신건') list = list.filter(it => it.fail === 0 && it.status !== '낙찰');
   else if (statusFilter === '진행') list = list.filter(it => it.status !== '낙찰' && it.fail === 0);
   else if (statusFilter === '유찰') list = list.filter(it => it.fail > 0 && it.status !== '낙찰');
   else if (statusFilter === '낙찰') list = list.filter(it => it.status === '낙찰');
-
-  // 가격
   if (F.price) {
     const ranges = { '~1억':[0,10000], '1~3억':[10000,30000], '3~5억':[30000,50000], '5~10억':[50000,100000], '10억~':[100000,Infinity] };
     const [lo, hi] = ranges[F.price] || [0, Infinity];
     list = list.filter(it => it.appr >= lo && it.appr < hi);
   }
-
-  // 유찰
   if (F.fail !== '') {
     const fv = parseInt(F.fail, 10);
     if (fv === 0) list = list.filter(it => it.fail === 0);
     else if (fv === 1) list = list.filter(it => it.fail === 1);
     else list = list.filter(it => it.fail >= 2);
   }
-
-  // 정렬
   if (F.sort === 'price_desc') list.sort((a, b) => b.appr - a.appr);
   else if (F.sort === 'price_asc') list.sort((a, b) => a.appr - b.appr);
   else if (F.sort === 'fail_desc') list.sort((a, b) => b.fail - a.fail);
-  else if (F.sort === 'views') list.sort((a, b) => (b.views || 0) - (a.views || 0));
   else list.sort((a, b) => b.id - a.id);
-
   return list;
 }
 
@@ -804,10 +977,10 @@ function computeFiltered() {
 function applyFilters() {
   filteredItems = computeFiltered();
   renderSidebar(filteredItems);
-  renderPins(filteredItems);
-  // 활성 핀이 필터 후에도 남아있으면 유지, 아니면 팝업 닫기
+  if (map) renderMarkers(filteredItems);
   if (focusedId !== null && !filteredItems.find(it => it.id === focusedId)) {
-    closePopup();
+    deselectAll();
+    if (map) map.closePopup();
   }
 }
 
@@ -839,127 +1012,12 @@ function renderSidebar(list) {
       onkeydown="if(event.key==='Enter')onSideItemClick(${it.id})">
       <span class="ico">${it.thumb || '📍'}</span>
       <div class="side-item-body">
-        <div class="side-item-title">${it.title}</div>
-        <div class="side-item-meta">${sideItemBadge(it)} ${it.court}</div>
+        <div class="side-item-title">${escHtml(it.title)}</div>
+        <div class="side-item-meta">${sideItemBadge(it)} ${escHtml(it.court)}</div>
         <div class="side-item-price">감정가 ${fmtWon(it.appr)} · 최저 ${fmtWon(it.min)}</div>
       </div>
     </div>`).join('');
 }
-
-// ═══════════════════════════════════════
-// 핀 렌더
-// ═══════════════════════════════════════
-function pinClass(it) {
-  if (it.status === '낙찰') return 'pin sold';
-  if (it.fail > 0) return 'pin warn';
-  return 'pin';
-}
-
-function renderPins(list) {
-  const canvas = document.getElementById('mapCanvas');
-  canvas.querySelectorAll('.pin').forEach(p => p.remove());
-  list.forEach(it => {
-    const el = document.createElement('div');
-    el.className = pinClass(it) + (it.id === focusedId ? ' active' : '');
-    el.style.left = it.mx + '%';
-    el.style.top = it.my + '%';
-    el.dataset.id = it.id;
-    el.innerHTML = `<span class="pin-badge">${it.type} · ${fmtWon(it.min)}</span><span class="pin-stem"></span>`;
-    el.addEventListener('click', e => { e.stopPropagation(); onPinClick(it.id); });
-    canvas.appendChild(el);
-  });
-}
-
-// ═══════════════════════════════════════
-// 핀 클릭 → 팝업 + 사이드바 연동
-// ═══════════════════════════════════════
-function onPinClick(id) {
-  const it = ITEMS.find(x => x.id === id);
-  if (!it) return;
-  focusedId = id;
-
-  // 모든 핀 active 해제 후 해당 핀 active
-  document.querySelectorAll('.pin').forEach(p => p.classList.remove('active'));
-  const pinEl = document.querySelector(`.pin[data-id="${id}"]`);
-  if (pinEl) pinEl.classList.add('active');
-
-  // 사이드바 아이템 highlight + 스크롤
-  document.querySelectorAll('.side-item').forEach(s => s.classList.remove('active'));
-  const sideEl = document.getElementById(`side-${id}`);
-  if (sideEl) {
-    sideEl.classList.add('active');
-    sideEl.scrollIntoView({ behavior:'smooth', block:'nearest' });
-  }
-
-  // 팝업 표시
-  showPopup(it, pinEl);
-}
-
-// ═══════════════════════════════════════
-// 사이드바 클릭 → 핀 포커스 + 팝업
-// ═══════════════════════════════════════
-function onSideItemClick(id) {
-  const it = filteredItems.find(x => x.id === id);
-  if (!it) return;
-  focusedId = id;
-
-  // 사이드바 highlight
-  document.querySelectorAll('.side-item').forEach(s => s.classList.remove('active'));
-  const sideEl = document.getElementById(`side-${id}`);
-  if (sideEl) sideEl.classList.add('active');
-
-  // 핀 active
-  document.querySelectorAll('.pin').forEach(p => p.classList.remove('active'));
-  const pinEl = document.querySelector(`.pin[data-id="${id}"]`);
-  if (pinEl) pinEl.classList.add('active');
-
-  // 팝업 표시
-  showPopup(it, pinEl);
-
-  // 지도 캔버스로 스크롤 (모바일)
-  if (window.innerWidth < 960) {
-    document.getElementById('mapCanvas').scrollIntoView({ behavior:'smooth', block:'start' });
-  }
-}
-
-// ═══════════════════════════════════════
-// 팝업 표시
-// ═══════════════════════════════════════
-function showPopup(it, pinEl) {
-  const popup = document.getElementById('mapPopup');
-  document.getElementById('popKind').innerHTML = `${it.type} ${popBadge(it)}`;
-  document.getElementById('popTitle').textContent = it.title;
-  document.getElementById('popMeta').textContent = it.court + ' · ' + (it.caseNo || '');
-  document.getElementById('popAppr').textContent = fmtWon(it.appr);
-  document.getElementById('popMin').textContent = fmtWon(it.min);
-  document.getElementById('popDetail').href = `bidcast-detail.html?id=${it.id}`;
-  document.getElementById('popBot').href = `bidcast-bot.html?item=${it.id}`;
-
-  // 팝업 위치 — 핀 오른쪽 우선, 화면 범위 고려
-  const canvas = document.getElementById('mapCanvas');
-  const cw = canvas.offsetWidth;
-  const ch = canvas.offsetHeight;
-  let left = it.mx / 100 * cw + 16;
-  let top  = it.my / 100 * ch - 40;
-  if (left + 250 > cw) left = it.mx / 100 * cw - 250 - 10;
-  if (top < 10) top = 10;
-  if (top + 230 > ch) top = ch - 240;
-  popup.style.left = left + 'px';
-  popup.style.top  = top + 'px';
-  popup.classList.add('show');
-}
-
-function closePopup() {
-  document.getElementById('mapPopup').classList.remove('show');
-  document.querySelectorAll('.pin').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.side-item').forEach(s => s.classList.remove('active'));
-  focusedId = null;
-}
-
-// 지도 배경 클릭 → 팝업 닫기
-document.getElementById('mapCanvas').addEventListener('click', e => {
-  if (!e.target.closest('.map-popup') && !e.target.closest('.pin')) closePopup();
-});
 
 // ═══════════════════════════════════════
 // URL 파라미터: ?id=N → 해당 핀 포커스
@@ -967,16 +1025,7 @@ document.getElementById('mapCanvas').addEventListener('click', e => {
 function handleUrlFocus() {
   const params = new URLSearchParams(location.search);
   const id = parseInt(params.get('id'), 10);
-  if (id && ITEMS.find(x => x.id === id)) {
-    focusedId = id;
-  }
-}
-
-// ═══════════════════════════════════════
-// 지도 API 미연동 안내
-// ═══════════════════════════════════════
-function showMapApiNotice() {
-  alert('데모 화면입니다.\n실제 확대/축소 기능은 지도 API 연동 후 제공됩니다.');
+  if (id && ITEMS.find(x => x.id === id)) focusedId = id;
 }
 
 // ═══════════════════════════════════════
@@ -986,26 +1035,37 @@ handleUrlFocus();
 rebuildCourtDropdown();
 initTypeChips();
 
-// 로딩 연출 후 렌더
+// 지도 초기화 → geocoding → 렌더
+const loadingEl = document.getElementById('mapLoading');
+initMap();
+loadingEl.style.opacity = '0';
 setTimeout(() => {
-  const loading = document.getElementById('mapLoading');
-  loading.style.opacity = '0';
-  setTimeout(() => {
-    loading.style.display = 'none';
-    applyFilters();
-    // URL에서 지정된 id가 있으면 팝업 열기
+  loadingEl.style.display = 'none';
+  // sidebar 먼저 렌더 (지도 좌표 없어도 목록은 즉시 표시)
+  filteredItems = computeFiltered();
+  renderSidebar(filteredItems);
+  // geocoding 시작 → 완료되면 applyFilters() 가 마커 추가
+  geocodeAll().then(() => {
+    // URL id 포커스 처리
     if (focusedId) {
-      const it = filteredItems.find(x => x.id === focusedId);
-      if (it) {
-        const pinEl = document.querySelector(`.pin[data-id="${focusedId}"]`);
-        showPopup(it, pinEl);
-        const sideEl = document.getElementById(`side-${focusedId}`);
-        if (sideEl) { sideEl.classList.add('active'); sideEl.scrollIntoView({ behavior:'smooth', block:'nearest' }); }
-        if (pinEl) pinEl.classList.add('active');
+      const entry = markerMap[focusedId];
+      if (entry && entry.latlng) {
+        map.setView(entry.latlng, 15, { animate:false });
+        onMarkerClick(focusedId);
+      }
+    } else {
+      // 마커들이 있으면 전체 보이도록 fitBounds
+      const coords = Object.values(markerMap)
+        .filter(e => e.latlng)
+        .map(e => e.latlng);
+      if (coords.length > 1) {
+        map.fitBounds(coords, { padding:[40, 40], maxZoom:12 });
+      } else if (coords.length === 1) {
+        map.setView(coords[0], 13);
       }
     }
-  }, 400);
-}, 700);
+  });
+}, 400);
 
 // ═══════════════════════════════════════
 // 공용 데모 Auth
@@ -1026,13 +1086,12 @@ authOverlay.addEventListener('click', e => { if (e.target === authOverlay) close
 function snsFlow(provider) { finishAuth(provider === 'Google' ? 'Gmail 계정' : `${provider} 계정`); }
 function finishAuth(identity) {
   closeAuth();
-  document.getElementById('navRight').innerHTML = `<span class="nav-user"><span class="dot"></span>${identity} <button type="button" onclick="logoutDemo()">로그아웃</button></span>`;
+  document.getElementById('navRight').innerHTML = `<span class="nav-user"><span class="dot"></span>${escHtml(identity)} <button type="button" onclick="logoutDemo()">로그아웃</button></span>`;
 }
 function logoutDemo() {
   document.getElementById('navRight').innerHTML = `<button class="nav-login" type="button" onclick="openAuth('login')">로그인</button><button class="nav-cta" type="button" onclick="openAuth('signup')">사전 알림 신청</button>`;
 }
 
-// 모바일 내비
 function toggleMobileNav() { document.getElementById('mobileNav').classList.toggle('open'); }
 document.addEventListener('click', e => {
   const mn = document.getElementById('mobileNav');
@@ -1042,11 +1101,10 @@ document.addEventListener('click', e => {
   }
 });
 
-// ESC
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   if (authOverlay.classList.contains('open')) { closeAuth(); return; }
-  if (document.getElementById('mapPopup').classList.contains('show')) { closePopup(); return; }
+  if (map) map.closePopup();
 });
 </script>
 </body>
