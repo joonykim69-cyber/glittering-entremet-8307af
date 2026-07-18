@@ -181,6 +181,8 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 .item-views { font-size:11px; color:var(--mute); }
 .report-btn { font:inherit; font-size:12px; font-weight:800; cursor:pointer; background:var(--ink); color:#fff; border:none; padding:7px 14px; border-radius:9px; transition:background .2s, transform .15s var(--ease); }
 .report-btn:hover { background:var(--green-deep); transform:translateY(-1px); }
+.map-link { font:inherit; font-size:12px; font-weight:700; color:var(--sub); background:var(--bg); border:1.5px solid var(--line); padding:6px 11px; border-radius:9px; text-decoration:none; transition:all .2s; white-space:nowrap; }
+.map-link:hover { border-color:var(--green); color:var(--green-deep); background:var(--green-soft); }
 
 /* ═══ LIST VIEW ═══ */
 .item-list { display:grid; gap:8px; padding:16px 0 0; }
@@ -892,6 +894,7 @@ function renderCard(it) {
     </div>
     <div class="item-foot">
       <span class="item-views">👁 ${it.views.toLocaleString()}</span>
+      <a class="map-link" href="bidcast-map.html?id=${encodeURIComponent(it.id)}">🗺️ 지도</a>
       <button class="report-btn" type="button" onclick="openReport('${it.id}')">리포트 보기</button>
     </div>
   </div>
@@ -922,6 +925,7 @@ function renderRow(it) {
     </div>
     <div class="item-row-actions">
       <button type="button" class="row-heart ${liked?'on':''}" onclick="toggleLike('${it.id}',this)" aria-label="${liked?'관심 해제':'관심 등록'}">♥</button>
+      <a class="map-link" href="bidcast-map.html?id=${encodeURIComponent(it.id)}">🗺️ 지도</a>
       <button class="report-btn" type="button" onclick="openReport('${it.id}')">리포트</button>
     </div>
   </div>
