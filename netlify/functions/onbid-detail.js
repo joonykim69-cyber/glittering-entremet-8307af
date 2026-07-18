@@ -23,13 +23,43 @@ const CORS = {
 const ONBID_DETAIL_API_URL = process.env.ONBID_DETAIL_API_URL;
 const ONBID_DETAIL_OPERATION = '/getRlstDtlInf2';
 
-// 실 응답 확인 후 필드 매핑을 채울 자리 — 현재는 원본 전달.
-// 활용가이드에 언급된 응답 항목: 물건관리번호, 물건명, 지목, 면적,
-// 공고공지사항, 일괄입찰물건, 감정평가정보, 임대차정보,
-// 등기사항증명서주요정보목록, 사진URL, 동영상URL, 위치도URL,
-// 지번PNU코드, 도로명PNU코드
-function mapDetail(raw) {
-  return { raw };
+// 2026-07-18 실 응답 기준 확인된 필드명으로 매핑.
+// body.items.item[0] 구조. 토지면적/건물면적/층수/건축년도는 이 API에 없음.
+function mapDetail(body) {
+  const arr = body?.items?.item;
+  const d = Array.isArray(arr) && arr.length > 0 ? arr[0] : null;
+  if (!d) return { raw: body };
+
+  // 입찰 일시: YYYYMMDDHHMI(12자리) → "YYYY.MM.DD HH:MM" (2099 초과면 미정)
+  function fmtDt(s) {
+    const t = String(s || '');
+    if (t.length < 12 || Number(t.slice(0, 4)) > 2099) return '';
+    return `${t.slice(0,4)}.${t.slice(4,6)}.${t.slice(6,8)} ${t.slice(8,10)}:${t.slice(10,12)}`;
+  }
+  const bgng = fmtDt(d.cltrBidBgngDt), end = fmtDt(d.cltrBidEndDt);
+
+  return {
+    title: d.onbidCltrNm || '',
+    prptDivNm: d.prptDivNm || '',
+    usageLcls: d.cltrUsgLclsCtgrNm || '',
+    usageMcls: d.cltrUsgMclsCtgrNm || '',
+    usageScls: d.cltrUsgSclsCtgrNm || '',
+    disposeMethod: d.dspsMthodNm || '매각',
+    bidDiv: d.bidDivNm || '',
+    bidMethod: d.bidMthodNm || '',
+    competeMethod: d.cptnMthodNm || '',
+    apslEvlAmt: Number(d.apslEvlAmt) || 0,
+    lowstBidAmt: parseInt(String(d.lowstBidPrcIndctCont || '').replace(/[^0-9]/g, ''), 10) || 0,
+    usbdNft: Number(d.usbdNft) || 0,
+    period: bgng && end ? `${bgng} ~ ${end}` : '',
+    ltnoPnu: d.ltnoPnu || '',
+    roadAddrPnu: d.roadAddrPnu || '',
+    leasInfList: Array.isArray(d.leasInfList) ? d.leasInfList : [],
+    rgstPrmrInfList: Array.isArray(d.rgstPrmrInfList) ? d.rgstPrmrInfList : [],
+    ocpyRelList: Array.isArray(d.ocpyRelList) ? d.ocpyRelList : [],
+    dtbtRqrMtrsList: Array.isArray(d.dtbtRqrMtrsList) ? d.dtbtRqrMtrsList : [],
+    raw: body,
+  };
 }
 
 exports.handler = async (event) => {

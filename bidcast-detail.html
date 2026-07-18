@@ -551,72 +551,60 @@ if (isLive && liveItem) {
       if (r.status === 501) { console.log('[detail] 상세 API 미연동 (501)'); return; }
       if (!r.ok) { console.log('[detail] 상세 API 오류:', r.status); return; }
       const data = await r.json();
-      console.log('[detail] 상세 API 응답:', JSON.stringify(data).slice(0, 2000));
+      const det = data?.detail;
+      if (!det || det.raw && !det.title) { console.log('[detail] 매핑된 상세 없음'); return; }
 
-      const body = data?.detail?.raw;
-      if (!body) return;
+      // ── 기본정보 테이블 ──────────────────────────────────────────────
+      const fmtWon = n => n >= 100000000
+        ? (n / 100000000).toFixed(n % 100000000 === 0 ? 0 : 2) + '억원'
+        : n >= 10000 ? Math.round(n / 10000).toLocaleString() + '만원'
+        : n.toLocaleString() + '원';
 
-      // body 구조: items 배열 또는 단일 item — API 응답 형태에 따라 유연하게 처리
-      const items = body?.items || body?.item || (Array.isArray(body) ? body : null);
-      const d = Array.isArray(items) ? items[0] : (items || body);
-      if (!d || typeof d !== 'object') { console.log('[detail] 상세 item 추출 실패 — raw:', body); return; }
-      console.log('[detail] 상세 item 필드:', Object.keys(d));
-
-      // 기본정보 테이블 업데이트 — 필드명은 data.go.kr 활용가이드 기준 추정,
-      // 실 응답 확인 후 보정 (콘솔 로그에서 필드명 확인 가능)
       const rows = [];
-      rows.push(['소재지', d.lctn || d.lctnAdr || it.address]);
-      rows.push(['용도', d.ldcgNm || d.cltrUsgSclsCtgrNm || it.usage]);
-      rows.push(['토지면적', d.lndArea ? d.lndArea + '㎡' : (d.ldcgArea ? d.ldcgArea + '㎡' : it.landArea)]);
-      rows.push(['건물면적', d.bldTtlArea ? d.bldTtlArea + '㎡' : (d.bldArea ? d.bldArea + '㎡' : it.bldArea)]);
-      rows.push(['층수', d.flrCnt || d.flrInfo || it.floor]);
-      rows.push(['건축년도/연식', d.bldYy || d.usgYy || it.built]);
-      rows.push(['처분방식', '매각']);
-      rows.push(['입찰방식', '일반경쟁 · 최고가방식']);
-      if (d.jbnPnuCd) rows.push(['지번PNU코드', d.jbnPnuCd]);
-      if (d.roadPnuCd) rows.push(['도로명PNU코드', d.roadPnuCd]);
-      document.getElementById('infoTable').innerHTML = rows.map(([k, v]) => `<tr><th>${k}</th><td>${v || '—'}</td></tr>`).join('');
+      rows.push(['소재지', it.address]);
+      rows.push(['재산구분', det.prptDivNm || '—']);
+      rows.push(['용도(대)', det.usageLcls || '—']);
+      rows.push(['용도(중)', det.usageMcls || '—']);
+      rows.push(['용도(소)', det.usageScls || '—']);
+      if (det.apslEvlAmt) rows.push(['감정평가액', fmtWon(det.apslEvlAmt)]);
+      rows.push(['처분방식', det.disposeMethod || '매각']);
+      rows.push(['입찰방식', [det.bidDiv, det.competeMethod, det.bidMethod].filter(Boolean).join(' · ') || '—']);
+      if (det.period) rows.push(['입찰기간', det.period]);
+      if (det.ltnoPnu) rows.push(['지번PNU', det.ltnoPnu]);
+      document.getElementById('infoTable').innerHTML = rows.map(([k, v]) => `<tr><th>${k}</th><td>${String(v).replace(/</g,'&lt;')}</td></tr>`).join('');
 
-      // 사진 URL — API 응답에 사진이 있으면 기존 이모지 위에 추가
-      const photoUrl = d.photoUrl || d.thnlImgUrlAdr || d.flPthNm || '';
-      if (photoUrl && /^https?:\/\//.test(photoUrl)) {
-        const box = document.getElementById('photoBox');
-        if (box && !box.querySelector('img')) {
-          const img = document.createElement('img');
-          img.src = photoUrl;
-          img.alt = '';
-          img.onerror = () => img.remove();
-          box.prepend(img);
-          const note = document.querySelector('.photo-note');
-          if (note) note.textContent = '온비드 제공 실사 사진 (상세 API)';
-        }
+      // ── 입찰기간 헤더 업데이트 ───────────────────────────────────────
+      if (det.period) {
+        const periodEl = document.getElementById('dPeriod');
+        if (periodEl) periodEl.textContent = det.period;
       }
 
-      // 감정평가 정보
-      if (d.apslEvlInfo || d.apslEvlAmt) {
-        const evl = d.apslEvlInfo || ('감정평가액: ' + Number(d.apslEvlAmt).toLocaleString() + '원');
-        const rights = document.getElementById('rightsList');
-        if (rights) {
-          const evlEl = document.createElement('div');
-          evlEl.className = 'right-item ok';
-          evlEl.innerHTML = '<span class="ico">📋</span><div><div class="t">감정평가 정보</div><div class="m">' + String(evl).replace(/</g,'&lt;') + '</div></div>';
-          rights.prepend(evlEl);
-        }
-      }
-
-      // 임대차 정보
-      if (d.leaseInfo || d.lttotInfo) {
-        const lease = d.leaseInfo || d.lttotInfo;
-        const rights = document.getElementById('rightsList');
-        if (rights) {
+      // ── 임대차 정보 (leasInfList) ────────────────────────────────────
+      const rights = document.getElementById('rightsList');
+      if (rights && det.leasInfList && det.leasInfList.length > 0) {
+        det.leasInfList.forEach(l => {
           const el = document.createElement('div');
           el.className = 'right-item warn';
-          el.innerHTML = `<span class="ico">📄</span><div><div class="t">임대차 정보</div><div class="m">${String(lease).replace(/</g,'&lt;')}</div></div>`;
+          const desc = [l.lsrNm && '임차인: ' + l.lsrNm, l.lsDpstAmt && '보증금: ' + fmtWon(Number(l.lsDpstAmt)), l.lsRentAmt && '월세: ' + fmtWon(Number(l.lsRentAmt))].filter(Boolean).join(' / ') || JSON.stringify(l);
+          el.innerHTML = '<span class="ico">📄</span><div><div class="t">임대차 정보</div><div class="m">' + desc.replace(/</g,'&lt;') + '</div></div>';
           rights.prepend(el);
-        }
+        });
+      } else if (rights && det.leasInfList) {
+        const el = document.createElement('div');
+        el.className = 'right-item ok';
+        el.innerHTML = '<span class="ico">✅</span><div><div class="t">임대차 정보 없음</div><div class="m">온비드 API 기준 임대차 정보가 없습니다.</div></div>';
+        rights.prepend(el);
       }
 
-      // chip 업데이트
+      // ── 감정평가 요약 ────────────────────────────────────────────────
+      if (rights && det.apslEvlAmt) {
+        const el = document.createElement('div');
+        el.className = 'right-item ok';
+        el.innerHTML = '<span class="ico">📋</span><div><div class="t">감정평가액</div><div class="m">' + fmtWon(det.apslEvlAmt) + ' (온비드 상세 API 기준)</div></div>';
+        rights.prepend(el);
+      }
+
+      // ── chip 업데이트 ────────────────────────────────────────────────
       const chip = document.querySelector('.demo-chip');
       if (chip) chip.textContent = '📡 실시간 온비드 물건 — 상세정보 API 연동됨';
     } catch (e) {
