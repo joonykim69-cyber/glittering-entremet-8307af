@@ -1,21 +1,18 @@
 // netlify/functions/onbid-detail.js
-// "온비드 부동산 물건상세 조회 서비스" 프록시 스캐폴드 — bidcast-detail.html의 상세 항목
-// (입찰이력·면적·입찰기간·권리 관련 원문 등) 실 데이터 공급용.
+// "온비드 부동산 물건상세 조회 서비스" 프록시 — bidcast-detail.html의 상세 항목
+// (물건명·지목·면적·감정평가·임대차·등기사항·사진 등) 실 데이터 공급용.
 //
-// ⚠️ 아직 미완성 (의도된 상태):
-// 이 서비스는 data.go.kr에서 별도 활용신청이 필요하며(물건목록 조회서비스와 다른 서비스),
-// 신청 전이라 End Point·오퍼레이션 경로·응답 필드명이 모두 미확인입니다.
-// 목록 서비스(OnbidRlstListSrvc2)의 설명문에서 확인된 것: 조회 키는
-// 물건관리번호(cltrMngNo) + 공매조건번호(pbctCdtnNo) 두 개를 함께 넘긴다는 것뿐.
+// 신청된 서비스: 한국자산관리공사_차세대 온비드 부동산 물건상세 조회서비스
+// Base URL: https://apis.data.go.kr/B010003/OnbidRlstDtlSrvc2
+// 오퍼레이션: GET /getRlstDtlInf2 (부동산 물건상세정보 조회)
+// 아래 요청 파라미터는 2026-07-18, data.go.kr 활용신청 상세기능정보에서 확인된 값입니다.
 //
-// 완성 절차 (목록 서비스 때와 동일한 방식):
-// 1. data.go.kr에서 "차세대 온비드 부동산 물건상세 조회 서비스" 활용신청
-// 2. 승인 후 상세 페이지의 Swagger에서 End Point·오퍼레이션·응답 모델 확인
-// 3. Netlify 환경변수 ONBID_DETAIL_API_URL(Base URL)·ONBID_DETAIL_OPERATION(경로) 설정
-// 4. 실 응답(?debug=1)을 보고 아래 mapDetail()에 필드 매핑 작성
-// 5. bidcast-detail.html에서 이 함수를 호출해 스냅샷 렌더링을 실 상세로 교체
+// 응답 필드명은 첫 실 응답 확인 후 mapDetail()에 매핑 예정 — 그 전까지는
+// 원본을 그대로 전달하고 ?debug=1로 브라우저에서 구조를 확인할 수 있습니다.
 //
-// 환경변수 미설정 시 명확한 501을 반환하므로 배포되어 있어도 무해합니다.
+// Netlify 환경변수:
+//   ONBID_DETAIL_API_URL = https://apis.data.go.kr/B010003/OnbidRlstDtlSrvc2
+//   ONBID_SERVICE_KEY    = (목록 서비스와 동일한 인증키 — 이미 설정됨)
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -24,10 +21,13 @@ const CORS = {
 };
 
 const ONBID_DETAIL_API_URL = process.env.ONBID_DETAIL_API_URL;
-const ONBID_DETAIL_OPERATION = process.env.ONBID_DETAIL_OPERATION || '';
+const ONBID_DETAIL_OPERATION = '/getRlstDtlInf2';
 
-// TODO(스키마 확인 후 작성): 실 응답 필드 → 프론트엔드 소비 형태 매핑.
-// 스키마 확인 전에는 원본을 그대로 담아 debug로만 노출한다.
+// 실 응답 확인 후 필드 매핑을 채울 자리 — 현재는 원본 전달.
+// 활용가이드에 언급된 응답 항목: 물건관리번호, 물건명, 지목, 면적,
+// 공고공지사항, 일괄입찰물건, 감정평가정보, 임대차정보,
+// 등기사항증명서주요정보목록, 사진URL, 동영상URL, 위치도URL,
+// 지번PNU코드, 도로명PNU코드
 function mapDetail(raw) {
   return { raw };
 }
@@ -45,7 +45,7 @@ exports.handler = async (event) => {
     return {
       statusCode: 501,
       headers: CORS,
-      body: JSON.stringify({ error: { message: '물건상세 API 미연동 — data.go.kr에서 상세 조회 서비스 신청 후 ONBID_DETAIL_API_URL을 설정하세요.' } }),
+      body: JSON.stringify({ error: { message: '물건상세 API 미연동 — Netlify 환경변수에 ONBID_DETAIL_API_URL을 설정하세요.' } }),
     };
   }
 
@@ -56,6 +56,8 @@ exports.handler = async (event) => {
 
   const params = new URLSearchParams({
     serviceKey,
+    pageNo: '1',
+    numOfRows: '10',
     resultType: 'json',
     cltrMngNo: qs.cltrMngNo,
     pbctCdtnNo: qs.pbctCdtnNo,
@@ -75,15 +77,21 @@ exports.handler = async (event) => {
       return { statusCode: 502, headers: CORS, body: JSON.stringify({ error: { message: '온비드 상세 API가 JSON이 아닌 응답을 반환했습니다.' } }) };
     }
 
-    // 목록 API에서 확인된 패턴: response 래퍼가 있을 수도, 최상위 header/body일 수도 있음
+    // 목록 API와 동일 패턴: {response:{header,body}} 또는 최상위 {header,body}
     const env = raw?.response ?? raw;
     const header = env?.header;
     if (header && header.resultCode && header.resultCode !== '00') {
+      console.log('[onbid-detail] 온비드 API 오류 코드:', header.resultCode, header.resultMsg);
       return { statusCode: 502, headers: CORS, body: JSON.stringify({ error: { message: `온비드 상세 API 오류: ${header.resultCode} ${header.resultMsg || ''}` } }) };
     }
 
     const detail = mapDetail(env?.body ?? env);
-    const debug = qs.debug ? { upstreamUrl, rawSnippet: bodyText.slice(0, 800) } : undefined;
+    const debug = qs.debug ? {
+      upstreamUrl,
+      rawSnippet: bodyText.slice(0, 2000),
+    } : undefined;
+
+    console.log('[onbid-detail] 정상 응답 — cltrMngNo:', qs.cltrMngNo);
     return {
       statusCode: 200,
       headers: { ...CORS, 'Content-Type': 'application/json' },

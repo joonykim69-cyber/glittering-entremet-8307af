@@ -533,6 +533,98 @@ document.getElementById('simGrid').innerHTML = simIds.slice(0, 3).map(k => {
   </a>`;
 }).join('');
 
+// ═══════════════════════════════════════════════════════════════════════
+// 온비드 부동산 물건상세 API 연동 — 실시간 물건일 때 기본정보 보강
+// (상세 API 미연동(501) 또는 오류 시 기존 스냅샷 유지, 페이지 깨짐 없음)
+// ═══════════════════════════════════════════════════════════════════════
+if (isLive && liveItem) {
+  (async () => {
+    const cltrMngNo = String(liveItem.id);
+    const pbctCdtnNo = liveItem.pbctCdtnNo || '';
+    if (!cltrMngNo || !pbctCdtnNo) {
+      console.log('[detail] pbctCdtnNo 없음 — 상세 API 호출 생략');
+      return;
+    }
+    try {
+      const qs = new URLSearchParams({ cltrMngNo, pbctCdtnNo });
+      const r = await fetch('/.netlify/functions/onbid-detail?' + qs.toString());
+      if (r.status === 501) { console.log('[detail] 상세 API 미연동 (501)'); return; }
+      if (!r.ok) { console.log('[detail] 상세 API 오류:', r.status); return; }
+      const data = await r.json();
+      console.log('[detail] 상세 API 응답:', JSON.stringify(data).slice(0, 2000));
+
+      const body = data?.detail?.raw;
+      if (!body) return;
+
+      // body 구조: items 배열 또는 단일 item — API 응답 형태에 따라 유연하게 처리
+      const items = body?.items || body?.item || (Array.isArray(body) ? body : null);
+      const d = Array.isArray(items) ? items[0] : (items || body);
+      if (!d || typeof d !== 'object') { console.log('[detail] 상세 item 추출 실패 — raw:', body); return; }
+      console.log('[detail] 상세 item 필드:', Object.keys(d));
+
+      // 기본정보 테이블 업데이트 — 필드명은 data.go.kr 활용가이드 기준 추정,
+      // 실 응답 확인 후 보정 (콘솔 로그에서 필드명 확인 가능)
+      const rows = [];
+      rows.push(['소재지', d.lctn || d.lctnAdr || it.address]);
+      rows.push(['용도', d.ldcgNm || d.cltrUsgSclsCtgrNm || it.usage]);
+      rows.push(['토지면적', d.lndArea ? d.lndArea + '㎡' : (d.ldcgArea ? d.ldcgArea + '㎡' : it.landArea)]);
+      rows.push(['건물면적', d.bldTtlArea ? d.bldTtlArea + '㎡' : (d.bldArea ? d.bldArea + '㎡' : it.bldArea)]);
+      rows.push(['층수', d.flrCnt || d.flrInfo || it.floor]);
+      rows.push(['건축년도/연식', d.bldYy || d.usgYy || it.built]);
+      rows.push(['처분방식', '매각']);
+      rows.push(['입찰방식', '일반경쟁 · 최고가방식']);
+      if (d.jbnPnuCd) rows.push(['지번PNU코드', d.jbnPnuCd]);
+      if (d.roadPnuCd) rows.push(['도로명PNU코드', d.roadPnuCd]);
+      document.getElementById('infoTable').innerHTML = rows.map(([k, v]) => `<tr><th>${k}</th><td>${v || '—'}</td></tr>`).join('');
+
+      // 사진 URL — API 응답에 사진이 있으면 기존 이모지 위에 추가
+      const photoUrl = d.photoUrl || d.thnlImgUrlAdr || d.flPthNm || '';
+      if (photoUrl && /^https?:\/\//.test(photoUrl)) {
+        const box = document.getElementById('photoBox');
+        if (box && !box.querySelector('img')) {
+          const img = document.createElement('img');
+          img.src = photoUrl;
+          img.alt = '';
+          img.onerror = () => img.remove();
+          box.prepend(img);
+          const note = document.querySelector('.photo-note');
+          if (note) note.textContent = '온비드 제공 실사 사진 (상세 API)';
+        }
+      }
+
+      // 감정평가 정보
+      if (d.apslEvlInfo || d.apslEvlAmt) {
+        const evl = d.apslEvlInfo || ('감정평가액: ' + Number(d.apslEvlAmt).toLocaleString() + '원');
+        const rights = document.getElementById('rightsList');
+        if (rights) {
+          const evlEl = document.createElement('div');
+          evlEl.className = 'right-item ok';
+          evlEl.innerHTML = '<span class="ico">📋</span><div><div class="t">감정평가 정보</div><div class="m">' + String(evl).replace(/</g,'&lt;') + '</div></div>';
+          rights.prepend(evlEl);
+        }
+      }
+
+      // 임대차 정보
+      if (d.leaseInfo || d.lttotInfo) {
+        const lease = d.leaseInfo || d.lttotInfo;
+        const rights = document.getElementById('rightsList');
+        if (rights) {
+          const el = document.createElement('div');
+          el.className = 'right-item warn';
+          el.innerHTML = `<span class="ico">📄</span><div><div class="t">임대차 정보</div><div class="m">${String(lease).replace(/</g,'&lt;')}</div></div>`;
+          rights.prepend(el);
+        }
+      }
+
+      // chip 업데이트
+      const chip = document.querySelector('.demo-chip');
+      if (chip) chip.textContent = '📡 실시간 온비드 물건 — 상세정보 API 연동됨';
+    } catch (e) {
+      console.log('[detail] 상세 API fetch 실패:', e.message);
+    }
+  })();
+}
+
 // 관심물건 하트 — bidcast-list.html과 같은 localStorage 키를 공유
 const LIKES_KEY = 'bidcast:likes';
 function readLikes() { return new Set(JSON.parse(localStorage.getItem(LIKES_KEY) || '[]').map(String)); }

@@ -92,6 +92,7 @@ function mapOnbidItem(raw, idx) {
 
   return {
     id: raw.cltrMngNo || idx,
+    pbctCdtnNo: raw.pbctCdtnNo != null ? String(raw.pbctCdtnNo) : '',
     caseNo: raw.cltrMngNo && raw.pbctCdtnNo != null ? `${raw.cltrMngNo}-${raw.pbctCdtnNo}` : (raw.cltrMngNo || '-'),
     title: raw.onbidCltrNm || '(물건명 미상)',
     address,
