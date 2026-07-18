@@ -8,3 +8,11 @@
 
    [functions]
      node_bundler = "esbuild"
+
+   # 루트(/)는 낙찰예보(BidCast) 랜딩으로 안내.
+   # force = true: 루트에 파일이 실존하면 Netlify는 기본적으로 리다이렉트보다 파일을 우선하므로 유지.
+   [[redirects]]
+     from = "/"
+     to = "/bidcast.html"
+     status = 302
+     force = true

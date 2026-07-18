@@ -152,7 +152,13 @@ exports.handler = async (event) => {
     dspsMthodCd: qs.dspsMthodCd || '0001', // 처분방식: 0001 매각
     bidDivCd: qs.bidDivCd || '0001',       // 입찰구분: 0001 인터넷
   });
-  if (qs.region) params.set('lctnSdnm', qs.region);
+  // 프론트엔드 필터는 짧은 표기(서울/경기/...)를 쓰지만 온비드 lctnSdnm은
+  // 전체 시도명(서울특별시/경기도/...)을 기대함 — 역방향 매핑 후 전달.
+  const REGION_FULL = {
+    '서울': '서울특별시', '경기': '경기도', '인천': '인천광역시', '부산': '부산광역시',
+    '대구': '대구광역시', '광주': '광주광역시', '대전': '대전광역시', '울산': '울산광역시', '세종': '세종특별자치시',
+  };
+  if (qs.region) params.set('lctnSdnm', REGION_FULL[qs.region] || qs.region);
   if (qs.keyword) params.set('onbidCltrNm', qs.keyword);
   // prptDivCd는 URLSearchParams에 넣지 않고 쉼표를 인코딩(%2C)하지 않은 원문 그대로 붙인다 —
   // data.go.kr 계열 API 중 인코딩된 쉼표를 복수값 구분자로 인식하지 못하는 경우가 있음.
