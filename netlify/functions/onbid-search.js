@@ -88,7 +88,10 @@ function mapOnbidItem(raw, idx) {
   const type = normalizeType(raw.cltrUsgSclsCtgrNm || raw.cltrUsgMclsCtgrNm);
   const address = [raw.lctnSdnm, raw.lctnSggnm, raw.lctnEmdNm].filter(Boolean).join(' ');
   // thnlImgUrlAdr(물건 썸네일 이미지 URL) — http(s) URL일 때만 통과 (HTML 삽입 안전장치)
-  const photo = /^https?:\/\//.test(raw.thnlImgUrlAdr || '') ? raw.thnlImgUrlAdr : '';
+  // downloadImageKind=THNL_NM(저해상도 썸네일) → IMGE_NM(원본 고해상도)으로 교체 시도.
+  // IMGE_NM이 유효하지 않으면 img.onerror 폴백으로 이모지가 표시됨.
+  let photo = /^https?:\/\//.test(raw.thnlImgUrlAdr || '') ? raw.thnlImgUrlAdr : '';
+  if (photo) photo = photo.replace('downloadImageKind=THNL_NM', 'downloadImageKind=IMGE_NM');
 
   return {
     id: raw.cltrMngNo || idx,
