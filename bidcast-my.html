@@ -93,6 +93,11 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 .empty p { font-size:13.5px; color:var(--sub); margin-top:8px; }
 .empty a { display:inline-block; margin-top:14px; text-decoration:none; font-size:13px; font-weight:800; color:#fff; background:var(--grad); padding:10px 22px; border-radius:999px; }
 
+/* 추천 물건 */
+.rec-reason { display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; }
+.rec-reason .tag { font-size:10.5px; font-weight:700; color:var(--green-deep); background:var(--green-soft); border:1px solid #C4EBD8; padding:2px 8px; border-radius:999px; }
+.rec-score { position:absolute; bottom:8px; right:8px; font-size:10px; font-weight:800; color:#fff; background:var(--green); padding:3px 9px; border-radius:999px; }
+
 /* 알림 설정 */
 .alert-card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:8px 22px; }
 .alert-row { display:flex; align-items:center; gap:14px; padding:15px 0; border-bottom:1px solid var(--line); }
@@ -196,6 +201,14 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
     <div id="likesArea"></div>
   </section>
 
+  <section class="section" aria-labelledby="secRec">
+    <div class="section-head">
+      <h2 id="secRec">💡 추천 물건</h2>
+      <span class="demo-chip" style="margin:0;">📊 규칙 기반 추천 · 예시 데이터</span>
+    </div>
+    <div id="recArea"></div>
+  </section>
+
   <section class="section" aria-labelledby="secRecent">
     <div class="section-head">
       <h2 id="secRecent">🕐 최근 본 물건</h2>
@@ -253,7 +266,7 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
         <p style="font-size:12.5px;color:var(--sub);margin-top:8px;max-width:320px;">공공데이터포털의 온비드 공식 API 데이터를 기반으로 한 공매 낙찰가 예측 서비스입니다.</p>
       </div>
       <div><h5>서비스</h5><ul><li><a href="bidcast-list.html">물건 검색</a></li><li><a href="bidcast-lab.html">적중률 공개</a></li><li><a href="bidcast-calendar.html">입찰 캘린더</a></li></ul></div>
-      <div><h5>바로가기</h5><ul><li><a href="bidcast.html">홈으로</a></li><li><a href="bidcast-insight.html">인사이트</a></li><li><a href="bidcast-partner.html">파트너 프로그램</a></li><li><a href="bidcast-support.html">고객지원</a></li><li><a href="bidcast-my.html">마이페이지</a></li></ul></div>
+      <div><h5>바로가기</h5><ul><li><a href="bidcast.html">홈으로</a></li><li><a href="bidcast-insight.html">인사이트</a></li><li><a href="bidcast-partner.html">파트너 프로그램</a></li><li><a href="bidcast-pricing.html">요금제</a></li><li><a href="bidcast-support.html">고객지원</a></li><li><a href="bidcast-my.html">마이페이지</a></li></ul></div>
     </div>
     <p class="copy">© 2026 낙찰예보. All rights reserved.</p>
   </div>
@@ -322,6 +335,7 @@ function removeLike(id) {
   const likes = JSON.parse(localStorage.getItem(LIKES_KEY) || '[]').map(String).filter(k => k !== String(id));
   localStorage.setItem(LIKES_KEY, JSON.stringify(likes));
   renderLikes();
+  renderRecommendations();
 }
 
 function renderRecent() {
@@ -360,7 +374,62 @@ document.querySelectorAll('.toggle').forEach(btn => {
   });
 });
 
+function renderRecommendations() {
+  const likes = JSON.parse(localStorage.getItem(LIKES_KEY) || '[]').map(String);
+  const likedSet = new Set(likes);
+  const likedItems = likes.map(id => SUMMARY[id]).filter(Boolean);
+  const area = document.getElementById('recArea');
+
+  if (!likedItems.length) {
+    area.innerHTML = `<div class="empty"><div class="ico">💡</div><p>관심물건을 등록하면<br/>비슷한 물건을 자동으로 추천해드려요.</p><a href="bidcast-list.html">물건 검색하러 가기</a></div>`;
+    return;
+  }
+
+  const likedTypes = new Set(likedItems.map(s => s.type));
+  const likedCourts = new Set(likedItems.map(s => s.court));
+  const priceRanges = likedItems.map(s => s.min);
+  const avgPrice = priceRanges.reduce((a, b) => a + b, 0) / priceRanges.length;
+
+  const candidates = [];
+  for (const [id, s] of Object.entries(SUMMARY)) {
+    if (likedSet.has(id)) continue;
+    if (s.status === '낙찰') continue;
+
+    let score = 0;
+    const reasons = [];
+
+    if (likedTypes.has(s.type)) { score += 3; reasons.push('같은 유형'); }
+    if (likedCourts.has(s.court)) { score += 2; reasons.push('같은 기관'); }
+    if (avgPrice > 0 && Math.abs(s.min - avgPrice) / avgPrice <= 0.5) { score += 1; reasons.push('비슷한 가격대'); }
+    if (s.fail > 0) { score += 1; reasons.push('유찰 할인'); }
+
+    if (score > 0) candidates.push({ id, s, score, reasons });
+  }
+  candidates.sort((a, b) => b.score - a.score);
+
+  if (!candidates.length) {
+    area.innerHTML = `<div class="empty"><div class="ico">💡</div><p>현재 관심물건과 유사한 물건이 없습니다.<br/>관심물건을 더 추가하면 추천 정확도가 올라갑니다.</p></div>`;
+    return;
+  }
+
+  area.innerHTML = `<div class="my-grid">${candidates.slice(0, 6).map(c => `
+    <div class="my-card">
+      <div class="my-thumb">
+        <span class="status-chip">진행중</span>
+        ${c.s.thumb}
+        <span class="rec-score">매칭 ${c.score}점</span>
+      </div>
+      <div class="my-body">
+        <div class="t"><a href="bidcast-detail.html?id=${c.id}">${c.s.title}</a></div>
+        <div class="m">${c.s.court} · ${c.s.type}${c.s.fail > 0 ? ' · 유찰 ' + c.s.fail + '회' : ''}</div>
+        <div class="p">최저 ${fmt(c.s.min)}원</div>
+        <div class="rec-reason">${c.reasons.map(r => `<span class="tag">${r}</span>`).join('')}</div>
+      </div>
+    </div>`).join('')}</div>`;
+}
+
 renderLikes();
+renderRecommendations();
 renderRecent();
 renderAlerts();
 
