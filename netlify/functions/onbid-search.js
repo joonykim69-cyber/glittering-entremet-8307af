@@ -102,6 +102,8 @@ function mapOnbidItem(raw, idx) {
     court: raw.orgNm || raw.rqstOrgNm || '',
     region: normalizeRegion(raw.lctnSdnm),
     type,
+    usage: raw.cltrUsgSclsCtgrNm || raw.cltrUsgMclsCtgrNm || '', // 세부 용도 원문 — 상세 페이지의 실거래 서비스 매핑에 사용
+
     appr: fmtManwon(apprWon),
     min: fmtManwon(minWon),
     fail: failCount,
