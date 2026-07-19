@@ -21,6 +21,9 @@
    # 19:30 KST 자동 채점: 당일 개찰 결과와 봉인 예측 대조 + 구간 폭 보정
    [functions."score-daily"]
      schedule = "30 10 * * *"
+   # 20:10 KST 학습 데이터 수집: 과거 개찰 이력 백필(1년치) 후 신규분 증분 유지
+   [functions."collect-history"]
+     schedule = "10 11 * * *"
 
    # 루트(/)는 낙찰예보(BidCast) 랜딩으로 안내.
    # force = true: 루트에 파일이 실존하면 Netlify는 기본적으로 리다이렉트보다 파일을 우선하므로 유지.
