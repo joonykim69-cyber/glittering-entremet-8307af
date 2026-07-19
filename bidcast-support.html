@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>고객지원 — 낙찰예보</title>
+<title>고객지원 — 신호등옥션</title>
 <meta name="description" content="공지사항, 이벤트, 자주 묻는 질문, 1:1 문의, 경매 가이드를 한곳에서 확인하세요."/>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"/>
 <style>
@@ -119,7 +119,7 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); width:min(108
 
 <nav>
   <div class="wrap">
-    <a class="logo" href="bidcast.html"><span class="logo-mark">予</span>낙찰예보</a>
+    <a class="logo" href="bidcast.html"><span class="logo-mark">🚦</span>신호등옥션</a>
     <ul class="nav-links">
       <li><a href="bidcast-list.html">물건검색</a></li>
       <li><a href="bidcast-map.html">지도</a></li>
@@ -175,7 +175,7 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); width:min(108
   <div class="auth-modal">
     <button class="auth-close" type="button" onclick="closeAuth()" aria-label="닫기">✕</button>
     <div class="auth-head">
-      <span style="display:inline-flex;align-items:center;gap:8px;font-weight:900;font-size:16px;"><span class="logo-mark" style="width:24px;height:24px;font-size:11px;">予</span>낙찰예보</span>
+      <span style="display:inline-flex;align-items:center;gap:8px;font-weight:900;font-size:16px;"><span class="logo-mark" style="width:24px;height:24px;font-size:11px;">🚦</span>신호등옥션</span>
       <h3 id="authTitle">간편하게 시작하기</h3>
       <p id="authSub">10초면 충분합니다. 비밀번호 없이 가입하세요.</p>
     </div>
@@ -191,27 +191,27 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); width:min(108
 <footer>
   <div class="cols">
     <div>
-      <div class="brand">낙찰<span>예보</span></div>
+      <div class="brand">신호등<span>옥션</span></div>
       <p style="font-size:12.5px;color:var(--sub);margin-top:8px;max-width:320px;">공공데이터포털의 온비드 공식 API 데이터를 기반으로 한 공매 낙찰가 예측 서비스입니다.</p>
     </div>
     <div><h5>서비스</h5><ul><li><a href="bidcast-list.html">물건 검색</a></li><li><a href="bidcast-lab.html">적중률 공개</a></li></ul></div>
     <div><h5>바로가기</h5><ul><li><a href="bidcast.html">홈으로</a></li><li><a href="bidcast-partner.html">파트너 프로그램</a></li><li><a href="bidcast-pricing.html">요금제</a></li><li><a href="bidcast-my.html">마이페이지</a></li></ul></div>
   </div>
-  <p class="copy">© 2026 낙찰예보. All rights reserved.</p>
+  <p class="copy">© 2026 신호등옥션. All rights reserved.</p>
 </footer>
 
 <script>
 const NOTICE = [
-  { pin:true, t:'낙찰예보 서비스 사전 공개 페이지 오픈 안내', d:'2026-07-01', b:'낙찰예보 사전 공개 페이지가 오픈되었습니다. 사전 알림을 신청하시면 정식 오픈 시 가장 먼저 안내드립니다.' },
+  { pin:true, t:'신호등옥션 서비스 사전 공개 페이지 오픈 안내', d:'2026-07-01', b:'신호등옥션 사전 공개 페이지가 오픈되었습니다. 사전 알림을 신청하시면 정식 오픈 시 가장 먼저 안내드립니다.' },
   { t:'개인정보처리방침 개정 예정 안내', d:'2026-06-20', b:'서비스 정식 오픈에 맞춰 개인정보처리방침이 개정될 예정입니다. 자세한 내용은 오픈 시 공지됩니다.' },
-  { t:'낙찰예보 랩 예측 정확도 공개 방식 안내', d:'2026-06-10', b:'낙찰예보 랩에서 오차 범위, 자산군별 정확도 등을 어떻게 공개하는지 안내하는 글입니다.' },
+  { t:'신호등옥션 랩 예측 정확도 공개 방식 안내', d:'2026-06-10', b:'신호등옥션 랩에서 오차 범위, 자산군별 정확도 등을 어떻게 공개하는지 안내하는 글입니다.' },
 ];
 const EVENT = [
   { t:'[사전 알림 신청 이벤트] 얼리버드 전원에게 프리미엄 리포트 1개월 무료', d:'2026-07-05 ~ 오픈일까지', b:'사전 알림을 신청한 모든 분께 정식 오픈 시 프리미엄 리포트 1개월 이용권을 드립니다(예시 이벤트).' },
   { t:'[모의입찰 체험 이벤트] 예측 vs 실제, 3자 비교 참여하기', d:'오픈 예정', b:'모의입찰 기능으로 AI 예측과 실제 낙찰가를 비교해 보고 참여 인증을 남기면 추첨을 통해 소정의 상품을 드립니다(예시 이벤트).' },
 ];
 const PRESS = [
-  { t:'[예시 보도자료] 공매 전 자산군 커버하는 AI 예측 서비스 "낙찰예보" 준비 중', d:'2026-06-15', b:'부동산에 한정된 기존 경매 분석 서비스와 달리, 동산·유가증권까지 커버하는 낙찰예보가 사전 공개 페이지를 오픈했다는 예시 보도자료입니다.' },
+  { t:'[예시 보도자료] 공매 전 자산군 커버하는 AI 예측 서비스 "신호등옥션" 준비 중', d:'2026-06-15', b:'부동산에 한정된 기존 경매 분석 서비스와 달리, 동산·유가증권까지 커버하는 신호등옥션가 사전 공개 페이지를 오픈했다는 예시 보도자료입니다.' },
 ];
 
 const FAQ_CATS = ['전체','회원가입/로그인','경매 분석','권리분석','포인트','기타'];

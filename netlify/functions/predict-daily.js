@@ -1,0 +1,133 @@
+// netlify/functions/predict-daily.js
+// 예측 장부 1단계 — "예측 봉인" 예약 함수 (매일 KST 07:00, netlify.toml schedule)
+//
+// 마감 임박(오늘~+2일) 물건을 전수 조회해 각 물건의 예상 낙찰가 구간 [lo, mid, hi]를
+// 산출하고 Netlify Blobs에 기록한다. 이미 봉인된 예측은 절대 덮어쓰지 않는다 —
+// "개찰 전에 기록했고 사후에 고치지 않았다"가 이 장부의 신뢰 근거다.
+//
+// 구간 산출(model v0.1 — 통계 기반 규칙):
+//   앵커1 = 감정가 × (캠코 용도별 감정가 대비 낙찰가율 rto1)
+//   앵커2 = 최저입찰가 × (캠코 최저가 대비 낙찰가율 rto2)
+//   mid = 앵커 평균, 폭 w = 용도별 보정 계수(calib, 초기 ±18%) →
+//   lo = max(최저입찰가, min(앵커)×(1-w)) , hi = max(앵커)×(1+w)
+//   w는 score-daily가 구간 적중률 95% 목표로 자동 보정(calibration)한다.
+//
+// 수동 실행: GET /.netlify/functions/predict-daily (테스트·백필용, 동작 동일)
+
+const CORS = { 'Access-Control-Allow-Origin': '*' };
+const MODEL_V = 'v0.1';
+const DEFAULT_W = 0.18;
+
+// 물건 type → 캠코 통계 용도 분류(clsCdNm) — bidcast.html의 STAT_BUCKET과 동일 체계
+const STAT_BUCKET = {
+  '아파트': '아파트', '단독주택': '단독주택/다가구', '연립다세대': '연립주택/다세대/빌라',
+  '오피스텔': '기타주거용건물', '토지': '토지', '농지임야': '임야',
+  '상가': '근린생활시설', '사무실': '비주거용건물', '공장창고': '산업용및용도복합용건물등',
+};
+
+function kst() { return new Date(Date.now() + 9 * 3600 * 1000); }
+function ymd(d) { return `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`; }
+
+async function fetchJson(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status} ${url.split('?')[0]}`);
+  return r.json();
+}
+
+// 캠코 용도별 낙찰가율 통계 로드 (연→분기→전분기→전년 폴백)
+async function loadUsgStats(base) {
+  const now = kst();
+  const y = now.getUTCFullYear(), q = Math.ceil((now.getUTCMonth() + 1) / 3);
+  const tries = [String(y), `${y}-${q}`, ...(q > 1 ? [`${y}-${q - 1}`] : []), String(y - 1)];
+  for (const perd of tries) {
+    try {
+      const d = await fetchJson(`${base}/.netlify/functions/onbid-svc?svc=stat_usg&statsTypeCd=0041&inqPerd=${encodeURIComponent(perd)}`);
+      if (Array.isArray(d.items) && d.items.length) {
+        const m = {};
+        d.items.forEach(r => { m[String(r.clsCdNm || '').trim()] = r; });
+        return { map: m, perd };
+      }
+    } catch (e) { /* 다음 기간 */ }
+  }
+  return null;
+}
+
+exports.handler = async (event) => {
+  const { getStore } = await import('@netlify/blobs');
+  const store = getStore('ledger');
+  const base = process.env.URL || '';
+  const qs = (event && event.queryStringParameters) || {};
+
+  try {
+    const stats = await loadUsgStats(base);
+    const calib = (await store.get('calib', { type: 'json' })) || { byUsage: {} };
+
+    // 마감 임박 물건 수집: 부동산 + 동산 + 차량 (입찰기간 검색 창: 오늘~+2일)
+    const start = ymd(kst());
+    const end = ymd(new Date(kst().getTime() + 2 * 86400000));
+    const q = `bidPrdYmdStart=${start}&bidPrdYmdEnd=${end}`;
+    const settled = await Promise.allSettled([
+      fetchJson(`${base}/.netlify/functions/onbid-search?numOfRows=100&${q}`),
+      fetchJson(`${base}/.netlify/functions/onbid-mvast-search?numOfRows=60&${q}`),
+      fetchJson(`${base}/.netlify/functions/onbid-vhcl-search?numOfRows=60&${q}`),
+    ]);
+    const items = [];
+    settled.forEach(s => {
+      if (s.status === 'fulfilled' && Array.isArray(s.value.items)) items.push(...s.value.items);
+    });
+
+    let sealed = 0, skipped = 0, noBasis = 0;
+    const endLimit = end + '2359';
+    const targets = items
+      .filter(it => it.min > 0 && it.pbctCdtnNo && (!it.bidEnd || String(it.bidEnd) <= endLimit))
+      .slice(0, 250); // 1회 실행 상한 (쿼터·실행시간 보호)
+
+    for (const it of targets) {
+      const key = `pred/${it.id}_${it.pbctCdtnNo}`;
+      const exists = await store.get(key);
+      if (exists) { skipped++; continue; } // 봉인 불변 원칙
+
+      const st = stats && (stats.map[STAT_BUCKET[it.type]] || stats.map['전체']);
+      const anchors = [];
+      if (st) {
+        if (it.appr > 0 && Number(st.scfbAmtRto1) > 0) anchors.push(it.appr * Number(st.scfbAmtRto1) / 100);
+        if (it.min > 0 && Number(st.scfbAmtRto2) > 0) anchors.push(it.min * Number(st.scfbAmtRto2) / 100);
+      }
+      if (!anchors.length) { noBasis++; continue; } // 통계 근거 없으면 예측하지 않는다 (정직성)
+
+      const w = (calib.byUsage[it.type] && calib.byUsage[it.type].w) || DEFAULT_W;
+      const mid = Math.round(anchors.reduce((s, v) => s + v, 0) / anchors.length);
+      const lo = Math.round(Math.max(it.min, Math.min(...anchors) * (1 - w)));
+      let hi = Math.round(Math.max(...anchors) * (1 + w));
+      if (hi <= lo) hi = Math.round(lo * 1.05);
+
+      await store.setJSON(key, {
+        id: it.id, pbctCdtnNo: it.pbctCdtnNo, title: it.title, type: it.type,
+        assetClass: it.assetClass || '부동산',
+        appr: it.appr, min: it.min, // 만원
+        lo, mid, hi,                // 만원
+        w, statBucket: st ? String(st.clsCdNm).trim() : '',
+        statPerd: stats ? stats.perd : '',
+        bidEnd: it.bidEnd || '', modelV: MODEL_V,
+        sealedAt: new Date().toISOString(),
+      });
+      sealed++;
+    }
+
+    // 일자별 봉인 카운트 (성적표의 "오늘 예측 N건 봉인" 표시용)
+    const meta = (await store.get('meta', { type: 'json' })) || { sealDays: {} };
+    const today = ymd(kst());
+    meta.sealDays[today] = (meta.sealDays[today] || 0) + sealed;
+    const days = Object.keys(meta.sealDays).sort();
+    while (days.length > 60) delete meta.sealDays[days.shift()];
+    meta.lastSealAt = new Date().toISOString();
+    await store.setJSON('meta', meta);
+
+    const summary = { ok: true, scanned: items.length, targets: targets.length, sealed, skipped, noBasis, statPerd: stats ? stats.perd : null, ...(qs.debug ? { window: { start, end } } : {}) };
+    console.log('[predict-daily]', JSON.stringify(summary));
+    return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify(summary) };
+  } catch (e) {
+    console.log('[predict-daily] 실패:', e.message);
+    return { statusCode: 500, headers: CORS, body: JSON.stringify({ ok: false, error: e.message }) };
+  }
+};

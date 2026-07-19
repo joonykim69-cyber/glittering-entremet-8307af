@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>낙찰예보 랩 — 예측 정확도 공개</title>
-<meta name="description" content="낙찰예보 AI 예측의 오차 범위, 자산군별 정확도, 3개 모델 교차검증 방식을 있는 그대로 공개합니다."/>
+<title>신호등옥션 랩 — 예측 정확도 공개</title>
+<meta name="description" content="신호등옥션 AI 예측의 오차 범위, 자산군별 정확도, 3개 모델 교차검증 방식을 있는 그대로 공개합니다."/>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"/>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -152,7 +152,7 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
 
 <nav>
   <div class="wrap">
-    <a class="logo" href="bidcast.html"><span class="logo-mark">予</span>낙찰예보</a>
+    <a class="logo" href="bidcast.html"><span class="logo-mark">🚦</span>신호등옥션</a>
     <ul class="nav-links">
       <li><a href="bidcast-list.html">물건검색</a></li>
       <li><a href="bidcast-map.html">지도</a></li>
@@ -183,7 +183,7 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
   <div class="wrap">
     <span class="eyebrow">Accuracy Lab</span>
     <h1>잘 맞은 것만<br/><span class="grad">골라 보여주지 않습니다</span></h1>
-    <p class="lead">개찰 결과가 나올 때마다 AI 예측과 실제 낙찰가를 전수 대조합니다. 오차가 큰 사례도, 예측이 틀린 자산군도 숨기지 않고 그대로 공개하는 것이 낙찰예보 랩의 원칙입니다.</p>
+    <p class="lead">개찰 결과가 나올 때마다 AI 예측과 실제 낙찰가를 전수 대조합니다. 오차가 큰 사례도, 예측이 틀린 자산군도 숨기지 않고 그대로 공개하는 것이 신호등옥션 랩의 원칙입니다.</p>
     <div class="stat-row">
       <div class="stat"><div class="num">±10%</div><div class="lbl">1차 목표 오차 범위 (낙찰가율 기준)</div></div>
       <div class="stat"><div class="num">전수 공개</div><div class="lbl">적중 사례만이 아닌 전체 결과 대조</div></div>
@@ -220,7 +220,7 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
         <div class="example">평균 오차 = 8%  (숨겨진 리스크 안 보임)</div>
       </div>
       <div class="avg-card">
-        <h4>✅ 분포로 공개하는 경우 (낙찰예보)</h4>
+        <h4>✅ 분포로 공개하는 경우 (신호등옥션)</h4>
         <p>같은 상황을 "±10% 이내 90%, 나머지 10%는 오차 60%+"로 분포를 그대로 보여주면, 어떤 자산군·조건에서 예측이 불안정한지 사용자가 스스로 판단할 수 있습니다.</p>
         <div class="example">±10% 이내 90% · 예외 10건 별도 표기</div>
       </div>
@@ -248,7 +248,7 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
   <div class="wrap">
     <span class="eyebrow">Official Market Stats</span>
     <h2 class="title">캠코 공식 낙찰 통계</h2>
-    <p class="lead">한국자산관리공사가 공식 집계한 압류재산 공매 통계입니다. 낙찰예보의 예상 범위 산출에 실제로 사용되는 기준 데이터입니다. <b id="kamcoStatsPerd"></b></p>
+    <p class="lead">한국자산관리공사가 공식 집계한 압류재산 공매 통계입니다. 신호등옥션의 예상 범위 산출에 실제로 사용되는 기준 데이터입니다. <b id="kamcoStatsPerd"></b></p>
     <div class="avg-warn" style="margin-top:24px;">
       <div class="acc-card" style="flex:1;">
         <h4 style="font-size:15px;font-weight:800;margin-bottom:14px;">용도별 감정가 대비 낙찰가율</h4>
@@ -298,7 +298,7 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
   <div class="auth-modal">
     <button class="auth-close" type="button" onclick="closeAuth()" aria-label="닫기">✕</button>
     <div class="auth-head">
-      <span style="display:inline-flex;align-items:center;gap:8px;font-weight:900;font-size:16px;"><span class="logo-mark" style="width:24px;height:24px;font-size:11px;">予</span>낙찰예보</span>
+      <span style="display:inline-flex;align-items:center;gap:8px;font-weight:900;font-size:16px;"><span class="logo-mark" style="width:24px;height:24px;font-size:11px;">🚦</span>신호등옥션</span>
       <h3 id="authTitle">간편하게 시작하기</h3>
       <p id="authSub">10초면 충분합니다. 비밀번호 없이 가입하세요.</p>
     </div>
@@ -318,13 +318,13 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
   <div class="wrap">
     <div class="cols">
       <div>
-        <div class="brand">낙찰<span>예보</span></div>
+        <div class="brand">신호등<span>옥션</span></div>
         <p style="font-size:12.5px;color:var(--sub);margin-top:8px;max-width:320px;">공공데이터포털의 온비드 공식 API 데이터를 기반으로 한 공매 낙찰가 예측 서비스입니다.</p>
       </div>
       <div><h5>서비스</h5><ul><li><a href="bidcast-list.html">물건 검색</a></li><li><a href="bidcast-map.html">지도로 보기</a></li><li><a href="bidcast-calendar.html">입찰 캘린더</a></li></ul></div>
       <div><h5>바로가기</h5><ul><li><a href="bidcast.html">홈으로</a></li><li><a href="bidcast-insight.html">인사이트</a></li><li><a href="bidcast-partner.html">파트너 프로그램</a></li><li><a href="bidcast-pricing.html">요금제</a></li><li><a href="bidcast-support.html">고객지원</a></li><li><a href="bidcast-my.html">마이페이지</a></li></ul></div>
     </div>
-    <p class="copy">© 2026 낙찰예보. All rights reserved. 예측 정보는 통계적 참고자료이며 투자 판단의 책임은 이용자 본인에게 있습니다.</p>
+    <p class="copy">© 2026 신호등옥션. All rights reserved. 예측 정보는 통계적 참고자료이며 투자 판단의 책임은 이용자 본인에게 있습니다.</p>
   </div>
 </footer>
 
