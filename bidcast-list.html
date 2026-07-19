@@ -645,6 +645,7 @@ function saveLikes() { localStorage.setItem(LIKES_KEY, JSON.stringify([...likedI
 // 유틸
 // ═══════════════════════════════════════
 function fmtWon(man) {
+  if (!man || man <= 0) return '미공개'; // 일부 동산 물건은 목록 응답에 금액이 없음 (감정가 0)
   if (man >= 10000) return (man / 10000).toFixed(man % 10000 === 0 ? 0 : 1) + '억';
   return man.toLocaleString() + '만';
 }
