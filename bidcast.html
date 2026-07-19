@@ -171,13 +171,12 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .faq-item.open .faq-q .ar{transform:rotate(180deg)}
 .faq-a{display:none;font-size:14px;color:var(--sub);line-height:1.75;padding:0 4px 20px;max-width:640px}
 .faq-item.open .faq-a{display:block}
-/* final cta */
-.final{position:relative;overflow:hidden;background:linear-gradient(160deg,#0E2A1F 0%,#00744B 100%);border-radius:28px;padding:80px 40px;text-align:center;color:#fff}
-.final h2{font-size:36px;font-weight:900;letter-spacing:-.02em;line-height:1.35;color:#fff}
-.final p{font-size:16px;color:rgba(255,255,255,.82);max-width:480px;margin:0 auto;line-height:1.7}
-.final .glow{position:absolute;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(0,200,127,.35),transparent 70%);top:-160px;right:-120px;pointer-events:none}
-.final .inner{position:relative;display:flex;flex-direction:column;gap:22px;align-items:center}
-.final .btn-cta{background:#fff;color:var(--green-deep);box-shadow:0 8px 24px rgba(0,0,0,.25)}
+/* final cta — 파란 풀폭 밴드 (디자인 지시 2026-07-19), 기존 대비 1/2 스케일 */
+.final{position:relative;overflow:hidden;background:#1667E8;padding:40px 24px;text-align:center;color:#fff}
+.final h2{font-size:26px;font-weight:900;letter-spacing:-.02em;line-height:1.35;color:#fff}
+.final p{font-size:13.5px;color:rgba(255,255,255,.85);max-width:420px;margin:0 auto;line-height:1.65}
+.final .inner{position:relative;display:flex;flex-direction:column;gap:14px;align-items:center}
+.final .btn-cta{background:#fff;color:#1667E8;box-shadow:0 6px 18px rgba(0,0,0,.2);font-size:13.5px;padding:11px 24px}
 /* footer */
 .footer{background:var(--surface);border-top:1px solid var(--line);padding:56px 0 40px}
 .foot-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr 1.4fr;gap:36px}
@@ -428,16 +427,14 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 </div>
 </div></section>
 
-<section style="padding:0 0 90px"><div class="wrap">
-<div class="final"><span class="glow"></span>
+<section class="final">
 <div class="inner">
-<span class="badge-lights" style="display:inline-flex;gap:6px"><i style="width:11px;height:11px;border-radius:50%;background:#EB763C"></i><i style="width:11px;height:11px;border-radius:50%;background:#FFC000"></i><i style="width:11px;height:11px;border-radius:50%;background:#27A857"></i></span>
+<span class="badge-lights" style="display:inline-flex;gap:6px"><i style="width:9px;height:9px;border-radius:50%;background:#EB763C"></i><i style="width:9px;height:9px;border-radius:50%;background:#FFC000"></i><i style="width:9px;height:9px;border-radius:50%;background:#27A857"></i></span>
 <h2>공매 입찰, 감이 아니라<br>데이터로 준비하세요</h2>
 <p>출시 알림을 신청하시면 오픈 시 얼리버드 혜택과 함께 가장 먼저 알려드립니다. 신청은 무료이며, 언제든 취소할 수 있습니다.</p>
 <button class="btn btn-cta" type="button" onclick="openAuth('signup')">사전 알림 신청하기</button>
 </div>
-</div>
-</div></section>
+</section>
 
 <footer class="footer"><div class="wrap">
 <div class="foot-grid">
