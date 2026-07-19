@@ -3,10 +3,11 @@
 //
 // 대상 서비스: 한국자산관리공사_차세대 온비드 차량 물건목록 조회서비스 (활용신청 승인 완료)
 //
-// ⚠️ Base URL·오퍼레이션 경로는 차세대 명명 패턴(Rlst/Mvast 확정 사례)에서 유추한
-// 기본값 — 첫 실 응답(?debug=1)으로 검증하고, 다르면 환경변수로 교체 (재배포 불필요):
-//   ONBID_VHCL_API_URL = Base URL (기본 https://apis.data.go.kr/B010003/OnbidVhclListSrvc2)
-//   ONBID_VHCL_API_OP  = 오퍼레이션 경로 (기본 /getVhclCltrList2)
+// Base URL: https://apis.data.go.kr/B010003/OnbidCarListSrvc2
+// — 2026-07-19 사용자 승인 페이지에서 확인 (차량 = "Car"). 오퍼레이션 경로는
+// Mvast 패턴 유추 기본값 /getCarCltrList2 — 첫 실 응답(?debug=1)으로 검증:
+//   ONBID_VHCL_API_URL = Base URL 오버라이드
+//   ONBID_VHCL_API_OP  = 오퍼레이션 경로 오버라이드
 //   ONBID_SERVICE_KEY  = 기존 것 재사용
 
 const CORS = {
@@ -15,8 +16,8 @@ const CORS = {
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
 };
 
-const ONBID_VHCL_API_URL = process.env.ONBID_VHCL_API_URL || 'https://apis.data.go.kr/B010003/OnbidVhclListSrvc2';
-const ONBID_VHCL_OPERATION = process.env.ONBID_VHCL_API_OP || '/getVhclCltrList2';
+const ONBID_VHCL_API_URL = process.env.ONBID_VHCL_API_URL || 'https://apis.data.go.kr/B010003/OnbidCarListSrvc2';
+const ONBID_VHCL_OPERATION = process.env.ONBID_VHCL_API_OP || '/getCarCltrList2';
 
 const ALL_PRPT_DIV_CD = '0002,0003,0004,0005,0006,0007,0008,0010,0011,0013';
 

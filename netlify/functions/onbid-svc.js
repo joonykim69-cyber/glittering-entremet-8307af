@@ -33,8 +33,8 @@ const REGISTRY = {
   rlst_dtl:         { name: '부동산 물건상세',            code: 'OnbidRlstDtlSrvc2',         op: '/getRlstDtlInf2',         confirmed: true },
   mvast_list:       { name: '동산 물건목록',              code: 'OnbidMvastListSrvc2',       op: '/getMvastCltrList2',      confirmed: true },
   mvast_dtl:        { name: '동산 물건상세',              code: 'OnbidMvastDtlSrvc2',        op: '/getMvastDtlInf2',        confirmed: true },
-  vhcl_list:        { name: '차량 물건목록',              code: 'OnbidVhclListSrvc2',        op: '/getVhclCltrList2' },
-  vhcl_dtl:         { name: '차량 물건상세',              code: 'OnbidVhclDtlSrvc2',         op: '/getVhclDtlInf2' },
+  vhcl_list:        { name: '차량 물건목록',              code: 'OnbidCarListSrvc2',         op: '/getCarCltrList2' },    // base 확인됨(승인 페이지), op는 Mvast 패턴 유추
+  vhcl_dtl:         { name: '차량 물건상세',              code: 'OnbidCarDtlSrvc2',          op: '/getCarDtlInf2' },      // base 확인됨
   scrt_dtl:         { name: '유가증권 상세정보',          code: 'OnbidScrtDtlSrvc2',         op: '/getScrtDtlInf2' },
   cltr_bidrslt_list:{ name: '물건 입찰결과목록',          code: 'OnbidCltrBidRsltListSrvc2', op: '/getCltrBidRsltList2',    confirmed: true },
   cltr_bidrslt_dtl: { name: '물건 입찰결과상세',          code: 'OnbidCltrBidRsltDtlSrvc2',  op: '/getCltrBidRsltDtl2',     confirmed: true },
@@ -44,11 +44,11 @@ const REGISTRY = {
   pbanc_dtl_bidinf: { name: '공고상세 입찰정보',          code: 'OnbidPbancDtlBidInfSrvc2',  op: '/getPbancDtlBidInf2' },
   pbanc_bidrslt_list:{ name: '공고 입찰결과목록',         code: 'OnbidPbancBidRsltListSrvc2',op: '/getPbancBidRsltList2',   confirmed: true },
   pbanc_bidrslt_dtl:{ name: '공고 입찰결과상세',          code: 'OnbidPbancBidRsltDtlSrvc2', op: '/getPbancBidRsltDtl2',    confirmed: true },
-  stat_usg:         { name: '용도별 입찰 통계',           code: 'OnbidUsgBidStatSrvc2',      op: '/getUsgBidStat2' },
-  stat_rgn:         { name: '지역별 입찰 통계',           code: 'OnbidRgnBidStatSrvc2',      op: '/getRgnBidStat2' },
+  stat_usg:         { name: '용도별 입찰 통계',           code: 'OnbidUsgBidStatsSrvc',      op: '/getUsgBidStats' },     // base 확인됨(Srvc2 아님), op 유추
+  stat_rgn:         { name: '지역별 입찰 통계',           code: 'OnbidClarBidStatsSrvc',     op: '/getClarBidStats' },    // base 확인됨(지역=Clar), op 유추
   code_addr:        { name: '코드 및 주소 조회',          code: 'OnbidCodeAddrSrvc2',        op: '/getOnbidCode2' },
-  rank_intrst:      { name: '순위물건목록 관심물건순위',  code: 'OnbidRankIntrstCltrSrvc2',  op: '/getRankIntrstCltrList2' },
-  rank_rdcrt:       { name: '순위물건목록 저감률순위',    code: 'OnbidRankRdcrtSrvc2',       op: '/getRankRdcrtList2' },
+  rank_intrst:      { name: '순위물건목록 관심물건순위',  code: 'OnbidItrsCltrRnkClgSrvc',   op: '/getItrsCltrRnkClg' },  // base 확인됨, op 유추
+  rank_rdcrt:       { name: '순위물건목록 저감률순위',    code: 'Onbid50PctDecrCltrSrvc',    op: '/get50PctDecrCltr' },   // base 확인됨(승인 페이지, 50% 저감), op 유추
   rank_inqcnt:      { name: '순위물건목록 조회수 순위',   code: 'OnbidRankInqcntSrvc2',      op: '/getRankInqcntList2', disabled: '데이터포털에서 서비스 중지 상태' },
   gov_ntnl:         { name: '정부재산목록 국유일반재산',  code: 'OnbidGovNtnlPrptSrvc2',     op: '/getGovNtnlPrptList2' },
   gov_shrd:         { name: '정부재산목록 공유일반재산',  code: 'OnbidGovShrdPrptSrvc2',     op: '/getGovShrdPrptList2' },
