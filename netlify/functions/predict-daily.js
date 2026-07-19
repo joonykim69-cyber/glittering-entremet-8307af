@@ -52,9 +52,24 @@ async function loadUsgStats(base) {
   return null;
 }
 
+// Lambda 호환(exports.handler) 함수에서는 Blobs 환경이 자동 구성되지 않아
+// connectLambda(event)로 요청 이벤트의 Blobs 컨텍스트를 수동 연결해야 한다.
+// (MissingBlobsEnvironmentError 대응 — 2026-07-19 프로덕션 첫 실행에서 확인)
+async function openLedger(event) {
+  const blobs = await import('@netlify/blobs');
+  try { if (event && typeof blobs.connectLambda === 'function') blobs.connectLambda(event); } catch (e) { /* 신형 런타임은 자동 구성 */ }
+  try {
+    return blobs.getStore('ledger');
+  } catch (e) {
+    const siteID = process.env.NETLIFY_SITE_ID || process.env.SITE_ID;
+    const token = process.env.NETLIFY_BLOBS_TOKEN;
+    if (siteID && token) return blobs.getStore({ name: 'ledger', siteID, token });
+    throw e;
+  }
+}
+
 exports.handler = async (event) => {
-  const { getStore } = await import('@netlify/blobs');
-  const store = getStore('ledger');
+  const store = await openLedger(event);
   const base = process.env.URL || '';
   const qs = (event && event.queryStringParameters) || {};
 
