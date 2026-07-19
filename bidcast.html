@@ -222,6 +222,28 @@ nav {
 .onb-cta-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(0,116,75,.3); }
 
 /* ═══════════════════════════════════════
+   살아있는 성적표 — 예측 장부 실측 스트립
+═══════════════════════════════════════ */
+.ledger-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 24px;
+  padding: 26px 30px; box-shadow: 0 16px 44px rgba(16,32,26,.07);
+}
+.ledger-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.ledger-live { display: inline-flex; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 900; letter-spacing: -0.01em; }
+.ledger-live .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px rgba(0,200,127,.8); animation: pulse 2.2s infinite; }
+.ledger-model { font-size: 12px; font-weight: 700; color: var(--sub); background: var(--bg); border: 1px solid var(--line); padding: 5px 12px; border-radius: 999px; }
+.ledger-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 18px; }
+.ledger-tile { background: var(--bg); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; }
+.ledger-tile .v { font-size: clamp(20px, 2.6vw, 28px); font-weight: 900; letter-spacing: -0.03em; color: var(--green-deep); font-variant-numeric: tabular-nums; }
+.ledger-tile .v.waiting { color: var(--mute); font-size: clamp(15px, 2vw, 18px); }
+.ledger-tile .k { font-size: 12px; color: var(--sub); margin-top: 4px; }
+.ledger-note { margin-top: 14px; font-size: 12.5px; color: var(--sub); line-height: 1.7; }
+.ledger-note b { color: var(--green-deep); }
+.ledger-log { margin-top: 12px; display: grid; gap: 6px; }
+.ledger-log-item { font-size: 12px; color: var(--sub); background: var(--green-soft); border: 1px solid #C4EBD8; border-radius: 10px; padding: 8px 12px; }
+@media (max-width: 760px) { .ledger-grid { grid-template-columns: 1fr 1fr; } }
+
+/* ═══════════════════════════════════════
    빠른 검색 — 자산유형 (온비드 구조 벤치마킹)
 ═══════════════════════════════════════ */
 .asset-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 44px; }
@@ -664,6 +686,21 @@ footer .copy { margin-top: 26px; font-size: 12px; color: var(--mute); }
     <div class="onb-result" id="onbResult" role="status"></div>
   </div>
 </div>
+
+<!-- ═══════════════ 살아있는 성적표 (예측 장부 실측 — 로드 성공 시에만 표시) ═══════════════ -->
+<section style="padding:36px 0 0;" id="ledgerSec">
+  <div class="wrap">
+    <div class="ledger-card" id="ledgerCard" style="display:none;">
+      <div class="ledger-head">
+        <span class="ledger-live"><span class="dot"></span>살아있는 성적표 — 매일 예측을 봉인하고, 개찰 후 전수 채점합니다</span>
+        <span class="ledger-model" id="ledgerModel">예측모델 v0.1 · 목표 구간 적중률 95~98%</span>
+      </div>
+      <div class="ledger-grid" id="ledgerGrid"></div>
+      <p class="ledger-note" id="ledgerNote"></p>
+      <div class="ledger-log" id="ledgerLog"></div>
+    </div>
+  </div>
+</section>
 
 <!--
   ════════════════════════════════════════════════════════════════
@@ -1512,6 +1549,48 @@ async function loadLiveCalendar() {
   }
 }
 loadLiveCalendar();
+
+// ═══════════════════════════════════════
+// 살아있는 성적표 — 예측 장부 실측 (scoreboard API)
+// 데이터가 하나도 없으면 섹션 자체를 숨긴다 (가짜 숫자 금지)
+// ═══════════════════════════════════════
+async function loadLedger() {
+  try {
+    const res = await fetch('/.netlify/functions/scoreboard');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    const sealDays = d.sealDays || {};
+    const totalSeal = Object.values(sealDays).reduce((s, v) => s + v, 0);
+    if (!totalSeal && !(d.summary && d.summary.n)) return; // 장부가 비어있으면 표시하지 않음
+
+    const now = new Date(Date.now() + 9 * 3600 * 1000);
+    const todayY = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, '0')}${String(now.getUTCDate()).padStart(2, '0')}`;
+    const todaySeal = sealDays[todayY] || 0;
+    const n = d.summary && d.summary.n ? d.summary.n : 0;
+
+    const tiles = [
+      { v: todaySeal.toLocaleString() + '건', k: '오늘 봉인한 예측 (개찰 전 기록)' },
+      { v: totalSeal.toLocaleString() + '건', k: '누적 봉인 예측' },
+      n ? { v: n.toLocaleString() + '건', k: '개찰 대조 채점 완료' } : { v: '첫 채점 대기', k: '다음 개찰일 저녁 자동 채점', waiting: true },
+      n ? { v: d.summary.hitRate + '%', k: `구간 적중률 (목표 ${d.target ? d.target.hitRateLo : 95}~${d.target ? d.target.hitRateHi : 98}%)` } : { v: '—', k: '구간 적중률 (채점 후 공개)', waiting: true },
+    ];
+    document.getElementById('ledgerGrid').innerHTML = tiles.map(t => `
+      <div class="ledger-tile"><div class="v${t.waiting ? ' waiting' : ''}">${t.v}</div><div class="k">${t.k}</div></div>`).join('');
+
+    document.getElementById('ledgerNote').innerHTML = n
+      ? `채점 ${n}건 기준 중앙값 평균 오차 <b>${d.summary.avgAbsErrPct}%</b> · 잘 맞은 것만 고르지 않고 <b>전수</b>를 대조합니다. 예측은 개찰 전에 봉인되어 사후 수정이 불가능합니다.`
+      : `오늘 봉인한 <b>${todaySeal.toLocaleString()}건</b>의 예측은 개찰이 끝나는 대로 실제 낙찰가와 자동 대조됩니다. 적중률은 <b>실측치만</b> 공개하며, 그 전까지는 어떤 숫자도 만들어 붙이지 않습니다.`;
+
+    const logs = (d.learningLog || []).slice(0, 2);
+    document.getElementById('ledgerLog').innerHTML = logs.map(l =>
+      `<div class="ledger-log-item">🧠 모델 학습: <b>${l.usage}</b> 구간 폭 ${l.from} → ${l.to} 보정 (표본 ${l.n}건 · 적중률 ${l.hitRate}%)</div>`).join('');
+
+    document.getElementById('ledgerCard').style.display = '';
+  } catch (e) {
+    console.info('[신호등옥션] 성적표 로드 실패(섹션 숨김):', e.message);
+  }
+}
+loadLedger();
 </script>
 
 </body>
