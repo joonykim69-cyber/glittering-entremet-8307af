@@ -791,7 +791,9 @@ function resetFilters() {
 // 필터 계산
 // ═══════════════════════════════════════
 function computeFilteredList() {
-  let list = ITEMS.filter(it => it.mode.includes(activeMode));
+  // 인기물건 탭: 실시간 관심물건순위(주간) 데이터가 로드돼 있으면 그것을 기반으로
+  const usingRank = activeMode === 'popular' && liveMode && Array.isArray(RANK_ITEMS) && RANK_ITEMS.length > 0;
+  let list = usingRank ? [...RANK_ITEMS] : ITEMS.filter(it => it.mode.includes(activeMode));
 
   // 타입 필터: activeTypes에 포함된 타입만 — 데모 ITEMS의 'type' 값이 ALL_TYPES의
   // 부동산/동산 값과 다를 수 있으므로 데모 타입을 그대로 허용하는 정규화 적용
@@ -830,7 +832,7 @@ function computeFilteredList() {
   else if (s === 'fail-desc') list = [...list].sort((a,b) => b.fail - a.fail);
   else if (s === 'price-asc') list = [...list].sort((a,b) => a.appr - b.appr);
   else if (s === 'price-desc') list = [...list].sort((a,b) => b.appr - a.appr);
-  else list = [...list].sort((a,b) => b.id - a.id);
+  else if (!usingRank) list = [...list].sort((a,b) => b.id - a.id); // 순위 기반일 땐 관심순 유지
 
   return list;
 }
@@ -977,7 +979,8 @@ function updateFeatured(list) {
 // 상세 스냅샷 저장
 // ═══════════════════════════════════════
 function stashDetail(id) {
-  const it = ITEMS.find(x => String(x.id) === String(id));
+  const it = ITEMS.find(x => String(x.id) === String(id))
+    || (Array.isArray(RANK_ITEMS) ? RANK_ITEMS.find(x => String(x.id) === String(id)) : null);
   if (it) { try { sessionStorage.setItem('bidcast:detail', JSON.stringify(it)); } catch(e) {} }
 }
 
@@ -1128,6 +1131,8 @@ document.querySelectorAll('#modeTabs button').forEach(btn => {
     document.querySelectorAll('#modeTabs button').forEach(b => b.classList.remove('on'));
     btn.classList.add('on');
     activeMode = btn.dataset.mode;
+    // 인기물건 탭 첫 진입 시 관심물건순위 실 데이터를 lazy 로드 (일일 쿼터 절약)
+    if (activeMode === 'popular' && liveMode && RANK_ITEMS === null) loadRankItems();
     applyFilters();
   });
 });
@@ -1207,6 +1212,91 @@ function deriveModes(it) {
 
 let liveMode = false;
 let liveFetchSeq = 0;
+
+// ═══════════════════════════════════════
+// 관심물건순위 (인기물건 탭 실 데이터) — onbid-svc?svc=rank_intrst
+// 필수 파라미터 cltrDivNm(부동산|동산|자동차, 한글) — 승인 페이지 명세 확인(2026-07-19).
+// 일주일간 관심 저장이 많은 물건 순위. 응답 필드명은 tolerant 매핑.
+// ═══════════════════════════════════════
+let RANK_ITEMS = null; // null=미로드, []=로드 실패/빈 결과(데모 폴백), [..]=관심순 정렬
+let rankLoading = false;
+
+function rankType(cls, usg) {
+  const s = usg || '';
+  if (cls === '자동차') return '차량';
+  if (cls === '동산') {
+    if (/승용|승합|화물|차량|자동차|버스|트럭/.test(s)) return '차량';
+    if (/기계|장비|설비|공작/.test(s)) return '기계장비';
+    if (/주식|증권|출자|회원권|채권/.test(s)) return '유가증권';
+    if (/선박|항공/.test(s)) return '선박항공';
+    return '기타동산';
+  }
+  if (/아파트/.test(s)) return '아파트';
+  if (/연립|다세대/.test(s)) return '연립다세대';
+  if (/오피스텔/.test(s)) return '오피스텔';
+  if (/단독|주택/.test(s)) return '단독주택';
+  if (/토지|대지|임야|전|답|과수원|잡종지/.test(s)) return '토지';
+  if (/상가|점포|근린|판매/.test(s)) return '상가';
+  if (/사무/.test(s)) return '사무실';
+  if (/공장|창고/.test(s)) return '공장창고';
+  return '기타부동산';
+}
+
+function mapRankItem(r, cls, idx) {
+  const manwon = won => Math.round((Number(won) || 0) / 10000);
+  const rank = Number(r.rnkNo ?? r.rank ?? r.rnk ?? r.clgRnk) || idx + 1;
+  const usg = r.cltrUsgSclsCtgrNm || r.cltrUsgMclsCtgrNm || r.usgNm || '';
+  let photo = /^https?:\/\//.test(r.thnlImgUrlAdr || '') ? r.thnlImgUrlAdr : '';
+  if (photo) photo = photo.replace('downloadImageKind=THNL_NM', 'downloadImageKind=IMGE_NM');
+  const type = rankType(cls, usg);
+  const minParsed = parseInt(String(r.lowstBidPrcIndctCont ?? r.lowstBidPrc ?? '').replace(/[^0-9]/g, ''), 10);
+  const appr = manwon(r.apslEvlAmt);
+  return {
+    id: r.cltrMngNo || r.cltrMngno || `rank-${cls}-${idx}`,
+    pbctCdtnNo: r.pbctCdtnNo != null ? String(r.pbctCdtnNo) : '',
+    caseNo: r.cltrMngNo && r.pbctCdtnNo != null ? `${r.cltrMngNo}-${r.pbctCdtnNo}` : (r.cltrMngNo || '-'),
+    title: r.onbidCltrNm || r.cltrNm || '(물건명 미상)',
+    address: '', court: r.orgNm || '', region: '',
+    type,
+    appr,
+    min: Number.isFinite(minParsed) && minParsed > 0 ? Math.round(minParsed / 10000) : appr,
+    fail: Number(r.usbdNft) || 0,
+    status: '진행',
+    tags: [`#관심 ${rank}위`],
+    views: 0,
+    thumb: cls === '자동차' ? '🚗' : cls === '동산' ? '⚙️' : '🏢',
+    photo,
+    bidEnd: r.cltrBidEndDt || r.bidEndYmd || '',
+    ...(cls !== '부동산' ? { assetClass: cls } : {}),
+    rankNo: rank,
+    mode: ['popular'],
+  };
+}
+
+async function loadRankItems() {
+  if (rankLoading) return;
+  rankLoading = true;
+  try {
+    const classes = ['부동산', '동산', '자동차'];
+    const settled = await Promise.allSettled(classes.map(c =>
+      fetch(`/.netlify/functions/onbid-svc?svc=rank_intrst&cltrDivNm=${encodeURIComponent(c)}&numOfRows=20`)
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    ));
+    const items = [];
+    settled.forEach((s, ci) => {
+      if (s.status !== 'fulfilled' || !Array.isArray(s.value.items)) return;
+      s.value.items.forEach((raw, i) => { if (raw) items.push(mapRankItem(raw, classes[ci], i)); });
+    });
+    RANK_ITEMS = items.sort((a, b) => (a.rankNo || 99) - (b.rankNo || 99));
+    console.info('[bidcast] 관심물건순위 로드:', items.length, '건');
+  } catch (e) {
+    RANK_ITEMS = [];
+    console.info('[bidcast] 관심물건순위 로드 실패(데모 유지):', e.message);
+  } finally {
+    rankLoading = false;
+    if (activeMode === 'popular') applyFilters();
+  }
+}
 
 async function loadRealItems(opts = {}) {
   const chip = document.getElementById('dataSourceChip');
