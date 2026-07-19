@@ -876,11 +876,21 @@ function renderList(list) {
   updateFeatured(list);
 }
 
+// 감정가 미공개(0) 물건의 나눗셈 가드 — "Infinity%" 방지
+function pctStr(it) {
+  return it.appr > 0 ? Math.round(it.min / it.appr * 100) + '%' : '—';
+}
+
+function goDetail(id) {
+  stashDetail(id);
+  location.href = 'bidcast-detail.html?id=' + encodeURIComponent(id);
+}
+
 function renderCard(it) {
   const liked = likedIds.has(String(it.id));
-  const pct = Math.round(it.min / it.appr * 100);
+  const pct = pctStr(it);
   return `
-<article class="item-card">
+<article class="item-card" data-id="${String(it.id).replace(/["'<>]/g,'')}" style="cursor:pointer;">
   <div class="item-thumb">${it.thumb}
     ${it.photo ? `<img class="photo" src="${it.photo}" alt="" loading="lazy" onerror="this.remove()">` : ''}
     ${it.fail > 0 ? `<span class="fail-badge">유찰 ${it.fail}회</span>` : ''}
@@ -893,7 +903,7 @@ function renderCard(it) {
     <div class="item-tags">${it.tags.map(t=>`<span>${t}</span>`).join('')}</div>
     <div class="item-prices">
       <div class="item-price-cell">감정가<b>${fmtWon(it.appr)}</b></div>
-      <div class="item-price-cell">최저가<b>${fmtWon(it.min)} <span style="font-size:11px;font-weight:700;color:var(--green-deep);">${pct}%</span></b></div>
+      <div class="item-price-cell">최저가<b>${fmtWon(it.min)} <span style="font-size:11px;font-weight:700;color:var(--green-deep);">${pct}</span></b></div>
     </div>
     <div class="item-foot">
       <span class="item-views">👁 ${it.views.toLocaleString()}</span>
@@ -906,9 +916,9 @@ function renderCard(it) {
 
 function renderRow(it) {
   const liked = likedIds.has(String(it.id));
-  const pct = Math.round(it.min / it.appr * 100);
+  const pct = pctStr(it);
   return `
-<article class="item-row">
+<article class="item-row" data-id="${String(it.id).replace(/["'<>]/g,'')}" style="cursor:pointer;">
   <div class="item-row-thumb">${it.thumb}
     ${it.photo ? `<img src="${it.photo}" alt="" loading="lazy" onerror="this.remove()">` : ''}
     ${it.fail > 0 ? `<div class="fail-badge">유찰${it.fail}회</div>` : ''}
@@ -924,7 +934,7 @@ function renderRow(it) {
       <div class="lbl">감정가</div>
       <div class="appr-val">${fmtWon(it.appr)}</div>
       <div class="min-val">${fmtWon(it.min)}</div>
-      <div class="min-pct">감정가 ${pct}%</div>
+      <div class="min-pct">감정가 ${pct}</div>
     </div>
     <div class="item-row-actions">
       <button type="button" class="row-heart ${liked?'on':''}" onclick="toggleLike('${it.id}',this)" aria-label="${liked?'관심 해제':'관심 등록'}">♥</button>
@@ -962,18 +972,28 @@ function changePage(p) {
 function updateFeatured(list) {
   const sec = document.getElementById('featuredSection');
   if (!['popular','hot'].includes(activeMode) || list.length < 3) { sec.style.display='none'; return; }
-  const top = [...list].sort((a,b) => b.views - a.views).slice(0,4);
+  const usingRank = list.length && list[0].rankNo != null;
+  const top = usingRank ? list.slice(0,4) : [...list].sort((a,b) => b.views - a.views).slice(0,4);
   sec.style.display = '';
   sec.innerHTML = `
-    <div class="featured-label">🔥 주목 물건 · 예시 데이터</div>
+    <div class="featured-label">🔥 주목 물건 · ${usingRank ? '실시간 관심물건순위' : liveMode ? '실시간 온비드 데이터' : '예시 데이터'}</div>
     <div class="featured-scroll">${top.map(it => `
       <div class="featured-card">
         <div class="f-type">${it.type} · ${statusBadge(it)}</div>
         <div class="f-title"><a href="bidcast-detail.html?id=${encodeURIComponent(it.id)}" onclick="stashDetail('${String(it.id).replace(/[^0-9A-Za-z\-_.]/g,'')}')">${it.title}</a></div>
-        <div class="f-price">최저가 <b>${fmtWon(it.min)}</b> (감정가 ${Math.round(it.min/it.appr*100)}%)</div>
+        <div class="f-price">최저가 <b>${fmtWon(it.min)}</b> (감정가 ${pctStr(it)})</div>
       </div>`).join('')}
     </div>`;
 }
+
+// 카드/행 어느 곳을 눌러도 상세로 이동 (하트·리포트·지도 등 버튼/링크는 제외)
+['itemGrid', 'itemList'].forEach(cid => {
+  document.getElementById(cid).addEventListener('click', e => {
+    if (e.target.closest('a, button')) return;
+    const el = e.target.closest('[data-id]');
+    if (el) goDetail(el.dataset.id);
+  });
+});
 
 // ═══════════════════════════════════════
 // 상세 스냅샷 저장
@@ -1244,7 +1264,7 @@ function rankType(cls, usg) {
 
 function mapRankItem(r, cls, idx) {
   const manwon = won => Math.round((Number(won) || 0) / 10000);
-  const rank = Number(r.rnkNo ?? r.rank ?? r.rnk ?? r.clgRnk) || idx + 1;
+  const rank = Number(r.sn ?? r.rnkNo ?? r.rank) || idx + 1; // sn = 순위 (실 응답 확인)
   const usg = r.cltrUsgSclsCtgrNm || r.cltrUsgMclsCtgrNm || r.usgNm || '';
   let photo = /^https?:\/\//.test(r.thnlImgUrlAdr || '') ? r.thnlImgUrlAdr : '';
   if (photo) photo = photo.replace('downloadImageKind=THNL_NM', 'downloadImageKind=IMGE_NM');
@@ -1262,7 +1282,7 @@ function mapRankItem(r, cls, idx) {
     min: Number.isFinite(minParsed) && minParsed > 0 ? Math.round(minParsed / 10000) : appr,
     fail: Number(r.usbdNft) || 0,
     status: '진행',
-    tags: [`#관심 ${rank}위`],
+    tags: [`#${cls} 관심 ${rank}위`],
     views: 0,
     thumb: cls === '자동차' ? '🚗' : cls === '동산' ? '⚙️' : '🏢',
     photo,
