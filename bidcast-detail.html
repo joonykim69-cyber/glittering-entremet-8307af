@@ -1142,9 +1142,13 @@ if(isLive&&liveItem){
       else if(t[2]&&/구$/.test(t[2])&&/시$/.test(t[1]))sgg=t[1]+' '+t[2];
       const lawd=(RTMS_LAWD[sido]||{})[sgg];
       if(!lawd){console.log('[rtms] 시군구 코드 미등록:',sido,sgg);return;}
-      // 용도 → 실거래 서비스 매핑 (매핑 불가 용도는 시세 표본이 무의미하므로 표시하지 않음)
-      const u=(liveItem.usage||'')+' '+(it.type||'');
-      const svc=/아파트/.test(u)?'apt_trade_dev':/오피스텔/.test(u)?'offi_trade':/연립|다세대|빌라/.test(u)?'rh_trade':/단독|다가구/.test(u)?'sh_trade':/토지|임야|대지|잡종지|^전\s|\s전\s|답/.test(u)?'land_trade':/상가|근린|점포|사무|업무/.test(u)?'nrg_trade':/공장|창고/.test(u)?'indu_trade':null;
+      // 용도 → 실거래 서비스 매핑 (매핑 불가 용도는 시세 표본이 무의미하므로 표시하지 않음).
+      // 스냅샷의 세부 용도(usage)가 1순위, 대분류 type과 물건명(제목에 용도가 들어있는 경우 多)이 보조.
+      const uu=String(liveItem.usage||'');
+      const u=[uu,it.type,liveItem.title||it.title].filter(Boolean).join(' ');
+      const svc=/아파트/.test(u)?'apt_trade_dev':/오피스텔/.test(u)?'offi_trade':/연립|다세대|빌라/.test(u)?'rh_trade':/단독|다가구/.test(u)?'sh_trade'
+        :/토지|임야|잡종지/.test(u)||/(^|\s)(전|답|과수원|목장용지|대)(\s|$)/.test(uu)?'land_trade'
+        :/상가|근린|점포|사무|업무/.test(u)?'nrg_trade':/공장|창고/.test(u)?'indu_trade':null;
       if(!svc){console.log('[rtms] 용도 미매핑:',u);return;}
       const months=[];const d=new Date(Date.now()+9*3600*1000);
       for(let i=0;i<3;i++){months.push(`${d.getUTCFullYear()}${String(d.getUTCMonth()+1).padStart(2,'0')}`);d.setUTCMonth(d.getUTCMonth()-1);}
