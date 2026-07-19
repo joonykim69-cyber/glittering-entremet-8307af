@@ -22,7 +22,8 @@ const CORS = {
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
 };
 
-const ONBID_BIDINFO_API_URL = process.env.ONBID_BIDINFO_API_URL;
+// 승인 페이지에서 확인된 Base URL을 기본값으로 — env는 오버라이드 용도로만
+const ONBID_BIDINFO_API_URL = process.env.ONBID_BIDINFO_API_URL || 'https://apis.data.go.kr/B010003/OnbidCltrBidRsltDtlSrvc2';
 const ONBID_BIDINFO_OPERATION = process.env.ONBID_BIDINFO_API_OP || '/getCltrBidRsltDtl2';
 
 // pbctStatCd → 표시명 (부동산 목록 Swagger의 코드표 재사용)
@@ -59,12 +60,8 @@ exports.handler = async (event) => {
   }
 
   const serviceKey = process.env.ONBID_SERVICE_KEY;
-  if (!serviceKey || !ONBID_BIDINFO_API_URL) {
-    return {
-      statusCode: 501,
-      headers: CORS,
-      body: JSON.stringify({ error: { message: '입찰정보 API 미연동 — Netlify 환경변수에 ONBID_BIDINFO_API_URL을 설정하세요 (https://apis.data.go.kr/B010003/OnbidCltrBidRsltDtlSrvc2).' } }),
-    };
+  if (!serviceKey) {
+    return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: { message: 'ONBID_SERVICE_KEY not configured' } }) };
   }
 
   const qs = event.queryStringParameters || {};

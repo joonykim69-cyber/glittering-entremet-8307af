@@ -32,18 +32,18 @@ const REGISTRY = {
   rlst_list:        { name: '부동산 물건목록',            code: 'OnbidRlstListSrvc2',        op: '/getRlstCltrList2',       confirmed: true },
   rlst_dtl:         { name: '부동산 물건상세',            code: 'OnbidRlstDtlSrvc2',         op: '/getRlstDtlInf2',         confirmed: true },
   mvast_list:       { name: '동산 물건목록',              code: 'OnbidMvastListSrvc2',       op: '/getMvastCltrList2',      confirmed: true },
-  mvast_dtl:        { name: '동산 물건상세',              code: 'OnbidMvastDtlSrvc2',        op: '/getMvastDtlInf2' },
+  mvast_dtl:        { name: '동산 물건상세',              code: 'OnbidMvastDtlSrvc2',        op: '/getMvastDtlInf2',        confirmed: true },
   vhcl_list:        { name: '차량 물건목록',              code: 'OnbidVhclListSrvc2',        op: '/getVhclCltrList2' },
   vhcl_dtl:         { name: '차량 물건상세',              code: 'OnbidVhclDtlSrvc2',         op: '/getVhclDtlInf2' },
   scrt_dtl:         { name: '유가증권 상세정보',          code: 'OnbidScrtDtlSrvc2',         op: '/getScrtDtlInf2' },
-  cltr_bidrslt_list:{ name: '물건 입찰결과목록',          code: 'OnbidCltrBidRsltListSrvc2', op: '/getCltrBidRsltList2' },
+  cltr_bidrslt_list:{ name: '물건 입찰결과목록',          code: 'OnbidCltrBidRsltListSrvc2', op: '/getCltrBidRsltList2',    confirmed: true },
   cltr_bidrslt_dtl: { name: '물건 입찰결과상세',          code: 'OnbidCltrBidRsltDtlSrvc2',  op: '/getCltrBidRsltDtl2',     confirmed: true },
   cltr_dtl_bidinf:  { name: '물건상세 입찰정보',          code: 'OnbidCltrDtlBidInfSrvc2',   op: '/getCltrDtlBidInf2' },
   pbanc_dtl:        { name: '공고상세',                   code: 'OnbidPbancDtlSrvc2',        op: '/getPbancDtlInf2' },
   pbanc_dtl_cltr:   { name: '공고상세 물건정보',          code: 'OnbidPbancDtlCltrSrvc2',    op: '/getPbancDtlCltrInf2' },
   pbanc_dtl_bidinf: { name: '공고상세 입찰정보',          code: 'OnbidPbancDtlBidInfSrvc2',  op: '/getPbancDtlBidInf2' },
-  pbanc_bidrslt_list:{ name: '공고 입찰결과목록',         code: 'OnbidPbancBidRsltListSrvc2',op: '/getPbancBidRsltList2' },
-  pbanc_bidrslt_dtl:{ name: '공고 입찰결과상세',          code: 'OnbidPbancBidRsltDtlSrvc2', op: '/getPbancBidRsltDtl2' },
+  pbanc_bidrslt_list:{ name: '공고 입찰결과목록',         code: 'OnbidPbancBidRsltListSrvc2',op: '/getPbancBidRsltList2',   confirmed: true },
+  pbanc_bidrslt_dtl:{ name: '공고 입찰결과상세',          code: 'OnbidPbancBidRsltDtlSrvc2', op: '/getPbancBidRsltDtl2',    confirmed: true },
   stat_usg:         { name: '용도별 입찰 통계',           code: 'OnbidUsgBidStatSrvc2',      op: '/getUsgBidStat2' },
   stat_rgn:         { name: '지역별 입찰 통계',           code: 'OnbidRgnBidStatSrvc2',      op: '/getRgnBidStat2' },
   code_addr:        { name: '코드 및 주소 조회',          code: 'OnbidCodeAddrSrvc2',        op: '/getOnbidCode2' },
@@ -70,15 +70,21 @@ function resolve(alias) {
   };
 }
 
+// 실측 기반 판정 (2026-07-19 _health 첫 실행으로 확인):
+//  - 존재하지 않는 서비스 경로 → HTTP 500 + "Unexpected errors" (data.go.kr 게이트웨이)
+//  - 주소는 맞고 필수 파라미터 누락 → HTTP 200 + {"result":{"resultCode":"11","resultMsg":"NO_MANDATORY_REQUEST_PARAMETERS_ERROR"}}
 function classify(httpStatus, bodyText) {
   const t = bodyText || '';
-  if (/NO_OPENAPI_SERVICE|API not found|SERVICE ERROR/i.test(t) || httpStatus === 404) return 'endpoint_missing';
-  if (/INVALID_REQUEST_PARAMETER|WRONG.*PARAM|필수.*(파라미터|항목)/i.test(t)) return 'endpoint_ok_params_needed';
+  if (/NO_OPENAPI_SERVICE|API not found/i.test(t) || httpStatus === 404) return 'endpoint_missing';
+  if (httpStatus === 500 && /Unexpected errors/i.test(t)) return 'endpoint_missing';
+  if (/NO_MANDATORY_REQUEST_PARAMETERS|INVALID_REQUEST_PARAMETER|WRONG.*PARAM|필수.*(파라미터|항목)/i.test(t)) return 'endpoint_ok_params_needed';
   if (/SERVICE_KEY|UNREGISTERED|LIMITED_NUMBER|DEADLINE/i.test(t)) return 'key_error';
   try {
     const j = JSON.parse(t);
     const env = j?.response ?? j;
     if (env?.header?.resultCode === '00') return 'ok';
+    // 오류 시 {"result":{resultCode,resultMsg}} 형태의 별도 래퍼도 관측됨
+    if (j?.result?.resultCode && j.result.resultCode !== '00') return 'upstream_error';
     return 'upstream_error';
   } catch { return 'unknown_response'; }
 }
@@ -123,7 +129,7 @@ exports.handler = async (event) => {
     const results = await Promise.all(aliases.map(async k => {
       const svc = resolve(k);
       try {
-        const { httpStatus, bodyText } = await callSvc(svc, {}, serviceKey);
+        const { httpStatus, bodyText } = await callSvc(svc, { pvctTrgtYn: 'N', dspsMthodCd: '0001', bidDivCd: '0001', prptDivCd: '0002,0003,0004,0005,0006,0007,0008,0010,0011,0013' }, serviceKey);
         const verdict = classify(httpStatus, bodyText);
         let totalCount;
         try { const j = JSON.parse(bodyText); totalCount = (j?.response ?? j)?.body?.totalCount; } catch {}

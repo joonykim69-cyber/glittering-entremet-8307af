@@ -2,15 +2,12 @@
 // "차세대 온비드 물건 입찰결과 조회서비스"(목록) 프록시 — 낙찰/유찰/취소로 끝난
 // 물건들의 개찰 결과 목록을 공급. 평균 낙찰가율 등 예측 통계 집계의 핵심 원천.
 //
-// 대상 서비스: 한국자산관리공사_차세대 온비드 물건 입찰결과 조회서비스
-// — 상세 서비스(OnbidCltrBidRsltDtlSrvc2, 승인 확인됨)의 짝이 되는 목록 서비스.
-//   data.go.kr에서 별도 활용신청 필요. 승인 페이지의 End Point를 환경변수로 설정.
+// 대상 서비스: 한국자산관리공사_차세대 온비드 물건 입찰결과목록 조회서비스
+// Base URL https://apis.data.go.kr/B010003/OnbidCltrBidRsltListSrvc2 + /getCltrBidRsltList2
+// — 2026-07-19 _health 일괄 점검에서 경로 실존 확인(NO_MANDATORY_PARAMS 응답).
 //
-// ⚠️ 미확정(승인 후 첫 실 응답으로 검증 — 동산 목록 때와 동일 절차):
-//  - Base URL: 명명 패턴상 https://apis.data.go.kr/B010003/OnbidCltrBidRsltSrvc2 추정
-//  - 오퍼레이션: 상세가 /getCltrBidRsltDtl2 이므로 목록은 '/getCltrBidRsltList2' 기본값
-//    (다르면 ONBID_BIDRSLT_API_OP로 재배포 없이 교체, ?debug=1로 확인)
-//  - 응답 필드명: tolerant 매핑 — 특히 낙찰금액 필드는 실 응답으로 확정할 것
+// ⚠️ 남은 미확정: 필수 요청 파라미터 구성과 응답 필드명(특히 낙찰금액) —
+//   ?debug=1 첫 실 응답으로 확정할 것. 기본 파라미터는 목록 계열 공통값을 채워둠.
 //
 // Netlify 환경변수 (모든 deploy context에 동일 값으로!):
 //   ONBID_BIDRSLT_API_URL = 물건 입찰결과 조회서비스(목록) Base URL
@@ -23,7 +20,8 @@ const CORS = {
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
 };
 
-const ONBID_BIDRSLT_API_URL = process.env.ONBID_BIDRSLT_API_URL;
+// 2026-07-19 _health 점검으로 Base URL·op 존재 확인 (NO_MANDATORY_PARAMS 응답 = 경로 유효)
+const ONBID_BIDRSLT_API_URL = process.env.ONBID_BIDRSLT_API_URL || 'https://apis.data.go.kr/B010003/OnbidCltrBidRsltListSrvc2';
 const ONBID_BIDRSLT_OPERATION = process.env.ONBID_BIDRSLT_API_OP || '/getCltrBidRsltList2';
 
 function parseAmt(v) {
@@ -61,12 +59,8 @@ exports.handler = async (event) => {
   }
 
   const serviceKey = process.env.ONBID_SERVICE_KEY;
-  if (!serviceKey || !ONBID_BIDRSLT_API_URL) {
-    return {
-      statusCode: 501,
-      headers: CORS,
-      body: JSON.stringify({ error: { message: '입찰결과 목록 API 미연동 — data.go.kr에서 "차세대 온비드 물건 입찰결과 조회서비스"를 활용신청하고 Netlify 환경변수 ONBID_BIDRSLT_API_URL에 End Point를 설정하세요.' } }),
-    };
+  if (!serviceKey) {
+    return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: { message: 'ONBID_SERVICE_KEY not configured' } }) };
   }
 
   const qs = event.queryStringParameters || {};
@@ -75,16 +69,23 @@ exports.handler = async (event) => {
     pageNo: qs.page || '1',
     numOfRows: qs.numOfRows || '50',
     resultType: 'json',
+    // 목록 계열 공통 필수 후보 — NO_MANDATORY_PARAMS 응답 대응 (실 응답으로 확정 예정)
+    pvctTrgtYn: qs.pvctTrgtYn || 'N',
+    dspsMthodCd: qs.dspsMthodCd || '0001',
+    bidDivCd: qs.bidDivCd || '0001',
   });
+  const prptDivCdDefault = '0002,0003,0004,0005,0006,0007,0008,0010,0011,0013';
   // 검색 조건 passthrough — 실제 지원 파라미터는 승인 페이지/debug로 확인 후 조정
   for (const k of ['cltrMngNo', 'prptDivCd', 'lctnSdnm', 'bidPrdYmdStart', 'bidPrdYmdEnd', 'opbdYmdStart', 'opbdYmdEnd']) {
     if (qs[k]) params.set(k, qs[k]);
   }
 
-  const upstreamUrl = `${ONBID_BIDRSLT_API_URL}${ONBID_BIDRSLT_OPERATION}?${params.toString().replace(serviceKey, '***').replace(encodeURIComponent(serviceKey), '***')}`;
+  const prptDivCd = (qs.prptDivCd || prptDivCdDefault).replace(/[^0-9,]/g, '');
+  const queryString = `${params.toString()}&prptDivCd=${prptDivCd}`;
+  const upstreamUrl = `${ONBID_BIDRSLT_API_URL}${ONBID_BIDRSLT_OPERATION}?${queryString.replace(serviceKey, '***').replace(encodeURIComponent(serviceKey), '***')}`;
 
   try {
-    const r = await fetch(`${ONBID_BIDRSLT_API_URL}${ONBID_BIDRSLT_OPERATION}?${params.toString()}`);
+    const r = await fetch(`${ONBID_BIDRSLT_API_URL}${ONBID_BIDRSLT_OPERATION}?${queryString}`);
     const bodyText = await r.text();
     console.log('[onbid-bidresults] request:', upstreamUrl);
     console.log('[onbid-bidresults] upstream status:', r.status, '| body(첫 1000자):', bodyText.slice(0, 1000));
