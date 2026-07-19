@@ -316,6 +316,47 @@ if (ctxItem) {
   appendMsgHTML(`이 물건에 대해 물어보시는군요! ${statusTxt} ${failTxt}<br/><br/>AI 예상 낙찰가 범위는 <b>${lo} ~ ${hi}</b>, 추천 입찰가는 <b>${rec}원</b> 부근이에요 (예시 데이터 기준). 아래 자주 묻는 질문이나 자유 입력으로 이어서 질문해 주세요.`, 'bot');
 }
 
+// ?live=1 — 상세 페이지(실물건)에서 진입: sessionStorage 스냅샷으로 컨텍스트 구성.
+// 데모 인사와 달리 숫자를 지어내지 않는다: 사실(감정가·최저가·유찰)만 말하고,
+// 봉인 예측이 실제로 존재하면 그 구간만 근거와 함께 보여준다.
+let liveCtx = null, livePred = null;
+if (new URLSearchParams(location.search).get('live') === '1') {
+  try {
+    const snap = JSON.parse(sessionStorage.getItem('bidcast:detail') || 'null');
+    if (snap && snap.id) liveCtx = snap;
+  } catch (e) {}
+}
+if (liveCtx) {
+  const escT = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const chip = document.createElement('div');
+  chip.className = 'msg bot';
+  chip.innerHTML = `<span class="av2">📡</span><div class="bubble" style="background:var(--green-soft);border:1px solid #C4EBD8;">
+    지금 보는 실물건: <b>${escT(liveCtx.title || '')}</b> <span style="font-size:11px;color:var(--green-deep);font-weight:800;">실시간 온비드</span><br/>
+    <a href="bidcast-detail.html?id=${encodeURIComponent(String(liveCtx.id))}" style="color:var(--green-deep);font-weight:800;">물건 상세로 돌아가기 →</a></div>`;
+  chatBody.appendChild(chip);
+  const apprWon = (Number(liveCtx.appr) || 0) * 10000, minWon = (Number(liveCtx.min) || 0) * 10000;
+  const failTxt = (liveCtx.fail || 0) > 0
+    ? `지금까지 <b>${liveCtx.fail}회 유찰</b>된 물건입니다.`
+    : `유찰 이력이 없는 물건입니다.`;
+  appendMsgHTML(`실시간 온비드 물건이군요! <b>${escT(liveCtx.title || '')}</b> — ${liveCtx.usage ? escT(liveCtx.usage) + ' · ' : ''}감정가 <b>${apprWon > 0 ? fmtWon(apprWon) + '원' : '미공개'}</b>, 최저입찰가 <b>${minWon > 0 ? fmtWon(minWon) + '원' : '미공개'}</b>. ${failTxt}<br/><br/>봉인된 AI 예측이 있는지 확인하고 있어요…`, 'bot');
+  // 봉인 예측 조회 — 있으면 구간+근거를 실데이터로 안내, 없으면 없다고 정직하게 안내
+  (async () => {
+    try {
+      if (!liveCtx.pbctCdtnNo) throw new Error('no cdtn');
+      const r = await fetch(`/.netlify/functions/scoreboard?pred=${encodeURIComponent(String(liveCtx.id))}_${encodeURIComponent(String(liveCtx.pbctCdtnNo))}`);
+      const d = r.ok ? await r.json() : null;
+      if (d && d.pred && d.pred.lo) {
+        livePred = d.pred;
+        appendMsgHTML(`🔒 이 물건에는 <b>개찰 전 봉인된 AI 예측</b>이 있습니다: 예상 낙찰가 구간 <b>${fmtWon(livePred.lo * 10000)} ~ ${fmtWon(livePred.hi * 10000)}원</b> (중앙값 ${fmtWon(livePred.mid * 10000)}원).<br/><span style="font-size:11.5px;color:var(--sub);">근거: 캠코 ${escT(livePred.statBucket || '')} 낙찰가율 통계(${escT(livePred.statPerd || '')}) · 모델 ${escT(livePred.modelV || '')} · 봉인 후 수정 불가</span>`, 'bot');
+      } else {
+        appendMsgHTML(`이 물건은 아직 봉인된 AI 예측이 없습니다 (마감 2일 전부터 매일 아침 봉인됩니다). 일반적인 공매 절차나 이 물건의 기본정보에 대해 물어봐 주세요.`, 'bot');
+      }
+    } catch (e) {
+      appendMsgHTML(`예측 장부 조회가 지금은 어려워요. 일반적인 공매 절차나 이 물건의 기본정보에 대해 물어봐 주세요.`, 'bot');
+    }
+  })();
+}
+
 document.querySelectorAll('#presetList button').forEach(btn => {
   btn.addEventListener('click', () => {
     const id = btn.dataset.q;
@@ -333,7 +374,9 @@ async function callBidcastAI(userText) {
   const system = `당신은 "예보봇"입니다. 대한민국 온비드(캠코) 공매의 절차, 유찰, 입찰보증금, 권리분석 기초, 잔금납부 등 공매 관련 일반 정보를 한국어 존댓말로 친절하고 간결하게(3~5문장) 설명하는 상담봇입니다.
 - 공매·경매·부동산 관련 질문에만 답하고, 무관한 질문에는 정중히 답변 범위를 벗어난다고 안내하세요.
 - 특정 물건의 법률적 권리관계를 단정적으로 판단하지 말고, 참고 정보이며 실제 법률 자문이 아니라는 점을 필요시 언급하세요.${ctxItem ? `
-- 지금 사용자는 "${ctxItem.title}"(${ctxItem.type}, 감정가 ${fmtWon(ctxItem.appr)}원, 최저입찰가 ${fmtWon(ctxItem.min)}원, 유찰 ${ctxItem.fail}회, 상태: ${ctxItem.status})을 보고 있습니다. 관련 질문이면 이 정보를 참고해 답변하세요.` : ''}`;
+- 지금 사용자는 "${ctxItem.title}"(${ctxItem.type}, 감정가 ${fmtWon(ctxItem.appr)}원, 최저입찰가 ${fmtWon(ctxItem.min)}원, 유찰 ${ctxItem.fail}회, 상태: ${ctxItem.status})을 보고 있습니다. 관련 질문이면 이 정보를 참고해 답변하세요.` : ''}${liveCtx ? `
+- 지금 사용자는 실시간 온비드 물건 "${liveCtx.title}"(${liveCtx.usage || liveCtx.type || ''}, 물건관리번호 ${liveCtx.id}, 감정가 ${(Number(liveCtx.appr) || 0) > 0 ? fmtWon(liveCtx.appr * 10000) + '원' : '미공개'}, 최저입찰가 ${(Number(liveCtx.min) || 0) > 0 ? fmtWon(liveCtx.min * 10000) + '원' : '미공개'}, 유찰 ${liveCtx.fail || 0}회)을 보고 있습니다. 관련 질문이면 이 실데이터를 근거로 답변하세요.` : ''}${livePred ? `
+- 이 물건에는 개찰 전 봉인된 AI 예측 구간이 있습니다: ${fmtWon(livePred.lo * 10000)}~${fmtWon(livePred.hi * 10000)}원(중앙값 ${fmtWon(livePred.mid * 10000)}원, 근거: 캠코 ${livePred.statBucket || ''} 낙찰가율 통계 ${livePred.statPerd || ''}). 예측을 언급할 때는 반드시 "구간"으로 말하고 적중을 보장하지 마세요. 점 예측이나 "정확하다"는 표현은 금지입니다.` : ''}`;
 
   const res = await fetch('/.netlify/functions/claude', {
     method: 'POST',

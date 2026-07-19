@@ -1042,7 +1042,7 @@ const simIds=Object.keys(DETAILS).map(Number).filter(k=>DETAILS[k]!==it);
 simIds.sort((a,b)=>(DETAILS[b].type===it.type)-(DETAILS[a].type===it.type));
 const cmpQ=isLive?'':`?ids=${[resolvedId,...simIds.slice(0,2)].join(',')}`;
 document.getElementById('cmpLink').href='bidcast-compare.html'+cmpQ;
-const botHref=isLive?'bidcast-bot.html':`bidcast-bot.html?item=${resolvedId}`;
+const botHref=isLive?'bidcast-bot.html?live=1':`bidcast-bot.html?item=${resolvedId}`;
 document.getElementById('botLink2').href=botHref;
 document.getElementById('fabBot').href=botHref;
 const simHref=`bidcast-simulator.html?appr=${it.appr}&ratio=${Math.round(it.min/it.appr*100)}&id=${encodeURIComponent(storageId)}${isLive&&liveItem&&liveItem.pbctCdtnNo?`&cdtn=${encodeURIComponent(liveItem.pbctCdtnNo)}`:''}&title=${encodeURIComponent(it.title)}`;
