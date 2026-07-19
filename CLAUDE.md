@@ -46,6 +46,12 @@ A 15-page static prototype (`bidcast*.html`) for an Onbid auction winning-bid pr
 - `bidcast-pricing.html` — 요금제: 무료/프로(19,900원/월)/프리미엄(49,900원/월) 3단 카드, 월간·연간 토글 (연간 2개월 무료), 14항목 기능 비교표, FAQ 6문. "예시 요금제" disclosure. 모든 CTA는 공용 auth modal로 연결.
 - `bidcast-support.html` — 8-tab support hub (공지/이벤트/FAQ/1:1문의/자유게시판/가이드/언론기사/제휴문의); tabs are addressable via URL hash (`bidcast-support.html#faq`).
 
+## 보류 중인 작업 (사용자 지시로 연기 — 2026-07-19)
+
+- **주변 실거래/시세 추정 기능 마무리** — 사용자가 "나중에 적용"으로 보류. 현재 상태: `rtms-svc.js` 10종 전부 `_health` ok 확인, `bidcast-detail.html`에 "주변 실거래" 섹션 배포됨(조건 미충족 시 자동 숨김이라 무해). 남은 일: ① 군 단위 법정동코드 확장(현재 수도권·광역시 전체+주요 시 181건만), ② 섹션 실물건 표시 검증(사용자 물건 2021-09579-010에서 미표시 — 용도 매핑 보강 PR #27 이후 재검증 안 됨), ③ 시뮬레이터 "예상 시세" 슬라이더에 추정치 자동 주입, ④ 부동산원 가격지수 연동(활용신청 필요) → 6개월~3년 보수/기준/낙관 시나리오 밴드, ⑤ 시세 추정 봉인·채점 루프 편입.
+- **AI 리포트 모달 실물화** — 리포트 페이지 정리는 사용자가 다시 이야기할 때까지 보류. 합의된 순서: 적정가 분석 탭→봉인 엔진 연결, 기본정보·감정평가 탭→상세 API, 종합분석→claude.js 생성, 권리분석은 데이터 없어 예시 유지.
+- **랩 페이지 실측화** — score-daily 채점 데이터가 며칠 쌓인 뒤 진행.
+
 ## Development commands
 
 There is nothing to build or test. To work locally:
