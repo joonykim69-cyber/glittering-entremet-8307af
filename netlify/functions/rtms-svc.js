@@ -29,14 +29,14 @@ const B = 'https://apis.data.go.kr/1613000/';
 const REGISTRY = {
   apt_trade_dev: { name: '아파트 매매 실거래가 상세',        code: 'RTMSDataSvcAptTradeDev', op: '/getRTMSDataSvcAptTradeDev', confirmed: true },
   apt_rent:      { name: '아파트 전월세 실거래가',           code: 'RTMSDataSvcAptRent',     op: '/getRTMSDataSvcAptRent', confirmed: true },
-  apt_silv:      { name: '아파트 분양권전매 실거래가',       code: 'RTMSDataSvcSilvTrade',   op: '/getRTMSDataSvcSilvTrade' },
-  offi_trade:    { name: '오피스텔 매매 실거래가',           code: 'RTMSDataSvcOffiTrade',   op: '/getRTMSDataSvcOffiTrade' },
+  apt_silv:      { name: '아파트 분양권전매 실거래가',       code: 'RTMSDataSvcSilvTrade',   op: '/getRTMSDataSvcSilvTrade', confirmed: true },
+  offi_trade:    { name: '오피스텔 매매 실거래가',           code: 'RTMSDataSvcOffiTrade',   op: '/getRTMSDataSvcOffiTrade', confirmed: true },
   rh_trade:      { name: '연립다세대 매매 실거래가',         code: 'RTMSDataSvcRHTrade',     op: '/getRTMSDataSvcRHTrade', confirmed: true },
   sh_trade:      { name: '단독/다가구 매매 실거래가',        code: 'RTMSDataSvcSHTrade',     op: '/getRTMSDataSvcSHTrade', confirmed: true },
-  sh_rent:       { name: '단독/다가구 전월세 실거래가',      code: 'RTMSDataSvcSHRent',      op: '/getRTMSDataSvcSHRent' },
+  sh_rent:       { name: '단독/다가구 전월세 실거래가',      code: 'RTMSDataSvcSHRent',      op: '/getRTMSDataSvcSHRent', confirmed: true },
   land_trade:    { name: '토지 매매 실거래가',               code: 'RTMSDataSvcLandTrade',   op: '/getRTMSDataSvcLandTrade' },
   nrg_trade:     { name: '상업업무용 부동산 매매 실거래가',  code: 'RTMSDataSvcNrgTrade',    op: '/getRTMSDataSvcNrgTrade', confirmed: true },
-  indu_trade:    { name: '공장·창고 등 부동산 매매 실거래가', code: 'RTMSDataSvcInduTrade',   op: '/getRTMSDataSvcInduTrade' },
+  indu_trade:    { name: '공장·창고 등 부동산 매매 실거래가', code: 'RTMSDataSvcInduTrade',   op: '/getRTMSDataSvcInduTrade', confirmed: true },
 };
 
 function resolve(alias) {
