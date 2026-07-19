@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>물건 상세 — 낙찰예보</title>
+<title>물건 상세 — 신호등옥션</title>
 <meta name="description" content="물건별 기본정보·입찰이력·권리분석 요약과 AI 예상 낙찰가 범위를 한 페이지에서 확인하세요."/>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"/>
 <style>
@@ -322,7 +322,7 @@ a{color:inherit;text-decoration:none;}
 
 <!-- ══ 헤더 (탭 바) ══ -->
 <header class="rp-header">
-  <a href="bidcast.html" aria-label="낙찰예보 홈"><span class="logo-mark">予</span></a>
+  <a href="bidcast.html" aria-label="신호등옥션 홈"><span class="logo-mark">🚦</span></a>
   <span class="rp-case-badge" id="rpCaseBadge">로딩중…</span>
   <nav class="rp-tabs" id="rpTabs" aria-label="리포트 탭">
     <button class="rp-tab active" type="button" data-tab="basic">기본정보</button>
@@ -343,7 +343,7 @@ a{color:inherit;text-decoration:none;}
   <div class="auth-modal">
     <button class="auth-close" type="button" onclick="closeAuth()" aria-label="닫기">✕</button>
     <div class="auth-head">
-      <span style="display:inline-flex;align-items:center;gap:8px;font-weight:900;font-size:15px;"><span class="logo-mark" style="width:23px;height:23px;font-size:11px;">予</span>낙찰예보</span>
+      <span style="display:inline-flex;align-items:center;gap:8px;font-weight:900;font-size:15px;"><span class="logo-mark" style="width:23px;height:23px;font-size:11px;">🚦</span>신호등옥션</span>
       <h3 id="authTitle">간편하게 시작하기</h3>
       <p id="authSub">10초면 충분합니다. 비밀번호 없이 가입하세요.</p>
     </div>
@@ -380,7 +380,7 @@ a{color:inherit;text-decoration:none;}
 
     <!-- 1. 히어로 -->
     <section class="rp-hero" id="rp-hero">
-      <p class="rp-hero-eyebrow" id="heroEyebrow">낙찰예보 경매 리포트</p>
+      <p class="rp-hero-eyebrow" id="heroEyebrow">신호등옥션 경매 리포트</p>
       <h1 class="rp-hero-title" id="dTitle">물건 상세</h1>
       <p class="rp-hero-addr" id="dAddr">—</p>
       <div class="rp-hero-casebadge">
@@ -594,7 +594,7 @@ a{color:inherit;text-decoration:none;}
     <!-- 푸터 -->
     <footer class="rp-footer">
       <div class="rp-footer-inner">
-        <div class="rp-footer-brand">낙찰<span>예보</span></div>
+        <div class="rp-footer-brand">신호등<span>옥션</span></div>
         <div class="rp-footer-links">
           <a href="bidcast.html">홈</a>
           <a href="bidcast-list.html">물건검색</a>
@@ -602,7 +602,7 @@ a{color:inherit;text-decoration:none;}
           <a href="bidcast-calendar.html">캘린더</a>
           <a href="bidcast-support.html">고객지원</a>
         </div>
-        <p class="rp-footer-copy">© 2026 낙찰예보. All rights reserved. — 공공데이터포털의 온비드 공식 API 데이터를 기반으로 합니다.</p>
+        <p class="rp-footer-copy">© 2026 신호등옥션. All rights reserved. — 공공데이터포털의 온비드 공식 API 데이터를 기반으로 합니다.</p>
       </div>
     </footer>
   </main>
@@ -802,14 +802,14 @@ const RECENT_KEY='bidcast:recent';
 (()=>{const r=JSON.parse(localStorage.getItem(RECENT_KEY)||'[]').filter(x=>String(x.id)!==String(storageId));r.unshift({id:storageId,at:Date.now()});localStorage.setItem(RECENT_KEY,JSON.stringify(r.slice(0,12)));})();
 
 // ─── DOM 바인딩 ───
-document.title=`${it.title} — 낙찰예보`;
+document.title=`${it.title} — 신호등옥션`;
 
 // 헤더·히어로
 document.getElementById('rpCaseBadge').textContent=it.caseNo;
 document.getElementById('dTitle').textContent=it.title;
 document.getElementById('dAddr').textContent=it.address;
 document.getElementById('heroCaseNo').textContent=`사건번호 ${it.caseNo}`;
-document.getElementById('heroEyebrow').textContent=`낙찰예보 ${it.type} 경매 리포트`;
+document.getElementById('heroEyebrow').textContent=`신호등옥션 ${it.type} 경매 리포트`;
 
 // 예시/실데이터 칩
 if(isLive){

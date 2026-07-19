@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>인사이트 — 낙찰예보</title>
+<title>인사이트 — 신호등옥션</title>
 <meta name="description" content="공매 소식과 전문가 컬럼, 용어 가이드를 한곳에서 확인하세요."/>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"/>
 <style>
@@ -118,7 +118,7 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
 
 <nav>
   <div class="wrap">
-    <a class="logo" href="bidcast.html"><span class="logo-mark">予</span>낙찰예보</a>
+    <a class="logo" href="bidcast.html"><span class="logo-mark">🚦</span>신호등옥션</a>
     <ul class="nav-links">
       <li><a href="bidcast-list.html">물건검색</a></li>
       <li><a href="bidcast-map.html">지도</a></li>
@@ -182,7 +182,7 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
   <div class="auth-modal">
     <button class="auth-close" type="button" onclick="closeAuth()" aria-label="닫기">✕</button>
     <div class="auth-head">
-      <span style="display:inline-flex;align-items:center;gap:8px;font-weight:900;font-size:16px;"><span class="logo-mark" style="width:24px;height:24px;font-size:11px;">予</span>낙찰예보</span>
+      <span style="display:inline-flex;align-items:center;gap:8px;font-weight:900;font-size:16px;"><span class="logo-mark" style="width:24px;height:24px;font-size:11px;">🚦</span>신호등옥션</span>
       <h3 id="authTitle">간편하게 시작하기</h3>
       <p id="authSub">10초면 충분합니다. 비밀번호 없이 가입하세요.</p>
     </div>
@@ -201,13 +201,13 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
   <div class="wrap">
     <div class="cols">
       <div>
-        <div class="brand">낙찰<span>예보</span></div>
+        <div class="brand">신호등<span>옥션</span></div>
         <p style="font-size:12.5px;color:var(--sub);margin-top:8px;max-width:320px;">공공데이터포털의 온비드 공식 API 데이터를 기반으로 한 공매 낙찰가 예측 서비스입니다.</p>
       </div>
       <div><h5>서비스</h5><ul><li><a href="bidcast-list.html">물건 검색</a></li><li><a href="bidcast-lab.html">적중률 공개</a></li></ul></div>
       <div><h5>바로가기</h5><ul><li><a href="bidcast.html">홈으로</a></li><li><a href="bidcast-insight.html">인사이트</a></li><li><a href="bidcast-partner.html">파트너 프로그램</a></li><li><a href="bidcast-pricing.html">요금제</a></li><li><a href="bidcast-support.html">고객지원</a></li><li><a href="bidcast-my.html">마이페이지</a></li></ul></div>
     </div>
-    <p class="copy">© 2026 낙찰예보. All rights reserved.</p>
+    <p class="copy">© 2026 신호등옥션. All rights reserved.</p>
   </div>
 </footer>
 
@@ -222,7 +222,7 @@ const ARTICLES = [
   { kind:'news', cat:'부동산소식', title:'국세청, 압류재산 공매 물건 상반기 통계 발표', excerpt:'상반기 압류재산 공매 누적 낙찰금액이 전년 동기 대비 늘었습니다.', rt:3, views:960, warn:false,
     body:['국세청이 발표한 상반기 압류재산 공매 통계(예시)에 따르면, 누적 낙찰금액은 전년 동기 대비 소폭 증가했습니다.','자산유형별로는 부동산이 여전히 절대 다수를 차지했지만, 동산·기계장비 낙찰 건수도 눈에 띄게 늘었습니다.'] },
   { kind:'news', cat:'시장분석', title:'유찰 3회 이상 물건, 정말 저평가일까', excerpt:'유찰 반복 물건의 실제 낙찰가율과 하자 발생 빈도를 데이터로 살펴봅니다.', rt:6, views:1340, warn:true,
-    body:['유찰이 반복될수록 가격은 낮아지지만, 동시에 권리관계나 물건 상태에 하자가 있을 확률도 함께 높아지는 경향이 있습니다(예시 분석).','낙찰예보 랩의 예측 모델은 유찰 2회 이상 물건에 대해 "표본 적음 · 주의" 신호를 함께 제공합니다.'] },
+    body:['유찰이 반복될수록 가격은 낮아지지만, 동시에 권리관계나 물건 상태에 하자가 있을 확률도 함께 높아지는 경향이 있습니다(예시 분석).','신호등옥션 랩의 예측 모델은 유찰 2회 이상 물건에 대해 "표본 적음 · 주의" 신호를 함께 제공합니다.'] },
   { kind:'column', cat:'권리분석 기초', title:'말소기준권리, 이것만 알아도 절반은 끝난다', excerpt:'등기부의 여러 권리 중 무엇이 기준이 되는지부터 이해해야 합니다.', rt:7, views:2210, warn:false,
     body:['말소기준권리란 매각으로 소멸되는 권리와 낙찰자가 인수해야 하는 권리를 가르는 기준선입니다.','근저당권, 압류, 가압류 등이 말소기준권리가 될 수 있으며, 이보다 늦게 설정된 권리는 대부분 매각과 함께 소멸합니다.'] },
   { kind:'column', cat:'입찰 전략', title:'AI 예측 범위, 어디에 입찰가를 놓아야 할까', excerpt:'예상 낙찰가 범위 안에서 구체적으로 어떻게 입찰가를 정할지 다룹니다.', rt:5, views:1750, warn:false,
@@ -234,7 +234,7 @@ const ARTICLES = [
   { kind:'column', cat:'경매 절차 안내', title:'온비드 입찰, 처음이라면 이 순서대로', excerpt:'회원가입부터 잔금 납부까지 전체 절차를 순서대로 안내합니다.', rt:9, views:2030, warn:false,
     body:['1) 온비드 회원가입 및 공동인증서 등록 → 2) 관심 물건 검색 및 권리분석 → 3) 입찰보증금 납부 및 전자입찰 → 4) 개찰 및 매각결정 → 5) 잔금 납부 및 소유권 이전 순으로 진행됩니다.','각 단계별 정확한 기한은 공고문마다 다르므로 반드시 개별 공고를 확인해야 합니다.'] },
   { kind:'column', cat:'실패 사례·주의사항', title:'초보자가 가장 많이 하는 실수 3가지', excerpt:'현장 확인 생략, 권리분석 소홀, 자금 계획 부재.', rt:5, views:1610, warn:true,
-    body:['1) 현장 확인 없이 서류만 보고 입찰하는 경우, 2) 권리분석을 소홀히 해 인수 권리를 놓치는 경우, 3) 잔금·부대비용까지 고려하지 않고 자금 계획을 세우는 경우가 가장 흔한 실수로 꼽힙니다.','낙찰예보의 모의입찰 기능으로 실전 감각을 먼저 연습해 보는 것도 실수를 줄이는 방법입니다.'] },
+    body:['1) 현장 확인 없이 서류만 보고 입찰하는 경우, 2) 권리분석을 소홀히 해 인수 권리를 놓치는 경우, 3) 잔금·부대비용까지 고려하지 않고 자금 계획을 세우는 경우가 가장 흔한 실수로 꼽힙니다.','신호등옥션의 모의입찰 기능으로 실전 감각을 먼저 연습해 보는 것도 실수를 줄이는 방법입니다.'] },
 ];
 
 let activeKind = 'news', activeCat = '전체';
@@ -284,7 +284,7 @@ function openArticle(idx) {
   const a = ARTICLES[idx];
   document.getElementById('artCat').textContent = a.cat;
   document.getElementById('artTitle').textContent = a.title;
-  document.getElementById('artByline').textContent = `${a.kind === 'news' ? '부동산소식 AI' : '낙찰예보 칼럼니스트 AI'} · 예시 게시물 · 조회 ${a.views.toLocaleString()} · 읽기 ${a.rt}분`;
+  document.getElementById('artByline').textContent = `${a.kind === 'news' ? '부동산소식 AI' : '신호등옥션 칼럼니스트 AI'} · 예시 게시물 · 조회 ${a.views.toLocaleString()} · 읽기 ${a.rt}분`;
   document.getElementById('artBody').innerHTML = a.body.map(p => `<p>${p}</p>`).join('') + '<p style="font-size:11.5px;color:var(--mute);">🔧 본문은 예시 콘텐츠입니다. 실제 발행 글은 서비스 오픈 후 제공됩니다.</p>';
   artOverlay.classList.add('open');
   requestAnimationFrame(() => artOverlay.classList.add('vis'));

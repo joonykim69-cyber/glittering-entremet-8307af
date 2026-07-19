@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repository is
 
-A static site deployed on Netlify for **낙찰예보 (BidCast)** — an Onbid public-auction price-prediction service. There is no package.json, no build step, no test suite, and no linter. Each page is a single self-contained HTML file with all CSS and JavaScript inlined — keep it that way when editing; do not introduce bundlers, frameworks, or external JS files. (The repo previously also hosted the K-Map Linker/K-Buddy travel apps; those files were removed 2026-07-17.)
+A static site deployed on Netlify for **신호등옥션 (구 낙찰예보/BidCast, 2026-07-19 리브랜딩)** — an Onbid public-auction price-prediction service. There is no package.json, no build step, no test suite, and no linter. Each page is a single self-contained HTML file with all CSS and JavaScript inlined — keep it that way when editing; do not introduce bundlers, frameworks, or external JS files. (The repo previously also hosted the K-Map Linker/K-Buddy travel apps; those files were removed 2026-07-17.)
 
 ## Files
 
@@ -22,7 +22,7 @@ A static site deployed on Netlify for **낙찰예보 (BidCast)** — an Onbid pu
 - `netlify/functions/onbid-mvast-detail.js` — Proxy for the 온비드 동산 물건상세 조회서비스 (`ONBID_MVAST_DETAIL_API_URL`, likely `https://apis.data.go.kr/B010003/OnbidMvastDtlSrvc2`; op default `/getMvastDtlInf2`, override via `ONBID_MVAST_DETAIL_API_OP`). Clean 501 until the env var is set. `bidcast-detail.html` routes live items with `assetClass:'동산'` here instead of `onbid-detail`.
 - `netlify.toml` — Points Netlify at `netlify/functions` with the esbuild bundler. Also 302-redirects `/` to `/bidcast.html` with `force = true` (Netlify serves an existing file over a redirect without it).
 
-### 낙찰예보 (BidCast)
+### 신호등옥션 (BidCast)
 
 A 15-page static prototype (`bidcast*.html`) for an Onbid auction winning-bid prediction service, benchmarking `yoiddang.co.kr`'s information architecture. Every page ships with **all example data clearly labeled** (예시 데이터 chips) — there is no backend and "login" is a client-side demo only. The only persistence is `localStorage` (keys `bidcast:likes`, `bidcast:recent`, `bidcast:alerts`), shared between the list, detail, and my-page files for the 관심물건/최근 본 물건/알림 demo features.
 
