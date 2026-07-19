@@ -4,38 +4,47 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>지도로 보기 — 낙찰예보</title>
-<meta name="description" content="지도 위에서 공매 물건 위치를 한눈에 확인하세요."/>
+<meta name="description" content="지도 위에서 온비드 공매 물건 위치를 한눈에 확인하고, 사이드바 목록과 핀이 양방향으로 연동됩니다."/>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"/>
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* ═══════════════════════════════════════
+   RESET & 토큰
+═══════════════════════════════════════ */
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
 :root {
   --bg:#F6FAF7; --surface:#FFFFFF; --ink:#10201A; --sub:#55655D; --mute:#93A29A; --line:#E1EAE4;
   --green:#00A86B; --green-deep:#00744B; --green-soft:#E4F7EE;
   --red:#E5484D; --red-soft:#FDEBEB;
+  --blue:#3B82F6; --blue-soft:#EFF6FF;
+  --orange:#F59E0B; --orange-soft:#FFFBEB;
   --grad:linear-gradient(120deg,#00C87F 0%,#00A86B 55%,#009E8A 100%);
   --glow:0 0 0 4px rgba(0,200,127,.14), 0 10px 34px rgba(0,168,107,.35);
-  --radius:20px; --ease:cubic-bezier(.16,1,.3,1);
+  --radius:18px; --ease:cubic-bezier(.16,1,.3,1);
 }
-html { scroll-behavior: smooth; }
+html { scroll-behavior:smooth; }
 body { font-family:'Pretendard Variable',Pretendard,-apple-system,'Malgun Gothic',sans-serif; background:var(--bg); color:var(--ink); line-height:1.6; word-break:keep-all; -webkit-font-smoothing:antialiased; }
-.wrap { width:min(1160px,94%); margin:0 auto; }
+.wrap { width:min(1160px,92%); margin:0 auto; }
 a { color:inherit; }
 
-nav { position:sticky; top:0; z-index:100; background:rgba(255,255,255,.9); backdrop-filter:blur(14px); border-bottom:1px solid var(--line); }
+/* ═══ NAV ═══ */
+nav { position:sticky; top:0; z-index:100; background:rgba(255,255,255,.9); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-bottom:1px solid var(--line); }
 nav .wrap { display:flex; align-items:center; justify-content:space-between; padding:14px 0; }
-.logo { display:flex; align-items:center; gap:9px; font-weight:900; font-size:17px; text-decoration:none; color:var(--ink); }
+.logo { display:flex; align-items:center; gap:9px; font-weight:900; font-size:17px; letter-spacing:-0.02em; text-decoration:none; color:var(--ink); }
 .logo-mark { width:28px; height:28px; border-radius:9px; background:var(--grad); display:grid; place-items:center; color:#fff; font-size:13px; font-weight:900; box-shadow:0 0 12px rgba(0,200,127,.5); }
 .nav-links { display:flex; gap:20px; list-style:none; }
-.nav-links a { text-decoration:none; color:var(--sub); font-size:14px; font-weight:600; }
+.nav-links a { text-decoration:none; color:var(--sub); font-size:14px; font-weight:600; transition:color .2s; }
 .nav-links a.on, .nav-links a:hover { color:var(--green-deep); }
 .nav-right { display:flex; align-items:center; gap:10px; }
-.nav-login { background:none; border:1px solid var(--line); color:var(--sub); cursor:pointer; font:inherit; font-size:13.5px; font-weight:700; padding:8px 16px; border-radius:999px; }
-.nav-cta { background:var(--grad); color:#fff; border:none; cursor:pointer; font:inherit; font-size:13.5px; font-weight:700; padding:9px 18px; border-radius:999px; }
+.nav-login { background:none; border:1px solid var(--line); color:var(--sub); cursor:pointer; font:inherit; font-size:13.5px; font-weight:700; padding:8px 16px; border-radius:999px; transition:all .2s; }
+.nav-login:hover { border-color:var(--green); color:var(--green-deep); }
+.nav-cta { background:var(--grad); color:#fff; border:none; cursor:pointer; font:inherit; font-size:13.5px; font-weight:700; padding:9px 18px; border-radius:999px; transition:transform .2s var(--ease), box-shadow .2s; }
+.nav-cta:hover { transform:translateY(-1px); box-shadow:var(--glow); }
 .nav-user { display:inline-flex; align-items:center; gap:8px; background:var(--green-soft); border:1px solid #C4EBD8; padding:7px 14px; border-radius:999px; font-size:12.5px; font-weight:800; color:var(--green-deep); }
-.nav-user .dot { width:7px; height:7px; border-radius:50%; background:var(--green); }
+.nav-user .dot { width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 7px rgba(0,200,127,.7); }
 .nav-user button { background:none; border:none; cursor:pointer; font:inherit; font-size:11.5px; font-weight:700; color:var(--sub); padding:0 0 0 8px; border-left:1px solid #C4EBD8; }
 @media (max-width:900px) { .nav-links { display:none; } }
-
 .nav-hamburger { display:none; background:none; border:1px solid var(--line); border-radius:10px; width:38px; height:38px; cursor:pointer; font-size:16px; color:var(--ink); align-items:center; justify-content:center; flex:none; }
 @media (max-width:900px) { .nav-hamburger { display:flex; } }
 .mobile-nav { display:none; flex-direction:column; gap:2px; padding:10px; background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:0 16px 36px rgba(16,32,26,.14); position:absolute; top:calc(100% + 8px); left:16px; right:16px; z-index:150; }
@@ -43,73 +52,185 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 .mobile-nav a { text-decoration:none; color:var(--sub); font-size:14.5px; font-weight:700; padding:12px 14px; border-radius:10px; }
 .mobile-nav a.on, .mobile-nav a:hover { background:var(--green-soft); color:var(--green-deep); }
 
-.page-head { padding:28px 0 16px; }
-.page-head h1 { font-size:clamp(22px,3.2vw,28px); font-weight:900; letter-spacing:-0.03em; }
-.page-head p { color:var(--sub); font-size:13.5px; margin-top:6px; }
-.demo-chip { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--sub); border:1px dashed var(--mute); padding:5px 12px; border-radius:999px; margin-top:10px; }
+/* ═══ PAGE HEAD ═══ */
+.page-head { padding:28px 0 16px; border-bottom:1px solid var(--line); background:var(--surface); }
+.page-head h1 { font-size:clamp(20px,3vw,26px); font-weight:900; letter-spacing:-0.03em; }
+.page-head p { color:var(--sub); font-size:13.5px; margin-top:4px; }
+.demo-chip { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--sub); border:1px dashed var(--mute); padding:4px 11px; border-radius:999px; margin-top:10px; }
+.page-head-actions { display:flex; align-items:center; gap:10px; margin-top:12px; flex-wrap:wrap; }
+.btn-list-view { display:inline-flex; align-items:center; gap:6px; font:inherit; font-size:13px; font-weight:700; color:var(--sub); background:var(--bg); border:1.5px solid var(--line); padding:7px 14px; border-radius:10px; text-decoration:none; cursor:pointer; transition:all .2s; }
+.btn-list-view:hover { border-color:var(--green); color:var(--green-deep); }
 
-.map-toolbar { display:flex; flex-wrap:wrap; gap:8px; padding:14px 0; align-items:center; }
-.map-toolbar input { flex:1; min-width:200px; font:inherit; font-size:13.5px; background:var(--surface); border:1.5px solid var(--line); border-radius:12px; padding:10px 14px; outline:none; }
-.map-toolbar select { font:inherit; font-size:13px; font-weight:600; background:var(--surface); border:1.5px solid var(--line); border-radius:12px; padding:9px 12px; cursor:pointer; }
+/* ═══ FILTER SECTION ═══ */
+.filter-section { background:var(--surface); border-bottom:1px solid var(--line); padding:14px 0; }
+.search-row { display:flex; align-items:center; gap:8px; }
+.search-box { flex:1; display:flex; align-items:center; background:var(--bg); border:1.5px solid var(--line); border-radius:12px; overflow:hidden; transition:border-color .2s; min-width:0; }
+.search-box:focus-within { border-color:var(--green); box-shadow:0 0 0 3px rgba(0,200,127,.12); }
+.search-box input { flex:1; font:inherit; font-size:14px; color:var(--ink); background:none; border:none; outline:none; padding:10px 14px; min-width:0; }
+.search-box input::placeholder { color:var(--mute); }
+.btn-search { font:inherit; font-size:13.5px; font-weight:800; cursor:pointer; background:var(--green); color:#fff; border:none; padding:10px 18px; transition:background .2s; white-space:nowrap; }
+.btn-search:hover { background:var(--green-deep); }
+.btn-reset { font:inherit; font-size:13px; font-weight:700; cursor:pointer; background:none; border:1.5px solid var(--line); color:var(--sub); padding:10px 14px; border-radius:12px; transition:all .2s; white-space:nowrap; }
+.btn-reset:hover { border-color:var(--red); color:var(--red); }
 
-.map-layout { display:grid; grid-template-columns:300px 1fr; gap:16px; padding-bottom:60px; }
-@media (max-width:900px) { .map-layout { grid-template-columns:1fr; } }
+/* ═══ CUSTOM DROPDOWN ═══ */
+.filter-row { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; align-items:center; }
+.cd { position:relative; }
+.cd-trig { display:inline-flex; align-items:center; gap:7px; font:inherit; font-size:13px; font-weight:600; color:var(--ink); background:var(--surface); border:1.5px solid var(--line); border-radius:10px; padding:8px 13px; cursor:pointer; white-space:nowrap; transition:border-color .2s, background .2s, color .2s; }
+.cd-trig:hover { border-color:var(--green); color:var(--green-deep); }
+.cd.open .cd-trig { border-color:var(--green); }
+.cd-trig.has-val { color:var(--green-deep); border-color:var(--green); background:var(--green-soft); }
+.cd-arr { font-size:9px; color:var(--mute); transition:transform .2s; display:inline-block; }
+.cd.open .cd-arr { transform:rotate(180deg); }
+.cd-panel { display:none; position:absolute; top:calc(100% + 6px); left:0; min-width:200px; background:var(--surface); border:1.5px solid var(--line); border-radius:14px; box-shadow:0 16px 40px rgba(16,32,26,.13); z-index:60; overflow:hidden; }
+.cd.open .cd-panel { display:block; }
+.cd-panel.align-right { left:auto; right:0; }
+.cd-search-wrap { padding:10px 10px 6px; }
+.cd-search { display:block; width:100%; font:inherit; font-size:13px; padding:8px 12px; border:1.5px solid var(--line); border-radius:9px; outline:none; background:var(--bg); color:var(--ink); transition:border-color .2s; }
+.cd-search:focus { border-color:var(--green); }
+.cd-list { max-height:220px; overflow-y:auto; padding:6px; scrollbar-width:thin; }
+.cd-opt { display:block; width:100%; text-align:left; font:inherit; font-size:13.5px; cursor:pointer; padding:8px 12px; border-radius:8px; color:var(--sub); background:none; border:none; transition:background .12s, color .12s; white-space:nowrap; }
+.cd-opt:hover { background:var(--green-soft); color:var(--green-deep); }
+.cd-opt.on { background:var(--green-soft); color:var(--green-deep); font-weight:700; }
 
-.map-side { background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:16px; max-height:640px; overflow-y:auto; }
-.map-side h4 { font-size:12.5px; font-weight:800; color:var(--sub); margin-bottom:10px; }
-.side-item { display:flex; gap:10px; align-items:center; padding:10px; border-radius:12px; cursor:pointer; transition:background .2s; }
-.side-item:hover, .side-item.active { background:var(--green-soft); }
-.side-item:focus-visible { outline:2px solid var(--green); outline-offset:2px; }
-.side-item .ico { width:34px; height:34px; border-radius:10px; background:var(--bg); display:grid; place-items:center; font-size:16px; flex:none; }
-.side-item .t { font-size:12.5px; font-weight:700; }
-.side-item .m { font-size:11px; color:var(--sub); }
+/* ═══ STATUS TAGS ═══ */
+.status-tags { display:flex; flex-wrap:wrap; gap:7px; margin-top:10px; align-items:center; }
+.status-tags-label { font-size:11.5px; font-weight:700; color:var(--mute); margin-right:2px; }
+.status-tags button { font:inherit; font-size:12.5px; font-weight:700; cursor:pointer; background:var(--surface); border:1.5px solid var(--line); color:var(--sub); padding:6px 15px; border-radius:999px; transition:all .2s; }
+.status-tags button:hover { border-color:var(--green); }
+.status-tags button.on { background:var(--green); border-color:var(--green); color:#fff; }
+.status-tags button.tag-new.on { background:var(--blue); border-color:var(--blue); }
+.status-tags button.tag-fail.on { background:var(--orange); border-color:var(--orange); }
+.status-tags button.tag-sold.on { background:#6B7280; border-color:#6B7280; }
 
-.map-canvas {
-  position:relative; height:640px; border-radius:20px; overflow:hidden; border:1px solid var(--line);
-  background:
-    linear-gradient(rgba(0,168,107,.05) 1px, transparent 1px) 0 0/40px 40px,
-    linear-gradient(90deg, rgba(0,168,107,.05) 1px, transparent 1px) 0 0/40px 40px,
-    #EAF4EE;
+/* ═══ TYPE CHIPS 토글 ═══ */
+.type-toggle-btn { font:inherit; font-size:12.5px; font-weight:700; cursor:pointer; background:var(--surface); border:1.5px solid var(--line); color:var(--sub); padding:6px 14px; border-radius:999px; transition:all .2s; margin-top:10px; }
+.type-toggle-btn:hover { border-color:var(--green); color:var(--green-deep); }
+.type-toggle-btn.open { background:var(--green-soft); border-color:var(--green); color:var(--green-deep); }
+.type-panel { display:none; padding:12px 0 4px; }
+.type-panel.open { display:block; }
+.type-group { margin-bottom:8px; }
+.type-group-label { font-size:10.5px; font-weight:800; color:var(--mute); letter-spacing:.06em; text-transform:uppercase; margin-bottom:6px; }
+.type-chips { display:flex; flex-wrap:wrap; gap:6px; }
+.type-chips button { font:inherit; font-size:12px; font-weight:700; cursor:pointer; background:var(--surface); border:1.5px solid var(--line); color:var(--sub); padding:5px 12px; border-radius:999px; transition:all .2s; white-space:nowrap; }
+.type-chips button:hover { border-color:var(--green); }
+.type-chips button.on { background:var(--green-soft); border-color:var(--green); color:var(--green-deep); }
+.type-toggle-row { display:flex; align-items:center; gap:10px; margin-top:8px; padding-top:8px; border-top:1px dashed var(--line); }
+.type-all-btn, .type-none-btn { font:inherit; font-size:11.5px; font-weight:700; cursor:pointer; background:none; border:1px solid var(--line); color:var(--sub); padding:4px 11px; border-radius:999px; transition:all .2s; }
+.type-all-btn:hover { border-color:var(--green); color:var(--green-deep); }
+.type-none-btn:hover { border-color:var(--red); color:var(--red); }
+
+/* ═══ MAP LAYOUT ═══ */
+.map-outer { padding:16px 0 60px; }
+.map-layout { display:grid; grid-template-columns:320px 1fr; gap:14px; align-items:start; }
+@media (max-width:960px) { .map-layout { grid-template-columns:1fr; } }
+
+/* ═══ SIDEBAR ═══ */
+.map-side { background:var(--surface); border:1px solid var(--line); border-radius:18px; overflow:hidden; position:sticky; top:72px; max-height:calc(100vh - 90px); display:flex; flex-direction:column; }
+.side-head { padding:14px 16px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; flex:none; }
+.side-head h4 { font-size:13px; font-weight:800; color:var(--ink); }
+.side-head span { font-size:12px; color:var(--sub); font-weight:600; }
+.side-list { flex:1; overflow-y:auto; padding:8px; scrollbar-width:thin; }
+.side-item {
+  display:flex; gap:10px; align-items:flex-start; padding:10px; border-radius:12px; cursor:pointer;
+  transition:background .15s; border:1.5px solid transparent; margin-bottom:4px;
 }
-.map-road { position:absolute; background:#DCEAE1; }
+.side-item:hover { background:var(--bg); }
+.side-item.active { background:var(--green-soft); border-color:#C4EBD8; }
+.side-item:focus-visible { outline:2px solid var(--green); outline-offset:2px; }
+.side-item .ico { width:36px; height:36px; min-width:36px; border-radius:10px; background:var(--bg); display:grid; place-items:center; font-size:17px; flex:none; }
+.side-item.active .ico { background:rgba(0,168,107,.12); }
+.side-item-body { flex:1; min-width:0; }
+.side-item-title { font-size:12.5px; font-weight:700; color:var(--ink); line-height:1.4; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.side-item-meta { font-size:11px; color:var(--sub); margin-top:2px; }
+.side-item-price { font-size:12.5px; font-weight:800; color:var(--green-deep); margin-top:3px; }
+.side-item-badge { display:inline-block; font-size:10px; font-weight:800; padding:2px 7px; border-radius:999px; margin-right:4px; }
+.side-item-badge.s-new { background:var(--blue-soft); color:var(--blue); }
+.side-item-badge.s-fail { background:var(--orange-soft); color:var(--orange); }
+.side-item-badge.s-sold { background:#F3F4F6; color:#6B7280; }
+.side-item-badge.s-ing { background:var(--green-soft); color:var(--green-deep); }
+.side-empty { padding:40px 16px; text-align:center; color:var(--mute); font-size:13px; }
+.data-src-bar { padding:10px 14px; border-top:1px solid var(--line); flex:none; }
+.data-src-chip { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; color:var(--mute); background:var(--bg); border:1px dashed var(--mute); padding:4px 10px; border-radius:999px; }
+
+/* ═══ MAP CANVAS ═══ */
+.map-canvas-wrap { border-radius:18px; overflow:hidden; border:1px solid var(--line); position:relative; }
+
+/* Leaflet 지도 컨테이너 */
+#leafletMap { height:640px; width:100%; background:#EDF5F0; }
+@media (max-width:960px) { #leafletMap { height:420px; } }
+
+/* Leaflet z-index 조정 (nav 100 아래) */
+.leaflet-pane { z-index:10 !important; }
+.leaflet-top, .leaflet-bottom { z-index:20 !important; }
+
+/* 지도 로딩 오버레이 */
 .map-loading {
-  position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px;
-  background:var(--bg); z-index:5; transition:opacity .4s;
+  position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:12px; background:#EDF5F0; z-index:30; transition:opacity .4s;
 }
 .map-spinner { width:40px; height:40px; border-radius:50%; border:4px solid var(--green-soft); border-top-color:var(--green); animation:spin .9s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
 .map-loading p { font-size:13px; color:var(--sub); font-weight:600; }
 
-.pin {
-  position:absolute; transform:translate(-50%,-100%); cursor:pointer; z-index:2;
-  display:flex; flex-direction:column; align-items:center; transition:transform .2s var(--ease);
+/* ═══ Leaflet 커스텀 마커 ═══ */
+.lf-pin {
+  display:flex; flex-direction:column; align-items:center;
+  cursor:pointer; filter:drop-shadow(0 4px 8px rgba(0,168,107,.4));
+  transition:filter .2s;
 }
-.pin:hover, .pin.active { transform:translate(-50%,-100%) scale(1.15); z-index:6; }
-.pin .badge {
-  background:var(--green); color:#fff; font-size:11px; font-weight:800; padding:5px 10px; border-radius:999px 999px 999px 2px;
-  box-shadow:0 4px 12px rgba(0,168,107,.4); white-space:nowrap;
+.lf-pin:hover { filter:drop-shadow(0 6px 14px rgba(0,168,107,.6)); }
+.lf-pin-badge {
+  background:var(--green); color:#fff; font-size:11px; font-weight:800;
+  padding:5px 10px; border-radius:999px 999px 999px 2px;
+  white-space:nowrap; max-width:130px; overflow:hidden; text-overflow:ellipsis;
+  box-shadow:0 4px 14px rgba(0,168,107,.45);
 }
-.pin.warn .badge { background:var(--red); box-shadow:0 4px 12px rgba(229,72,77,.35); }
-.pin .stem { width:2px; height:8px; background:inherit; }
+.lf-pin.warn .lf-pin-badge { background:var(--red); }
+.lf-pin.sold .lf-pin-badge { background:#6B7280; }
+.lf-pin.active .lf-pin-badge { box-shadow:0 0 0 3px rgba(0,200,127,.35), 0 6px 18px rgba(0,168,107,.5); }
+.lf-pin-stem { width:2px; height:8px; background:var(--green); opacity:.7; }
+.lf-pin.warn .lf-pin-stem { background:var(--red); }
+.lf-pin.sold .lf-pin-stem { background:#6B7280; }
 
-.me-pin { position:absolute; transform:translate(-50%,-50%); z-index:3; }
-.me-pin .dot { width:14px; height:14px; border-radius:50%; background:#1E6FE8; border:3px solid #fff; box-shadow:0 0 0 6px rgba(30,111,232,.2); }
-
-.map-controls { position:absolute; right:14px; bottom:14px; display:flex; flex-direction:column; gap:8px; z-index:4; }
-.map-controls button { width:38px; height:38px; border-radius:12px; background:var(--surface); border:1px solid var(--line); font-size:16px; cursor:pointer; box-shadow:0 4px 12px rgba(16,32,26,.08); }
-
-.map-popup {
-  position:absolute; z-index:10; width:230px; background:var(--surface); border:1px solid var(--line); border-radius:16px;
-  padding:14px 16px; box-shadow:0 20px 44px rgba(16,32,26,.18); display:none;
+/* Leaflet 팝업 스타일 오버라이드 */
+.leaflet-popup-content-wrapper {
+  border-radius:18px !important; border:1px solid var(--line) !important;
+  box-shadow:0 20px 48px rgba(16,32,26,.2) !important; padding:0 !important;
 }
-.map-popup.show { display:block; }
-.map-popup .close { position:absolute; top:8px; right:10px; background:none; border:none; cursor:pointer; color:var(--mute); font-size:13px; }
-.map-popup .kind { font-size:11px; font-weight:800; color:var(--green-deep); }
-.map-popup h5 { font-size:13.5px; font-weight:800; margin:4px 0 3px; }
-.map-popup .m { font-size:11.5px; color:var(--sub); }
-.map-popup .p { margin-top:8px; font-size:15px; font-weight:900; color:var(--ink); }
-.map-popup a { display:block; margin-top:10px; text-align:center; font-size:12px; font-weight:800; background:var(--grad); color:#fff; text-decoration:none; padding:8px; border-radius:10px; }
+.leaflet-popup-content { margin:0 !important; width:240px !important; }
+.leaflet-popup-tip-container { display:none; }
+.lf-popup { padding:16px; }
+.lf-popup .pop-kind { font-size:11px; font-weight:800; color:var(--green-deep); margin-bottom:4px; }
+.lf-popup h5 { font-size:13.5px; font-weight:800; line-height:1.4; margin-bottom:4px; }
+.lf-popup .pop-meta { font-size:11.5px; color:var(--sub); }
+.lf-popup .pop-price { margin-top:10px; display:flex; gap:10px; }
+.lf-popup .pop-appr { font-size:11.5px; color:var(--sub); }
+.lf-popup .pop-appr b { font-size:13px; font-weight:800; color:var(--ink); }
+.lf-popup .pop-actions { display:flex; gap:8px; margin-top:12px; }
+.lf-popup .pop-detail { flex:1; text-align:center; font-size:12.5px; font-weight:800; background:var(--grad); color:#fff; text-decoration:none; padding:9px; border-radius:10px; display:block; transition:opacity .2s; }
+.lf-popup .pop-detail:hover { opacity:.88; }
+.lf-popup .pop-bot { font-size:12px; font-weight:700; color:var(--sub); background:var(--bg); border:1.5px solid var(--line); border-radius:10px; padding:8px 10px; text-decoration:none; display:block; text-align:center; transition:all .2s; }
+.lf-popup .pop-bot:hover { border-color:var(--green); color:var(--green-deep); }
+.pop-badge { display:inline-block; font-size:10px; font-weight:800; padding:2px 8px; border-radius:999px; }
+.pop-badge.s-new { background:var(--blue-soft); color:var(--blue); }
+.pop-badge.s-fail { background:var(--orange-soft); color:var(--orange); }
+.pop-badge.s-sold { background:#F3F4F6; color:#6B7280; }
+.pop-badge.s-ing { background:var(--green-soft); color:var(--green-deep); }
 
+/* 지오코딩 진행 표시 */
+.geocode-bar {
+  position:absolute; bottom:0; left:0; right:0; z-index:25;
+  background:rgba(255,255,255,.92); backdrop-filter:blur(8px);
+  padding:8px 14px; display:flex; align-items:center; gap:10px;
+  font-size:12px; font-weight:700; color:var(--sub); border-top:1px solid var(--line);
+  transition:opacity .3s;
+}
+.geocode-bar.hidden { opacity:0; pointer-events:none; }
+.gc-progress { flex:1; height:4px; background:var(--line); border-radius:99px; overflow:hidden; }
+.gc-fill { height:100%; background:var(--grad); border-radius:99px; transition:width .3s; }
+
+/* ═══ AUTH MODAL ═══ */
 .auth-overlay { position:fixed; inset:0; z-index:220; display:none; align-items:center; justify-content:center; padding:20px; background:rgba(16,32,26,.45); backdrop-filter:blur(8px); opacity:0; transition:opacity .25s var(--ease); }
 .auth-overlay.open { display:flex; } .auth-overlay.vis { opacity:1; }
 .auth-modal { width:100%; max-width:420px; background:var(--surface); border:1px solid var(--line); border-radius:26px; padding:28px 28px 24px; position:relative; box-shadow:0 30px 80px rgba(16,32,26,.25); transform:scale(.96) translateY(8px); transition:transform .25s var(--ease); }
@@ -127,6 +248,7 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 .sns-btn .sb-note { margin-left:auto; font-size:11px; font-weight:600; opacity:.65; }
 .demo-note { margin-top:14px; text-align:center; font-size:10.5px; color:var(--mute); }
 
+/* ═══ FOOTER ═══ */
 footer { border-top:1px solid var(--line); background:var(--surface); padding:44px 0 32px; }
 footer .cols { display:grid; grid-template-columns:2fr 1fr 1fr; gap:32px; }
 footer .brand { font-weight:900; font-size:16px; } footer .brand span { color:var(--green); }
@@ -140,6 +262,7 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
 </head>
 <body>
 
+<!-- ═══ NAV ═══ -->
 <nav>
   <div class="wrap">
     <a class="logo" href="bidcast.html"><span class="logo-mark">予</span>낙찰예보</a>
@@ -158,66 +281,220 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
     </div>
     <button class="nav-hamburger" type="button" onclick="toggleMobileNav()" aria-label="메뉴 열기">☰</button>
     <div class="mobile-nav" id="mobileNav">
-    <a href="bidcast-list.html">물건검색</a>
-    <a href="bidcast-map.html" class="on">지도</a>
-    <a href="bidcast-category.html">카테고리</a>
-    <a href="bidcast-lab.html">적중률</a>
-    <a href="bidcast-calendar.html">캘린더</a>
-    <a href="bidcast-insight.html">인사이트</a>
-    <a href="bidcast-bot.html">예보봇</a>
-  </div>
+      <a href="bidcast-list.html">물건검색</a>
+      <a href="bidcast-map.html" class="on">지도</a>
+      <a href="bidcast-category.html">카테고리</a>
+      <a href="bidcast-lab.html">적중률</a>
+      <a href="bidcast-calendar.html">캘린더</a>
+      <a href="bidcast-insight.html">인사이트</a>
+      <a href="bidcast-bot.html">예보봇</a>
+    </div>
   </div>
 </nav>
 
+<!-- ═══ PAGE HEAD ═══ -->
 <header class="page-head">
   <div class="wrap">
     <h1>지도로 보기</h1>
-    <p>지도 위 마커를 눌러 물건 요약을 바로 확인하세요.</p>
-    <span class="demo-chip">🔧 실제 지도 API 연동 전 — 스타일화된 목업이며 마커 위치는 예시입니다</span>
+    <p>지도 위 마커를 클릭하면 물건 요약이 표시됩니다. 사이드바 목록과 마커가 양방향으로 연동됩니다.</p>
+    <div class="page-head-actions">
+      <span class="demo-chip" id="mapDataChip">📋 예시 데이터 · OpenStreetMap</span>
+      <a class="btn-list-view" href="bidcast-list.html">≡ 목록으로 보기</a>
+    </div>
   </div>
 </header>
 
-<div class="wrap">
-  <div class="map-toolbar">
-    <input type="text" id="mapSearch" placeholder="🔍 지역, 물건명으로 검색"/>
-    <select id="mapType">
-      <option value="">자산유형 전체</option>
-      <option>아파트</option><option>토지</option><option>상가</option><option>차량</option><option>기계장비</option><option>유가증권</option>
-    </select>
-    <select id="mapFail">
-      <option value="">유찰횟수 전체</option>
-      <option value="0">신건</option><option value="1">1회</option><option value="2">2회 이상</option>
-    </select>
-  </div>
-
-  <div class="map-layout">
-    <aside class="map-side">
-      <h4 id="sideCount">지도 안의 물건 (9)</h4>
-      <div id="sideList"></div>
-    </aside>
-
-    <div class="map-canvas" id="mapCanvas">
-      <div class="map-loading" id="mapLoading">
-        <div class="map-spinner"></div>
-        <p>현재 위치를 확인하고 있습니다…</p>
+<!-- ═══ FILTER SECTION ═══ -->
+<div class="filter-section">
+  <div class="wrap">
+    <!-- 검색바 -->
+    <div class="search-row">
+      <div class="search-box">
+        <input type="text" id="mapSearch" placeholder="🔍 지역, 물건명으로 검색" oninput="onSearchInput()" onkeydown="if(event.key==='Enter')applyFilters()"/>
+        <button class="btn-search" type="button" onclick="applyFilters()">검색</button>
       </div>
-      <div class="me-pin" style="left:50%; top:52%;"><div class="dot"></div></div>
-      <div class="map-controls">
-        <button type="button" onclick="alert('데모 화면입니다. 실제 확대/축소는 지도 API 연동 후 제공됩니다.')" aria-label="지도 확대">＋</button>
-        <button type="button" onclick="alert('데모 화면입니다. 실제 확대/축소는 지도 API 연동 후 제공됩니다.')" aria-label="지도 축소">－</button>
+      <button class="btn-reset" type="button" onclick="resetFilters()">초기화</button>
+    </div>
+
+    <!-- 드롭다운 필터 -->
+    <div class="filter-row">
+      <!-- 기관 -->
+      <div class="cd" id="cdCourt" data-filter="court">
+        <button class="cd-trig" type="button" onclick="openCd('cdCourt')">
+          <span class="cd-trig-text">기관 전체</span><span class="cd-arr">▾</span>
+        </button>
+        <div class="cd-panel">
+          <div class="cd-search-wrap"><input class="cd-search" placeholder="기관 검색…" oninput="filterCdSearch(this)"/></div>
+          <div class="cd-list" id="cdCourtList">
+            <button class="cd-opt on" data-v="">기관 전체</button>
+          </div>
+        </div>
       </div>
-      <div class="map-popup" id="mapPopup">
-        <button class="close" type="button" onclick="closePopup()">✕</button>
-        <span class="kind" id="popKind"></span>
-        <h5 id="popTitle"></h5>
-        <p class="m" id="popMeta"></p>
-        <p class="p" id="popPrice"></p>
-        <a href="bidcast-detail.html" id="popLink">물건 상세 보기 →</a>
+      <!-- 지역 -->
+      <div class="cd" id="cdRegion" data-filter="region">
+        <button class="cd-trig" type="button" onclick="openCd('cdRegion')">
+          <span class="cd-trig-text">지역 전체</span><span class="cd-arr">▾</span>
+        </button>
+        <div class="cd-panel">
+          <div class="cd-list" id="cdRegionList">
+            <button class="cd-opt on" data-v="">지역 전체</button>
+            <button class="cd-opt" data-v="서울">서울</button>
+            <button class="cd-opt" data-v="경기">경기</button>
+            <button class="cd-opt" data-v="인천">인천</button>
+            <button class="cd-opt" data-v="부산">부산</button>
+            <button class="cd-opt" data-v="대구">대구</button>
+            <button class="cd-opt" data-v="광주">광주</button>
+            <button class="cd-opt" data-v="대전">대전</button>
+            <button class="cd-opt" data-v="울산">울산</button>
+            <button class="cd-opt" data-v="세종">세종</button>
+            <button class="cd-opt" data-v="강원">강원</button>
+            <button class="cd-opt" data-v="충북">충북</button>
+            <button class="cd-opt" data-v="충남">충남</button>
+            <button class="cd-opt" data-v="전북">전북</button>
+            <button class="cd-opt" data-v="전남">전남</button>
+            <button class="cd-opt" data-v="경북">경북</button>
+            <button class="cd-opt" data-v="경남">경남</button>
+            <button class="cd-opt" data-v="제주">제주</button>
+          </div>
+        </div>
+      </div>
+      <!-- 가격 -->
+      <div class="cd" id="cdPrice" data-filter="price">
+        <button class="cd-trig" type="button" onclick="openCd('cdPrice')">
+          <span class="cd-trig-text">가격 전체</span><span class="cd-arr">▾</span>
+        </button>
+        <div class="cd-panel">
+          <div class="cd-list">
+            <button class="cd-opt on" data-v="">가격 전체</button>
+            <button class="cd-opt" data-v="~1억">~1억</button>
+            <button class="cd-opt" data-v="1~3억">1억~3억</button>
+            <button class="cd-opt" data-v="3~5억">3억~5억</button>
+            <button class="cd-opt" data-v="5~10억">5억~10억</button>
+            <button class="cd-opt" data-v="10억~">10억 이상</button>
+          </div>
+        </div>
+      </div>
+      <!-- 유찰 -->
+      <div class="cd" id="cdFail" data-filter="fail">
+        <button class="cd-trig" type="button" onclick="openCd('cdFail')">
+          <span class="cd-trig-text">유찰 전체</span><span class="cd-arr">▾</span>
+        </button>
+        <div class="cd-panel">
+          <div class="cd-list">
+            <button class="cd-opt on" data-v="">유찰 전체</button>
+            <button class="cd-opt" data-v="0">신건 (0회)</button>
+            <button class="cd-opt" data-v="1">1회 유찰</button>
+            <button class="cd-opt" data-v="2">2회 이상</button>
+          </div>
+        </div>
+      </div>
+      <!-- 정렬 -->
+      <div class="cd" id="cdSort" data-filter="sort" style="margin-left:auto;">
+        <button class="cd-trig" type="button" onclick="openCd('cdSort')">
+          <span class="cd-trig-text">최신순</span><span class="cd-arr">▾</span>
+        </button>
+        <div class="cd-panel align-right">
+          <div class="cd-list">
+            <button class="cd-opt on" data-v="latest">최신순</button>
+            <button class="cd-opt" data-v="price_desc">감정가 높은순</button>
+            <button class="cd-opt" data-v="price_asc">감정가 낮은순</button>
+            <button class="cd-opt" data-v="fail_desc">유찰 많은순</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 상태 태그 -->
+    <div class="status-tags" id="statusTags">
+      <span class="status-tags-label">상태</span>
+      <button class="on" data-status="">전체</button>
+      <button class="tag-new" data-status="신건">신건</button>
+      <button data-status="진행">진행중</button>
+      <button class="tag-fail" data-status="유찰">유찰</button>
+      <button class="tag-sold" data-status="낙찰">낙찰</button>
+    </div>
+
+    <!-- 자산유형 토글 -->
+    <button class="type-toggle-btn" id="typeToggleBtn" type="button" onclick="toggleTypePanel()">
+      🏷️ 자산유형 펼치기 ▾
+    </button>
+    <div class="type-panel" id="typePanel">
+      <div class="type-group">
+        <div class="type-group-label">부동산</div>
+        <div class="type-chips" id="typeChipsRe">
+          <button data-type="아파트">🏢 아파트</button>
+          <button data-type="오피스텔">🏙️ 오피스텔</button>
+          <button data-type="단독주택">🏠 단독주택</button>
+          <button data-type="연립다세대">🏘️ 연립다세대</button>
+          <button data-type="토지">🏞️ 토지</button>
+          <button data-type="상가">🏬 상가</button>
+          <button data-type="사무실">🗂️ 사무실</button>
+          <button data-type="공장창고">🏭 공장창고</button>
+          <button data-type="농지임야">🌾 농지임야</button>
+          <button data-type="기타부동산">🏗️ 기타부동산</button>
+        </div>
+      </div>
+      <div class="type-group">
+        <div class="type-group-label">동산</div>
+        <div class="type-chips" id="typeChipsMv">
+          <button data-type="차량">🚗 차량</button>
+          <button data-type="기계장비">⚙️ 기계장비</button>
+          <button data-type="유가증권">📈 유가증권</button>
+          <button data-type="선박항공">✈️ 선박항공</button>
+          <button data-type="기타동산">📦 기타동산</button>
+        </div>
+      </div>
+      <div class="type-toggle-row">
+        <button class="type-all-btn" onclick="setAllTypes(true)">전체 선택</button>
+        <button class="type-none-btn" onclick="setAllTypes(false)">전체 해제</button>
       </div>
     </div>
   </div>
 </div>
 
+<!-- ═══ MAP LAYOUT ═══ -->
+<div class="map-outer">
+  <div class="wrap">
+    <div class="map-layout">
+
+      <!-- 사이드바 -->
+      <aside class="map-side">
+        <div class="side-head">
+          <h4>지도 안의 물건</h4>
+          <span id="sideCount">0건</span>
+        </div>
+        <div class="side-list" id="sideList">
+          <div class="side-empty">위치 정보를 불러오는 중…</div>
+        </div>
+        <div class="data-src-bar">
+          <span class="data-src-chip" id="dataSourceChip">📋 예시 데이터</span>
+        </div>
+      </aside>
+
+      <!-- 지도 -->
+      <div class="map-canvas-wrap">
+        <!-- 로딩 오버레이 -->
+        <div class="map-loading" id="mapLoading">
+          <div class="map-spinner"></div>
+          <p>지도를 불러오는 중…</p>
+        </div>
+
+        <!-- Leaflet 지도 컨테이너 -->
+        <div id="leafletMap"></div>
+
+        <!-- 지오코딩 진행 바 -->
+        <div class="geocode-bar hidden" id="geocodeBar">
+          <span id="geocodeText">주소 변환 중…</span>
+          <div class="gc-progress"><div class="gc-fill" id="gcFill" style="width:0%"></div></div>
+          <span id="geocodeRatio">0/0</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══ AUTH MODAL ═══ -->
 <div class="auth-overlay" id="authOverlay" role="dialog" aria-modal="true">
   <div class="auth-modal">
     <button class="auth-close" type="button" onclick="closeAuth()" aria-label="닫기">✕</button>
@@ -243,91 +520,556 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
         <p style="font-size:12.5px;color:var(--sub);margin-top:8px;max-width:320px;">공공데이터포털의 온비드 공식 API 데이터를 기반으로 한 공매 낙찰가 예측 서비스입니다.</p>
       </div>
       <div><h5>서비스</h5><ul><li><a href="bidcast-list.html">물건 검색</a></li><li><a href="bidcast-lab.html">적중률 공개</a></li><li><a href="bidcast-calendar.html">입찰 캘린더</a></li></ul></div>
-      <div><h5>바로가기</h5><ul><li><a href="bidcast.html">홈으로</a></li><li><a href="bidcast-insight.html">인사이트</a></li><li><a href="bidcast-partner.html">파트너 프로그램</a></li><li><a href="bidcast-support.html">고객지원</a></li><li><a href="bidcast-my.html">마이페이지</a></li></ul></div>
+      <div><h5>바로가기</h5><ul><li><a href="bidcast.html">홈으로</a></li><li><a href="bidcast-insight.html">인사이트</a></li><li><a href="bidcast-partner.html">파트너 프로그램</a></li><li><a href="bidcast-pricing.html">요금제</a></li><li><a href="bidcast-support.html">고객지원</a></li><li><a href="bidcast-my.html">마이페이지</a></li></ul></div>
     </div>
-    <p class="copy">© 2026 낙찰예보. All rights reserved.</p>
+    <p class="copy">© 2026 낙찰예보. All rights reserved. 지도 데이터 © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" style="color:inherit;">OpenStreetMap</a> 기여자</p>
   </div>
 </footer>
 
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLcE=" crossorigin=""></script>
 <script>
-// 예시 물건 좌표 (데모) — 실제 좌표는 지도 API(위경도) 연동 후 교체
-const PINS = [
-  { id:1, x:38, y:30, type:'아파트', title:'서울 강남구 역삼동 아파트', meta:'유찰 1회 · 서울중앙지방법원', price:'5.2억', warn:true },
-  { id:2, x:58, y:22, type:'토지', title:'경기 시흥시 배곧동 대지', meta:'신건 · 수원지방법원', price:'8.4억', warn:false },
-  { id:3, x:70, y:55, type:'상가', title:'서울 서대문구 충정로 상가', meta:'매각완료 · 서울동부지방법원', price:'4.1억', warn:false },
-  { id:4, x:25, y:60, type:'차량', title:'5톤 카고트럭 (2021년식)', meta:'유찰 1회 · 인천지방법원', price:'2,240만', warn:true },
-  { id:5, x:80, y:75, type:'기계장비', title:'CNC 머시닝센터 외 3점', meta:'3회 유찰 · 서울중앙지방법원', price:'4,510만', warn:true },
-  { id:6, x:45, y:80, type:'유가증권', title:'비상장주식 A사 지분 3%', meta:'신건 · 서울중앙지방법원', price:'9,800만', warn:false },
-  { id:7, x:20, y:35, type:'아파트', title:'부산 해운대구 우동 아파트', meta:'유찰 1회 · 부산지방법원', price:'7.8억', warn:true },
-  { id:8, x:63, y:40, type:'토지', title:'인천 서구 청라동 임야', meta:'신건 · 인천지방법원', price:'5.6억', warn:false },
-  { id:9, x:12, y:15, type:'차량', title:'승용차 그랜저 (2020년식)', meta:'매각완료 · 서울동부지방법원', price:'1,850만', warn:false },
+// ═══════════════════════════════════════
+// 예시 데이터 — 실 API 연동 전 데모용
+// address 필드: Nominatim geocoding 쿼리에 사용
+// ═══════════════════════════════════════
+const ITEMS = [
+  { id:1, type:'아파트',   region:'서울', court:'서울중앙지방법원', title:'서울 강남구 역삼동 아파트 24평',     address:'서울 강남구 역삼동',        appr:65000, min:52000, fail:1, status:'진행', thumb:'🏢', caseNo:'2026타경1021' },
+  { id:2, type:'토지',     region:'경기', court:'수원지방법원',     title:'경기 시흥시 배곧동 대지 152㎡',      address:'경기도 시흥시 배곧동',       appr:84000, min:84000, fail:0, status:'진행', thumb:'🏞️', caseNo:'2026타경0492' },
+  { id:3, type:'상가',     region:'서울', court:'서울동부지방법원', title:'서울 서대문구 충정로 상가 1층',       address:'서울 서대문구 충정로3가',     appr:41000, min:41000, fail:0, status:'낙찰', thumb:'🏬', caseNo:'2025타경7710' },
+  { id:4, type:'차량',     region:'경기', court:'인천지방법원',     title:'5톤 카고트럭 (2021년식)',             address:'인천 남동구 논현동',         appr:3200,  min:2240,  fail:1, status:'진행', thumb:'🚚', caseNo:'2026타경0310' },
+  { id:5, type:'기계장비', region:'대구', court:'대구지방법원',     title:'CNC 머시닝센터 외 3점',              address:'대구 달서구 성서공단',       appr:11000, min:4510,  fail:3, status:'진행', thumb:'⚙️', caseNo:'2025타경5521' },
+  { id:6, type:'유가증권', region:'서울', court:'서울중앙지방법원', title:'비상장주식 A사 지분 3%',             address:'서울 강남구 테헤란로',       appr:9800,  min:9800,  fail:0, status:'진행', thumb:'📈', caseNo:'2026타경1188' },
+  { id:7, type:'아파트',   region:'부산', court:'부산지방법원',     title:'부산 해운대구 우동 아파트 32평',     address:'부산 해운대구 우동',         appr:98000, min:78400, fail:1, status:'진행', thumb:'🏢', caseNo:'2026타경0877' },
+  { id:8, type:'토지',     region:'인천', court:'인천지방법원',     title:'인천 서구 청라동 임야 3,120㎡',      address:'인천 서구 청라동',           appr:56000, min:56000, fail:0, status:'진행', thumb:'🌲', caseNo:'2026타경0512' },
+  { id:9, type:'차량',     region:'서울', court:'서울동부지방법원', title:'승용차 그랜저 (2020년식)',            address:'서울 송파구 잠실동',         appr:1850,  min:1850,  fail:0, status:'낙찰', thumb:'🚗', caseNo:'2025타경9042' },
 ];
 
-function renderPins(list) {
-  const canvas = document.getElementById('mapCanvas');
-  canvas.querySelectorAll('.pin').forEach(p => p.remove());
-  list.forEach(pin => {
-    const el = document.createElement('div');
-    el.className = 'pin' + (pin.warn ? ' warn' : '');
-    el.style.left = pin.x + '%';
-    el.style.top = pin.y + '%';
-    el.innerHTML = `<span class="badge">${pin.type} · ${pin.price}</span><span class="stem"></span>`;
-    el.addEventListener('click', (e) => { e.stopPropagation(); openPopup(pin, el); });
-    canvas.appendChild(el);
+// ═══════════════════════════════════════
+// 필터 상태
+// ═══════════════════════════════════════
+const F = { court:'', region:'', price:'', fail:'', sort:'latest' };
+let statusFilter = '';
+let qTerm = '';
+const ALL_TYPES = ['아파트','오피스텔','단독주택','연립다세대','토지','상가','사무실','공장창고','농지임야','기타부동산','차량','기계장비','유가증권','선박항공','기타동산'];
+let activeTypes = new Set(ALL_TYPES);
+let filteredItems = [];
+let focusedId = null;
+
+// ═══════════════════════════════════════
+// Leaflet 지도 & 마커
+// ═══════════════════════════════════════
+let map = null;
+// id → { marker, latlng } 매핑
+const markerMap = {};
+
+function initMap() {
+  map = L.map('leafletMap', {
+    center: [36.5, 127.9],
+    zoom: 7,
+    zoomControl: true,
+    attributionControl: true,
   });
-  document.getElementById('sideCount').textContent = `지도 안의 물건 (${list.length})`;
-  document.getElementById('sideList').innerHTML = list.map(pin => `
-    <div class="side-item" onclick="focusPin(${pin.id})" role="button" tabindex="0" onkeydown="if(event.key==='Enter')focusPin(${pin.id})">
-      <span class="ico">${ {아파트:'🏢',토지:'🏞️',상가:'🏬',차량:'🚗',기계장비:'🏭',유가증권:'📈'}[pin.type] || '📍' }</span>
-      <div><div class="t">${pin.title}</div><div class="m">${pin.meta} · ${pin.price}</div></div>
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> 기여자',
+    maxZoom: 19,
+  }).addTo(map);
+
+  // 지도 클릭 → 팝업 닫기
+  map.on('click', () => {
+    map.closePopup();
+    deselectAll();
+  });
+}
+
+function makeIcon(it, active) {
+  const cls = ['lf-pin', it.status === '낙찰' ? 'sold' : it.fail > 0 ? 'warn' : '', active ? 'active' : ''].filter(Boolean).join(' ');
+  const html = `<div class="${cls}">
+    <span class="lf-pin-badge">${it.type} · ${fmtWon(it.min)}</span>
+    <span class="lf-pin-stem"></span>
+  </div>`;
+  return L.divIcon({ html, className:'', iconSize:[null, null], iconAnchor:[60, 38] });
+}
+
+function popupHTML(it) {
+  return `<div class="lf-popup">
+    <div class="pop-kind">${it.type} ${popBadge(it)}</div>
+    <h5>${escHtml(it.title)}</h5>
+    <p class="pop-meta">${escHtml(it.court)} · ${escHtml(it.caseNo || '')}</p>
+    <div class="pop-price">
+      <div class="pop-appr">감정가 <b>${fmtWon(it.appr)}</b></div>
+      <div class="pop-appr">최저 <b>${fmtWon(it.min)}</b></div>
+    </div>
+    <div class="pop-actions">
+      <a class="pop-detail" href="bidcast-detail.html?id=${it.id}">상세 보기 →</a>
+      <a class="pop-bot" href="bidcast-bot.html?item=${it.id}">🤖 예보봇</a>
+    </div>
+  </div>`;
+}
+
+function addMarker(it) {
+  const entry = markerMap[it.id];
+  if (!entry || entry.latlng == null) return;
+  const marker = L.marker(entry.latlng, {
+    icon: makeIcon(it, it.id === focusedId),
+    title: it.title,
+  }).addTo(map);
+
+  marker.bindPopup(popupHTML(it), {
+    maxWidth: 260,
+    minWidth: 240,
+    closeButton: false,
+    className: 'bidcast-popup',
+  });
+
+  marker.on('click', e => {
+    L.DomEvent.stopPropagation(e);
+    onMarkerClick(it.id);
+  });
+
+  marker.on('popupclose', () => {
+    if (focusedId === it.id) deselectAll();
+  });
+
+  entry.marker = marker;
+}
+
+function removeMarker(id) {
+  const entry = markerMap[id];
+  if (entry && entry.marker) {
+    entry.marker.remove();
+    entry.marker = null;
+  }
+}
+
+// ═══════════════════════════════════════
+// Nominatim Geocoding (순차, 1초 간격)
+// ═══════════════════════════════════════
+async function geocodeAll() {
+  const bar = document.getElementById('geocodeBar');
+  const fill = document.getElementById('gcFill');
+  const text = document.getElementById('geocodeText');
+  const ratio = document.getElementById('geocodeRatio');
+  const total = ITEMS.length;
+  let done = 0;
+
+  bar.classList.remove('hidden');
+
+  for (const it of ITEMS) {
+    // 이미 좌표 있으면 스킵
+    if (markerMap[it.id] && markerMap[it.id].latlng) { done++; continue; }
+    markerMap[it.id] = markerMap[it.id] || {};
+
+    try {
+      const query = encodeURIComponent(it.address + ', 대한민국');
+      const url = `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1&accept-language=ko`;
+      const res = await fetch(url, { headers: { 'User-Agent': 'BidCast/1.0 (demo)' } });
+      const data = await res.json();
+      if (data && data[0]) {
+        markerMap[it.id].latlng = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+      }
+    } catch (_) {
+      // geocoding 실패 시 해당 아이템 핀 생략
+    }
+
+    done++;
+    fill.style.width = (done / total * 100) + '%';
+    ratio.textContent = `${done}/${total}`;
+    text.textContent = `위치 변환 중 (${it.address})`;
+
+    // Nominatim 이용 정책: 1초 이상 간격
+    if (done < total) await new Promise(r => setTimeout(r, 1100));
+  }
+
+  bar.classList.add('hidden');
+  applyFilters();
+}
+
+// ═══════════════════════════════════════
+// 마커 렌더 (필터 결과 기준)
+// ═══════════════════════════════════════
+function renderMarkers(list) {
+  // 필터 결과에 없는 마커 제거
+  Object.keys(markerMap).forEach(idStr => {
+    const id = parseInt(idStr, 10);
+    if (!list.find(it => it.id === id)) removeMarker(id);
+  });
+  // 필터 결과 마커 추가
+  list.forEach(it => {
+    const entry = markerMap[it.id];
+    if (!entry || !entry.latlng) return; // 아직 geocoding 안 됨
+    if (!entry.marker) {
+      addMarker(it);
+    } else {
+      // 아이콘 active 상태 갱신
+      entry.marker.setIcon(makeIcon(it, it.id === focusedId));
+    }
+  });
+}
+
+// ═══════════════════════════════════════
+// 마커 클릭 → 팝업 + 사이드바 연동
+// ═══════════════════════════════════════
+function onMarkerClick(id) {
+  focusedId = id;
+  const it = ITEMS.find(x => x.id === id);
+  if (!it) return;
+
+  // 모든 마커 아이콘 초기화
+  filteredItems.forEach(fi => {
+    const e = markerMap[fi.id];
+    if (e && e.marker) e.marker.setIcon(makeIcon(fi, fi.id === id));
+  });
+
+  // 사이드바 highlight + 스크롤
+  document.querySelectorAll('.side-item').forEach(s => s.classList.remove('active'));
+  const sideEl = document.getElementById(`side-${id}`);
+  if (sideEl) {
+    sideEl.classList.add('active');
+    sideEl.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  }
+
+  // 팝업 열기
+  const entry = markerMap[id];
+  if (entry && entry.marker) {
+    entry.marker.openPopup();
+  }
+}
+
+// ═══════════════════════════════════════
+// 사이드바 클릭 → 지도 이동 + 마커 + 팝업
+// ═══════════════════════════════════════
+function onSideItemClick(id) {
+  const it = filteredItems.find(x => x.id === id);
+  if (!it) return;
+  focusedId = id;
+
+  // 사이드바 highlight
+  document.querySelectorAll('.side-item').forEach(s => s.classList.remove('active'));
+  const sideEl = document.getElementById(`side-${id}`);
+  if (sideEl) sideEl.classList.add('active');
+
+  // 마커 아이콘 active 갱신
+  filteredItems.forEach(fi => {
+    const e = markerMap[fi.id];
+    if (e && e.marker) e.marker.setIcon(makeIcon(fi, fi.id === id));
+  });
+
+  const entry = markerMap[id];
+  if (entry && entry.latlng) {
+    map.setView(entry.latlng, Math.max(map.getZoom(), 14), { animate:true });
+    if (entry.marker) entry.marker.openPopup();
+  }
+
+  // 모바일: 지도로 스크롤
+  if (window.innerWidth < 960) {
+    document.getElementById('leafletMap').scrollIntoView({ behavior:'smooth', block:'start' });
+  }
+}
+
+function deselectAll() {
+  focusedId = null;
+  document.querySelectorAll('.side-item').forEach(s => s.classList.remove('active'));
+  filteredItems.forEach(fi => {
+    const e = markerMap[fi.id];
+    if (e && e.marker) e.marker.setIcon(makeIcon(fi, false));
+  });
+}
+
+// ═══════════════════════════════════════
+// 유틸
+// ═══════════════════════════════════════
+function fmtWon(man) {
+  if (man >= 10000) return (man / 10000).toFixed(man % 10000 === 0 ? 0 : 1) + '억';
+  return man.toLocaleString() + '만';
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function sideItemBadge(it) {
+  if (it.status === '낙찰') return '<span class="side-item-badge s-sold">낙찰</span>';
+  if (it.fail === 0) return '<span class="side-item-badge s-new">신건</span>';
+  if (it.fail > 0) return `<span class="side-item-badge s-fail">유찰 ${it.fail}회</span>`;
+  return '<span class="side-item-badge s-ing">진행</span>';
+}
+
+function popBadge(it) {
+  if (it.status === '낙찰') return '<span class="pop-badge s-sold">낙찰</span>';
+  if (it.fail === 0) return '<span class="pop-badge s-new">신건</span>';
+  if (it.fail > 0) return `<span class="pop-badge s-fail">유찰 ${it.fail}회</span>`;
+  return '<span class="pop-badge s-ing">진행</span>';
+}
+
+function normalizeType(t) {
+  if (!t) return '기타부동산';
+  if (/아파트/.test(t)) return '아파트';
+  if (/오피스텔/.test(t)) return '오피스텔';
+  if (/단독|주택/.test(t)) return '단독주택';
+  if (/연립|다세대/.test(t)) return '연립다세대';
+  if (/토지|대지|임야/.test(t)) return '토지';
+  if (/상가/.test(t)) return '상가';
+  if (/사무/.test(t)) return '사무실';
+  if (/공장|창고/.test(t)) return '공장창고';
+  if (/농지/.test(t)) return '농지임야';
+  if (/차량|트럭|승용/.test(t)) return '차량';
+  if (/기계|장비/.test(t)) return '기계장비';
+  if (/주식|증권/.test(t)) return '유가증권';
+  if (/선박|항공/.test(t)) return '선박항공';
+  return t;
+}
+
+// ═══════════════════════════════════════
+// 커스텀 드롭다운
+// ═══════════════════════════════════════
+function openCd(id) {
+  const isOpen = document.getElementById(id).classList.contains('open');
+  document.querySelectorAll('.cd.open').forEach(el => el.classList.remove('open'));
+  if (!isOpen) {
+    document.getElementById(id).classList.add('open');
+    const s = document.getElementById(id).querySelector('.cd-search');
+    if (s) { s.value = ''; filterCdSearch(s); setTimeout(() => s.focus(), 50); }
+  }
+}
+
+function setCdVal(cdId, v) {
+  const cd = document.getElementById(cdId);
+  if (!cd) return;
+  const opt = Array.from(cd.querySelectorAll('.cd-opt')).find(b => b.dataset.v === v);
+  const defLabel = cd.querySelector('.cd-opt')?.textContent.trim() || '전체';
+  const label = opt ? opt.textContent.trim() : defLabel;
+  cd.querySelector('.cd-trig-text').textContent = label;
+  cd.querySelector('.cd-trig').classList.toggle('has-val', v !== '');
+  cd.querySelectorAll('.cd-opt').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+}
+
+function filterCdSearch(input) {
+  const q = input.value.toLowerCase().trim();
+  input.closest('.cd-panel').querySelectorAll('.cd-opt').forEach(b => {
+    b.style.display = (!q || b.textContent.toLowerCase().includes(q)) ? '' : 'none';
+  });
+}
+
+document.addEventListener('click', e => {
+  const opt = e.target.closest('.cd-opt');
+  if (opt) {
+    const cd = opt.closest('.cd');
+    const v = opt.dataset.v;
+    setCdVal(cd.id, v);
+    cd.classList.remove('open');
+    const key = cd.dataset.filter;
+    if (key) { F[key] = v; applyFilters(); }
+    return;
+  }
+  if (!e.target.closest('.cd')) {
+    document.querySelectorAll('.cd.open').forEach(el => el.classList.remove('open'));
+  }
+});
+
+// ═══════════════════════════════════════
+// 상태 태그
+// ═══════════════════════════════════════
+document.querySelectorAll('#statusTags button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#statusTags button').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    statusFilter = btn.dataset.status;
+    applyFilters();
+  });
+});
+
+// ═══════════════════════════════════════
+// 타입 칩
+// ═══════════════════════════════════════
+function toggleTypePanel() {
+  const panel = document.getElementById('typePanel');
+  const btn = document.getElementById('typeToggleBtn');
+  panel.classList.toggle('open');
+  btn.classList.toggle('open');
+  btn.textContent = panel.classList.contains('open')
+    ? '🏷️ 자산유형 접기 ▴'
+    : '🏷️ 자산유형 펼치기 ▾';
+}
+
+function initTypeChips() {
+  document.querySelectorAll('#typeChipsRe button, #typeChipsMv button').forEach(btn => {
+    btn.classList.add('on');
+    btn.addEventListener('click', () => {
+      const t = btn.dataset.type;
+      if (activeTypes.has(t)) { activeTypes.delete(t); btn.classList.remove('on'); }
+      else { activeTypes.add(t); btn.classList.add('on'); }
+      applyFilters();
+    });
+  });
+}
+
+function setAllTypes(on) {
+  if (on) {
+    activeTypes = new Set(ALL_TYPES);
+    document.querySelectorAll('#typeChipsRe button, #typeChipsMv button').forEach(b => b.classList.add('on'));
+  } else {
+    activeTypes.clear();
+    document.querySelectorAll('#typeChipsRe button, #typeChipsMv button').forEach(b => b.classList.remove('on'));
+  }
+  applyFilters();
+}
+
+// ═══════════════════════════════════════
+// 기관 드롭다운 재구성
+// ═══════════════════════════════════════
+function rebuildCourtDropdown() {
+  const courts = [...new Set(ITEMS.map(it => it.court).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
+  const list = document.getElementById('cdCourtList');
+  list.innerHTML = '<button class="cd-opt on" data-v="">기관 전체</button>'
+    + courts.map(c => `<button class="cd-opt" data-v="${escHtml(c)}">${escHtml(c)}</button>`).join('');
+}
+
+// ═══════════════════════════════════════
+// 검색
+// ═══════════════════════════════════════
+let searchTimer = null;
+function onSearchInput() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { qTerm = document.getElementById('mapSearch').value.trim().toLowerCase(); applyFilters(); }, 350);
+}
+
+// ═══════════════════════════════════════
+// 필터 계산
+// ═══════════════════════════════════════
+function computeFiltered() {
+  let list = [...ITEMS];
+  list = list.filter(it => activeTypes.has(normalizeType(it.type)));
+  if (qTerm) list = list.filter(it =>
+    it.title.toLowerCase().includes(qTerm) ||
+    (it.address || '').toLowerCase().includes(qTerm) ||
+    it.region.includes(qTerm) ||
+    it.court.toLowerCase().includes(qTerm)
+  );
+  if (F.court) list = list.filter(it => it.court === F.court);
+  if (F.region) list = list.filter(it => it.region === F.region);
+  if (statusFilter === '신건') list = list.filter(it => it.fail === 0 && it.status !== '낙찰');
+  else if (statusFilter === '진행') list = list.filter(it => it.status !== '낙찰' && it.fail === 0);
+  else if (statusFilter === '유찰') list = list.filter(it => it.fail > 0 && it.status !== '낙찰');
+  else if (statusFilter === '낙찰') list = list.filter(it => it.status === '낙찰');
+  if (F.price) {
+    const ranges = { '~1억':[0,10000], '1~3억':[10000,30000], '3~5억':[30000,50000], '5~10억':[50000,100000], '10억~':[100000,Infinity] };
+    const [lo, hi] = ranges[F.price] || [0, Infinity];
+    list = list.filter(it => it.appr >= lo && it.appr < hi);
+  }
+  if (F.fail !== '') {
+    const fv = parseInt(F.fail, 10);
+    if (fv === 0) list = list.filter(it => it.fail === 0);
+    else if (fv === 1) list = list.filter(it => it.fail === 1);
+    else list = list.filter(it => it.fail >= 2);
+  }
+  if (F.sort === 'price_desc') list.sort((a, b) => b.appr - a.appr);
+  else if (F.sort === 'price_asc') list.sort((a, b) => a.appr - b.appr);
+  else if (F.sort === 'fail_desc') list.sort((a, b) => b.fail - a.fail);
+  else list.sort((a, b) => b.id - a.id);
+  return list;
+}
+
+// ═══════════════════════════════════════
+// 필터 적용 → 렌더
+// ═══════════════════════════════════════
+function applyFilters() {
+  filteredItems = computeFiltered();
+  renderSidebar(filteredItems);
+  if (map) renderMarkers(filteredItems);
+  if (focusedId !== null && !filteredItems.find(it => it.id === focusedId)) {
+    deselectAll();
+    if (map) map.closePopup();
+  }
+}
+
+function resetFilters() {
+  F.court = ''; F.region = ''; F.price = ''; F.fail = ''; F.sort = 'latest';
+  statusFilter = ''; qTerm = '';
+  document.getElementById('mapSearch').value = '';
+  ['cdCourt','cdRegion','cdPrice','cdFail','cdSort'].forEach(id => setCdVal(id, id === 'cdSort' ? 'latest' : ''));
+  document.querySelectorAll('#statusTags button').forEach(b => b.classList.remove('on'));
+  document.querySelector('#statusTags button[data-status=""]').classList.add('on');
+  setAllTypes(true);
+  applyFilters();
+}
+
+// ═══════════════════════════════════════
+// 사이드바 렌더
+// ═══════════════════════════════════════
+function renderSidebar(list) {
+  document.getElementById('sideCount').textContent = list.length + '건';
+  const container = document.getElementById('sideList');
+  if (!list.length) {
+    container.innerHTML = '<div class="side-empty">조건에 맞는 물건이 없습니다.</div>';
+    return;
+  }
+  container.innerHTML = list.map(it => `
+    <div class="side-item${it.id === focusedId ? ' active' : ''}" id="side-${it.id}"
+      role="button" tabindex="0"
+      onclick="onSideItemClick(${it.id})"
+      onkeydown="if(event.key==='Enter')onSideItemClick(${it.id})">
+      <span class="ico">${it.thumb || '📍'}</span>
+      <div class="side-item-body">
+        <div class="side-item-title">${escHtml(it.title)}</div>
+        <div class="side-item-meta">${sideItemBadge(it)} ${escHtml(it.court)}</div>
+        <div class="side-item-price">감정가 ${fmtWon(it.appr)} · 최저 ${fmtWon(it.min)}</div>
+      </div>
     </div>`).join('');
 }
 
-function applyMapFilters() {
-  const q = document.getElementById('mapSearch').value.trim().toLowerCase();
-  const type = document.getElementById('mapType').value;
-  const fail = document.getElementById('mapFail').value;
-  let list = PINS.filter(p => !type || p.type === type);
-  if (q) list = list.filter(p => p.title.toLowerCase().includes(q));
-  if (fail !== '') {
-    const fv = parseInt(fail, 10);
-    list = list.filter(p => fv === 2 ? p.warn : (fv === 0 ? !p.warn : p.warn));
-  }
-  renderPins(list);
+// ═══════════════════════════════════════
+// URL 파라미터: ?id=N → 해당 핀 포커스
+// ═══════════════════════════════════════
+function handleUrlFocus() {
+  const params = new URLSearchParams(location.search);
+  const id = parseInt(params.get('id'), 10);
+  if (id && ITEMS.find(x => x.id === id)) focusedId = id;
 }
-document.getElementById('mapSearch').addEventListener('input', applyMapFilters);
-document.getElementById('mapType').addEventListener('change', applyMapFilters);
-document.getElementById('mapFail').addEventListener('change', applyMapFilters);
 
-function openPopup(pin, el) {
-  const popup = document.getElementById('mapPopup');
-  document.querySelectorAll('.pin').forEach(p => p.classList.remove('active'));
-  el.classList.add('active');
-  document.getElementById('popKind').textContent = pin.type + ' · 예시 물건';
-  document.getElementById('popTitle').textContent = pin.title;
-  document.getElementById('popMeta').textContent = pin.meta;
-  document.getElementById('popPrice').textContent = '감정가 ' + pin.price;
-  document.getElementById('popLink').href = 'bidcast-detail.html?id=' + pin.id;
-  let left = pin.x, top = pin.y;
-  popup.style.left = `calc(${left}% + 16px)`;
-  popup.style.top = `calc(${top}% - 40px)`;
-  popup.classList.add('show');
-}
-function closePopup() { document.getElementById('mapPopup').classList.remove('show'); document.querySelectorAll('.pin').forEach(p => p.classList.remove('active')); }
-function focusPin(id) {
-  const pin = PINS.find(p => p.id === id);
-  const el = [...document.querySelectorAll('.pin')].find(e => e.style.left === pin.x + '%' && e.style.top === pin.y + '%');
-  if (el) openPopup(pin, el);
-}
-document.getElementById('mapCanvas').addEventListener('click', closePopup);
+// ═══════════════════════════════════════
+// 초기화
+// ═══════════════════════════════════════
+handleUrlFocus();
+rebuildCourtDropdown();
+initTypeChips();
 
-// 현재 위치 확인 중 → 완료 연출
+// 지도 초기화 → geocoding → 렌더
+const loadingEl = document.getElementById('mapLoading');
+initMap();
+loadingEl.style.opacity = '0';
 setTimeout(() => {
-  document.getElementById('mapLoading').style.opacity = '0';
-  setTimeout(() => { document.getElementById('mapLoading').style.display = 'none'; renderPins(PINS); }, 400);
-}, 900);
+  loadingEl.style.display = 'none';
+  // sidebar 먼저 렌더 (지도 좌표 없어도 목록은 즉시 표시)
+  filteredItems = computeFiltered();
+  renderSidebar(filteredItems);
+  // geocoding 시작 → 완료되면 applyFilters() 가 마커 추가
+  geocodeAll().then(() => {
+    // URL id 포커스 처리
+    if (focusedId) {
+      const entry = markerMap[focusedId];
+      if (entry && entry.latlng) {
+        map.setView(entry.latlng, 15, { animate:false });
+        onMarkerClick(focusedId);
+      }
+    } else {
+      // 마커들이 있으면 전체 보이도록 fitBounds
+      const coords = Object.values(markerMap)
+        .filter(e => e.latlng)
+        .map(e => e.latlng);
+      if (coords.length > 1) {
+        map.fitBounds(coords, { padding:[40, 40], maxZoom:12 });
+      } else if (coords.length === 1) {
+        map.setView(coords[0], 13);
+      }
+    }
+  });
+}, 400);
 
-// 간편로그인 (공용 데모 컴포넌트)
+// ═══════════════════════════════════════
+// 공용 데모 Auth
+// ═══════════════════════════════════════
 const authOverlay = document.getElementById('authOverlay');
 function openAuth(mode) {
   document.getElementById('authTitle').textContent = mode === 'login' ? '다시 오셨네요' : '간편하게 시작하기';
@@ -344,16 +1086,14 @@ authOverlay.addEventListener('click', e => { if (e.target === authOverlay) close
 function snsFlow(provider) { finishAuth(provider === 'Google' ? 'Gmail 계정' : `${provider} 계정`); }
 function finishAuth(identity) {
   closeAuth();
-  document.getElementById('navRight').innerHTML = `<span class="nav-user"><span class="dot"></span>${identity} <button type="button" onclick="logoutDemo()">로그아웃</button></span>`;
+  document.getElementById('navRight').innerHTML = `<span class="nav-user"><span class="dot"></span>${escHtml(identity)} <button type="button" onclick="logoutDemo()">로그아웃</button></span>`;
 }
 function logoutDemo() {
   document.getElementById('navRight').innerHTML = `<button class="nav-login" type="button" onclick="openAuth('login')">로그인</button><button class="nav-cta" type="button" onclick="openAuth('signup')">사전 알림 신청</button>`;
 }
 
-function toggleMobileNav() {
-  document.getElementById('mobileNav').classList.toggle('open');
-}
-document.addEventListener('click', (e) => {
+function toggleMobileNav() { document.getElementById('mobileNav').classList.toggle('open'); }
+document.addEventListener('click', e => {
   const mn = document.getElementById('mobileNav');
   const hb = document.querySelector('.nav-hamburger');
   if (mn && mn.classList.contains('open') && !mn.contains(e.target) && e.target !== hb && !hb.contains(e.target)) {
@@ -361,11 +1101,10 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// ESC 키로 열려있는 모달 닫기 (우선순위: 리포트/기사 모달 > 로그인 모달)
-document.addEventListener('keydown', (e) => {
+document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
-  if (document.getElementById('authOverlay').classList.contains('open')) { closeAuth(); return; }
-  if (document.getElementById('mapPopup').classList.contains('show')) { closePopup(); return; }
+  if (authOverlay.classList.contains('open')) { closeAuth(); return; }
+  if (map) map.closePopup();
 });
 </script>
 </body>

@@ -285,6 +285,14 @@ nav {
 .pred .range-lbl { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--sub); font-variant-numeric: tabular-nums; }
 .pred .base { margin-top: 10px; font-size: 12.5px; color: var(--sub); }
 .pred .base b { color: var(--ink); font-weight: 700; }
+/* 실시간 물건 카드 — 실사 썸네일 + 클릭 이동 */
+.listing.live { cursor: pointer; }
+.listing .thumb img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; z-index: 0;
+}
+.listing .thumb .sig-badge { z-index: 1; }
+.listing .thumb .thumb-emoji { position: relative; z-index: 0; }
 @media (max-width: 900px) { .listing-grid { grid-template-columns: 1fr; max-width: 460px; } }
 
 /* ═══════════════════════════════════════
@@ -617,7 +625,7 @@ footer .copy { margin-top: 26px; font-size: 12px; color: var(--mute); }
       <input type="text" id="heroSearchInput" placeholder="지역, 자산 종류, 물건명으로 검색해 보세요 (예: 시흥시 토지)"/>
       <button type="submit">예측 검색</button>
     </form>
-    <p class="hero-note">※ 예측 정보는 과거 낙찰 데이터 기반의 통계적 참고자료이며, 입찰 결과를 보장하지 않습니다. 지금은 예시 데이터로 동작합니다.</p>
+    <p class="hero-note" id="heroNote">※ 예측 정보는 과거 낙찰 데이터 기반의 통계적 참고자료이며, 입찰 결과를 보장하지 않습니다. 지금은 예시 데이터로 동작합니다.</p>
 
     <!-- 스탯 타일 · 출처: 온비드 공개 통계(2021 누적) -->
     <div class="stat-row">
@@ -680,7 +688,7 @@ footer .copy { margin-top: 26px; font-size: 12px; color: var(--mute); }
         <h2 class="title reveal">자산 종류로 바로 시작</h2>
         <p class="lead reveal">압류재산·국유재산·수탁재산 등 처분 방식과 무관하게, 자산 종류만 고르면 관련 물건과 예측 데이터를 한 번에 볼 수 있습니다.</p>
       </div>
-      <span class="demo-chip reveal">🔧 예시 데이터로 검색 가능 — 실 데이터 연동은 다음 단계</span>
+      <span class="demo-chip reveal" id="quickSearchChip">🔧 예시 데이터로 검색 가능 — 실 데이터 연동 대기 중</span>
     </div>
 
     <div class="asset-grid">
@@ -728,10 +736,10 @@ footer .copy { margin-top: 26px; font-size: 12px; color: var(--mute); }
         <h2 class="title reveal">물건마다, 범위와 신호를</h2>
         <p class="lead reveal">감정가·최저입찰가·유찰 횟수·지역 시세 흐름을 학습한 모델이 예상 낙찰가 <b>범위</b>와 함께, 보행 신호처럼 직관적인 <b>입찰 신호</b>를 보여줍니다.</p>
       </div>
-      <span class="demo-chip reveal">아래 카드는 예시 데이터입니다</span>
+      <span class="demo-chip reveal" id="predictChip">아래 카드는 예시 데이터입니다</span>
     </div>
 
-    <div class="listing-grid">
+    <div class="listing-grid" id="listingGrid">
       <!-- 예시 물건 1 -->
       <article class="listing reveal">
         <div class="thumb">🏞️<span class="sig-badge go">🚶 기회 신호</span></div>
@@ -840,9 +848,9 @@ footer .copy { margin-top: 26px; font-size: 12px; color: var(--mute); }
   <div class="wrap">
     <span class="eyebrow reveal">Calendar</span>
     <h2 class="title reveal">이번 주 입찰 일정</h2>
-    <p class="lead reveal">다가오는 입찰 마감을 한눈에. 관심물건으로 등록하면 마감 전에 알림을 보내드립니다. <b>(아래 건수는 예시)</b></p>
+    <p class="lead reveal" id="calLead">다가오는 입찰 마감을 한눈에. 관심물건으로 등록하면 마감 전에 알림을 보내드립니다. <b>(아래 건수는 예시)</b></p>
 
-    <div class="cal-grid">
+    <div class="cal-grid" id="calGrid">
       <div class="cal-day reveal"><div class="dow">월</div><div class="cnt">124</div><div class="u">건</div></div>
       <div class="cal-day reveal"><div class="dow">화</div><div class="cnt">98</div><div class="u">건</div></div>
       <div class="cal-day hot reveal"><div class="dow">수 · 최다</div><div class="cnt">312</div><div class="u">건</div></div>
@@ -1019,6 +1027,7 @@ footer .copy { margin-top: 26px; font-size: 12px; color: var(--mute); }
         <h5>제휴</h5>
         <ul>
           <li><a href="bidcast-partner.html">파트너 프로그램</a></li>
+          <li><a href="bidcast-pricing.html">요금제</a></li>
           <li><a href="bidcast-support.html#coalition">제휴 문의</a></li>
         </ul>
       </div>
@@ -1301,6 +1310,138 @@ document.addEventListener('click', (e) => {
     mn.classList.remove('open');
   }
 });
+
+// ═══════════════════════════════════════
+// 주요 물건 카드 — 실시간 온비드 데이터 연동
+// 성공 시: 카드 3개를 실 물건으로 교체 (기본정보는 실 데이터,
+//          예상 범위·신호는 규칙 기반 예시로 라벨 명시)
+// 실패 시: 기존 예시 카드 유지 — bidcast-list.html과 동일한 폴백 패턴
+// ═══════════════════════════════════════
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtManwon(man) {
+  if (man >= 10000) return (man / 10000).toFixed(man % 10000 === 0 ? 0 : 1) + '억';
+  return man.toLocaleString() + '만';
+}
+// 규칙 기반 예상 범위 — AI 모델이 아닌 단순 규칙 (카드에 예시 라벨 동반)
+function rulePred(it) {
+  const lo = Math.round(it.min * 1.03);
+  let hi = Math.round(Math.min(it.appr > 0 ? it.appr : it.min * 1.2, it.min * 1.18));
+  if (hi <= lo) hi = Math.round(lo * 1.08);
+  return { lo, hi };
+}
+function liveCard(it) {
+  const { lo, hi } = rulePred(it);
+  const ratio = it.appr > 0 ? it.min / it.appr : 1;
+  const caution = it.fail >= 2 || ratio < 0.6;
+  const badge = caution
+    ? '<span class="sig-badge wait">✋ 주의 신호</span>'
+    : '<span class="sig-badge go">🚶 기회 신호</span>';
+  const span = it.appr - it.min;
+  let bar = '';
+  if (span > 0) {
+    const left = Math.max(0, Math.min(95, (lo - it.min) / span * 100));
+    const width = Math.max(4, Math.min(100 - left, (hi - lo) / span * 100));
+    bar = `<div class="range" role="img" aria-label="최저입찰가 ${fmtManwon(it.min)}에서 감정가 ${fmtManwon(it.appr)} 사이 중 ${fmtManwon(lo)}에서 ${fmtManwon(hi)} 구간">
+        <span class="fill" style="left:${left}%; width:${width}%;"></span>
+      </div>
+      <div class="range-lbl"><span>최저 ${fmtManwon(it.min)}</span><span>감정가 ${fmtManwon(it.appr)}</span></div>`;
+  }
+  const photo = it.photo
+    ? `<img src="${escHtml(it.photo)}" alt="" loading="lazy" onerror="this.remove()"/>`
+    : '';
+  return `<article class="listing live reveal in" data-id="${escHtml(String(it.id))}" role="link" tabindex="0"
+      aria-label="${escHtml(it.title)} 상세 보기">
+    <div class="thumb"><span class="thumb-emoji">${it.thumb || '📦'}</span>${photo}${badge}</div>
+    <div class="body">
+      <span class="kind">${escHtml(it.type)} · ${escHtml(it.court || '온비드 공매')}</span>
+      <h4>${escHtml(it.title)}</h4>
+      <p class="meta">${escHtml(it.address || '')} · 감정가 ${fmtManwon(it.appr)} · 유찰 ${it.fail}회</p>
+      <div class="pred">
+        <div class="pl">규칙 기반 예상 범위 (예시 — AI 모델 연동 전)</div>
+        <div class="pv">${fmtManwon(lo)} ~ ${fmtManwon(hi)}</div>
+        ${bar}
+        <p class="base">물건 정보는 <b>실시간 온비드 데이터</b> · 예상 범위·신호는 규칙 기반 예시</p>
+      </div>
+    </div>
+  </article>`;
+}
+async function loadLiveListings() {
+  try {
+    // 온비드는 같은 물건을 회차별 행으로 반복 반환 → 중복 제거 후 물건 수가 줄어들므로 넉넉히 요청
+    const res = await fetch('/.netlify/functions/onbid-search?page=1&numOfRows=60');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (!Array.isArray(data.items) || data.items.length === 0) throw new Error('빈 응답');
+    // 실사 사진 있는 물건 우선 + 같은 건물의 다른 호수(101호/102호…)는 하나만 골라 다양성 확보
+    const ordered = [...data.items.filter(it => it.photo), ...data.items.filter(it => !it.photo)];
+    const buildingKey = it => (it.title || '').replace(/\s*\d+\s*호(?:\s|$).*$/, '').replace(/\s*제?\d+층.*$/, '').trim() || String(it.id);
+    const seenBld = new Set();
+    const pick = [];
+    for (const it of ordered) {
+      const k = buildingKey(it);
+      if (seenBld.has(k)) continue;
+      seenBld.add(k);
+      pick.push(it);
+      if (pick.length === 3) break;
+    }
+    // 다양성 필터로 3건이 안 채워지면 남는 물건으로 보충
+    for (const it of ordered) {
+      if (pick.length === 3) break;
+      if (!pick.includes(it)) pick.push(it);
+    }
+    if (!pick.length) throw new Error('표시할 물건 없음');
+    const grid = document.getElementById('listingGrid');
+    grid.innerHTML = pick.map(liveCard).join('');
+    // 카드 클릭 → 상세 페이지 (bidcast-list.html의 stashDetail과 동일한 스냅샷 패턴)
+    grid.querySelectorAll('.listing.live').forEach(card => {
+      const go = () => {
+        const it = pick.find(x => String(x.id) === card.dataset.id);
+        if (it) { try { sessionStorage.setItem('bidcast:detail', JSON.stringify(it)); } catch(e) {} }
+        location.href = 'bidcast-detail.html?id=' + encodeURIComponent(card.dataset.id);
+      };
+      card.addEventListener('click', go);
+      card.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+    });
+    document.getElementById('predictChip').textContent = '✅ 물건 정보는 실시간 온비드 데이터 · 예상 범위는 규칙 기반 예시';
+    document.getElementById('quickSearchChip').textContent = '✅ 부동산 물건은 실시간 온비드 데이터로 검색됩니다';
+    document.getElementById('heroNote').textContent = '※ 예측 정보는 과거 낙찰 데이터 기반의 통계적 참고자료이며, 입찰 결과를 보장하지 않습니다. 물건 정보는 실시간 온비드 공공 API 데이터입니다.';
+  } catch (e) {
+    // 함수 미배포·키 미설정·API 오류·네트워크 오류 — 기존 예시 카드 그대로 유지
+    console.info('[bidcast] 실 데이터 연동 실패, 예시 카드 유지:', e.message);
+  }
+}
+loadLiveListings();
+
+// ═══════════════════════════════════════
+// 이번 주 입찰 캘린더 — 실시간 온비드 집계 연동
+// 성공 시: 월~금 일자별 입찰 진행 물건 수를 실 집계로 교체 (부동산 기준)
+// 실패 시: 기존 예시 건수 유지 — 동일한 폴백 패턴
+// ═══════════════════════════════════════
+async function loadLiveCalendar() {
+  try {
+    const res = await fetch('/.netlify/functions/onbid-calendar');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (!Array.isArray(data.days) || data.days.length !== 5) throw new Error('형식 오류');
+    if (data.days.every(d => !d.count)) throw new Error('집계 0건 — 예시 유지');
+    const maxCount = Math.max(...data.days.map(d => d.count));
+    const dayCell = d => `
+      <div class="cal-day reveal in${d.count === maxCount ? ' hot' : ''}">
+        <div class="dow">${escHtml(d.dow)}${d.count === maxCount ? ' · 최다' : ''}</div>
+        <div class="cnt">${d.count.toLocaleString()}</div>
+        <div class="u">건</div>
+      </div>`;
+    document.getElementById('calGrid').innerHTML =
+      data.days.map(dayCell).join('')
+      + '<div class="cal-day reveal in"><div class="dow">토</div><div class="cnt">—</div><div class="u">인터넷 입찰 상시</div></div>'
+      + '<div class="cal-day reveal in"><div class="dow">일</div><div class="cnt">—</div><div class="u">인터넷 입찰 상시</div></div>';
+    document.getElementById('calLead').innerHTML =
+      '다가오는 입찰 마감을 한눈에. 관심물건으로 등록하면 마감 전에 알림을 보내드립니다. <b>✅ 실시간 온비드 집계 — 해당 일자에 입찰이 진행되는 부동산 물건 수</b>';
+  } catch (e) {
+    console.info('[bidcast] 캘린더 실 집계 실패, 예시 건수 유지:', e.message);
+  }
+}
+loadLiveCalendar();
 </script>
 
 </body>

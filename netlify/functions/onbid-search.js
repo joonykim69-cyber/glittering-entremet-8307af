@@ -88,10 +88,14 @@ function mapOnbidItem(raw, idx) {
   const type = normalizeType(raw.cltrUsgSclsCtgrNm || raw.cltrUsgMclsCtgrNm);
   const address = [raw.lctnSdnm, raw.lctnSggnm, raw.lctnEmdNm].filter(Boolean).join(' ');
   // thnlImgUrlAdr(물건 썸네일 이미지 URL) — http(s) URL일 때만 통과 (HTML 삽입 안전장치)
-  const photo = /^https?:\/\//.test(raw.thnlImgUrlAdr || '') ? raw.thnlImgUrlAdr : '';
+  // downloadImageKind=THNL_NM(저해상도 썸네일) → IMGE_NM(원본 고해상도)으로 교체 시도.
+  // IMGE_NM이 유효하지 않으면 img.onerror 폴백으로 이모지가 표시됨.
+  let photo = /^https?:\/\//.test(raw.thnlImgUrlAdr || '') ? raw.thnlImgUrlAdr : '';
+  if (photo) photo = photo.replace('downloadImageKind=THNL_NM', 'downloadImageKind=IMGE_NM');
 
   return {
     id: raw.cltrMngNo || idx,
+    pbctCdtnNo: raw.pbctCdtnNo != null ? String(raw.pbctCdtnNo) : '',
     caseNo: raw.cltrMngNo && raw.pbctCdtnNo != null ? `${raw.cltrMngNo}-${raw.pbctCdtnNo}` : (raw.cltrMngNo || '-'),
     title: raw.onbidCltrNm || '(물건명 미상)',
     address,
@@ -106,6 +110,9 @@ function mapOnbidItem(raw, idx) {
     views: 0, // 온비드 API에 조회수 필드 없음 — 프론트엔드 표시용 기본값
     thumb: TYPE_ICONS[type] || '📦',
     photo, // 실사 썸네일 URL (없으면 빈 문자열 → 프론트엔드가 thumb 아이콘으로 폴백)
+    // 입찰 기간 (Swagger 확인 필드, yyyyMMddHHmm 문자열) — 캘린더 집계·마감임박 표시용
+    bidStart: raw.cltrBidBgngDt || '',
+    bidEnd: raw.cltrBidEndDt || '',
   };
 }
 
@@ -160,6 +167,9 @@ exports.handler = async (event) => {
   };
   if (qs.region) params.set('lctnSdnm', REGION_FULL[qs.region] || qs.region);
   if (qs.keyword) params.set('onbidCltrNm', qs.keyword);
+  // 입찰기간 검색 (Swagger 확인 파라미터, yyyyMMdd) — onbid-calendar.js의 일자별 집계에 사용
+  if (qs.bidPrdYmdStart) params.set('bidPrdYmdStart', qs.bidPrdYmdStart.replace(/[^0-9]/g, ''));
+  if (qs.bidPrdYmdEnd) params.set('bidPrdYmdEnd', qs.bidPrdYmdEnd.replace(/[^0-9]/g, ''));
   // prptDivCd는 URLSearchParams에 넣지 않고 쉼표를 인코딩(%2C)하지 않은 원문 그대로 붙인다 —
   // data.go.kr 계열 API 중 인코딩된 쉼표를 복수값 구분자로 인식하지 못하는 경우가 있음.
   const prptDivCd = (qs.prptDivCd || ALL_PRPT_DIV_CD).replace(/[^0-9,]/g, '');
