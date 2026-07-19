@@ -1217,11 +1217,12 @@ async function loadRealItems(opts = {}) {
     const p = new URLSearchParams({ page:'1', numOfRows:'60' });
     if (opts.region) p.set('region', opts.region);
     if (opts.keyword) p.set('keyword', opts.keyword);
-    // 부동산 + 동산을 병렬 요청 — 동산 프록시(onbid-mvast-search)는 환경변수 미설정 시
-    // 501을 반환하므로 실패해도 부동산 목록만으로 정상 동작 (degrade-gracefully)
-    const [rlstRes, mvastRes] = await Promise.allSettled([
+    // 부동산 + 동산 + 차량을 병렬 요청 — 동산/차량 프록시는 미연동·경로오류 시
+    // 5xx를 반환하므로 실패해도 부동산 목록만으로 정상 동작 (degrade-gracefully)
+    const [rlstRes, mvastRes, vhclRes] = await Promise.allSettled([
       fetch('/.netlify/functions/onbid-search?' + p.toString()).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
       fetch('/.netlify/functions/onbid-mvast-search?' + p.toString()).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
+      fetch('/.netlify/functions/onbid-vhcl-search?' + p.toString()).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
     ]);
     if (seq !== liveFetchSeq) return;
     if (rlstRes.status !== 'fulfilled') throw rlstRes.reason || new Error('부동산 목록 실패');
@@ -1229,7 +1230,8 @@ async function loadRealItems(opts = {}) {
     if (!Array.isArray(data.items)) throw new Error('형식 오류');
     if (initial && data.items.length === 0) throw new Error('빈 응답');
     const mvastItems = (mvastRes.status === 'fulfilled' && Array.isArray(mvastRes.value.items)) ? mvastRes.value.items : [];
-    const merged = [...data.items, ...mvastItems];
+    const vhclItems = (vhclRes.status === 'fulfilled' && Array.isArray(vhclRes.value.items)) ? vhclRes.value.items : [];
+    const merged = [...data.items, ...mvastItems, ...vhclItems];
     const seenIds = new Set();
     const uniq = merged.filter(it => { const k = String(it.id); if (seenIds.has(k)) return false; seenIds.add(k); return true; });
     // 같은 건물의 여러 호수(101호/102호/…)는 대표 1건만 표시 — 사진 있는 물건 우선.
@@ -1237,7 +1239,7 @@ async function loadRealItems(opts = {}) {
     const buildingKey = it => (it.title || '').replace(/\s*제?\d+\s*호(?:\s|$).*$/, '').replace(/\s*제?\d+층.*$/, '').trim() || String(it.id);
     const byBld = new Map();
     for (const it of uniq) {
-      if (it.assetClass === '동산') { byBld.set('mv:' + it.id, it); continue; } // 동산은 축약 없이 전부
+      if (it.assetClass) { byBld.set('mv:' + it.id, it); continue; } // 동산·차량은 건물 개념이 없어 축약 없이 전부
       const k = buildingKey(it);
       const prev = byBld.get(k);
       if (!prev || (!prev.photo && it.photo)) byBld.set(k, it); // 사진 있는 물건을 대표로
@@ -1245,9 +1247,11 @@ async function loadRealItems(opts = {}) {
     ITEMS = [...byBld.values()].map(it => ({ ...it, mode:deriveModes(it) }));
     liveMode = true;
     const totalRlst = data.totalCount ?? data.items.length;
-    chip.textContent = mvastItems.length
-      ? `✅ 실시간 온비드 데이터 — 부동산 ${totalRlst}건 + 동산 ${mvastRes.value.totalCount ?? mvastItems.length}건 중 표시`
-      : `✅ 실시간 온비드 데이터 (총 ${totalRlst}건 중 표시 · 동산 API 미연동)`;
+    const srcParts = [`부동산 ${Number(totalRlst).toLocaleString()}건`];
+    if (mvastItems.length) srcParts.push(`동산 ${Number(mvastRes.value.totalCount ?? mvastItems.length).toLocaleString()}건`);
+    if (vhclItems.length) srcParts.push(`차량 ${Number(vhclRes.value.totalCount ?? vhclItems.length).toLocaleString()}건`);
+    const missing = [!mvastItems.length && '동산', !vhclItems.length && '차량'].filter(Boolean);
+    chip.textContent = `✅ 실시간 온비드 데이터 — ${srcParts.join(' + ')} 중 표시` + (missing.length ? ` (미연동: ${missing.join('·')})` : '');
   } catch(e) {
     if (seq !== liveFetchSeq) return;
     if (initial) {

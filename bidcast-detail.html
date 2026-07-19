@@ -1011,6 +1011,30 @@ document.getElementById('simGrid').innerHTML=simIds.slice(0,3).map(k=>{
 // 온비드 상세 API 연동 (실시간 물건)
 // ═══════════════════════════════════════════════════
 if(isLive&&liveItem){
+  // 회차별 입찰정보(실시간) — 성공 시 입찰 이력 타임라인을 실 데이터로 교체.
+  // 실패(501 미연동 포함)하면 스냅샷 기반 이력 유지 (독립 IIFE — 상세 API와 실패 분리)
+  (async()=>{
+    try{
+      const r=await fetch(`/.netlify/functions/onbid-bidinfo?cltrMngNo=${encodeURIComponent(String(liveItem.id))}&pbctCdtnNo=${encodeURIComponent(liveItem.pbctCdtnNo||'')}`);
+      if(!r.ok)return;
+      const data=await r.json();
+      const rounds=Array.isArray(data?.rounds)?data.rounds.filter(x=>x&&x.lowstAmt>0):[];
+      if(!rounds.length)return;
+      const fmtDt8=s=>{const t=String(s||'');return t.length>=8?`${t.slice(0,4)}.${t.slice(4,6)}.${t.slice(6,8)}`:'';};
+      const apprWonLive=(liveItem.appr||0)*10000;
+      document.getElementById('histList').innerHTML=rounds.map(rd=>{
+        const tag=rd.statNm||'진행';
+        const cls=/유찰|취소/.test(tag)?'fail':/낙찰/.test(tag)?'done':'live';
+        const period=[fmtDt8(rd.bidStart),fmtDt8(rd.bidEnd)].filter(Boolean).join(' ~ ');
+        const win=rd.winAmt>0?` · 낙찰가 ${fmtWon(rd.winAmt)}${apprWonLive>0?` (감정가 대비 ${Math.round(rd.winAmt/apprWonLive*100)}%)`:''}`:'';
+        return `<div class="h-row">
+          <span class="h-round">${rd.round}회차</span>
+          <div class="h-body"><div class="t">최저입찰가 ${fmtWon(rd.lowstAmt)}${win}</div><div class="m">${period||'기간 미공개'}</div></div>
+          <span class="h-tag ${cls}">${tag}</span>
+        </div>`;
+      }).join('')+'<p style="font-size:11px;color:var(--mute);margin-top:10px;">✅ 실시간 온비드 회차별 입찰정보</p>';
+    }catch(e){console.log('[detail] 입찰정보 연동 실패(스냅샷 유지):',e.message);}
+  })();
   (async()=>{
     const cltrMngNo=String(liveItem.id),pbctCdtnNo=liveItem.pbctCdtnNo||'';
     if(!cltrMngNo||!pbctCdtnNo){console.log('[detail] pbctCdtnNo 없음');return;}
