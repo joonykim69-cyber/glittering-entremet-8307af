@@ -25,7 +25,7 @@ a { color:inherit; }
 nav { position:sticky; top:0; z-index:100; background:rgba(255,255,255,.9); backdrop-filter:blur(14px); border-bottom:1px solid var(--line); }
 nav .wrap { display:flex; align-items:center; justify-content:space-between; padding:14px 0; }
 .logo { display:flex; align-items:center; gap:10px; font-weight:900; font-size:19.5px; text-decoration:none; color:var(--ink); }
-.logo-mark { width:36px; height:36px; border-radius:11px; background:#10201A; display:grid; place-items:center; color:#fff; font-size:20px; font-weight:900; box-shadow:0 0 14px rgba(0,200,127,.55); }
+.logo-mark { width:36px; height:36px; border-radius:11px; background:#00744B; display:grid; place-items:center; color:#fff; font-size:20px; font-weight:900; box-shadow:0 0 14px rgba(0,200,127,.55); }
 .nav-links { display:flex; gap:20px; list-style:none; }
 .nav-links a { text-decoration:none; color:var(--sub); font-size:14px; font-weight:600; }
 .nav-links a.on, .nav-links a:hover { color:var(--green-deep); }
@@ -129,13 +129,20 @@ footer ul a { text-decoration:none; font-size:12.5px; color:var(--sub); }
 footer ul a:hover { color:var(--green-deep); }
 footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
 @media (max-width:700px) { footer .cols { grid-template-columns:1fr 1fr; } }
+
+/* ═══ 커스텀 신호등 로고 — 이모지 대신 CSS 3등(等), 등 크기 확대판 ═══ */
+.logo-mark { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.13em; background:#00744B; }
+.logo-mark .tl { width:.55em; height:.55em; border-radius:50%; display:block; }
+.logo-mark .tl.r { background:#FF5F63; box-shadow:0 0 .32em rgba(255,95,99,.95); }
+.logo-mark .tl.y { background:#FFC24B; box-shadow:0 0 .32em rgba(255,194,75,.95); }
+.logo-mark .tl.g { background:#00E08F; box-shadow:0 0 .38em rgba(0,224,143,1); }
 </style>
 </head>
 <body>
 
 <nav>
   <div class="wrap">
-    <a class="logo" href="bidcast.html"><span class="logo-mark">🚦</span>신호등옥션</a>
+    <a class="logo" href="bidcast.html"><span class="logo-mark"><i class="tl r"></i><i class="tl y"></i><i class="tl g"></i></span>신호등옥션</a>
     <ul class="nav-links">
       <li><a href="bidcast-list.html">물건검색</a></li>
       <li><a href="bidcast-map.html">지도</a></li>
@@ -214,7 +221,7 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
   <div class="auth-modal">
     <button class="auth-close" type="button" onclick="closeAuth()" aria-label="닫기">✕</button>
     <div class="auth-head">
-      <span style="display:inline-flex;align-items:center;gap:8px;font-weight:900;font-size:16px;"><span class="logo-mark" style="width:24px;height:24px;font-size:11px;">🚦</span>신호등옥션</span>
+      <span style="display:inline-flex;align-items:center;gap:8px;font-weight:900;font-size:16px;"><span class="logo-mark" style="width:24px;height:24px;font-size:11px;"><i class="tl r"></i><i class="tl y"></i><i class="tl g"></i></span>신호등옥션</span>
       <h3 id="authTitle">간편하게 시작하기</h3>
       <p id="authSub">일정 알림을 받으려면 로그인이 필요해요.</p>
     </div>

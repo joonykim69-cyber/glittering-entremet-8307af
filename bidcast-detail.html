@@ -316,13 +316,20 @@ a{color:inherit;text-decoration:none;}
 .eval-desc{font-size:12px;color:var(--sub);line-height:1.6;}
 .eval-desc b{color:var(--red);font-weight:700;}
 .eval-desc a{color:var(--green-deep);font-weight:700;text-decoration:underline;}
+
+/* ═══ 커스텀 신호등 로고 — 이모지 대신 CSS 3등(等), 등 크기 확대판 ═══ */
+.logo-mark { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.13em; background:#00744B; }
+.logo-mark .tl { width:.55em; height:.55em; border-radius:50%; display:block; }
+.logo-mark .tl.r { background:#FF5F63; box-shadow:0 0 .32em rgba(255,95,99,.95); }
+.logo-mark .tl.y { background:#FFC24B; box-shadow:0 0 .32em rgba(255,194,75,.95); }
+.logo-mark .tl.g { background:#00E08F; box-shadow:0 0 .38em rgba(0,224,143,1); }
 </style>
 </head>
 <body>
 
 <!-- ══ 헤더 (탭 바) ══ -->
 <header class="rp-header">
-  <a href="bidcast.html" aria-label="신호등옥션 홈"><span class="logo-mark">🚦</span></a>
+  <a href="bidcast.html" aria-label="신호등옥션 홈"><span class="logo-mark"><i class="tl r"></i><i class="tl y"></i><i class="tl g"></i></span></a>
   <span class="rp-case-badge" id="rpCaseBadge">로딩중…</span>
   <nav class="rp-tabs" id="rpTabs" aria-label="리포트 탭">
     <button class="rp-tab active" type="button" data-tab="basic">기본정보</button>
@@ -343,7 +350,7 @@ a{color:inherit;text-decoration:none;}
   <div class="auth-modal">
     <button class="auth-close" type="button" onclick="closeAuth()" aria-label="닫기">✕</button>
     <div class="auth-head">
-      <span style="display:inline-flex;align-items:center;gap:8px;font-weight:900;font-size:15px;"><span class="logo-mark" style="width:23px;height:23px;font-size:11px;">🚦</span>신호등옥션</span>
+      <span style="display:inline-flex;align-items:center;gap:8px;font-weight:900;font-size:15px;"><span class="logo-mark" style="width:23px;height:23px;font-size:11px;"><i class="tl r"></i><i class="tl y"></i><i class="tl g"></i></span>신호등옥션</span>
       <h3 id="authTitle">간편하게 시작하기</h3>
       <p id="authSub">10초면 충분합니다. 비밀번호 없이 가입하세요.</p>
     </div>
