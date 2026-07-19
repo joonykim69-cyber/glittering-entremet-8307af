@@ -61,10 +61,10 @@ a{color:inherit;text-decoration:none;}
 .sb-sep{width:28px;height:1px;background:var(--line);margin:3px 0;}
 
 /* ═══ 히어로 (중앙 정렬, 다크 그린) ═══ */
-.rp-hero{background:var(--hero);color:#fff;padding:32px 20px 22px;text-align:center;position:relative;}
+.rp-hero{background:linear-gradient(150deg,#0E2A1F 0%,#00744B 78%,#009E8A 120%);color:#fff;padding:42px 20px 30px;text-align:center;position:relative;}
 .rp-hero-eyebrow{font-size:11px;font-weight:800;color:rgba(255,255,255,.4);letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px;}
 .rp-hero-title{font-size:clamp(18px,2.8vw,28px);font-weight:900;letter-spacing:-.03em;line-height:1.3;}
-.rp-hero-addr{font-size:13px;color:rgba(255,255,255,.55);margin-top:6px;}
+.rp-hero-addr{font-size:13.5px;color:rgba(255,255,255,.72);margin-top:8px;}
 .rp-hero-casebadge{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:7px 16px;margin-top:14px;font-size:13px;font-weight:800;cursor:default;}
 .rp-hero-casebadge .ico{font-size:14px;}
 .rp-demo-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:rgba(255,255,255,.4);border:1px dashed rgba(255,255,255,.18);padding:4px 11px;border-radius:999px;margin-top:12px;}
@@ -107,6 +107,12 @@ a{color:inherit;text-decoration:none;}
 
 /* ═══ 섹션 공통 ═══ */
 .rp-section{padding:20px 22px;border-bottom:1px solid var(--line);background:var(--surface);}
+.rgn-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.rgn-cell{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 12px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;}
+.rgn-donut{width:88px;height:88px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--green) calc(var(--p)*1%),var(--line) 0);}
+.rgn-donut i{width:66px;height:66px;border-radius:50%;background:var(--surface);display:grid;place-items:center;font-style:normal;font-weight:900;font-size:14.5px;letter-spacing:-.02em;}
+.rgn-cell .k{font-size:12px;color:var(--sub);font-weight:700;line-height:1.4;}
+@media(max-width:640px){.rgn-grid{grid-template-columns:1fr;}}
 .rp-section h2{font-size:15.5px;font-weight:900;letter-spacing:-.02em;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
 .sec-tag{font-size:10px;font-weight:800;background:var(--green-soft);color:var(--green-deep);padding:3px 8px;border-radius:999px;}
 .card{background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;}
@@ -499,6 +505,12 @@ h1,h2,h3,h4{font-family:var(--font-head)}
         <div class="card history" id="histList"></div>
       </section>
       <!-- 주변 실거래 — 국토부 실거래가 (실데이터, 라이브 물건 + 시군구 식별 성공 시에만 표시) -->
+      <!-- 인근 매각통계 — 캠코 지역별 공식 통계 (실데이터, 라이브 물건 + 지역 매칭 시 표시) -->
+      <section class="rp-section" id="sec-rgnstats" style="display:none;">
+        <h2>인근 매각통계 <span class="sec-tag" style="background:var(--green-soft);color:var(--green-deep);">캠코 공식 통계 · 실데이터</span></h2>
+        <div class="rgn-grid" id="rgnGrid"></div>
+        <p style="font-size:11px;color:var(--mute);margin-top:10px;" id="rgnNote"></p>
+      </section>
       <section class="rp-section" id="sec-rtms" style="display:none;">
         <h2>주변 실거래 <span class="sec-tag" style="background:var(--green-soft);color:var(--green-deep);">국토부 실거래가 · 실데이터</span></h2>
         <div class="card" id="rtmsCard"></div>
@@ -799,7 +811,7 @@ function buildLiveDetail(s) {
     type:s.type||'기타',region:s.region||'',court:s.court||'',title:s.title,
     address:s.address||'',appr:s.appr,min:s.min,fail:s.fail||0,status:s.status||'진행',
     thumb:s.thumb||'📦',caseNo:s.caseNo||String(s.id),photo:s.photo||'',
-    period:'물건상세 API 연동 후 제공',landArea:'—',bldArea:'—',
+    period:'물건상세 API 연동 후 제공',landArea:'공고 원문 확인',bldArea:'공고 원문 확인',
     usage:s.type||'—',floor:'—',built:'—',
     bidType:'공매(온비드)',deposit:Math.round(s.min*0.1),claim:0,
     startDate:'—',apprDate:'—',divDate:'—',saleDate:'—',
@@ -868,8 +880,8 @@ document.getElementById('dLandArea').textContent=it.landArea||'—';
 document.getElementById('dBldArea').textContent=it.bldArea||'—';
 document.getElementById('dAppr').textContent=fmtMwon(it.appr);
 document.getElementById('dMin').textContent=fmtMwon(it.min);
-document.getElementById('dDeposit').textContent=it.deposit?`${fmtMwon(it.deposit)} (10%)`:'—';
-document.getElementById('dClaim').textContent=it.claim?fmtMwon(it.claim):'—';
+document.getElementById('dDeposit').textContent=it.deposit?`${fmtMwon(it.deposit)} ${isLive?'(통상 최저가 10% 가정 — 공고 확인)':'(10%)'}`:'—';
+document.getElementById('dClaim').textContent=it.claim?fmtMwon(it.claim):(isLive?'해당 없음 (공매)':'—');
 document.getElementById('dStartDate').textContent=it.startDate||'—';
 document.getElementById('dApprDate').textContent=it.apprDate||'—';
 document.getElementById('dDivDate').textContent=it.divDate||'—';
@@ -878,11 +890,21 @@ document.getElementById('dSaleDate').textContent=it.saleDate||'—';
 // 사진 갤러리
 let galPhotos=[];let galIdx=0;
 document.getElementById('galleryThumb').textContent=it.thumb;
+// 온비드 이미지 서버가 외부 리퍼러를 거부하는 사례가 있어 no-referrer로 요청하고,
+// 고해상도(IMGE_NM) 실패 시 저해상도 썸네일(THNL_NM)로 강등 후에야 이모지로 폴백한다.
+function mkGalImg(src){
+  const img=document.createElement('img');
+  img.referrerPolicy='no-referrer';img.alt=it.title;img.src=src;
+  img.onerror=()=>{
+    if(img.src.includes('downloadImageKind=IMGE_NM')){
+      img.src=img.src.replace('downloadImageKind=IMGE_NM','downloadImageKind=THNL_NM');
+    }else{img.remove();galPhotos=[];}
+  };
+  return img;
+}
 if(it.photo&&/^https?:\/\//.test(it.photo)){
   galPhotos=[it.photo];
-  const img=document.createElement('img');img.src=it.photo;img.alt=it.title;
-  img.onerror=()=>{img.remove();galPhotos=[];};
-  document.getElementById('galInner').prepend(img);
+  document.getElementById('galInner').prepend(mkGalImg(it.photo));
 }
 if(galPhotos.length>1){
   document.getElementById('galPrev').style.display='';
@@ -894,9 +916,7 @@ function galNav(dir){
   if(!galPhotos.length)return;
   galIdx=(galIdx+dir+galPhotos.length)%galPhotos.length;
   document.querySelectorAll('#galInner img').forEach(im=>im.remove());
-  const img=document.createElement('img');img.src=galPhotos[galIdx];img.alt=it.title;
-  img.onerror=()=>img.remove();
-  document.getElementById('galInner').prepend(img);
+  document.getElementById('galInner').prepend(mkGalImg(galPhotos[galIdx]));
   document.getElementById('galCount').textContent=`${galIdx+1}/${galPhotos.length}`;
 }
 
@@ -1118,6 +1138,35 @@ if(isLive&&liveItem){
       const chip=document.getElementById('demoChip');
       if(chip)chip.textContent='📡 실시간 온비드 물건 — 상세정보 API 연동됨';
     }catch(e){console.log('[detail] 상세 API 오류:',e.message);}
+  })();
+  // 인근 매각통계 — 캠코 지역별 공식 통계(stat_rgn, 압류재산). 지역 미매칭·API 실패 시 섹션 숨김 유지.
+  (async()=>{
+    try{
+      const sidoTok=String(it.address||'').split(/\s+/)[0]||'';
+      if(!sidoTok)return;
+      const short=sidoTok.slice(0,2);
+      const now=new Date(Date.now()+9*3600*1000);const y=now.getUTCFullYear(),m=now.getUTCMonth()+1,q=Math.ceil(m/3);
+      const tries=[[String(y),`${y}년`],[`${y}-${q}`,`${y}년 ${q}분기`],...(q>1?[[`${y}-${q-1}`,`${y}년 ${q-1}분기`]]:[]),[String(y-1),`${y-1}년`]];
+      for(const [perd,label] of tries){
+        const r=await fetch(`/.netlify/functions/onbid-svc?svc=stat_rgn&statsTypeCd=0021&inqPerd=${encodeURIComponent(perd)}`);
+        if(!r.ok)continue;
+        const d=await r.json();
+        if(!Array.isArray(d.items)||!d.items.length)continue;
+        const row=d.items.find(x=>{const n=String(x.clsCdNm||'').trim();return n.startsWith(short)||sidoTok.startsWith(n.slice(0,2));});
+        if(!row)return;
+        const clean=v=>String(v).replace(/[<&>]/g,'');
+        const cells=[
+          {k:'감정가 대비 낙찰가율',num:Number(row.scfbAmtRto1)||0,disp:(Number(row.scfbAmtRto1)||0)?clean(row.scfbAmtRto1)+'%':'—'},
+          {k:'낙찰률 (매각 성사율)',num:Number(row.scbrt)||0,disp:(Number(row.scbrt)||0)?clean(row.scbrt)+'%':'—'},
+          {k:'평균 경쟁률',num:0,disp:clean(row.compRate||'—')},
+        ];
+        document.getElementById('rgnGrid').innerHTML=cells.map(c=>
+          `<div class="rgn-cell"><div class="rgn-donut" style="--p:${Math.max(0,Math.min(100,c.num))}"><i>${c.disp}</i></div><div class="k">${c.k}</div></div>`).join('');
+        document.getElementById('rgnNote').textContent=`※ ${String(row.clsCdNm).trim()} 압류재산 매각 통계 (${label}) · 낙찰 ${Number(row.mtSumCnt||0).toLocaleString()}건 기준 · 출처: 캠코(온비드) 공식 통계`;
+        document.getElementById('sec-rgnstats').style.display='';
+        return;
+      }
+    }catch(e){console.log('[detail] 지역 통계 로드 실패(숨김):',e.message);}
   })();
   // 주변 실거래 — 국토부 실거래가(rtms-svc). 시군구 코드 미등록·용도 미매핑·표본 0이면 섹션 숨김 유지.
   (async()=>{
