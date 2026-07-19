@@ -1212,7 +1212,8 @@ async function loadRealItems(opts = {}) {
   const initial = !liveMode;
   const seq = ++liveFetchSeq;
   try {
-    const p = new URLSearchParams({ page:'1', numOfRows:'30' });
+    // 같은 건물 대표 1건만 남기는 축약 후에도 목록이 충분하도록 넉넉히 요청
+    const p = new URLSearchParams({ page:'1', numOfRows:'60' });
     if (opts.region) p.set('region', opts.region);
     if (opts.keyword) p.set('keyword', opts.keyword);
     // 부동산 + 동산을 병렬 요청 — 동산 프록시(onbid-mvast-search)는 환경변수 미설정 시
@@ -1229,8 +1230,18 @@ async function loadRealItems(opts = {}) {
     const mvastItems = (mvastRes.status === 'fulfilled' && Array.isArray(mvastRes.value.items)) ? mvastRes.value.items : [];
     const merged = [...data.items, ...mvastItems];
     const seenIds = new Set();
-    ITEMS = merged.filter(it => { const k = String(it.id); if (seenIds.has(k)) return false; seenIds.add(k); return true; })
-                  .map(it => ({ ...it, mode:deriveModes(it) }));
+    const uniq = merged.filter(it => { const k = String(it.id); if (seenIds.has(k)) return false; seenIds.add(k); return true; });
+    // 같은 건물의 여러 호수(101호/102호/…)는 대표 1건만 표시 — 사진 있는 물건 우선.
+    // buildingKey: 제목에서 "NNN호 …"/"제N층 …" 꼬리를 제거해 건물 단위로 묶는다 (부동산만 적용).
+    const buildingKey = it => (it.title || '').replace(/\s*제?\d+\s*호(?:\s|$).*$/, '').replace(/\s*제?\d+층.*$/, '').trim() || String(it.id);
+    const byBld = new Map();
+    for (const it of uniq) {
+      if (it.assetClass === '동산') { byBld.set('mv:' + it.id, it); continue; } // 동산은 축약 없이 전부
+      const k = buildingKey(it);
+      const prev = byBld.get(k);
+      if (!prev || (!prev.photo && it.photo)) byBld.set(k, it); // 사진 있는 물건을 대표로
+    }
+    ITEMS = [...byBld.values()].map(it => ({ ...it, mode:deriveModes(it) }));
     liveMode = true;
     const totalRlst = data.totalCount ?? data.items.length;
     chip.textContent = mvastItems.length
