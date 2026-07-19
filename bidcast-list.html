@@ -815,7 +815,8 @@ function resetFilters() {
 function computeFilteredList() {
   // 인기물건 탭: 실시간 관심물건순위(주간) 데이터가 로드돼 있으면 그것을 기반으로
   const usingRank = activeMode === 'popular' && liveMode && Array.isArray(RANK_ITEMS) && RANK_ITEMS.length > 0;
-  let list = usingRank ? [...RANK_ITEMS] : ITEMS.filter(it => it.mode.includes(activeMode));
+  const usingSold = activeMode === 'sold' && liveMode && Array.isArray(SOLD_ITEMS) && SOLD_ITEMS.length > 0;
+  let list = usingRank ? [...RANK_ITEMS] : usingSold ? [...SOLD_ITEMS] : ITEMS.filter(it => it.mode.includes(activeMode));
 
   // 타입 필터: activeTypes에 포함된 타입만 — 데모 ITEMS의 'type' 값이 ALL_TYPES의
   // 부동산/동산 값과 다를 수 있으므로 데모 타입을 그대로 허용하는 정규화 적용
@@ -925,7 +926,9 @@ function renderCard(it) {
     <div class="item-tags">${it.tags.map(t=>`<span>${t}</span>`).join('')}</div>
     <div class="item-prices">
       <div class="item-price-cell">감정가<b>${fmtWon(it.appr)}</b></div>
-      <div class="item-price-cell">최저가<b>${fmtWon(it.min)} <span style="font-size:11px;font-weight:700;color:var(--green-deep);">${pct}</span></b></div>
+      ${it.win > 0
+        ? `<div class="item-price-cell">낙찰가<b>${fmtWon(it.win)} <span style="font-size:11px;font-weight:700;color:var(--red);">${it.winRate ? it.winRate + '%' : ''}</span></b></div>`
+        : `<div class="item-price-cell">최저가<b>${fmtWon(it.min)} <span style="font-size:11px;font-weight:700;color:var(--green-deep);">${pct}</span></b></div>`}
     </div>
     <div class="item-foot">
       <span class="item-views">👁 ${it.views.toLocaleString()}</span>
@@ -955,8 +958,8 @@ function renderRow(it) {
     <div class="item-row-price">
       <div class="lbl">감정가</div>
       <div class="appr-val">${fmtWon(it.appr)}</div>
-      <div class="min-val">${fmtWon(it.min)}</div>
-      <div class="min-pct">감정가 ${pct}</div>
+      <div class="min-val">${fmtWon(it.win > 0 ? it.win : it.min)}</div>
+      <div class="min-pct">${it.win > 0 ? `낙찰가율 ${it.winRate ? it.winRate + '%' : '—'}` : `감정가 ${pct}`}</div>
     </div>
     <div class="item-row-actions">
       <button type="button" class="row-heart ${liked?'on':''}" onclick="toggleLike('${it.id}',this)" aria-label="${liked?'관심 해제':'관심 등록'}">♥</button>
@@ -1022,7 +1025,8 @@ function updateFeatured(list) {
 // ═══════════════════════════════════════
 function stashDetail(id) {
   const it = ITEMS.find(x => String(x.id) === String(id))
-    || (Array.isArray(RANK_ITEMS) ? RANK_ITEMS.find(x => String(x.id) === String(id)) : null);
+    || (Array.isArray(RANK_ITEMS) ? RANK_ITEMS.find(x => String(x.id) === String(id)) : null)
+    || (Array.isArray(SOLD_ITEMS) ? SOLD_ITEMS.find(x => String(x.id) === String(id)) : null);
   if (it) { try { sessionStorage.setItem('bidcast:detail', JSON.stringify(it)); } catch(e) {} }
 }
 
@@ -1175,6 +1179,8 @@ document.querySelectorAll('#modeTabs button').forEach(btn => {
     activeMode = btn.dataset.mode;
     // 인기물건 탭 첫 진입 시 관심물건순위 실 데이터를 lazy 로드 (일일 쿼터 절약)
     if (activeMode === 'popular' && liveMode && RANK_ITEMS === null) loadRankItems();
+    // 매각결과 탭 첫 진입 시 실제 개찰 결과(낙찰)를 lazy 로드
+    if (activeMode === 'sold' && liveMode && SOLD_ITEMS === null) loadSoldItems();
     applyFilters();
   });
 });
@@ -1337,6 +1343,65 @@ async function loadRankItems() {
   } finally {
     rankLoading = false;
     if (activeMode === 'popular') applyFilters();
+  }
+}
+
+// ═══════════════════════════════════════
+// 매각결과 탭 — 실제 개찰 결과(낙찰) lazy 로드 (onbid-bidresults, 최근 90일·개찰완료)
+// ═══════════════════════════════════════
+let SOLD_ITEMS = null; // null=미로드, []=로드 실패/빈 결과(데모 폴백), [..]=낙찰 최신순
+let soldLoading = false;
+function soldType(usage, typeCd) {
+  const u = String(usage || '');
+  if (typeCd === '0002' || /승용|승합|화물|버스|차량|트럭/.test(u)) return '차량';
+  if (/아파트/.test(u)) return '아파트';
+  if (/오피스텔|연립|다세대|단독|다가구|주택/.test(u)) return '아파트';
+  if (/토지|임야|대지|잡종지|^전$|^답$|과수원/.test(u)) return '토지';
+  if (/상가|근린|점포|사무|업무/.test(u)) return '상가';
+  if (/기계|장비|설비|공작/.test(u)) return '기계장비';
+  if (/증권|주식|채권|출자/.test(u)) return '유가증권';
+  return typeCd === '0003' ? '기계장비' : '기타';
+}
+const SOLD_ICON = { 아파트:'🏢', 토지:'🏞️', 상가:'🏬', 차량:'🚗', 기계장비:'🏭', 유가증권:'📈', 기타:'📦' };
+async function loadSoldItems() {
+  if (soldLoading) return;
+  soldLoading = true;
+  try {
+    const settled = await Promise.allSettled(['0001', '0002', '0003'].map(cd =>
+      fetch(`/.netlify/functions/onbid-bidresults?cltrTypeCd=${cd}&numOfRows=100&page=1`)
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(d => ({ cd, results: Array.isArray(d.results) ? d.results : [] }))
+    ));
+    const items = [];
+    settled.forEach(st => {
+      if (st.status !== 'fulfilled') return;
+      st.value.results.forEach(r => {
+        if (r.statCd !== '0010' || !(r.winAmt > 0) || !r.id) return;
+        const t = soldType(r.usage, st.value.cd);
+        const opbd = String(r.opbdDt || '').slice(0, 8);
+        items.push({
+          id: r.id, pbctCdtnNo: r.pbctCdtnNo || '',
+          caseNo: r.pbctCdtnNo ? `${r.id}-${r.pbctCdtnNo}` : r.id,
+          title: r.title || '(물건명 미상)', address: '', region: '',
+          court: '온비드 공매', type: t,
+          appr: Math.round((r.apslAmt || 0) / 10000), min: Math.round((r.lowstAmt || 0) / 10000),
+          win: Math.round(r.winAmt / 10000), winRate: r.winRate || 0,
+          fail: 0, status: '낙찰',
+          tags: [`#낙찰가율 ${r.winRate ? r.winRate + '%' : '—'}`, opbd ? `#개찰 ${opbd.slice(4, 6)}.${opbd.slice(6, 8)}` : '', r.bidderCnt ? `#입찰 ${r.bidderCnt}명` : ''].filter(Boolean),
+          views: 0, thumb: SOLD_ICON[t] || '📦', photo: '',
+          opbd, mode: ['sold'],
+        });
+      });
+    });
+    items.sort((a, b) => (b.opbd || '').localeCompare(a.opbd || ''));
+    SOLD_ITEMS = items.slice(0, 90);
+    console.info('[bidcast] 매각결과 로드:', SOLD_ITEMS.length, '건 (최근 90일 개찰완료·낙찰)');
+  } catch (e) {
+    SOLD_ITEMS = [];
+    console.info('[bidcast] 매각결과 로드 실패(데모 유지):', e.message);
+  } finally {
+    soldLoading = false;
+    if (activeMode === 'sold') applyFilters();
   }
 }
 
