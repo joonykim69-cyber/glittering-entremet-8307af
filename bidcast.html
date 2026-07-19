@@ -1322,20 +1322,72 @@ function fmtManwon(man) {
   if (man >= 10000) return (man / 10000).toFixed(man % 10000 === 0 ? 0 : 1) + '억';
   return man.toLocaleString() + '만';
 }
-// 규칙 기반 예상 범위 — AI 모델이 아닌 단순 규칙 (카드에 예시 라벨 동반)
+// 규칙 기반 예상 범위 — 통계 미가용 시의 폴백 (카드에 예시 라벨 동반)
 function rulePred(it) {
   const lo = Math.round(it.min * 1.03);
   let hi = Math.round(Math.min(it.appr > 0 ? it.appr : it.min * 1.2, it.min * 1.18));
   if (hi <= lo) hi = Math.round(lo * 1.08);
   return { lo, hi };
 }
+
+// ═══ 캠코 공식 용도별 낙찰가율 통계 (onbid-svc?svc=stat_usg) ═══
+// 필드: clsCdNm(용도), mtSumCnt(낙찰건수), scbrt(낙찰률%), compRate(경쟁률 "N:1"),
+//       scfbAmtRto1(감정가 대비 낙찰가율%), scfbAmtRto2(최저가 대비 낙찰가율%)
+let USG_STATS = null;   // clsCdNm(trim) → row
+let USG_STATS_YEAR = '';
+async function loadUsgStats() {
+  const year = new Date(Date.now() + 9 * 3600 * 1000).getUTCFullYear();
+  for (const y of [year, year - 1]) {
+    try {
+      const res = await fetch(`/.netlify/functions/onbid-svc?svc=stat_usg&statsTypeCd=0041&inqPerd=${y}`);
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (!Array.isArray(data.items) || !data.items.length) continue;
+      USG_STATS = {};
+      data.items.forEach(r => { USG_STATS[String(r.clsCdNm || '').trim()] = r; });
+      USG_STATS_YEAR = String(y);
+      return;
+    } catch (e) { /* 다음 연도 폴백 */ }
+  }
+}
+// 물건 type → 통계 용도 분류(clsCdNm) 매칭
+const STAT_BUCKET = {
+  '아파트': '아파트', '단독주택': '단독주택/다가구', '연립다세대': '연립주택/다세대/빌라',
+  '오피스텔': '기타주거용건물', '토지': '토지', '농지임야': '임야',
+  '상가': '근린생활시설', '사무실': '비주거용건물', '공장창고': '산업용및용도복합용건물등',
+};
+function statFor(it) {
+  if (!USG_STATS) return null;
+  return USG_STATS[STAT_BUCKET[it.type]] || USG_STATS['전체'] || null;
+}
+
 function liveCard(it) {
-  const { lo, hi } = rulePred(it);
   const ratio = it.appr > 0 ? it.min / it.appr : 1;
   const caution = it.fail >= 2 || ratio < 0.6;
   const badge = caution
     ? '<span class="sig-badge wait">✋ 주의 신호</span>'
     : '<span class="sig-badge go">🚶 기회 신호</span>';
+
+  // 예상 범위: 캠코 공식 통계(감정가 앵커 × rto1, 최저가 앵커 × rto2) 우선, 미가용 시 규칙 기반 예시
+  const st = statFor(it);
+  let lo, hi, predLabel, predBase;
+  const anchors = [];
+  if (st) {
+    if (it.appr > 0 && Number(st.scfbAmtRto1) > 0) anchors.push(it.appr * Number(st.scfbAmtRto1) / 100);
+    if (it.min > 0 && Number(st.scfbAmtRto2) > 0) anchors.push(it.min * Number(st.scfbAmtRto2) / 100);
+  }
+  if (anchors.length) {
+    lo = Math.round(Math.min(...anchors));
+    hi = Math.round(Math.max(...anchors));
+    if (hi <= lo) hi = Math.round(lo * 1.05);
+    predLabel = `통계 기반 예상 범위 (${USG_STATS_YEAR} 압류재산 낙찰가율)`;
+    predBase = `근거: ${escHtml(String(st.clsCdNm).trim())} 낙찰 <b>${Number(st.mtSumCnt).toLocaleString()}건</b> · 평균 낙찰가율 <b>${st.scfbAmtRto1}%</b> · 경쟁률 ${escHtml(String(st.compRate || '—'))} — 캠코 공식 통계`;
+  } else {
+    ({ lo, hi } = rulePred(it));
+    predLabel = '규칙 기반 예상 범위 (예시 — 통계 연동 전)';
+    predBase = '물건 정보는 <b>실시간 온비드 데이터</b> · 예상 범위·신호는 규칙 기반 예시';
+  }
+
   const span = it.appr - it.min;
   let bar = '';
   if (span > 0) {
@@ -1357,18 +1409,22 @@ function liveCard(it) {
       <h4>${escHtml(it.title)}</h4>
       <p class="meta">${escHtml(it.address || '')} · 감정가 ${fmtManwon(it.appr)} · 유찰 ${it.fail}회</p>
       <div class="pred">
-        <div class="pl">규칙 기반 예상 범위 (예시 — AI 모델 연동 전)</div>
+        <div class="pl">${predLabel}</div>
         <div class="pv">${fmtManwon(lo)} ~ ${fmtManwon(hi)}</div>
         ${bar}
-        <p class="base">물건 정보는 <b>실시간 온비드 데이터</b> · 예상 범위·신호는 규칙 기반 예시</p>
+        <p class="base">${predBase}</p>
       </div>
     </div>
   </article>`;
 }
 async function loadLiveListings() {
   try {
-    // 온비드는 같은 물건을 회차별 행으로 반복 반환 → 중복 제거 후 물건 수가 줄어들므로 넉넉히 요청
-    const res = await fetch('/.netlify/functions/onbid-search?page=1&numOfRows=60');
+    // 온비드는 같은 물건을 회차별 행으로 반복 반환 → 중복 제거 후 물건 수가 줄어들므로 넉넉히 요청.
+    // 낙찰가율 통계는 병렬로 로드 — 실패해도 카드 자체는 규칙 기반 예시로 동작.
+    const [res] = await Promise.all([
+      fetch('/.netlify/functions/onbid-search?page=1&numOfRows=60'),
+      loadUsgStats(),
+    ]);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     if (!Array.isArray(data.items) || data.items.length === 0) throw new Error('빈 응답');
@@ -1402,7 +1458,9 @@ async function loadLiveListings() {
       card.addEventListener('click', go);
       card.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
     });
-    document.getElementById('predictChip').textContent = '✅ 물건 정보는 실시간 온비드 데이터 · 예상 범위는 규칙 기반 예시';
+    document.getElementById('predictChip').textContent = USG_STATS
+      ? `✅ 실시간 온비드 물건 · 예상 범위는 캠코 공식 낙찰가율 통계(${USG_STATS_YEAR}) 기반`
+      : '✅ 물건 정보는 실시간 온비드 데이터 · 예상 범위는 규칙 기반 예시';
     document.getElementById('quickSearchChip').textContent = '✅ 부동산 물건은 실시간 온비드 데이터로 검색됩니다';
     document.getElementById('heroNote').textContent = '※ 예측 정보는 과거 낙찰 데이터 기반의 통계적 참고자료이며, 입찰 결과를 보장하지 않습니다. 물건 정보는 실시간 온비드 공공 API 데이터입니다.';
   } catch (e) {
