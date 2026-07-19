@@ -176,6 +176,7 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
 /* 나 vs AI 채점 버튼 */
 .grade-btn { font:inherit; font-size:11.5px; font-weight:800; cursor:pointer; background:var(--green-soft); border:1.5px solid var(--green); color:var(--green-deep); padding:6px 10px; border-radius:9px; white-space:nowrap; }
 .grade-btn:disabled { opacity:.5; cursor:wait; }
+.grade-none { font-size:10.5px; color:var(--mute); border:1px dashed var(--line); padding:5px 8px; border-radius:9px; white-space:nowrap; cursor:help; }
 </style>
 </head>
 <body>
@@ -473,7 +474,7 @@ function renderSims() {
         <div class="t">${s.title ? '📌 ' + String(s.title).replace(/</g,'&lt;') + ' — ' : ''}감정가 ${fmt(s.appr)} · 입찰가율 ${s.ratio}% · LTV ${s.ltv}%</div>
         <div class="m">마진 <b class="${s.margin >= 0 ? 'pos' : 'neg'}">${fmt(s.margin)}</b> · 수익률 ${s.roi}% · 실자금 ${fmt(s.capital)}</div>
       </div>
-      ${s.id && s.cdtn ? `<button type="button" class="grade-btn" onclick="gradeSim(${s.at})">🏁 개찰 채점</button>` : ''}
+      ${s.id && s.cdtn ? `<button type="button" class="grade-btn" onclick="gradeSim(${s.at})">🏁 개찰 채점</button>` : `<span class="grade-none" role="button" tabindex="0" onclick="alert('이 시나리오는 실제 물건과 연결돼 있지 않아 개찰 채점을 할 수 없어요.\\n\\n물건검색 → 실물건 상세 → \\'모의 입찰해보기\\' 버튼으로 진입한 뒤 저장하면 🏁 개찰 채점 버튼이 생깁니다.')">물건 미연결 ⓘ</span>`}
       <button type="button" onclick="deleteSim(${s.at})" aria-label="시나리오 삭제">✕</button>
     </div>`).join('')}</div>`;
 }
