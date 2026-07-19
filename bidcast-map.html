@@ -266,6 +266,21 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
 .logo-mark .tl.y { background:#FFC24B; box-shadow:0 0 .32em rgba(255,194,75,.95); }
 .logo-mark .tl.g { background:#00E08F; box-shadow:0 0 .38em rgba(0,224,143,1); }
 </style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Nunito:wght@700;800;900&family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap">
+<style>
+/* ═══ 디자인 시스템 v2 공통 오버라이드 (클로드 디자인 병합, 2026-07-19) ═══
+   랜딩(bidcast.html)에서 채택한 새 포맷을 전 페이지에 전파:
+   - 타이포: Nunito(제목)/Poppins+Noto Sans KR(본문)
+   - 로고: 딥그린 함체 세로 신호등 → 투명 가로 3도트 (마크업 변경 없이 오버라이드) */
+:root{--yellow:#F5B90F;--yellow-soft:#FDF4D7;--font:'Poppins','Noto Sans KR',-apple-system,'Malgun Gothic',sans-serif;--font-head:'Nunito','Noto Sans KR',-apple-system,'Malgun Gothic',sans-serif}
+body{font-family:var(--font) !important}
+h1,h2,h3,h4{font-family:var(--font-head)}
+.logo-mark{display:flex !important;flex-direction:row !important;align-items:center !important;gap:5px !important;background:transparent !important;box-shadow:none !important;width:auto !important;height:auto !important;padding:0 !important;border-radius:0 !important}
+.logo-mark .tl{width:10px !important;height:10px !important;box-shadow:none !important}
+.logo-mark .tl.r{background:#EB763C !important}
+.logo-mark .tl.y{background:#FFC000 !important}
+.logo-mark .tl.g{background:#27A857 !important}
+</style>
 </head>
 <body>
 
