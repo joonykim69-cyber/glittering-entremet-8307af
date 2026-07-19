@@ -483,6 +483,12 @@ a{color:inherit;text-decoration:none;}
         <h2>입찰 이력</h2>
         <div class="card history" id="histList"></div>
       </section>
+      <!-- 주변 실거래 — 국토부 실거래가 (실데이터, 라이브 물건 + 시군구 식별 성공 시에만 표시) -->
+      <section class="rp-section" id="sec-rtms" style="display:none;">
+        <h2>주변 실거래 <span class="sec-tag" style="background:var(--green-soft);color:var(--green-deep);">국토부 실거래가 · 실데이터</span></h2>
+        <div class="card" id="rtmsCard"></div>
+        <p style="font-size:11px;color:var(--mute);margin-top:10px;" id="rtmsNote"></p>
+      </section>
       <!-- 6. 당사자 내역 | 기일 내역 -->
       <div class="split-row" id="sec-parties">
         <div class="split-cell">
@@ -1097,6 +1103,78 @@ if(isLive&&liveItem){
       const chip=document.getElementById('demoChip');
       if(chip)chip.textContent='📡 실시간 온비드 물건 — 상세정보 API 연동됨';
     }catch(e){console.log('[detail] 상세 API 오류:',e.message);}
+  })();
+  // 주변 실거래 — 국토부 실거래가(rtms-svc). 시군구 코드 미등록·용도 미매핑·표본 0이면 섹션 숨김 유지.
+  (async()=>{
+    try{
+      // 행정표준 법정동코드 앞 5자리(시군구). 수도권·광역시 전체 + 주요 시 단위 — 군 단위 등 미등록 지역은 v2에서 확장.
+      const RTMS_LAWD={
+        '서울':{'종로구':'11110','중구':'11140','용산구':'11170','성동구':'11200','광진구':'11215','동대문구':'11230','중랑구':'11260','성북구':'11290','강북구':'11305','도봉구':'11320','노원구':'11350','은평구':'11380','서대문구':'11410','마포구':'11440','양천구':'11470','강서구':'11500','구로구':'11530','금천구':'11545','영등포구':'11560','동작구':'11590','관악구':'11620','서초구':'11650','강남구':'11680','송파구':'11710','강동구':'11740'},
+        '부산':{'중구':'26110','서구':'26140','동구':'26170','영도구':'26200','부산진구':'26230','동래구':'26260','남구':'26290','북구':'26320','해운대구':'26350','사하구':'26380','금정구':'26410','강서구':'26440','연제구':'26470','수영구':'26500','사상구':'26530','기장군':'26710'},
+        '대구':{'중구':'27110','동구':'27140','서구':'27170','남구':'27200','북구':'27230','수성구':'27260','달서구':'27290','달성군':'27710','군위군':'27720'},
+        '인천':{'중구':'28110','동구':'28140','미추홀구':'28177','연수구':'28185','남동구':'28200','부평구':'28237','계양구':'28245','서구':'28260','강화군':'28710','옹진군':'28720'},
+        '광주':{'동구':'29110','서구':'29140','남구':'29155','북구':'29170','광산구':'29200'},
+        '대전':{'동구':'30110','중구':'30140','서구':'30170','유성구':'30200','대덕구':'30230'},
+        '울산':{'중구':'31110','남구':'31140','동구':'31170','북구':'31200','울주군':'31710'},
+        '세종':{'세종시':'36110','세종특별자치시':'36110'},
+        '경기':{'수원시 장안구':'41111','수원시 권선구':'41113','수원시 팔달구':'41115','수원시 영통구':'41117','성남시 수정구':'41131','성남시 중원구':'41133','성남시 분당구':'41135','의정부시':'41150','안양시 만안구':'41171','안양시 동안구':'41173','부천시':'41190','부천시 원미구':'41192','부천시 소사구':'41194','부천시 오정구':'41196','광명시':'41210','평택시':'41220','동두천시':'41250','안산시 상록구':'41271','안산시 단원구':'41273','고양시 덕양구':'41281','고양시 일산동구':'41285','고양시 일산서구':'41287','과천시':'41290','구리시':'41310','남양주시':'41360','오산시':'41370','시흥시':'41390','군포시':'41410','의왕시':'41430','하남시':'41450','용인시 처인구':'41461','용인시 기흥구':'41463','용인시 수지구':'41465','파주시':'41480','이천시':'41500','안성시':'41550','김포시':'41570','화성시':'41590','광주시':'41610','양주시':'41630','포천시':'41650','여주시':'41670','연천군':'41800','가평군':'41820','양평군':'41830'},
+        '강원':{'춘천시':'51110','원주시':'51130','강릉시':'51150','동해시':'51170','태백시':'51190','속초시':'51210','삼척시':'51230'},
+        '충북':{'청주시 상당구':'43111','청주시 서원구':'43112','청주시 흥덕구':'43113','청주시 청원구':'43114','충주시':'43130','제천시':'43150'},
+        '충남':{'천안시 동남구':'44131','천안시 서북구':'44133','공주시':'44150','보령시':'44180','아산시':'44200','서산시':'44210','논산시':'44230','계룡시':'44250','당진시':'44270'},
+        '전북':{'전주시 완산구':'52111','전주시 덕진구':'52113','군산시':'52130','익산시':'52140','정읍시':'52180','남원시':'52190','김제시':'52210'},
+        '전남':{'목포시':'46110','여수시':'46130','순천시':'46150','나주시':'46170','광양시':'46230'},
+        '경북':{'포항시 남구':'47111','포항시 북구':'47113','경주시':'47130','김천시':'47150','안동시':'47170','구미시':'47190','영주시':'47210','영천시':'47230','상주시':'47250','문경시':'47280','경산시':'47290'},
+        '경남':{'창원시 의창구':'48121','창원시 성산구':'48123','창원시 마산합포구':'48125','창원시 마산회원구':'48127','창원시 진해구':'48129','진주시':'48170','통영시':'48220','사천시':'48240','김해시':'48250','밀양시':'48270','거제시':'48310','양산시':'48330'},
+        '제주':{'제주시':'50110','서귀포시':'50130'},
+      };
+      const sidoNorm=s=>{
+        if(/^충청북/.test(s))return '충북';if(/^충청남/.test(s))return '충남';
+        if(/^전라북|^전북/.test(s))return '전북';if(/^전라남/.test(s))return '전남';
+        if(/^경상북/.test(s))return '경북';if(/^경상남/.test(s))return '경남';
+        return s.slice(0,2);
+      };
+      const addr=String(it.address||liveItem.address||'');
+      const t=addr.split(/\s+/).filter(Boolean);
+      if(t.length<2)return;
+      const sido=sidoNorm(t[0]);
+      let sgg=t[1]||'';
+      if(sido==='세종')sgg='세종시';
+      else if(t[2]&&/구$/.test(t[2])&&/시$/.test(t[1]))sgg=t[1]+' '+t[2];
+      const lawd=(RTMS_LAWD[sido]||{})[sgg];
+      if(!lawd){console.log('[rtms] 시군구 코드 미등록:',sido,sgg);return;}
+      // 용도 → 실거래 서비스 매핑 (매핑 불가 용도는 시세 표본이 무의미하므로 표시하지 않음)
+      const u=(liveItem.usage||'')+' '+(it.type||'');
+      const svc=/아파트/.test(u)?'apt_trade_dev':/오피스텔/.test(u)?'offi_trade':/연립|다세대|빌라/.test(u)?'rh_trade':/단독|다가구/.test(u)?'sh_trade':/토지|임야|대지|잡종지|^전\s|\s전\s|답/.test(u)?'land_trade':/상가|근린|점포|사무|업무/.test(u)?'nrg_trade':/공장|창고/.test(u)?'indu_trade':null;
+      if(!svc){console.log('[rtms] 용도 미매핑:',u);return;}
+      const months=[];const d=new Date(Date.now()+9*3600*1000);
+      for(let i=0;i<3;i++){months.push(`${d.getUTCFullYear()}${String(d.getUTCMonth()+1).padStart(2,'0')}`);d.setUTCMonth(d.getUTCMonth()-1);}
+      const rs=await Promise.allSettled(months.map(mm=>fetch(`/.netlify/functions/rtms-svc?svc=${svc}&lawdCd=${lawd}&dealYmd=${mm}&numOfRows=200`).then(r=>r.ok?r.json():null)));
+      let deals=[];rs.forEach(r=>{if(r.status==='fulfilled'&&r.value&&Array.isArray(r.value.items))deals=deals.concat(r.value.items);});
+      const num=v=>parseInt(String(v??'').replace(/[^0-9]/g,''),10)||0;
+      deals=deals.map(x=>({
+        dong:x.umdNm||'',
+        name:x.aptNm||x.offiNm||x.mhouseNm||x.bldgNm||x.buildingUse||x.jimok||x.houseType||'',
+        area:parseFloat(x.excluUseAr||x.dealArea||x.buildingAr||x.totalFloorAr||x.plottageAr||'')||0,
+        amt:num(x.dealAmount),y:num(x.dealYear),m:num(x.dealMonth),dd:num(x.dealDay),
+        canceled:!!(x.cdealType&&String(x.cdealType).trim()),
+      })).filter(x=>x.amt>0&&!x.canceled);
+      if(!deals.length){console.log('[rtms] 표본 0건:',svc,lawd);return;}
+      deals.sort((a,b)=>(b.y*10000+b.m*100+b.dd)-(a.y*10000+a.m*100+a.dd));
+      // 같은 읍면동 거래가 3건 이상이면 동 단위로 좁혀서 표시
+      const emd=t.slice(1).find(w=>/(동|리|가|읍|면)$/.test(w)&&!/(구|시|군)$/.test(w))||'';
+      const local=emd?deals.filter(x=>x.dong===emd):[];
+      const use=local.length>=3?local:deals;
+      const scope=local.length>=3?emd:`${sgg} 전체`;
+      const per=use.filter(x=>x.area>0).map(x=>x.amt/x.area).sort((a,b)=>a-b);
+      const med=per.length>=3?per[Math.floor(per.length/2)]:0;
+      const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+      const svcName={apt_trade_dev:'아파트 매매',offi_trade:'오피스텔 매매',rh_trade:'연립다세대 매매',sh_trade:'단독/다가구 매매',land_trade:'토지 매매',nrg_trade:'상업업무용 매매',indu_trade:'공장·창고 매매'}[svc];
+      document.getElementById('rtmsCard').innerHTML=
+        (med?`<div style="padding:12px 14px;background:var(--green-soft);border-radius:12px;margin-bottom:12px;font-size:13.5px;">${esc(scope)} ${esc(svcName)} ㎡당 중앙값 <b>${Math.round(med).toLocaleString()}만원</b> <span style="color:var(--sub);">(평당 약 ${Math.round(med*3.3058).toLocaleString()}만원 · 면적 확인 표본 ${per.length}건)</span></div>`:'')+
+        `<table class="info-table">${use.slice(0,8).map(x=>`<tr><th style="white-space:nowrap;">${x.y}.${String(x.m).padStart(2,'0')}.${String(x.dd).padStart(2,'0')}</th><td>${esc(x.dong)} ${esc(x.name)}${x.area?` · ${x.area}㎡`:''}</td><td style="text-align:right;font-weight:800;white-space:nowrap;">${fmtWon(x.amt*10000)}</td></tr>`).join('')}</table>`;
+      document.getElementById('rtmsNote').textContent=`※ 최근 3개월 ${t[0]} ${sgg} ${svcName} 신고 거래 ${deals.length}건 중 최신순 표시 · 출처: 국토교통부 실거래가 공개시스템 (계약 후 30일 이내 신고분만 반영)`;
+      document.getElementById('sec-rtms').style.display='';
+    }catch(e){console.log('[rtms] 주변 실거래 로드 실패(섹션 미표시):',e.message);}
   })();
 }
 
