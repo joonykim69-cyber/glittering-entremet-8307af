@@ -37,19 +37,22 @@ function parseAmt(v) {
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
-// 회차 1건 tolerant 매핑 — 필드명 후보를 순서대로 시도, 원본은 debug로 확인
+// 회차 1건 매핑 — 입찰결과목록 실 응답(2026-07-19)으로 확정된 동일 계열 필드 사용:
+// scfbAmt(낙찰금액), apslPrcCtrsScfbPrcRto(감정가 대비 낙찰가율), cltrOpbdDt(개찰일시),
+// vldBddrNope(유효 입찰자 수), pbctNsq(회차)
 function mapRound(r, idx) {
   const statCd = r.pbctStatCd != null ? String(r.pbctStatCd).padStart(4, '0') : '';
   return {
-    round: Number(r.pbctNsq ?? r.pbctSn ?? r.nsq ?? idx + 1) || idx + 1,
-    lowstAmt: parseAmt(r.lowstBidPrcIndctCont ?? r.lowstBidPrc ?? r.lowstBidAmt),
-    bidStart: r.cltrBidBgngDt || r.pbctBgngDtm || '',
-    bidEnd: r.cltrBidEndDt || r.pbctClsDtm || '',
+    round: Number(r.pbctNsq ?? r.pbctSn ?? idx + 1) || idx + 1,
+    lowstAmt: parseAmt(r.lowstBidPrcIndctCont ?? r.lowstBidPrc),
+    bidStart: r.cltrBidBgngDt || '',
+    bidEnd: r.cltrBidEndDt || '',
+    opbdDt: r.cltrOpbdDt || '',
     statCd,
     statNm: r.pbctStatNm || STAT_NAMES[statCd] || '',
-    // 낙찰금액 후보 — 실 응답 확인 후 확정할 것 (없으면 0)
-    winAmt: parseAmt(r.nsmtAmt ?? r.sucsbidAmt ?? r.opbdMaxAmt ?? r.bidWinAmt),
-    bidderCnt: Number(r.bidPrsnCnt ?? r.opbdPrsnCnt) || 0,
+    winAmt: parseAmt(r.scfbAmt),
+    winRate: Number(r.apslPrcCtrsScfbPrcRto) || 0,
+    bidderCnt: Number(r.vldBddrNope) || 0,
   };
 }
 

@@ -34,26 +34,37 @@ function parseAmt(v) {
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
-// 결과 1건 tolerant 매핑 — 실 응답 확인 후 필드 확정
+// 결과 1건 매핑 — 2026-07-19 실 응답으로 필드명 확정:
+//   scfbAmt(낙찰금액), apslPrcCtrsScfbPrcRto(감정가 대비 낙찰가율 %, 캠코 계산),
+//   lowstBidCtrsScfbPrcRto(최저가 대비 낙찰가율), cltrOpbdDt(개찰일시 yyyyMMddHHmm),
+//   vldBddrNope(유효 입찰자 수), pbctNsq(회차), landSqms/bldSqms(면적),
+//   차량 전용: cltrMkrNm/carMdlNm/yrmdl/drvDstc/fuelCont
 function mapResult(r) {
   const apslAmt = parseAmt(r.apslEvlAmt);
-  const lowstAmt = parseAmt(r.lowstBidPrcIndctCont ?? r.lowstBidPrc ?? r.lowstBidAmt);
-  const winAmt = parseAmt(r.nsmtAmt ?? r.sucsbidAmt ?? r.opbdMaxAmt ?? r.bidWinAmt ?? r.cntrctAmt);
+  const lowstAmt = parseAmt(r.lowstBidPrcIndctCont ?? r.lowstBidPrc);
+  const winAmt = parseAmt(r.scfbAmt);
+  const officialRate = Number(r.apslPrcCtrsScfbPrcRto) || 0;
   return {
     id: r.cltrMngNo || '',
     pbctCdtnNo: r.pbctCdtnNo != null ? String(r.pbctCdtnNo) : '',
     title: r.onbidCltrNm || r.cltrNm || '',
     usage: r.cltrUsgSclsCtgrNm || r.cltrUsgMclsCtgrNm || '',
-    address: [r.lctnSdnm, r.lctnSggnm, r.lctnEmdNm].filter(Boolean).join(' '),
-    apslAmt,       // 감정가 (원)
+    usageM: r.cltrUsgMclsCtgrNm || '',
+    prptDivNm: r.prptDivNm || '',
+    round: Number(r.pbctNsq) || 0,
+    apslAmt,       // 감정가 (원, null 가능)
     lowstAmt,      // 최저입찰가 (원)
-    winAmt,        // 낙찰금액 (원, 0=미확정/유찰)
-    // 낙찰가율(%): 감정가 대비 — 통계 집계의 기준값
-    winRate: winAmt > 0 && apslAmt > 0 ? Math.round(winAmt / apslAmt * 1000) / 10 : 0,
+    winAmt,        // 낙찰금액 (원, 낙찰 건만 존재)
+    // 낙찰가율(%): 캠코 공식 계산값 우선, 없으면 직접 계산
+    winRate: officialRate > 0 ? officialRate
+      : (winAmt > 0 && apslAmt > 0 ? Math.round(winAmt / apslAmt * 1000) / 10 : 0),
+    lowstRate: Number(r.lowstBidCtrsScfbPrcRto) || 0, // 최저가 대비 낙찰가율
+    bidderCnt: Number(r.vldBddrNope) || 0,
     statCd: r.pbctStatCd != null ? String(r.pbctStatCd).padStart(4, '0') : '',
     statNm: r.pbctStatNm || '',
-    opbdDt: r.opbdDtm || r.cltrBidEndDt || '', // 개찰(마감) 일시
-    usbdNft: Number(r.usbdNft) || 0,
+    opbdDt: r.cltrOpbdDt || '',
+    landSqms: Number(r.landSqms) || 0,
+    car: r.carMdlNm ? { maker: r.cltrMkrNm || '', model: r.carMdlNm || '', year: r.yrmdl || '', dist: r.drvDstc || '' } : undefined,
   };
 }
 
@@ -151,7 +162,7 @@ exports.handler = async (event) => {
     // ?stats=1: 낙찰 건만 골라 낙찰가율 통계 요약 (예측 카드가 바로 쓸 수 있는 형태)
     let stats;
     if (qs.stats) {
-      const sold = results.filter(x => x.winRate > 0);
+      const sold = results.filter(x => x.statCd === '0010' && x.winRate > 0);
       if (sold.length) {
         const rates = sold.map(x => x.winRate).sort((a, b) => a - b);
         const avg = Math.round(rates.reduce((s, v) => s + v, 0) / rates.length * 10) / 10;

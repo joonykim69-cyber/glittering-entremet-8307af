@@ -44,8 +44,9 @@ const REGISTRY = {
   pbanc_dtl_bidinf: { name: '공고상세 입찰정보',          code: 'OnbidPbancDtlBidInfSrvc2',  op: '/getPbancDtlBidInf2' },
   pbanc_bidrslt_list:{ name: '공고 입찰결과목록',         code: 'OnbidPbancBidRsltListSrvc2',op: '/getPbancBidRsltList2',   confirmed: true },
   pbanc_bidrslt_dtl:{ name: '공고 입찰결과상세',          code: 'OnbidPbancBidRsltDtlSrvc2', op: '/getPbancBidRsltDtl2',    confirmed: true },
-  stat_usg:         { name: '용도별 입찰 통계',           code: 'OnbidUsgBidStatsSrvc',      op: '/getUsgBidStats' },     // base 확인·op 오류(404 API not found) — 승인 페이지 상세기능의 op 필요
-  stat_rgn:         { name: '지역별 입찰 통계',           code: 'OnbidClarBidStatsSrvc',     op: '/getClarBidStats' },    // base 확인·op 오류(404) — 승인 페이지 상세기능의 op 필요
+  stat_usg:         { name: '용도별 입찰 통계',           code: 'OnbidUsgBidStatsSrvc',      op: '/getKamcoCltrUsgStats', confirmed: true }, // 상세기능 확인. 파라미터: statsTypeCd(0041 압류/0044 국유/0045 수탁·유입/0046 공유), inqPerd(YYYY|YYYYMM|YYYY-Q)
+  stat_rgn:         { name: '지역별 입찰 통계(캠코)',     code: 'OnbidClarBidStatsSrvc',     op: '/getKamcoCltrClarStats', confirmed: true }, // 상세기능 확인. statsTypeCd(0021 압류/0024 국유/0025 수탁·유입/0026 공유), inqPerd
+  stat_rgn_org:     { name: '지역별 입찰 통계(이용기관)', code: 'OnbidClarBidStatsSrvc',     op: '/getOrgCltrClarStats',   confirmed: true }, // 상세기능 확인. inqPerd만 필요
   code_addr:        { name: '코드 및 주소 조회',          code: 'OnbidCodeAddrSrvc2',        op: '/getOnbidCode2' },
   rank_intrst:      { name: '순위물건목록 관심물건순위',  code: 'OnbidItrsCltrRnkClgSrvc',   op: '/getItrsCltrRnkClg',    confirmed: true }, // _health 경로 유효
   rank_rdcrt:       { name: '순위물건목록 저감률순위',    code: 'Onbid50PctDecrCltrSrvc',    op: '/get50PctDecrCltr',     confirmed: true }, // _health 경로 유효
