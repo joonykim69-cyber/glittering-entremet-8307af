@@ -14,6 +14,14 @@
    [functions]
      node_bundler = "esbuild"
 
+   # ═══ 예측 장부 예약 실행 (UTC 크론 — KST-9h) ═══
+   # 07:00 KST 예측 봉인: 오늘~+2일 마감 물건의 예상 구간을 개찰 전에 기록
+   [functions."predict-daily"]
+     schedule = "0 22 * * *"
+   # 19:30 KST 자동 채점: 당일 개찰 결과와 봉인 예측 대조 + 구간 폭 보정
+   [functions."score-daily"]
+     schedule = "30 10 * * *"
+
    # 루트(/)는 낙찰예보(BidCast) 랜딩으로 안내.
    # force = true: 루트에 파일이 실존하면 Netlify는 기본적으로 리다이렉트보다 파일을 우선하므로 유지.
    [[redirects]]
