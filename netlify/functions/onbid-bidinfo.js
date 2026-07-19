@@ -1,16 +1,15 @@
 // netlify/functions/onbid-bidinfo.js
-// "차세대 온비드 물건상세 입찰정보 조회서비스" 프록시 — 회차별 입찰정보(최저입찰가
-// 변동, 입찰기간, 유찰/낙찰 결과, 낙찰금액)를 공급. 낙찰가 예측 통계의 원천 데이터.
+// "차세대 온비드 물건 입찰결과상세 조회서비스" 프록시 — 물건(부동산/동산/자동차)의
+// 개찰 결과(낙찰/유찰/취소) 상세 정보를 공급. 낙찰가 예측 통계의 원천 데이터.
 //
-// 대상 서비스: 한국자산관리공사_차세대 온비드 물건상세 입찰정보 조회서비스
-// (data.go.kr 데이터셋 15157251 — 승인 페이지의 End Point를 환경변수로 설정)
+// 대상 서비스: 한국자산관리공사_차세대 온비드 물건 입찰결과상세 조회서비스
+// Base URL: https://apis.data.go.kr/B010003/OnbidCltrBidRsltDtlSrvc2
+// 오퍼레이션: GET /getCltrBidRsltDtl2 (물건 입찰결과상세 조회)
+// — 2026-07-19 사용자 활용신청 승인 페이지에서 확인된 값 (일일 트래픽 1000)
 //
-// ⚠️ 미확정(첫 실 응답으로 검증 필요 — 동산 목록 때와 동일한 절차):
-//  - Base URL: ONBID_BIDINFO_API_URL 환경변수 (미설정 시 깨끗한 501)
-//  - 오퍼레이션 경로: 차세대 명명 패턴에서 유추한 '/getDtlBidInf2' 기본값,
-//    다르면 ONBID_BIDINFO_API_OP로 교체 (재배포 불필요). "API not found"가 나오면
-//    ?debug=1의 rawSnippet으로 확인 후 환경변수만 수정하면 됨.
-//  - 응답 필드명: 목록/상세 서비스와 동일 계열로 가정한 tolerant 매핑.
+// ⚠️ 응답 필드명은 아직 미확정 — 첫 실 응답을 ?debug=1로 확인 후 mapRound()의
+//    필드 후보(특히 낙찰금액)를 확정할 것. 요청 파라미터도 cltrMngNo 외에
+//    추가 필수값이 있으면 debug의 오류 메시지로 드러남.
 //
 // Netlify 환경변수 (모든 deploy context에 동일 값으로!):
 //   ONBID_BIDINFO_API_URL = 물건상세 입찰정보 서비스 Base URL
@@ -24,7 +23,7 @@ const CORS = {
 };
 
 const ONBID_BIDINFO_API_URL = process.env.ONBID_BIDINFO_API_URL;
-const ONBID_BIDINFO_OPERATION = process.env.ONBID_BIDINFO_API_OP || '/getDtlBidInf2';
+const ONBID_BIDINFO_OPERATION = process.env.ONBID_BIDINFO_API_OP || '/getCltrBidRsltDtl2';
 
 // pbctStatCd → 표시명 (부동산 목록 Swagger의 코드표 재사용)
 const STAT_NAMES = {
@@ -64,7 +63,7 @@ exports.handler = async (event) => {
     return {
       statusCode: 501,
       headers: CORS,
-      body: JSON.stringify({ error: { message: '입찰정보 API 미연동 — Netlify 환경변수에 ONBID_BIDINFO_API_URL을 설정하세요 (data.go.kr 데이터셋 15157251의 End Point).' } }),
+      body: JSON.stringify({ error: { message: '입찰정보 API 미연동 — Netlify 환경변수에 ONBID_BIDINFO_API_URL을 설정하세요 (https://apis.data.go.kr/B010003/OnbidCltrBidRsltDtlSrvc2).' } }),
     };
   }
 
