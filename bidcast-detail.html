@@ -51,6 +51,10 @@ a{color:inherit;text-decoration:none;}
 /* ═══ 레이아웃 ═══ */
 .rp-layout{display:grid;grid-template-columns:56px 1fr;min-height:calc(100vh - 52px);}
 @media(max-width:660px){.rp-layout{grid-template-columns:1fr;}.rp-sidebar{display:none;}}
+/* 초광폭 화면에서 본문이 무한정 늘어나 표·사진이 기형적으로 보이는 문제 방지:
+   리포트 본문은 최대 1200px로 제한하고 중앙 정렬, 남는 영역은 배경색으로 둔다. */
+#rpMain{max-width:1200px;width:100%;margin:0 auto;background:var(--bg);box-shadow:0 0 0 1px var(--line);}
+.rp-layout>#rpMain{justify-self:center;}
 
 /* ═══ 사이드바 ═══ */
 .rp-sidebar{position:sticky;top:52px;height:calc(100vh - 52px);overflow-y:auto;background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:2px;}
@@ -251,7 +255,7 @@ a{color:inherit;text-decoration:none;}
 /* ═══ 갤러리+지도 분할 ═══ */
 .gallery-map-row{display:grid;grid-template-columns:3fr 2fr;border-bottom:1px solid var(--line);}
 @media(max-width:660px){.gallery-map-row{grid-template-columns:1fr;}}
-.gallery-panel{position:relative;overflow:hidden;background:#111;height:300px;}
+.gallery-panel{position:relative;overflow:hidden;background:#111;height:340px;}
 @media(max-width:660px){.gallery-panel{height:220px;}}
 .gal-inner{width:100%;height:100%;display:grid;place-items:center;font-size:80px;position:relative;overflow:hidden;}
 .gal-inner img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
@@ -259,7 +263,7 @@ a{color:inherit;text-decoration:none;}
 .gal-nav{position:absolute;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.55);border:none;color:#fff;font-size:22px;cursor:pointer;z-index:5;display:grid;place-items:center;line-height:1;}
 .gal-prev{left:8px;}.gal-next{right:8px;}
 .gal-count{position:absolute;bottom:8px;right:10px;font-size:11px;font-weight:700;color:#fff;background:rgba(0,0,0,.5);padding:3px 9px;border-radius:999px;z-index:5;}
-.map-panel{position:relative;overflow:hidden;height:300px;border-left:1px solid rgba(255,255,255,.12);}
+.map-panel{position:relative;overflow:hidden;height:340px;border-left:1px solid rgba(255,255,255,.12);}
 @media(max-width:660px){.map-panel{height:160px;border-left:none;border-top:1px solid var(--line);}}
 .map-panel .loc-map{height:100%;border-radius:0;border:none;}
 .map-addr-bar{position:absolute;bottom:0;left:0;right:0;padding:8px 13px;background:rgba(255,255,255,.92);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);font-size:11px;color:var(--sub);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -481,7 +485,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
     <!-- 5. 가격 바 -->
     <div class="price-bar">
       <div class="pb-cell appr">
-        <div class="pb-lbl">감정가 <span style="font-size:10px;opacity:.55;margin-left:3px;">예시 데이터</span></div>
+        <div class="pb-lbl">감정가 <span id="pbApprTag" style="font-size:10px;opacity:.55;margin-left:3px;">예시 데이터</span></div>
         <div class="pb-val" id="pbAppr">—</div>
         <div class="pb-note">감정평가기관 기준</div>
       </div>
@@ -1028,8 +1032,9 @@ document.getElementById('mapAddrBar').textContent=it.address||'—';
 // 가격 바
 document.getElementById('pbAppr').textContent=fmtMwon(it.appr);
 document.getElementById('pbMin').textContent=fmtMwon(it.min);
-const minPct=Math.round(it.min/it.appr*100);
-document.getElementById('pbMinPct').textContent=`(감정가의 ${minPct}%)`;
+if(isLive)document.getElementById('pbApprTag').textContent='실데이터 (온비드)';
+const minPct=it.appr>0?Math.round(it.min/it.appr*100):0;
+document.getElementById('pbMinPct').textContent=minPct>0?`(감정가의 ${minPct}%)`:'';
 document.getElementById('pbMinNote').textContent=it.fail>0?`${it.fail}회 유찰 후 최저가`:'1회차 최저가';
 
 // CTA 링크
