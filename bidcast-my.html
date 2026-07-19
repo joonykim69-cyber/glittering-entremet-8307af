@@ -98,6 +98,28 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 .rec-reason .tag { font-size:10.5px; font-weight:700; color:var(--green-deep); background:var(--green-soft); border:1px solid #C4EBD8; padding:2px 8px; border-radius:999px; }
 .rec-score { position:absolute; bottom:8px; right:8px; font-size:10px; font-weight:800; color:#fff; background:var(--green); padding:3px 9px; border-radius:999px; }
 
+/* 나의 성장 */
+.growth-tiles { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+@media (max-width:760px) { .growth-tiles { grid-template-columns:1fr 1fr; } }
+.g-tile { background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px 18px; }
+.g-tile .v { font-size:22px; font-weight:900; letter-spacing:-0.02em; color:var(--green-deep); font-variant-numeric:tabular-nums; }
+.g-tile .v.me { color:var(--ink); }
+.g-tile .k { font-size:11.5px; color:var(--sub); font-weight:700; margin-top:3px; line-height:1.4; }
+.g-trend { margin-top:12px; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px 18px; }
+.g-trend .t { font-size:12.5px; font-weight:800; color:var(--sub); margin-bottom:10px; }
+.g-bars { display:flex; align-items:flex-end; gap:6px; height:72px; }
+.g-bar { flex:1; max-width:38px; display:flex; flex-direction:column; align-items:center; gap:4px; }
+.g-bar i { width:100%; border-radius:6px 6px 0 0; background:var(--green); display:block; min-height:4px; }
+.g-bar.lose i { background:#F5B90F; }
+.g-bar span { font-size:9.5px; color:var(--mute); font-weight:700; white-space:nowrap; }
+.g-list { margin-top:12px; display:flex; flex-direction:column; gap:8px; }
+.g-item { display:flex; justify-content:space-between; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:11px 14px; font-size:12.5px; }
+.g-item .n { font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.g-item .r { flex:none; font-weight:800; }
+.g-empty { background:var(--surface); border:1.5px dashed var(--line); border-radius:16px; padding:26px 20px; text-align:center; font-size:13.5px; color:var(--sub); }
+.g-empty a { color:var(--green-deep); font-weight:800; }
+.g-note { font-size:11px; color:var(--mute); margin-top:10px; }
+
 /* 알림 설정 */
 .alert-card { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:8px 22px; }
 .alert-row { display:flex; align-items:center; gap:14px; padding:15px 0; border-bottom:1px solid var(--line); }
@@ -214,6 +236,15 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 </header>
 
 <main class="wrap list-pad">
+
+  <!-- 나의 성장 — 시뮬레이터 나 vs AI 채점 기록 기반 (localStorage bidcast:myscore) -->
+  <section class="section" aria-labelledby="secGrowth">
+    <div class="section-head">
+      <h2 id="secGrowth">📈 나의 성장</h2>
+      <a class="more" href="bidcast-simulator.html">시뮬레이터에서 연습하기 →</a>
+    </div>
+    <div id="growthArea"></div>
+  </section>
 
   <section class="section" aria-labelledby="secLikes">
     <div class="section-head">
@@ -453,6 +484,58 @@ function renderRecommendations() {
 renderLikes();
 renderRecommendations();
 renderRecent();
+
+// ═══════════════════════════════════════
+// 나의 성장 — 시뮬레이터 "나 vs AI" 채점 기록(bidcast:myscore) 시각화
+// 기록이 없으면 안내만 표시. 모든 수치는 이 브라우저의 실제 채점 기록이다.
+// ═══════════════════════════════════════
+function renderGrowth() {
+  const area = document.getElementById('growthArea');
+  let rec = [];
+  try { rec = JSON.parse(localStorage.getItem('bidcast:myscore') || '[]'); } catch (e) {}
+  if (!Array.isArray(rec) || rec.length === 0) {
+    area.innerHTML = `<div class="g-empty">아직 채점된 모의입찰이 없어요.<br/>
+      <a href="bidcast-simulator.html">시뮬레이터</a>에서 실물건을 연결해 시나리오를 저장하고, 개찰 후 🏁 채점해 보세요.<br/>
+      <span style="font-size:11.5px;color:var(--mute);">채점이 쌓이면 내 오차가 줄어드는 추이를 여기서 보게 됩니다.</span></div>`;
+    return;
+  }
+  const chron = [...rec].sort((a, b) => (a.at || 0) - (b.at || 0)); // 오래된 → 최신
+  const myAvg = (chron.reduce((s, x) => s + Math.abs(x.myErr || 0), 0) / chron.length).toFixed(1);
+  const aiRec = chron.filter(x => x.aiMid != null);
+  const aiAvg = aiRec.length ? (aiRec.reduce((s, x) => s + Math.abs(x.aiErr || 0), 0) / aiRec.length).toFixed(1) : null;
+  const wins = aiRec.filter(x => x.iWin).length, losses = aiRec.length - wins;
+
+  const esc = v => String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const maxErr = Math.max(10, ...chron.map(x => Math.abs(x.myErr || 0)));
+  const bars = chron.slice(-10).map(x => {
+    const e = Math.abs(x.myErr || 0);
+    const h = Math.max(6, Math.round(e / maxErr * 68));
+    const d = x.at ? new Date(x.at) : null;
+    const lbl = d ? `${d.getMonth() + 1}/${d.getDate()}` : '';
+    return `<div class="g-bar ${x.aiMid != null && !x.iWin ? 'lose' : ''}" title="${esc(x.title || '')} · 내 오차 ${e}%"><i style="height:${h}px"></i><span>${lbl}</span></div>`;
+  }).join('');
+
+  area.innerHTML = `
+    <div class="growth-tiles">
+      <div class="g-tile"><div class="v me">${chron.length}건</div><div class="k">개찰 채점 완료</div></div>
+      <div class="g-tile"><div class="v me">${myAvg}%</div><div class="k">내 평균 오차 (절대값)</div></div>
+      <div class="g-tile"><div class="v">${aiAvg != null ? aiAvg + '%' : '—'}</div><div class="k">AI 평균 오차${aiAvg == null ? ' (봉인 예측 대조 전)' : ''}</div></div>
+      <div class="g-tile"><div class="v">${aiRec.length ? `${wins}승 ${losses}패` : '—'}</div><div class="k">나 vs AI 상대전적</div></div>
+    </div>
+    <div class="g-trend">
+      <div class="t">내 오차 추이 (최근 ${Math.min(chron.length, 10)}건 · 낮을수록 좋음 · 노랑 = AI에 진 라운드)</div>
+      <div class="g-bars">${bars}</div>
+    </div>
+    <div class="g-list">${[...chron].reverse().slice(0, 5).map(x => `
+      <div class="g-item">
+        <span class="n">${esc(x.title || x.id || '물건')}</span>
+        <span class="r" style="color:${x.aiMid == null ? 'var(--sub)' : x.iWin ? 'var(--green-deep)' : '#8a6d00'};">
+          내 ${x.myErr > 0 ? '+' : ''}${x.myErr}%${x.aiMid != null ? ` · AI ${x.aiErr > 0 ? '+' : ''}${x.aiErr}% · ${x.iWin ? '🏆 승' : '🤖 패'}` : ''}
+        </span>
+      </div>`).join('')}</div>
+    <p class="g-note">※ 이 브라우저에 저장된 실제 채점 기록입니다 (최대 20건 보관) · 오차 = (입찰가 − 실제 낙찰가) / 낙찰가</p>`;
+}
+renderGrowth();
 renderAlerts();
 
 // 간편로그인 (공용 데모 컴포넌트)
