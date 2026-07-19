@@ -1367,14 +1367,28 @@ function liveCard(it) {
 }
 async function loadLiveListings() {
   try {
-    const res = await fetch('/.netlify/functions/onbid-search?page=1&numOfRows=12');
+    // 온비드는 같은 물건을 회차별 행으로 반복 반환 → 중복 제거 후 물건 수가 줄어들므로 넉넉히 요청
+    const res = await fetch('/.netlify/functions/onbid-search?page=1&numOfRows=60');
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     if (!Array.isArray(data.items) || data.items.length === 0) throw new Error('빈 응답');
-    // 실사 사진 있는 물건 우선으로 3건 선정
-    const withPhoto = data.items.filter(it => it.photo);
-    const rest = data.items.filter(it => !it.photo);
-    const pick = [...withPhoto, ...rest].slice(0, 3);
+    // 실사 사진 있는 물건 우선 + 같은 건물의 다른 호수(101호/102호…)는 하나만 골라 다양성 확보
+    const ordered = [...data.items.filter(it => it.photo), ...data.items.filter(it => !it.photo)];
+    const buildingKey = it => (it.title || '').replace(/\s*\d+\s*호(?:\s|$).*$/, '').replace(/\s*제?\d+층.*$/, '').trim() || String(it.id);
+    const seenBld = new Set();
+    const pick = [];
+    for (const it of ordered) {
+      const k = buildingKey(it);
+      if (seenBld.has(k)) continue;
+      seenBld.add(k);
+      pick.push(it);
+      if (pick.length === 3) break;
+    }
+    // 다양성 필터로 3건이 안 채워지면 남는 물건으로 보충
+    for (const it of ordered) {
+      if (pick.length === 3) break;
+      if (!pick.includes(it)) pick.push(it);
+    }
     if (!pick.length) throw new Error('표시할 물건 없음');
     const grid = document.getElementById('listingGrid');
     grid.innerHTML = pick.map(liveCard).join('');
