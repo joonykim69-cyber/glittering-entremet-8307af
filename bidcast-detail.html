@@ -1015,7 +1015,9 @@ if(isLive&&liveItem){
     const cltrMngNo=String(liveItem.id),pbctCdtnNo=liveItem.pbctCdtnNo||'';
     if(!cltrMngNo||!pbctCdtnNo){console.log('[detail] pbctCdtnNo 없음');return;}
     try{
-      const r=await fetch(`/.netlify/functions/onbid-detail?cltrMngNo=${encodeURIComponent(cltrMngNo)}&pbctCdtnNo=${encodeURIComponent(pbctCdtnNo)}`);
+      // 동산 물건(assetClass:'동산' — onbid-mvast-search가 표시)은 동산 상세 프록시로 분기
+      const detailFn=liveItem.assetClass==='동산'?'onbid-mvast-detail':'onbid-detail';
+      const r=await fetch(`/.netlify/functions/${detailFn}?cltrMngNo=${encodeURIComponent(cltrMngNo)}&pbctCdtnNo=${encodeURIComponent(pbctCdtnNo)}`);
       if(r.status===501||!r.ok)return;
       const data=await r.json();const det=data?.detail;
       if(!det||(det.raw&&!det.title))return;

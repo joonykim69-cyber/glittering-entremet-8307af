@@ -110,6 +110,9 @@ function mapOnbidItem(raw, idx) {
     views: 0, // 온비드 API에 조회수 필드 없음 — 프론트엔드 표시용 기본값
     thumb: TYPE_ICONS[type] || '📦',
     photo, // 실사 썸네일 URL (없으면 빈 문자열 → 프론트엔드가 thumb 아이콘으로 폴백)
+    // 입찰 기간 (Swagger 확인 필드, yyyyMMddHHmm 문자열) — 캘린더 집계·마감임박 표시용
+    bidStart: raw.cltrBidBgngDt || '',
+    bidEnd: raw.cltrBidEndDt || '',
   };
 }
 
@@ -164,6 +167,9 @@ exports.handler = async (event) => {
   };
   if (qs.region) params.set('lctnSdnm', REGION_FULL[qs.region] || qs.region);
   if (qs.keyword) params.set('onbidCltrNm', qs.keyword);
+  // 입찰기간 검색 (Swagger 확인 파라미터, yyyyMMdd) — onbid-calendar.js의 일자별 집계에 사용
+  if (qs.bidPrdYmdStart) params.set('bidPrdYmdStart', qs.bidPrdYmdStart.replace(/[^0-9]/g, ''));
+  if (qs.bidPrdYmdEnd) params.set('bidPrdYmdEnd', qs.bidPrdYmdEnd.replace(/[^0-9]/g, ''));
   // prptDivCd는 URLSearchParams에 넣지 않고 쉼표를 인코딩(%2C)하지 않은 원문 그대로 붙인다 —
   // data.go.kr 계열 API 중 인코딩된 쉼표를 복수값 구분자로 인식하지 못하는 경우가 있음.
   const prptDivCd = (qs.prptDivCd || ALL_PRPT_DIV_CD).replace(/[^0-9,]/g, '');

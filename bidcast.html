@@ -848,9 +848,9 @@ footer .copy { margin-top: 26px; font-size: 12px; color: var(--mute); }
   <div class="wrap">
     <span class="eyebrow reveal">Calendar</span>
     <h2 class="title reveal">이번 주 입찰 일정</h2>
-    <p class="lead reveal">다가오는 입찰 마감을 한눈에. 관심물건으로 등록하면 마감 전에 알림을 보내드립니다. <b>(아래 건수는 예시)</b></p>
+    <p class="lead reveal" id="calLead">다가오는 입찰 마감을 한눈에. 관심물건으로 등록하면 마감 전에 알림을 보내드립니다. <b>(아래 건수는 예시)</b></p>
 
-    <div class="cal-grid">
+    <div class="cal-grid" id="calGrid">
       <div class="cal-day reveal"><div class="dow">월</div><div class="cnt">124</div><div class="u">건</div></div>
       <div class="cal-day reveal"><div class="dow">화</div><div class="cnt">98</div><div class="u">건</div></div>
       <div class="cal-day hot reveal"><div class="dow">수 · 최다</div><div class="cnt">312</div><div class="u">건</div></div>
@@ -1411,6 +1411,37 @@ async function loadLiveListings() {
   }
 }
 loadLiveListings();
+
+// ═══════════════════════════════════════
+// 이번 주 입찰 캘린더 — 실시간 온비드 집계 연동
+// 성공 시: 월~금 일자별 입찰 진행 물건 수를 실 집계로 교체 (부동산 기준)
+// 실패 시: 기존 예시 건수 유지 — 동일한 폴백 패턴
+// ═══════════════════════════════════════
+async function loadLiveCalendar() {
+  try {
+    const res = await fetch('/.netlify/functions/onbid-calendar');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (!Array.isArray(data.days) || data.days.length !== 5) throw new Error('형식 오류');
+    if (data.days.every(d => !d.count)) throw new Error('집계 0건 — 예시 유지');
+    const maxCount = Math.max(...data.days.map(d => d.count));
+    const dayCell = d => `
+      <div class="cal-day reveal in${d.count === maxCount ? ' hot' : ''}">
+        <div class="dow">${escHtml(d.dow)}${d.count === maxCount ? ' · 최다' : ''}</div>
+        <div class="cnt">${d.count.toLocaleString()}</div>
+        <div class="u">건</div>
+      </div>`;
+    document.getElementById('calGrid').innerHTML =
+      data.days.map(dayCell).join('')
+      + '<div class="cal-day reveal in"><div class="dow">토</div><div class="cnt">—</div><div class="u">인터넷 입찰 상시</div></div>'
+      + '<div class="cal-day reveal in"><div class="dow">일</div><div class="cnt">—</div><div class="u">인터넷 입찰 상시</div></div>';
+    document.getElementById('calLead').innerHTML =
+      '다가오는 입찰 마감을 한눈에. 관심물건으로 등록하면 마감 전에 알림을 보내드립니다. <b>✅ 실시간 온비드 집계 — 해당 일자에 입찰이 진행되는 부동산 물건 수</b>';
+  } catch (e) {
+    console.info('[bidcast] 캘린더 실 집계 실패, 예시 건수 유지:', e.message);
+  }
+}
+loadLiveCalendar();
 </script>
 
 </body>
