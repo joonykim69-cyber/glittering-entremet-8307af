@@ -1336,18 +1336,30 @@ function rulePred(it) {
 let USG_STATS = null;   // clsCdNm(trim) → row
 let USG_STATS_YEAR = '';
 async function loadUsgStats() {
-  const year = new Date(Date.now() + 9 * 3600 * 1000).getUTCFullYear();
-  for (const y of [year, year - 1]) {
+  // inqPerd는 연도(YYYY)·분기(YYYY-Q)·월(YYYYMM)을 지원.
+  // 당해연도 연간 통계는 연도 완결 전까지 비어 있을 수 있어 분기→전월→전년 순으로 폴백.
+  const now = new Date(Date.now() + 9 * 3600 * 1000);
+  const y = now.getUTCFullYear(), m = now.getUTCMonth() + 1;
+  const q = Math.ceil(m / 3);
+  const prevM = m === 1 ? `${y - 1}12` : `${y}${String(m - 1).padStart(2, '0')}`;
+  const tries = [
+    [String(y), `${y}년`],
+    [`${y}-${q}`, `${y}년 ${q}분기`],
+    ...(q > 1 ? [[`${y}-${q - 1}`, `${y}년 ${q - 1}분기`]] : []),
+    [prevM, `${prevM.slice(0, 4)}.${prevM.slice(4)}월`],
+    [String(y - 1), `${y - 1}년`],
+  ];
+  for (const [perd, label] of tries) {
     try {
-      const res = await fetch(`/.netlify/functions/onbid-svc?svc=stat_usg&statsTypeCd=0041&inqPerd=${y}`);
+      const res = await fetch(`/.netlify/functions/onbid-svc?svc=stat_usg&statsTypeCd=0041&inqPerd=${encodeURIComponent(perd)}`);
       if (!res.ok) continue;
       const data = await res.json();
       if (!Array.isArray(data.items) || !data.items.length) continue;
       USG_STATS = {};
       data.items.forEach(r => { USG_STATS[String(r.clsCdNm || '').trim()] = r; });
-      USG_STATS_YEAR = String(y);
+      USG_STATS_YEAR = label;
       return;
-    } catch (e) { /* 다음 연도 폴백 */ }
+    } catch (e) { /* 다음 기간 폴백 */ }
   }
 }
 // 물건 type → 통계 용도 분류(clsCdNm) 매칭

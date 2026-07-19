@@ -243,6 +243,26 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
   </div>
 </section>
 
+<!-- ═══ 캠코 공식 시장 통계 (실 데이터 — 로드 성공 시에만 표시) ═══ -->
+<section class="section" id="kamcoStatsSec" style="padding-top:0; display:none;">
+  <div class="wrap">
+    <span class="eyebrow">Official Market Stats</span>
+    <h2 class="title">캠코 공식 낙찰 통계</h2>
+    <p class="lead">한국자산관리공사가 공식 집계한 압류재산 공매 통계입니다. 낙찰예보의 예상 범위 산출에 실제로 사용되는 기준 데이터입니다. <b id="kamcoStatsPerd"></b></p>
+    <div class="avg-warn" style="margin-top:24px;">
+      <div class="acc-card" style="flex:1;">
+        <h4 style="font-size:15px;font-weight:800;margin-bottom:14px;">용도별 감정가 대비 낙찰가율</h4>
+        <div id="kamcoUsgBars"></div>
+      </div>
+      <div class="acc-card" style="flex:1;">
+        <h4 style="font-size:15px;font-weight:800;margin-bottom:14px;">지역별 감정가 대비 낙찰가율</h4>
+        <div id="kamcoRgnBars"></div>
+      </div>
+    </div>
+    <p class="foot-note">✅ 실시간 캠코 공식 통계 (온비드 공공 API) — 낙찰가율 = 낙찰금액 ÷ 감정가. 막대 옆 괄호는 낙찰 건수·경쟁률.</p>
+  </div>
+</section>
+
 <section class="section" style="padding-top:0;">
   <div class="wrap">
     <span class="eyebrow">How It Works</span>
@@ -314,6 +334,58 @@ const TREND = [
   { m:'1월(목표)', v:52 }, { m:'2월', v:58 }, { m:'3월', v:63 },
   { m:'4월', v:67 }, { m:'5월', v:71 }, { m:'6월', v:74 },
 ];
+// ═══════════════════════════════════════
+// 캠코 공식 낙찰 통계 (실 데이터) — 성공 시에만 섹션 표시
+// stat_usg(용도별)·stat_rgn(지역별): clsCdNm(분류), mtSumCnt(낙찰건수),
+// compRate(경쟁률), scfbAmtRto1(감정가 대비 낙찰가율 %)
+// ═══════════════════════════════════════
+(async function loadKamcoStats() {
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const now = new Date(Date.now() + 9 * 3600 * 1000);
+  const y = now.getUTCFullYear(), m = now.getUTCMonth() + 1, q = Math.ceil(m / 3);
+  const tries = [
+    [String(y), `${y}년`], [`${y}-${q}`, `${y}년 ${q}분기`],
+    ...(q > 1 ? [[`${y}-${q - 1}`, `${y}년 ${q - 1}분기`]] : []),
+    [String(y - 1), `${y - 1}년`],
+  ];
+  async function fetchStats(svc, typeCd) {
+    for (const [perd, label] of tries) {
+      try {
+        const r = await fetch(`/.netlify/functions/onbid-svc?svc=${svc}&statsTypeCd=${typeCd}&inqPerd=${encodeURIComponent(perd)}`);
+        if (!r.ok) continue;
+        const d = await r.json();
+        if (Array.isArray(d.items) && d.items.length) return { rows: d.items, label };
+      } catch (e) {}
+    }
+    return null;
+  }
+  function renderBars(el, rows) {
+    const list = rows
+      .map(r => ({ name: String(r.clsCdNm || '').trim(), rate: Number(r.scfbAmtRto1) || 0, cnt: Number(r.mtSumCnt) || 0, comp: String(r.compRate || '') }))
+      .filter(r => r.name && r.name !== '전체' && r.rate > 0)
+      .sort((a, b) => b.rate - a.rate)
+      .slice(0, 10);
+    if (!list.length) return false;
+    const max = Math.max(...list.map(r => r.rate), 100);
+    el.innerHTML = list.map(r => `
+      <div class="acc-bar">
+        <div class="lbl"><span>${esc(r.name)} <span style="color:var(--mute);font-weight:600;">(낙찰 ${r.cnt.toLocaleString()}건 · ${esc(r.comp)})</span></span><b>${r.rate}%</b></div>
+        <div class="track"><i style="width:${Math.min(100, r.rate / max * 100)}%;"></i></div>
+      </div>`).join('');
+    return true;
+  }
+  // 용도별 0041(압류재산) / 지역별 0021(압류재산) — 통계유형코드 체계가 서비스마다 다름
+  const [usg, rgn] = await Promise.all([fetchStats('stat_usg', '0041'), fetchStats('stat_rgn', '0021')]);
+  const okU = usg && renderBars(document.getElementById('kamcoUsgBars'), usg.rows);
+  const okR = rgn && renderBars(document.getElementById('kamcoRgnBars'), rgn.rows);
+  if (okU || okR) {
+    if (!okU) document.getElementById('kamcoUsgBars').parentElement.style.display = 'none';
+    if (!okR) document.getElementById('kamcoRgnBars').parentElement.style.display = 'none';
+    document.getElementById('kamcoStatsPerd').textContent = `조회 기간: ${(usg || rgn).label} · 압류재산 기준`;
+    document.getElementById('kamcoStatsSec').style.display = '';
+  }
+})();
+
 document.getElementById('trendBars').innerHTML = TREND.map(t => `
   <div class="col">
     <div class="v">${t.v}%</div>
