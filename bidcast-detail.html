@@ -999,7 +999,7 @@ document.getElementById('cmpLink').href='bidcast-compare.html'+cmpQ;
 const botHref=isLive?'bidcast-bot.html':`bidcast-bot.html?item=${resolvedId}`;
 document.getElementById('botLink2').href=botHref;
 document.getElementById('fabBot').href=botHref;
-const simHref=`bidcast-simulator.html?appr=${it.appr}&ratio=${Math.round(it.min/it.appr*100)}${isLive?'':`&id=${resolvedId}`}&title=${encodeURIComponent(it.title)}`;
+const simHref=`bidcast-simulator.html?appr=${it.appr}&ratio=${Math.round(it.min/it.appr*100)}&id=${encodeURIComponent(storageId)}${isLive&&liveItem&&liveItem.pbctCdtnNo?`&cdtn=${encodeURIComponent(liveItem.pbctCdtnNo)}`:''}&title=${encodeURIComponent(it.title)}`;
 document.getElementById('fabSim').href=simHref;
 document.getElementById('pSimLink').href=simHref;
 

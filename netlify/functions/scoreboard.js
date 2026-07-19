@@ -33,6 +33,17 @@ exports.handler = async (event) => {
 
   try {
     const store = await openLedger(event);
+    const qs = event.queryStringParameters || {};
+    // 봉인 예측 단건 조회 — 나 vs AI 채점에서 사용 (봉인본 그대로 반환, 수정 불가)
+    if (qs.pred) {
+      const key = 'pred/' + String(qs.pred).replace(/[^0-9A-Za-z\-_]/g, '');
+      const pred = await store.get(key, { type: 'json' });
+      return {
+        statusCode: 200,
+        headers: { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300' },
+        body: JSON.stringify({ pred: pred || null }),
+      };
+    }
     const [agg, calib, log, recent, meta] = await Promise.all([
       store.get('agg', { type: 'json' }),
       store.get('calib', { type: 'json' }),
