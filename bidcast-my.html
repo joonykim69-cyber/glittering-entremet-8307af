@@ -84,6 +84,9 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 .my-body .m { font-size:11.5px; color:var(--sub); margin-top:3px; }
 .my-body .p { font-size:13.5px; font-weight:900; color:var(--green-deep); margin-top:7px; font-variant-numeric:tabular-nums; }
 .my-body .when { font-size:11px; color:var(--mute); margin-top:5px; }
+.my-seal-btn { display:block; width:100%; margin-top:11px; padding:9px 10px; border:none; border-radius:10px; background:var(--grad); color:#fff; font:inherit; font-size:12.5px; font-weight:800; cursor:pointer; text-align:center; text-decoration:none; box-sizing:border-box; transition:transform .15s var(--ease); }
+.my-seal-btn:hover { transform:translateY(-1px); }
+.my-seal-btn.done { background:var(--green-soft); color:var(--green-deep); border:1px solid #C4EBD8; }
 .status-chip { position:absolute; top:8px; left:8px; font-size:10.5px; font-weight:800; padding:3px 9px; border-radius:999px; background:var(--green); color:#fff; }
 .status-chip.done { background:var(--ink); }
 
@@ -325,6 +328,30 @@ h1,h2,h3,h4{font-family:var(--font-head)}
   </div>
 </footer>
 
+<!-- 내 예측 봉인 모달 (예언자 등급 트랙 — 랜딩/상세와 동일한 bidcast:mypred 구조로 저장) -->
+<div class="auth-overlay" id="mySealOverlay" role="dialog" aria-modal="true">
+  <div class="auth-modal">
+    <button type="button" onclick="closeMySeal()" aria-label="닫기" style="position:absolute;top:16px;right:16px;background:var(--bg);border:1px solid var(--line);color:var(--sub);cursor:pointer;width:34px;height:34px;border-radius:50%;font-size:15px;line-height:1">×</button>
+    <div id="msForm">
+      <h3 style="font-family:var(--font-head);font-size:20px;font-weight:900;margin-bottom:2px">🔮 내 예측 봉인</h3>
+      <p style="font-size:13px;color:var(--sub);line-height:1.5;margin-bottom:8px">관심물건의 <b>내 예상 낙찰가 구간</b>을 봉인합니다. 개찰 후 랜딩 "나의 예언자 여정"에서 채점돼요.</p>
+      <div id="msItemInfo" style="font-size:12.5px;color:var(--sub);background:var(--bg);border-radius:10px;padding:10px 12px;margin-bottom:8px"></div>
+      <div style="display:flex;gap:10px">
+        <div style="flex:1"><label style="display:block;font-size:12.5px;font-weight:700;margin-bottom:5px">내 예상 하한(만원)</label><input id="msLo" type="number" min="0" style="width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;font:inherit;box-sizing:border-box"></div>
+        <div style="flex:1"><label style="display:block;font-size:12.5px;font-weight:700;margin-bottom:5px">내 예상 상한(만원)</label><input id="msHi" type="number" min="0" style="width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;font:inherit;box-sizing:border-box"></div>
+      </div>
+      <p id="msAiHint" style="font-size:11.5px;color:var(--mute);margin-top:7px">※ 개인 학습 기록입니다 — 엔진 공식 성적표(적중률)와는 별개예요.</p>
+      <button type="button" onclick="doMySeal()" style="width:100%;margin-top:14px;padding:12px;border:none;border-radius:12px;background:var(--grad);color:#fff;font:inherit;font-weight:800;cursor:pointer">봉인하기</button>
+    </div>
+    <div id="msDone" style="display:none;text-align:center;padding:14px 4px">
+      <div style="font-size:40px;margin-bottom:8px">🔒</div>
+      <div style="font-size:16px;font-weight:900;margin-bottom:6px">예측이 봉인되었습니다</div>
+      <p style="font-size:13px;color:var(--sub);line-height:1.5;margin-bottom:16px">개찰 후 랜딩의 <b>"나의 예언자 여정"</b>에서 실제 낙찰가를 입력하면 채점되고, 예언자 등급이 오릅니다.</p>
+      <a href="bidcast.html#growth" style="display:inline-block;padding:11px 20px;border-radius:12px;background:var(--grad);color:#fff;font-weight:800;text-decoration:none">나의 예언자 여정 보기 →</a>
+    </div>
+  </div>
+</div>
+
 <script>
 // ═══════════════════════════════════════
 // 예시 물건 요약 데이터셋 (데모) — bidcast-list.html ITEMS / bidcast-detail.html DETAILS와 id 일치
@@ -368,9 +395,43 @@ function cardHTML(id, s, extra) {
       <div class="m">${s.court} · ${s.type}${s.fail > 0 ? ` · 유찰 ${s.fail}회` : ''}</div>
       <div class="p">최저 ${fmt(s.min)}원</div>
       ${extra.when ? `<div class="when">${extra.when} 조회</div>` : ''}
+      ${extra.seal ? (isSealed(id)
+        ? `<a class="my-seal-btn done" href="bidcast.html#growth">🔒 봉인됨 · 여정 보기</a>`
+        : `<button type="button" class="my-seal-btn" onclick="openMySeal('${id}')">🔮 내 예측 봉인</button>`) : ''}
     </div>
   </div>`;
 }
+
+// ═══════════════════════════════════════
+// 내 예측 봉인 — 관심물건에서 바로 봉인 (예언자 등급 트랙, bidcast:mypred)
+// 랜딩/상세 페이지와 동일한 저장 구조를 사용해 랜딩 "나의 예언자 여정"에 자동 반영.
+// ═══════════════════════════════════════
+function myPreds() { try { const a = JSON.parse(localStorage.getItem('bidcast:mypred') || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function isSealed(id) {
+  const t = SUMMARY[id] && SUMMARY[id].title;
+  return !!t && myPreds().some(p => p && p.title === t);
+}
+let sealItemId = null;
+function openMySeal(id) {
+  const s = SUMMARY[id]; if (!s) return;
+  sealItemId = id;
+  document.getElementById('msItemInfo').textContent = [s.title, s.min ? '최저가 ' + fmt(s.min) + '원' : ''].filter(Boolean).join(' · ') || '물건 정보';
+  document.getElementById('msLo').value = ''; document.getElementById('msHi').value = '';
+  document.getElementById('msForm').style.display = ''; document.getElementById('msDone').style.display = 'none';
+  const o = document.getElementById('mySealOverlay'); o.classList.add('open'); requestAnimationFrame(() => o.classList.add('vis')); document.body.style.overflow = 'hidden';
+}
+function closeMySeal() { const o = document.getElementById('mySealOverlay'); o.classList.remove('vis'); document.body.style.overflow = ''; setTimeout(() => o.classList.remove('open'), 250); }
+function doMySeal() {
+  const lo = Number(document.getElementById('msLo').value), hi = Number(document.getElementById('msHi').value);
+  if (!(lo > 0) || !(hi > 0) || hi < lo) { alert('예상 구간을 올바르게 입력하세요 (하한 ≤ 상한).'); return; }
+  const s = SUMMARY[sealItemId] || {};
+  const a = myPreds();
+  a.push({ title: s.title || '(물건)', appr: 0, min: s.min || 0, lo, hi, aiLo: null, aiHi: null, sealedAt: new Date().toISOString() });
+  localStorage.setItem('bidcast:mypred', JSON.stringify(a));
+  document.getElementById('msForm').style.display = 'none'; document.getElementById('msDone').style.display = '';
+  renderLikes();
+}
+document.getElementById('mySealOverlay').addEventListener('click', e => { if (e.target.id === 'mySealOverlay') closeMySeal(); });
 
 function renderLikes() {
   const likes = JSON.parse(localStorage.getItem(LIKES_KEY) || '[]').map(String);
@@ -381,7 +442,7 @@ function renderLikes() {
     area.innerHTML = `<div class="empty"><div class="ico">♥</div><p>아직 관심물건이 없어요.<br/>물건 카드의 하트를 누르면 여기에 모아드려요.</p><a href="bidcast-list.html">물건 검색하러 가기</a></div>`;
     return;
   }
-  area.innerHTML = `<div class="my-grid">${known.map(id => cardHTML(id, SUMMARY[id], { unheart:true })).join('')}</div>`;
+  area.innerHTML = `<div class="my-grid">${known.map(id => cardHTML(id, SUMMARY[id], { unheart:true, seal:true })).join('')}</div>`;
 }
 
 function removeLike(id) {
