@@ -44,6 +44,7 @@ exports.handler = async (event) => {
         body: JSON.stringify({ pred: pred || null }),
       };
     }
+    const chronicleStored = await store.get('chronicle', { type: 'json' });
     const [agg, calib, log, recent, meta, aggB] = await Promise.all([
       store.get('agg', { type: 'json' }),
       store.get('calib', { type: 'json' }),
@@ -84,6 +85,20 @@ exports.handler = async (event) => {
           headToHead: aggB.headToHead || { n: 0, bWins: 0 },
         } : { n: 0 },
         target: { hitRateLo: 95, hitRateHi: 98 },
+        // 모델 연혁 — 초기값·변경·결과의 순차 기록 (첫 채점 전에는 도입 항목을 합성해 표시)
+        chronicle: (chronicleStored && chronicleStored.length) ? chronicleStored.slice(-200) : [{
+          kind: 'genesis', at: '2026-07-19T07:00:00+09:00',
+          title: '모델 v0.1 가동 — 예측 봉인 시작',
+          detail: {
+            modelV: 'v0.1',
+            formula: '앵커1 = 감정가 × 용도별 낙찰가율(rto1), 앵커2 = 최저가 × rto2, 중앙값 = 앵커 평균, 구간 = [낮은 앵커×(1-w) ~ 높은 앵커×(1+w)]',
+            w0: 0.18, wRange: '0.06 ~ 0.35',
+            wRule: '용도별 표본 20건 이상에서 적중률 95% 미만이면 w +0.01, 98% 초과면 w -0.005',
+            statSrc: '캠코 압류재산 용도별 낙찰가율 공식 통계',
+            target: '구간 적중률 95~98% + 중앙값 오차 %·원화 병기',
+            principle: '봉인 후 수정 불가 · 전수 채점 · 실측치만 공개',
+          },
+        }],
       }),
     };
   } catch (e) {
