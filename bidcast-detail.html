@@ -1016,6 +1016,10 @@ if(it.docs&&it.docs.length){
     <div class="reg-body">${d.content}</div></div>`).join('');
 }
 
+// 최저가/감정가 비율(minPct) — 아래 EVAL_DATA와 가격바가 공용 참조하므로,
+// 선언 전 참조(TDZ, "Cannot access 'minPct' before initialization")를 막기 위해 먼저 계산한다.
+const minPct=it.appr>0?Math.round(it.min/it.appr*100):0;
+
 // ─── 경쟁평가 요약 ───
 const EVAL_DATA={
   '아파트':[
@@ -1055,7 +1059,6 @@ document.getElementById('mapAddrBar').textContent=it.address||'—';
 document.getElementById('pbAppr').textContent=fmtMwon(it.appr);
 document.getElementById('pbMin').textContent=fmtMwon(it.min);
 if(isLive)document.getElementById('pbApprTag').textContent='실데이터 (온비드)';
-const minPct=it.appr>0?Math.round(it.min/it.appr*100):0;
 document.getElementById('pbMinPct').textContent=minPct>0?`(감정가의 ${minPct}%)`:'';
 document.getElementById('pbMinNote').textContent=it.fail>0?`${it.fail}회 유찰 후 최저가`:'1회차 최저가';
 
