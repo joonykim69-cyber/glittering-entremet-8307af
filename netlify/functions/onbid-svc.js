@@ -38,10 +38,16 @@ const REGISTRY = {
   scrt_dtl:         { name: '유가증권 상세정보',          code: 'OnbidScrtDtlSrvc2',         op: '/getScrtDtlInf2' },
   cltr_bidrslt_list:{ name: '물건 입찰결과목록',          code: 'OnbidCltrBidRsltListSrvc2', op: '/getCltrBidRsltList2',    confirmed: true },
   cltr_bidrslt_dtl: { name: '물건 입찰결과상세',          code: 'OnbidCltrBidRsltDtlSrvc2',  op: '/getCltrBidRsltDtl2',     confirmed: true },
-  cltr_dtl_bidinf:  { name: '물건상세 입찰정보',          code: 'OnbidCltrDtlBidInfSrvc2',   op: '/getCltrDtlBidInf2' },
+  // 물건상세 입찰정보 — 승인 페이지 확정(2026-07-20): End Point OnbidCltrBidDtlSrvc2 / op getCltrBidinf2 (op에 소문자 inf 주의).
+  // 필수 cltrMngNo+pbctCdtnNo. 부동산·동산·차량 공통. 응답: 이전입찰내역/이전입찰결과/**유찰누적횟수**/공고관리번호/공고명/
+  // 제한경정입찰·평가배점·평가항목·평가기간/공동·대리입찰 가능여부/전자보증서/입찰제한정보/입찰관련제출서류/**회차별입찰정보**.
+  // → 예측 엔진의 실제 회차(round) 확정·보증금 실측화 소스. (data 15157251)
+  cltr_dtl_bidinf:  { name: '물건상세 입찰정보',          code: 'OnbidCltrBidDtlSrvc2',      op: '/getCltrBidinf2',         confirmed: true },
   // 공고상세 계열 — 필수 입력은 **공고관리번호 pbancMngNo**(물건관리번호 cltrMngNo 아님 — 물건목록 응답의 공고번호로 조회).
-  // pbanc_dtl(15157218)/pbanc_dtl_cltr(15157220)는 Base URL/op 아직 패턴 유추 — 승인 페이지 End Point 스크린샷으로 확정 대기.
-  pbanc_dtl:        { name: '공고상세',                   code: 'OnbidPbancDtlSrvc2',        op: '/getPbancDtlInf2' },      // data 15157218, 필수 pbancMngNo — 승인 페이지 End Point 확정 대기
+  // pbanc_dtl 승인 페이지 확정(2026-07-20): End Point OnbidPbancDtlInfSrvc2 / op getPbancDtlInf2 (유추 코드명에 Inf 누락됐었음).
+  // 응답에 **공고문 전문·공고취소사유·참가수수료** → 권리분석/매각조건 텍스트 피처 핵심 소스.
+  // pbanc_dtl_cltr(15157220)만 Base URL/op 아직 패턴 유추 — 승인 페이지 End Point 스크린샷 확정 대기.
+  pbanc_dtl:        { name: '공고상세',                   code: 'OnbidPbancDtlInfSrvc2',     op: '/getPbancDtlInf2',        confirmed: true }, // data 15157218, 필수 pbancMngNo
   pbanc_dtl_cltr:   { name: '공고상세 물건정보',          code: 'OnbidPbancDtlCltrSrvc2',    op: '/getPbancDtlCltrInf2' },  // data 15157220 — 승인 페이지 End Point 확정 대기
   // 공고상세 입찰정보 — 승인 페이지 스크린샷 확정(2026-07-20): End Point OnbidPbancBidDtlSrvc2 / op getPbancBidInf2 (유추 코드명 순서가 틀렸었음).
   // 필수 pbancMngNo. 응답: 공동입찰가능여부/대리입찰가능여부/전자보증서제출/보증금대체서류/제출서류/입찰일정및장소/제안서평가항목.
