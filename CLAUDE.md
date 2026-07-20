@@ -25,6 +25,7 @@ A static site deployed on Netlify for **신호등옥션 (구 낙찰예보/BidCas
 - **챔피언/챌린저 이중 봉인 (2026-07-19 준비 완료)**: predict-daily는 hist/_cells가 존재하면 같은 물건에 v0.5 챌린저 예측(`predb/{id}_{cdtn}`, 최저가×lr 분위수 p10/p50/p90, 백오프 L3→L0·표본 20+, 회차≈유찰수+1 근사)을 병행 봉인. score-daily가 같은 낙찰가로 둘 다 채점해 `aggB`(적중률·오차·상대전적 headToHead)에 집계, scoreboard가 `challenger`로 노출. 학습 데이터가 없으면 챌린저는 조용히 생략 — 백필이 쌓이는 순간 자동으로 경쟁 시작.
 - `netlify/functions/score-daily.js` — **자동 채점** scheduled function (KST 19:30, cron `30 10 * * *` UTC). Fetches last-3-days 개찰 결과 (3 asset classes × 2 pages via onbid-bidresults), joins with sealed predictions, grades 구간 적중 (lo≤낙찰가≤hi) + 중앙값 오차(%·만원), aggregates into `agg` (overall/가격대별/용도별/일별), and **calibrates** per-usage interval width w toward 95–98% hit rate (changes appended to `log` — the "모델이 학습하는 모습" feed). `scored/*` markers prevent double-grading; 유찰(0011)/취소(0012) conditions are closed out without grading.
 - `netlify/functions/collect-history.js` — **예측 엔진 0단계: 학습 데이터 수집기** scheduled function (KST 20:10, cron `10 11 * * *` UTC; 수동 GET 지원, `?windows=N`). 온비드 입찰결과목록(3자산군)의 과거 개찰 이력을 7일 창 단위로 과거로 백필(기본 365일, `HIST_TARGET_DAYS`)한 뒤 신규분을 매일 증분 유지. Blobs `hist/{start}_{end}/{cltrTypeCd}`에 압축 레코드(낙찰 0010+유찰 0011만: 용도/회차/감정가/최저가/낙찰가/낙찰가율/입찰자수/개찰일), 커서는 `hist/_state`, 집계는 `hist/_meta`. 실행당 최대 6창×3자산군×5페이지로 일일 쿼터(1000) 내 유지. **v0.5 다차원 통계 엔진(용도×회차×가격대 분위수)과 "유사 사례 근거 제시"의 데이터셋** — 증분 창은 겹칠 수 있어 소비 측에서 `id_cdtn` 중복 제거 필요.
+- `netlify/functions/agents.js` — **전문 에이전트 라우터 (A단계: expert/region/competition)**. POST {agent, item 스냅샷} → 서버가 봉인 예측(pred/predb)·캠코 용도/지역 통계·hist-stats 셀을 수집해 "확인된 데이터" 블록으로 직렬화 → claude.js 프록시(Haiku, max 700토큰) 호출 → Blobs `agent/{agent}/{id}_{cdtn}` 영구 캐시(물건·조건당 1회 생성). 시스템 프롬프트가 "데이터에 없는 사실 생성 금지·구간으로만·보장 표현 금지·특정 입찰가 추천 금지"를 강제, 역할별 면책 자동 부착. `bidcast-detail.html` 기본정보 탭의 "AI 전문가 분석" 섹션(라이브 물건 전용)이 호출. 설계 의도·로스터·원칙은 "전문 에이전트 시스템" 메모 참조.
 - `netlify/functions/hist-stats.js` — **v0.5 다차원 통계 조회 API**: collect-history가 쌓은 hist/* 레코드를 자산군×용도×회차×가격대 4레벨 셀로 집계(hist/_cells 캐시, _meta.updatedAt 변경 시 재빌드)해 낙찰가율 분위수(p10~p90, 최저가 대비 lr/감정가 대비 wr)와 유찰율을 반환. `?type=&usage=&round=&tier=`(또는 lowMan) 백오프 조회(L3→L0, minN 기본 20), `?rebuild=1` 강제 재빌드, 데이터 없으면 `status:'empty'`. **v0.5 봉인 엔진과 "유사 사례 근거" UI의 공용 데이터 레이어** — 파라미터 없이 호출하면 데이터셋 요약.
 - `netlify/functions/scoreboard.js` — Public GET returning the ledger scoreboard: `summary{n,hitRate,avgAbsErrPct}`, byTier/byUsage/daily, calib, learningLog, recent 20 graded examples, sealDays. 5-min CDN cache. This feeds the landing "살아있는 성적표" and the 랩 page (실측 — 예시 없음). **지표 체계: 구간 적중률(주력, 목표 95~98%) + 중앙값 오차 %·원화 병기 + 가격대별 분해** — point-accuracy claims like "99% 정확" are deliberately NOT made (사용자와 합의된 정직성 원칙, 2026-07-19).
 - `netlify.toml` — Points Netlify at `netlify/functions` with the esbuild bundler; declares the two ledger cron schedules. Also 302-redirects `/` to `/bidcast.html` with `force = true` (Netlify serves an existing file over a redirect without it).
@@ -48,6 +49,16 @@ A 15-page static prototype (`bidcast*.html`) for an Onbid auction winning-bid pr
 - `bidcast-partner.html` — CPA partner-program landing with a revenue slider simulator and an accordion FAQ.
 - `bidcast-pricing.html` — 요금제: 무료/프로(19,900원/월)/프리미엄(49,900원/월) 3단 카드, 월간·연간 토글 (연간 2개월 무료), 14항목 기능 비교표, FAQ 6문. "예시 요금제" disclosure. 모든 CTA는 공용 auth modal로 연결.
 - `bidcast-support.html` — 8-tab support hub (공지/이벤트/FAQ/1:1문의/자유게시판/가이드/언론기사/제휴문의); tabs are addressable via URL hash (`bidcast-support.html#faq`).
+
+## 전문 에이전트 시스템 (2026-07-20 사용자 승인 — 설계 의도 메모)
+
+**왜 만들었나**: 사용자의 창업 취지는 "사용자가 스스로 공매 전문가로 성장하는 도구". 이를 위해 ① 여러 전문 분야의 분석을 사용자에게 근거로 제시하고 ② 그 분석을 수치 피처로 만들어 예측 정밀도를 높이려는 목적. 사용자가 직접 요청한 4분야(법률/부동산/뉴스·정보/지역) + Claude가 예측 기여도 기준으로 추가 제안해 승인받은 4종(경쟁 강도/매각조건 리스크/거시 금리/감사역) = 총 8종 로스터.
+
+**절대 원칙 (수정 시에도 유지)**: 에이전트의 정성 분석은 **봉인된 예측을 직접 수정하지 않는다**. 반영 경로는 두 가지뿐 — (a) 사용자에게 근거로 표시, (b) 수치 피처화 → 챌린저 모델 → 봉인·채점 검증 통과 후 반영. 팩트가 없으면 생성하지 않고, 모든 출력에 역할별 면책 부착(특히 권리분석: 법률 자문 아님 — 변호사법 리스크로 명칭도 "권리분석 도우미" 사용).
+
+**아키텍처**: `netlify/functions/agents.js` 라우터 1개에 에이전트 레지스트리(역할별 시스템 프롬프트 + 컨텍스트 빌더). 클라이언트가 물건 스냅샷을 POST → 서버가 봉인 예측(pred/predb)·캠코 통계·hist-stats 셀 등 실데이터를 추가 수집 → claude.js 프록시(Haiku) 호출 → Blobs `agent/{agent}/{id}_{cdtn}` 캐시(물건·조건당 1회 생성, 비용 통제).
+
+**로스터·단계**: A(구현됨 2026-07-20) ①부동산 전문가(종합분석) ②지역 전문가(지역 브리핑) ⑤경쟁 강도(유찰·관심순위·유찰율 근거) / B ③권리분석 도우미(공고상세 연동 시 강화) / C ④뉴스(RSS 크론)+⑦거시 금리 워처(ECOS 키 필요) / D ⑥매각조건 리스크(공고 본문 텍스트 피처, 공고상세 End Point 필요) / E ⑧감사역(주간 채점 감사→chronicle에 개선 제안 기록, 채택은 사람이 결정).
 
 ## 보류 중인 작업 (사용자 지시로 연기 — 2026-07-19)
 

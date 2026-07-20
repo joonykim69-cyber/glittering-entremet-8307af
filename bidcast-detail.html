@@ -111,6 +111,16 @@ a{color:inherit;text-decoration:none;}
 
 /* ═══ 섹션 공통 ═══ */
 .rp-section{padding:20px 22px;border-bottom:1px solid var(--line);background:var(--surface);}
+.agent-btns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.agent-btn{font:inherit;font-size:12.5px;font-weight:800;cursor:pointer;background:var(--surface);border:1.5px solid var(--line);color:var(--ink);padding:9px 16px;border-radius:999px;transition:all .2s;}
+.agent-btn:hover{border-color:var(--green);color:var(--green-deep);}
+.agent-btn.on{background:var(--green);border-color:var(--green);color:#fff;}
+.agent-btn:disabled{opacity:.55;cursor:wait;}
+.agent-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-top:10px;}
+.agent-card .ah{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:900;margin-bottom:8px;}
+.agent-card .ah .when{font-size:10.5px;font-weight:700;color:var(--mute);margin-left:auto;}
+.agent-card .atext{font-size:13.5px;color:var(--ink);line-height:1.75;white-space:pre-wrap;word-break:keep-all;}
+.agent-card .adisc{font-size:10.5px;color:var(--mute);margin-top:10px;border-top:1px dashed var(--line);padding-top:8px;}
 .rgn-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
 .rgn-cell{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 12px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;}
 .rgn-donut{width:88px;height:88px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--green) calc(var(--p)*1%),var(--line) 0);}
@@ -509,6 +519,17 @@ h1,h2,h3,h4{font-family:var(--font-head)}
         <div class="card history" id="histList"></div>
       </section>
       <!-- 주변 실거래 — 국토부 실거래가 (실데이터, 라이브 물건 + 시군구 식별 성공 시에만 표시) -->
+      <!-- AI 전문가 분석 — agents.js (실데이터 주입 생성, 물건당 1회 캐시). 라이브 물건에서만 표시 -->
+      <section class="rp-section" id="sec-agents" style="display:none;">
+        <h2>AI 전문가 분석 <span class="sec-tag" style="background:var(--green-soft);color:var(--green-deep);">실데이터 기반 생성 · Claude</span></h2>
+        <div class="agent-btns">
+          <button type="button" class="agent-btn" data-agent="expert" onclick="runAgent('expert',this)">🏢 부동산 전문가</button>
+          <button type="button" class="agent-btn" data-agent="region" onclick="runAgent('region',this)">📍 지역 전문가</button>
+          <button type="button" class="agent-btn" data-agent="competition" onclick="runAgent('competition',this)">🥊 경쟁 강도 분석</button>
+        </div>
+        <div id="agentOut"></div>
+        <p style="font-size:11px;color:var(--mute);margin-top:10px;">※ 분석은 봉인 예측·캠코 통계·실측 이력 등 확인된 데이터만으로 생성되며, 봉인된 예측을 수정하지 않습니다. 통계적 참고자료이며 투자 자문이 아닙니다.</p>
+      </section>
       <!-- 인근 매각통계 — 캠코 지역별 공식 통계 (실데이터, 라이브 물건 + 지역 매칭 시 표시) -->
       <section class="rp-section" id="sec-rgnstats" style="display:none;">
         <h2>인근 매각통계 <span class="sec-tag" style="background:var(--green-soft);color:var(--green-deep);">캠코 공식 통계 · 실데이터</span></h2>
@@ -1144,6 +1165,7 @@ if(isLive&&liveItem){
       if(chip)chip.textContent='📡 실시간 온비드 물건 — 상세정보 API 연동됨';
     }catch(e){console.log('[detail] 상세 API 오류:',e.message);}
   })();
+  document.getElementById('sec-agents').style.display='';
   // 인근 매각통계 — 캠코 지역별 공식 통계(stat_rgn, 압류재산). 지역 미매칭·API 실패 시 섹션 숨김 유지.
   (async()=>{
     try{
@@ -1249,6 +1271,39 @@ if(isLive&&liveItem){
       document.getElementById('sec-rtms').style.display='';
     }catch(e){console.log('[rtms] 주변 실거래 로드 실패(섹션 미표시):',e.message);}
   })();
+}
+
+// ═══ AI 전문가 분석 (agents.js) — 라이브 물건 전용, 서버 캐시로 물건당 1회 생성 ═══
+const AGENT_LABEL={expert:'🏢 부동산 전문가',region:'📍 지역 전문가',competition:'🥊 경쟁 강도 분석'};
+async function runAgent(name,btn){
+  if(!isLive||!liveItem||!liveItem.pbctCdtnNo){alert('실시간 물건에서만 사용할 수 있습니다.');return;}
+  const out=document.getElementById('agentOut');
+  document.querySelectorAll('.agent-btn').forEach(b=>{b.disabled=true;b.classList.toggle('on',b===btn);});
+  out.innerHTML='<div class="agent-card"><div class="atext" style="color:var(--sub);">⏳ 확인된 데이터를 모아 분석을 생성하고 있어요… (최초 1회만 생성되며 이후엔 즉시 표시됩니다)</div></div>';
+  try{
+    const r=await fetch('/.netlify/functions/agents',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({agent:name,item:{
+        id:String(liveItem.id),pbctCdtnNo:String(liveItem.pbctCdtnNo),
+        title:liveItem.title||'',usage:liveItem.usage||'',type:liveItem.type||'',
+        appr:Number(liveItem.appr)||0,min:Number(liveItem.min)||0,fail:Number(liveItem.fail)||0,
+        address:liveItem.address||'',assetClass:liveItem.assetClass||'부동산',
+      }}),
+    });
+    const d=await r.json();
+    if(!r.ok||d.error)throw new Error((d.error&&d.error.message)||('HTTP '+r.status));
+    const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    const when=d.generatedAt?new Date(d.generatedAt):null;
+    out.innerHTML=`<div class="agent-card">
+      <div class="ah">${AGENT_LABEL[name]||esc(d.agentName||'')}<span class="when">${d.cached?'캐시됨 · ':''}${when?when.toLocaleString('ko-KR'):''}</span></div>
+      <div class="atext">${esc(d.analysis)}</div>
+      <div class="adisc">⚖️ ${esc(d.disclaimer||'')}</div>
+    </div>`;
+  }catch(e){
+    out.innerHTML=`<div class="agent-card"><div class="atext" style="color:var(--sub);">분석 생성이 지금은 어려워요 (${String(e.message).replace(/</g,'&lt;')}). 잠시 후 다시 시도해 주세요.</div></div>`;
+  }finally{
+    document.querySelectorAll('.agent-btn').forEach(b=>b.disabled=false);
+  }
 }
 
 // ═══ 관심물건 ═══
