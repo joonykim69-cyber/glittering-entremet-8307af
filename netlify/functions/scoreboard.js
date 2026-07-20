@@ -44,12 +44,13 @@ exports.handler = async (event) => {
         body: JSON.stringify({ pred: pred || null }),
       };
     }
-    const [agg, calib, log, recent, meta] = await Promise.all([
+    const [agg, calib, log, recent, meta, aggB] = await Promise.all([
       store.get('agg', { type: 'json' }),
       store.get('calib', { type: 'json' }),
       store.get('log', { type: 'json' }),
       store.get('recent', { type: 'json' }),
       store.get('meta', { type: 'json' }),
+      store.get('aggB', { type: 'json' }),
     ]);
 
     const n = agg?.n || 0;
@@ -75,6 +76,13 @@ exports.handler = async (event) => {
         lastSealAt: meta?.lastSealAt || null,
         updatedAt: agg?.updatedAt || null,
         modelV: 'v0.1',
+        // v0.5 챌린저 비교 성적 (predb 채점분) — 데이터 없으면 n:0
+        challenger: (aggB && aggB.n) ? {
+          modelV: 'v0.5-cells', n: aggB.n, hit: aggB.hit,
+          hitRate: Math.round(aggB.hit / aggB.n * 1000) / 10,
+          avgAbsErrPct: Math.round(aggB.sumAbsErrPct / aggB.n * 10) / 10,
+          headToHead: aggB.headToHead || { n: 0, bWins: 0 },
+        } : { n: 0 },
         target: { hitRateLo: 95, hitRateHi: 98 },
       }),
     };

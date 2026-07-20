@@ -76,6 +76,9 @@ exports.handler = async (event) => {
   try {
     const stats = await loadUsgStats(base);
     const calib = (await store.get('calib', { type: 'json' })) || { byUsage: {} };
+    // v0.5 챌린저 준비 — collect-history가 만든 실측 이력 셀(hist/_cells).
+    // 데이터가 없으면 null → 챌린저 봉인은 조용히 생략된다 (챔피언 v0.1만 봉인).
+    const cellsData = (await store.get('hist/_cells', { type: 'json' })) || null;
 
     // 마감 임박 물건 수집: 부동산 + 동산 + 차량 (입찰기간 검색 창: 오늘~+2일)
     const start = ymd(kst());
@@ -91,7 +94,7 @@ exports.handler = async (event) => {
       if (s.status === 'fulfilled' && Array.isArray(s.value.items)) items.push(...s.value.items);
     });
 
-    let sealed = 0, skipped = 0, noBasis = 0;
+    let sealed = 0, skipped = 0, noBasis = 0, sealedB = 0;
     const endLimit = end + '2359';
     const targets = items
       .filter(it => it.min > 0 && it.pbctCdtnNo && (!it.bidEnd || String(it.bidEnd) <= endLimit))
@@ -127,6 +130,33 @@ exports.handler = async (event) => {
         sealedAt: new Date().toISOString(),
       });
       sealed++;
+
+      // ── v0.5 챌린저 봉인 (predb/*) — 같은 물건을 실측 이력 분위수로 병행 예측 ──
+      // 셀 조회는 hist-stats와 동일한 백오프(L3→L0, 표본 20+). 회차는 유찰수+1로 근사.
+      if (cellsData && cellsData.cells) {
+        const typeCd = it.assetClass === '동산' ? '0003' : it.assetClass === '자동차' ? '0002' : '0001';
+        const usage = String(it.usage || it.type || '기타').trim() || '기타';
+        const rbN = (Number(it.fail) || 0) + 1;
+        const rb = rbN >= 4 ? '4+' : String(rbN);
+        const tier = it.min < 10000 ? 'lt1' : it.min < 50000 ? 't1to5' : it.min < 100000 ? 't5to10' : 'gte10';
+        for (const ck of [`L3|${typeCd}|${usage}|${rb}|${tier}`, `L2|${typeCd}|${usage}|${rb}`, `L1|${typeCd}|${usage}`, `L0|${typeCd}`]) {
+          const cell = cellsData.cells[ck];
+          if (cell && cell.n >= 20 && cell.lr) {
+            const bLo = Math.round(it.min * cell.lr.p10 / 100);
+            const bMid = Math.round(it.min * cell.lr.p50 / 100);
+            let bHi = Math.round(it.min * cell.lr.p90 / 100);
+            if (bHi <= bLo) bHi = Math.round(bLo * 1.05);
+            await store.setJSON(`predb/${it.id}_${it.pbctCdtnNo}`, {
+              id: it.id, pbctCdtnNo: it.pbctCdtnNo, type: it.type,
+              lo: bLo, mid: bMid, hi: bHi, // 만원
+              cellKey: ck, cellN: cell.n, modelV: 'v0.5-cells',
+              sealedAt: new Date().toISOString(),
+            });
+            sealedB++;
+            break;
+          }
+        }
+      }
     }
 
     // 일자별 봉인 카운트 (성적표의 "오늘 예측 N건 봉인" 표시용)
@@ -138,7 +168,7 @@ exports.handler = async (event) => {
     meta.lastSealAt = new Date().toISOString();
     await store.setJSON('meta', meta);
 
-    const summary = { ok: true, scanned: items.length, targets: targets.length, sealed, skipped, noBasis, statPerd: stats ? stats.perd : null, ...(qs.debug ? { window: { start, end } } : {}) };
+    const summary = { ok: true, scanned: items.length, targets: targets.length, sealed, sealedB, skipped, noBasis, statPerd: stats ? stats.perd : null, ...(qs.debug ? { window: { start, end } } : {}) };
     console.log('[predict-daily]', JSON.stringify(summary));
     return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify(summary) };
   } catch (e) {
