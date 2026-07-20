@@ -113,12 +113,15 @@ exports.handler = async (event) => {
       const winMan = Math.round(r.winAmt / 10000); // 원 → 만원 (pred와 단위 통일)
       const hit = winMan >= pred.lo && winMan <= pred.hi;
       const errPct = Math.round((pred.mid - winMan) / winMan * 1000) / 10;
+      // 구간 폭(낙찰가 대비 %) — "넓게 질러서 맞히기" 방지: 적중률은 폭과 함께 봐야 한다 (승격 기준)
+      const widthPct = Math.round((pred.hi - pred.lo) / winMan * 1000) / 10;
       const absErrMan = Math.abs(pred.mid - winMan);
       const tier = tierOf(winMan);
       const usage = pred.type || '기타';
 
       agg.n++; if (hit) agg.hit++;
       agg.sumAbsErrPct += Math.abs(errPct);
+      agg.sumWidthPct = (agg.sumWidthPct || 0) + widthPct;
       agg.byTier[tier] = agg.byTier[tier] || { n: 0, hit: 0 };
       agg.byTier[tier].n++; if (hit) agg.byTier[tier].hit++;
       agg.byUsage[usage] = agg.byUsage[usage] || { n: 0, hit: 0 };
@@ -141,6 +144,7 @@ exports.handler = async (event) => {
         const bErrPct = Math.round((predB.mid - winMan) / winMan * 1000) / 10;
         aggB.n++; if (bHit) aggB.hit++;
         aggB.sumAbsErrPct += Math.abs(bErrPct);
+        aggB.sumWidthPct = (aggB.sumWidthPct || 0) + Math.round((predB.hi - predB.lo) / winMan * 1000) / 10;
         aggB.headToHead.n++;
         if (Math.abs(bErrPct) <= Math.abs(errPct)) aggB.headToHead.bWins++;
         bCmp = { hit: bHit, errPct: bErrPct, modelV: predB.modelV, cellKey: predB.cellKey };

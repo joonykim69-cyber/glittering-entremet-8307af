@@ -60,6 +60,7 @@ exports.handler = async (event) => {
       hit: agg.hit,
       hitRate: Math.round(agg.hit / n * 1000) / 10,          // 구간 적중률 %
       avgAbsErrPct: Math.round(agg.sumAbsErrPct / n * 10) / 10, // 중앙값 평균 절대 오차 %
+      avgWidthPct: agg.sumWidthPct ? Math.round(agg.sumWidthPct / n * 10) / 10 : null, // 평균 구간 폭 % (낙찰가 대비)
     } : { n: 0 };
 
     return {
@@ -82,6 +83,7 @@ exports.handler = async (event) => {
           modelV: 'v0.5-cells', n: aggB.n, hit: aggB.hit,
           hitRate: Math.round(aggB.hit / aggB.n * 1000) / 10,
           avgAbsErrPct: Math.round(aggB.sumAbsErrPct / aggB.n * 10) / 10,
+          avgWidthPct: aggB.sumWidthPct ? Math.round(aggB.sumWidthPct / aggB.n * 10) / 10 : null,
           headToHead: aggB.headToHead || { n: 0, bWins: 0 },
         } : { n: 0 },
         target: { hitRateLo: 95, hitRateHi: 98 },
