@@ -69,6 +69,8 @@ exports.handler = async (event) => {
       byTier: {}, byUsage: {}, daily: {},
     };
     const calib = (await store.get('calib', { type: 'json' })) || { byUsage: {} };
+    // v0.5 챌린저(predb/*) 비교 집계 — 챔피언과 같은 물건에서만 채점되므로 공정 비교가 된다
+    const aggB = (await store.get('aggB', { type: 'json' })) || { n: 0, hit: 0, sumAbsErrPct: 0, headToHead: { n: 0, bWins: 0 } };
     const log = (await store.get('log', { type: 'json' })) || [];
     const recent = (await store.get('recent', { type: 'json' })) || [];
 
@@ -113,7 +115,20 @@ exports.handler = async (event) => {
         scoredAt: new Date().toISOString(),
       });
 
-      await store.setJSON(scoredKey, { outcome: 'graded', hit, errPct, at: new Date().toISOString() });
+      // ── v0.5 챌린저 채점 (있을 때만) — 같은 낙찰가로 구간 적중·오차를 병행 기록 ──
+      const predB = await store.get(`predb/${r.id}_${r.pbctCdtnNo}`, { type: 'json' });
+      let bCmp = null;
+      if (predB && predB.lo) {
+        const bHit = winMan >= predB.lo && winMan <= predB.hi;
+        const bErrPct = Math.round((predB.mid - winMan) / winMan * 1000) / 10;
+        aggB.n++; if (bHit) aggB.hit++;
+        aggB.sumAbsErrPct += Math.abs(bErrPct);
+        aggB.headToHead.n++;
+        if (Math.abs(bErrPct) <= Math.abs(errPct)) aggB.headToHead.bWins++;
+        bCmp = { hit: bHit, errPct: bErrPct, modelV: predB.modelV, cellKey: predB.cellKey };
+      }
+
+      await store.setJSON(scoredKey, { outcome: 'graded', hit, errPct, ...(bCmp ? { b: bCmp } : {}), at: new Date().toISOString() });
       graded++;
     }
 
@@ -138,14 +153,16 @@ exports.handler = async (event) => {
     while (dailyKeys.length > 90) delete agg.daily[dailyKeys.shift()];
     agg.updatedAt = new Date().toISOString();
 
+    aggB.updatedAt = new Date().toISOString();
     await Promise.all([
       store.setJSON('agg', agg),
+      store.setJSON('aggB', aggB),
       store.setJSON('calib', calib),
       store.setJSON('log', log),
       store.setJSON('recent', recent),
     ]);
 
-    const summary = { ok: true, fetched: results.length, graded, already, noPred, totals: { n: agg.n, hit: agg.hit } };
+    const summary = { ok: true, fetched: results.length, graded, already, noPred, totals: { n: agg.n, hit: agg.hit }, challenger: { n: aggB.n, hit: aggB.hit, headToHead: aggB.headToHead } };
     console.log('[score-daily]', JSON.stringify(summary));
     return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify(summary) };
   } catch (e) {
