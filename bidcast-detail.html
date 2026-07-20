@@ -382,6 +382,30 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 </header>
 
 <!-- AUTH MODAL -->
+<!-- 내 예측 봉인 모달 (예언자 등급 트랙 — 물건 정보·AI 구간 자동 채움) -->
+<div class="auth-overlay" id="mySealOverlay" role="dialog" aria-modal="true">
+  <div class="auth-modal">
+    <button type="button" onclick="closeMySeal()" aria-label="닫기" style="position:absolute;top:16px;right:16px;background:var(--bg);border:1px solid var(--line);color:var(--sub);cursor:pointer;width:34px;height:34px;border-radius:50%;font-size:15px;line-height:1">×</button>
+    <div id="msForm">
+      <h3 style="font-family:var(--font-head);font-size:20px;font-weight:900;margin-bottom:2px">🔮 내 예측 봉인</h3>
+      <p style="font-size:13px;color:var(--sub);line-height:1.5;margin-bottom:8px">이 물건의 <b>내 예상 낙찰가 구간</b>을 봉인합니다. 개찰 후 랜딩 "나의 예언자 여정"에서 채점돼요.</p>
+      <div id="msItemInfo" style="font-size:12.5px;color:var(--sub);background:var(--bg);border-radius:10px;padding:10px 12px;margin-bottom:8px"></div>
+      <div style="display:flex;gap:10px">
+        <div style="flex:1"><label style="display:block;font-size:12.5px;font-weight:700;margin-bottom:5px">내 예상 하한(만원)</label><input id="msLo" type="number" min="0" style="width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;font:inherit;box-sizing:border-box"></div>
+        <div style="flex:1"><label style="display:block;font-size:12.5px;font-weight:700;margin-bottom:5px">내 예상 상한(만원)</label><input id="msHi" type="number" min="0" style="width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;font:inherit;box-sizing:border-box"></div>
+      </div>
+      <p id="msAiHint" style="font-size:11.5px;color:var(--mute);margin-top:7px"></p>
+      <button class="rp-cta-g" type="button" onclick="doMySeal()" style="width:100%;margin-top:14px;border:none;cursor:pointer;font:inherit">봉인하기</button>
+    </div>
+    <div id="msDone" style="display:none;text-align:center;padding:14px 4px">
+      <div style="font-size:40px;margin-bottom:8px">🔒</div>
+      <div style="font-size:16px;font-weight:900;margin-bottom:6px">예측이 봉인되었습니다</div>
+      <p style="font-size:13px;color:var(--sub);line-height:1.5;margin-bottom:16px">개찰 후 랜딩의 <b>"나의 예언자 여정"</b>에서 실제 낙찰가를 입력하면 채점되고, 예언자 등급이 오릅니다.</p>
+      <a class="rp-cta-g" href="bidcast.html#growth" style="display:inline-block">나의 예언자 여정 보기 →</a>
+    </div>
+  </div>
+</div>
+
 <div class="auth-overlay" id="authOverlay" role="dialog" aria-modal="true">
   <div class="auth-modal">
     <button class="auth-close" type="button" onclick="closeAuth()" aria-label="닫기">✕</button>
@@ -616,7 +640,8 @@ h1,h2,h3,h4{font-family:var(--font-head)}
           </div>
           <p class="ai-note">※ 예시 데이터 — 예측 정보는 통계 기반 참고자료이며 투자 결과를 보장하지 않습니다.</p>
         </div>
-        <div style="margin-top:14px;">
+        <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="rp-cta-p" type="button" onclick="openMySeal()" style="border:none;cursor:pointer;font:inherit;">🔮 내 예측 봉인하기</button>
           <a class="rp-cta-p" id="botLink2" href="bidcast-bot.html">🤖 예보봇에게 이 물건 자세히 물어보기</a>
         </div>
       </section>
@@ -951,6 +976,8 @@ function galNav(dir){
 
 // AI 예보
 const lo=Math.round(it.min*1.02),hi=Math.round(it.min*1.13),rec=Math.round(it.min*1.07);
+// "내 예측 봉인"이 물건 정보·AI 구간을 자동으로 채우도록 전역에 노출(만원 단위)
+window.__ai={lo,hi,min:it.min,appr:it.appr,title:it.title};
 document.getElementById('aiRange').textContent=`${fmt(lo)} ~ ${fmt(hi)}`;
 document.getElementById('aiRec').textContent=fmt(rec)+'원';
 document.getElementById('aiConf').textContent=it.fail>=2?'중간':'높음';
@@ -1420,6 +1447,27 @@ function closeAuth(){
   setTimeout(()=>authOverlay.classList.remove('open'),250);
 }
 authOverlay.addEventListener('click',e=>{if(e.target===authOverlay)closeAuth();});
+// ═══ 내 예측 봉인 (예언자 등급 트랙 — 랜딩 bidcast:mypred와 동일 구조로 저장) ═══
+function openMySeal(){
+  const ai=window.__ai||{};
+  document.getElementById('msItemInfo').textContent=[ai.title,ai.appr?'감정가 '+fmtMwon(ai.appr):'',ai.min?'최저가 '+fmtMwon(ai.min):''].filter(Boolean).join(' · ')||'물건 정보';
+  document.getElementById('msAiHint').textContent=ai.lo?`참고 · AI 예상 범위 ${fmtMwon(ai.lo)}~${fmtMwon(ai.hi)} (봉인 시 나 vs AI로 함께 기록됩니다)`:'';
+  document.getElementById('msLo').value='';document.getElementById('msHi').value='';
+  document.getElementById('msForm').style.display='';document.getElementById('msDone').style.display='none';
+  const o=document.getElementById('mySealOverlay');o.classList.add('open');requestAnimationFrame(()=>o.classList.add('vis'));document.body.style.overflow='hidden';
+}
+function closeMySeal(){const o=document.getElementById('mySealOverlay');o.classList.remove('vis');document.body.style.overflow='';setTimeout(()=>o.classList.remove('open'),250);}
+function doMySeal(){
+  const lo=Number(document.getElementById('msLo').value),hi=Number(document.getElementById('msHi').value);
+  if(!(lo>0)||!(hi>0)||hi<lo){alert('예상 구간을 올바르게 입력하세요 (하한 ≤ 상한).');return;}
+  const ai=window.__ai||{};
+  let a;try{a=JSON.parse(localStorage.getItem('bidcast:mypred')||'[]');}catch(e){a=[];}
+  if(!Array.isArray(a))a=[];
+  a.push({title:ai.title||it.title||'(물건)',appr:ai.appr||0,min:ai.min||0,lo,hi,aiLo:ai.lo||null,aiHi:ai.hi||null,sealedAt:new Date().toISOString()});
+  localStorage.setItem('bidcast:mypred',JSON.stringify(a));
+  document.getElementById('msForm').style.display='none';document.getElementById('msDone').style.display='';
+}
+document.getElementById('mySealOverlay').addEventListener('click',e=>{if(e.target.id==='mySealOverlay')closeMySeal();});
 function snsFlow(p){finishAuth(p==='Google'?'Gmail 계정':`${p} 계정`);}
 function finishAuth(identity){
   closeAuth();
