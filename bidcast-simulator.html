@@ -720,5 +720,58 @@ document.addEventListener('keydown', (e) => {
   if (authOverlay.classList.contains('open')) closeAuth();
 });
 </script>
+<!-- 공용 회원 배지 (예언자 등급) — 전 페이지 동일 위치 -->
+<script>
+/* 로그인 회원 표시(애칭+예언자 등급)를 모든 페이지 nav 우측 동일 위치에 렌더.
+   등급 판정은 랜딩(bidcast.html)과 동일 로직(bidcast:mypred 기반). 개인 학습 트랙 — 엔진 공식 성적표와 분리. */
+(function () {
+  if (window.__bcBadge) return; window.__bcBadge = true;
+  var GN = ['이드몬', '몹소스', '칼카스', '테이레시아스', '피티아', '아폴론'];
+  var GC = ['#E5484D', '#F2777A', '#EB763C', '#F5A623', '#5CC98D', '#00A86B'];
+  function esc(s) { return String(s == null ? '' : s).replace(/[<>&"]/g, function (c) { return { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]; }); }
+  function lsGet(k, d) { try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } }
+  function nick() { return lsGet('bidcast:nick', null); }
+  function grade() {
+    var a = lsGet('bidcast:mypred', []); if (!Array.isArray(a)) a = [];
+    var sc = a.filter(function (p) { return p && p.scoredAt; });
+    var hits = sc.filter(function (p) { return p.hit; }).length;
+    var hr = sc.length ? hits / sc.length : 0;
+    if (sc.length >= 100 && hr >= 0.65) return 6;
+    if (sc.length >= 60 && hr >= 0.55) return 5;
+    if (sc.length >= 30 && hr >= 0.40) return 4;
+    if (sc.length >= 10) return 3;
+    if (a.length >= 1) return 2;
+    return 1;
+  }
+  function navEl() {
+    return document.getElementById('navRight') || document.getElementById('rpNavRight')
+      || document.querySelector('.nav-right') || document.querySelector('.nav-actions');
+  }
+  function render() {
+    var n = nick(); if (!n) return;
+    var el = navEl(); if (!el) return;
+    var g = grade(), c = GC[g - 1];
+    el.innerHTML = '<span class="nav-user" style="background:#fff;border:1px solid ' + c + '55;color:' + c + ';cursor:pointer" '
+      + 'onclick="location.href=\'bidcast.html#growth\'" title="나의 예언자 여정">'
+      + '<span class="dot" style="width:8px;height:8px;border-radius:50%;background:' + c + ';box-shadow:0 0 7px ' + c + 'b0"></span>'
+      + esc(n) + ' · ' + GN[g - 1]
+      + ' <button type="button" onclick="event.stopPropagation();__bcLogout()">로그아웃</button></span>';
+  }
+  // 로그인 훅: 페이지 자체 finishAuth 실행 후 애칭 저장 + 등급 배지로 교체
+  var _fa = window.finishAuth;
+  window.finishAuth = function (identity) {
+    var r; if (typeof _fa === 'function') r = _fa.apply(this, arguments);
+    try { if (!localStorage.getItem('bidcast:nick')) localStorage.setItem('bidcast:nick', JSON.stringify((String(identity).split('@')[0] || '예언자').slice(0, 20))); } catch (e) {}
+    render(); return r;
+  };
+  // 로그아웃 훅: 애칭 제거(개인 기록 mypred는 보존) 후 페이지 자체 logoutDemo 실행
+  var _lo = window.logoutDemo;
+  window.__bcLogout = function () { try { localStorage.removeItem('bidcast:nick'); } catch (e) {} if (typeof _lo === 'function') _lo.apply(this, arguments); };
+  window.logoutDemo = window.__bcLogout;
+  if (document.readyState !== 'loading') render();
+  else document.addEventListener('DOMContentLoaded', render);
+})();
+</script>
+
 </body>
 </html>

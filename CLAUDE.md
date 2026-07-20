@@ -175,6 +175,8 @@ Deployment happens through Netlify on push (the initial commit was created via N
 
 Every `bidcast-*.html` page repeats the same self-contained auth modal (`#authOverlay`, `openAuth()/closeAuth()/snsFlow()/finishAuth()/logoutDemo()`) rather than importing a shared component, per the single-file convention. It is a **pure front-end demo**: any SNS button or email code instantly "logs in" and swaps the nav-right buttons for a `.nav-user` badge — there is no real OAuth, email delivery, or session storage. Keep new pages consistent with this pattern rather than inventing a new auth UI.
 
+**공용 회원 배지 — 전 페이지 동일 위치 (2026-07-20 구현)**: 로그인 회원 표시(애칭 + 예언자 등급)를 **모든 페이지 nav 우측 같은 위치**에 렌더하기 위해, `bidcast.html`을 제외한 14개 페이지의 `</body>` 직전에 공용 배지 스크립트(`<!-- 공용 회원 배지 (예언자 등급) -->` 마커, IIFE `window.__bcBadge` 가드)를 삽입했다. 이 스크립트는 (a) 페이지 로드 시 `bidcast:nick`이 있으면 nav 요소(`#navRight`/`#rpNavRight`/`.nav-right`/`.nav-actions` 폴백)에 등급 색 배지를 렌더, (b) 페이지 자체 `finishAuth`를 래핑해 로그인 시 `bidcast:nick`을 저장하고 배지로 교체, (c) `logoutDemo`를 래핑해 로그아웃 시 애칭만 제거(개인 기록 `bidcast:mypred`는 보존). 등급 판정·색·이름은 랜딩과 **동일 로직**(`bidcast:mypred` 기반 6등급, GC/GN 상수). 배지 클릭 시 `bidcast.html#growth`로 이동. `bidcast.html`은 자체 `updateNavGrade()`가 있어 제외. 개인 학습 트랙이므로 엔진 공식 성적표와 UI 분리 원칙 유지.
+
 ## Conventions
 
 - Comments and UI copy are in Korean; preserve that.
