@@ -47,14 +47,15 @@ const REGISTRY = {
   //    pbctNsq(공매차수)/usbdNft(유찰횟수), pbctTdpsCont(보증금="최저입찰가격*10%"), cseqBidInfClgList(회차별 최저입찰가 리스트),
   //    prcnBidClgList(직전 유찰이력: cltrOpbdDt/pbctStatNm/lowstBidPrcIndctCont/scfbAmt). → 예측 엔진 실제 회차·보증금 실측 소스.
   cltr_dtl_bidinf:  { name: '물건상세 입찰정보',          code: 'OnbidCltrBidDtlSrvc2',      op: '/getCltrBidInf2',         confirmed: true },
-  // 공고상세 계열 — 필수 입력은 **공고관리번호 pbancMngNo**(물건관리번호 cltrMngNo 아님 — 물건목록 응답의 공고번호로 조회).
-  // pbanc_dtl 승인 페이지 확정(2026-07-20): End Point OnbidPbancDtlInfSrvc2 / op getPbancDtlInf2 (유추 코드명에 Inf 누락됐었음).
-  // 응답에 **공고문 전문·공고취소사유·참가수수료** → 권리분석/매각조건 텍스트 피처 핵심 소스.
+  // 공고상세 계열 — 필수 입력은 **공고관리번호 pbancMngNo**(물건관리번호 cltrMngNo 아님 — cltr_dtl_bidinf 응답의 pbancMngNo로 조회).
   // pbanc_dtl_cltr 승인 페이지 확정(2026-07-20): End Point OnbidPbancCltrDtlSrvc2 / op getPbancCltrInf2 (유추 Dtl/Cltr 순서 틀렸었음).
   // 필수 pbancMngNo. 응답: 공고에 속한 물건 목록 — 재산유형/처분방식/용도/물건명/**유찰횟수**/일괄입찰여부/물건주소/
   // **회차·공매차수**/입찰시작·종료일시/**감정평가금액·최저입찰가격**. → 공고번호 1개로 그 공고 전 물건·회차 일괄 획득.
-  // ⚠️ 실호출 검증(2026-07-20): OnbidPbancDtlInfSrvc2/getPbancDtlInf2 → "Unexpected errors"(Base URL 재확정 필요). ?_base= 탐색 중.
-  pbanc_dtl:        { name: '공고상세',                   code: 'OnbidPbancDtlInfSrvc2',     op: '/getPbancDtlInf2' },      // data 15157218, 필수 pbancMngNo
+  // ✅ 실호출 확정(2026-07-20): OnbidPbancDtlnfSrvc2(철자 주의 — "Dtlnf", 중간 I 없음. 유추 "DtlInf"가 틀렸었음) / getPbancDtlInf2, 필수 pbancMngNo.
+  //    응답: pbancKindNm(공고종류 예 "연기공고" — 매각조건 리스크 신호!)/pbancRtrcnRsnCont(공고취소사유)/pbancNsqNm(공고회차)/
+  //    pbancOrgNm(공고기관)/ptctCmsn(참가수수료)/rltnPbancMngNo(관련·직전 공고)/anncmAlCont(보통 "첨부자료 참조")/
+  //    atchFileList(공고문 원문 hwp 첨부 urlAdr — 텍스트 전문은 아니고 파일 링크). data 15157218.
+  pbanc_dtl:        { name: '공고상세',                   code: 'OnbidPbancDtlnfSrvc2',      op: '/getPbancDtlInf2',        confirmed: true }, // data 15157218, 필수 pbancMngNo
   // ✅ 실호출 검증(2026-07-20): OnbidPbancCltrDtlSrvc2/getPbancCltrInf2 → resultCode 03 NODATA = 엔드포인트 정확.
   //    단 필수 pbancMngNo가 물건데이터의 onbidPbancNo(예 662306)와 형식이 다름(샘플 202406-21411-00) — 공고번호 매핑 필요.
   pbanc_dtl_cltr:   { name: '공고상세 물건정보',          code: 'OnbidPbancCltrDtlSrvc2',    op: '/getPbancCltrInf2',       confirmed: true }, // data 15157220, 필수 pbancMngNo
