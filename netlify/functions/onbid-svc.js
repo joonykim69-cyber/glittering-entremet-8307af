@@ -42,9 +42,11 @@ const REGISTRY = {
   // 필수 cltrMngNo+pbctCdtnNo. 부동산·동산·차량 공통. 응답: 이전입찰내역/이전입찰결과/**유찰누적횟수**/공고관리번호/공고명/
   // 제한경정입찰·평가배점·평가항목·평가기간/공동·대리입찰 가능여부/전자보증서/입찰제한정보/입찰관련제출서류/**회차별입찰정보**.
   // → 예측 엔진의 실제 회차(round) 확정·보증금 실측화 소스. (data 15157251)
-  // ⚠️ 실호출 검증(2026-07-20): OnbidCltrBidDtlSrvc2/getCltrBidinf2 → "API not found". Base는 유효할 수 있으나 op 재확정 필요.
-  //    ?_op= 오버라이드로 후보 탐색 중(getCltrBidInf2 대문자 I 등). 정확값 확정 후 confirmed 부여.
-  cltr_dtl_bidinf:  { name: '물건상세 입찰정보',          code: 'OnbidCltrBidDtlSrvc2',      op: '/getCltrBidinf2' },
+  // ✅ 실호출 확정(2026-07-20): OnbidCltrBidDtlSrvc2 / getCltrBidInf2 (op 대문자 I — 스크린샷 소문자 판독 오류였음).
+  //    필수 cltrMngNo+pbctCdtnNo. 응답 핵심: pbancMngNo(공고관리번호 — onbidPbancNo→pbancMngNo 연결고리!),
+  //    pbctNsq(공매차수)/usbdNft(유찰횟수), pbctTdpsCont(보증금="최저입찰가격*10%"), cseqBidInfClgList(회차별 최저입찰가 리스트),
+  //    prcnBidClgList(직전 유찰이력: cltrOpbdDt/pbctStatNm/lowstBidPrcIndctCont/scfbAmt). → 예측 엔진 실제 회차·보증금 실측 소스.
+  cltr_dtl_bidinf:  { name: '물건상세 입찰정보',          code: 'OnbidCltrBidDtlSrvc2',      op: '/getCltrBidInf2',         confirmed: true },
   // 공고상세 계열 — 필수 입력은 **공고관리번호 pbancMngNo**(물건관리번호 cltrMngNo 아님 — 물건목록 응답의 공고번호로 조회).
   // pbanc_dtl 승인 페이지 확정(2026-07-20): End Point OnbidPbancDtlInfSrvc2 / op getPbancDtlInf2 (유추 코드명에 Inf 누락됐었음).
   // 응답에 **공고문 전문·공고취소사유·참가수수료** → 권리분석/매각조건 텍스트 피처 핵심 소스.

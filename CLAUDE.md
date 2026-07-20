@@ -79,7 +79,7 @@ A 15-page static prototype (`bidcast*.html`) for an Onbid auction winning-bid pr
 **②-a 레지스트리 값 (2026-07-20 승인 페이지 스크린샷). 실호출 검증은 아래 ②-b 참조 — "스크린샷 확정" ≠ "작동 확정"이었음:**
 - **공고상세 물건정보**(pbanc_dtl_cltr) ✅: `OnbidPbancCltrDtlSrvc2` / `/getPbancCltrInf2`, 필수 pbancMngNo. 실호출 NODATA=엔드포인트 정확. 응답: 공고에 속한 물건 목록(유찰횟수/회차·공매차수/감정평가금액·최저입찰가격 등).
 - **공고상세**(pbanc_dtl) ⚠️: `OnbidPbancDtlInfSrvc2` / `/getPbancDtlInf2` → 실호출 "Unexpected errors"(Base URL 재확정 필요). 응답 예상: 공고문 전문·공고취소사유·참가수수료.
-- **물건상세 입찰정보**(cltr_dtl_bidinf) ⚠️: `OnbidCltrBidDtlSrvc2` / `/getCltrBidinf2` → 실호출 "API not found"(op 재확정 필요). 응답 예상: 회차별입찰정보·유찰누적횟수 → 예측 엔진 회차 확정 소스.
+- **물건상세 입찰정보**(cltr_dtl_bidinf) ✅✅: `OnbidCltrBidDtlSrvc2` / `/getCltrBidInf2`(**op 대문자 I** — 스크린샷 소문자 판독 오류였음), 필수 cltrMngNo+pbctCdtnNo. 실호출 완전 성공. 응답 핵심: **pbancMngNo(공고관리번호 — 공고번호 연결고리!)**, pbctNsq(공매차수)/usbdNft(유찰횟수), **pbctTdpsCont(보증금="최저입찰가격*10%")**, **cseqBidInfClgList(회차별 최저입찰가 8단계)**, prcnBidClgList(직전 유찰이력). → 예측 엔진 실제 회차·보증금 실측 소스.
 - **공고상세 입찰정보**(pbanc_dtl_bidinf) ❓: `OnbidPbancBidDtlSrvc2` / `/getPbancBidInf2`, 필수 pbancMngNo. **실호출 미검증**.
 - **코드/주소**(code_addr) ❓: `OnbidCodeSrvc` / `/getOnbidUsgCodeInfo`·`/getOnbidDtlAddrInfo`. **실호출 미검증**.
 - **동산 물건상세**(mvast_dtl) ❓: `OnbidMvastDtlSrvc2` / `/getMvastDtlInf2`, 필수 cltrMngNo+pbctCdtnNo. **실호출 미검증**.
@@ -88,8 +88,9 @@ A 15-page static prototype (`bidcast*.html`) for an Onbid auction winning-bid pr
 
 **②-b 실호출 검증 결과(2026-07-20, 물건 2022-0100-002855)** — onbid-svc에 `?_op=`/`?_base=` 오버라이드 추가(endpoint 후보 탐색용):
 - 재확정 필요: pbanc_dtl(Base URL), cltr_dtl_bidinf(op — getCltrBidInf2 대문자 I 후보). 미검증: pbanc_dtl_bidinf/code_addr/mvast_dtl/vhcl_dtl.
-- **공고번호 연결고리 문제**: 공고 API는 `pbancMngNo`(형식 `202406-21411-00`)를 요구하는데, 물건 목록/상세엔 `onbidPbancNo`(예 662306, 숫자)만 존재 → 그대로 넣으면 NODATA. onbidPbancNo→pbancMngNo 변환 경로(다른 API 또는 형식 규칙) 확인 필요. **이게 풀려야 공고 계열(pbanc_*)을 물건 상세에 연결 가능.**
-- 남은 매핑 대상(엔드포인트 확정 후): 차량 상세 전용 프록시+필드 매핑, 동산 상세 필드 매핑, cltr_dtl_bidinf 회차→예측 엔진 연결.
+- **공고번호 연결고리 — 해결됨(2026-07-20)**: cltr_dtl_bidinf 응답에 `pbancMngNo`(예 `202201-02628-03`)가 포함됨 → 물건번호(cltrMngNo+pbctCdtnNo)로 cltr_dtl_bidinf 호출 → 응답에서 pbancMngNo 획득 → pbanc_dtl/pbanc_dtl_cltr 호출 순서로 공고 계열을 물건에 연결 가능.
+- 남은 재확정: pbanc_dtl(Base URL). 미검증: pbanc_dtl_bidinf/code_addr/mvast_dtl/vhcl_dtl.
+- 남은 매핑 대상(엔드포인트 확정 후): 차량 상세 전용 프록시+필드 매핑, 동산 상세 필드 매핑, **cltr_dtl_bidinf 회차(cseqBidInfClgList/pbctNsq)→예측 엔진 연결**(현 "유찰수+1 근사" 대체), 보증금 pbctTdpsCont→상세 페이지 실측화.
 
 **③ 외부 키/신청 필요** (사용자 발급 절차):
 - **한국은행 ECOS API 키** ← 거시·금리 워처 에이전트(⑦): 기준금리·대출금리 국면 피처 + 인사이트 브리핑
