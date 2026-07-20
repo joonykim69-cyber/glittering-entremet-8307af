@@ -159,6 +159,23 @@ exports.handler = async (event) => {
       }
     }
 
+    // 챌린저 봉인이 처음 시작된 날을 모델 연혁(chronicle)에 1회 기록
+    if (sealedB > 0) {
+      const chronicle = (await store.get('chronicle', { type: 'json' })) || [];
+      if (!chronicle.some(c => c.kind === 'model' && c.detail && c.detail.modelV === 'v0.5-cells')) {
+        chronicle.push({
+          kind: 'model', at: new Date().toISOString(),
+          title: `챌린저 v0.5 봉인 시작 — 오늘 ${sealedB}건 병행 봉인`,
+          detail: {
+            modelV: 'v0.5-cells',
+            formula: '구간 = 최저가 × 실측 이력 낙찰가율 분위수(p10/p50/p90), 셀 = 자산군×용도×회차×가격대(백오프 L3→L0, 표본 20건 이상)',
+            note: '챔피언 v0.1과 같은 물건을 병행 봉인·채점하여 상대전적으로 승격을 판단한다.',
+          },
+        });
+        await store.setJSON('chronicle', chronicle);
+      }
+    }
+
     // 일자별 봉인 카운트 (성적표의 "오늘 예측 N건 봉인" 표시용)
     const meta = (await store.get('meta', { type: 'json' })) || { sealDays: {} };
     const today = ymd(kst());

@@ -71,6 +71,24 @@ exports.handler = async (event) => {
     const calib = (await store.get('calib', { type: 'json' })) || { byUsage: {} };
     // v0.5 챌린저(predb/*) 비교 집계 — 챔피언과 같은 물건에서만 채점되므로 공정 비교가 된다
     const aggB = (await store.get('aggB', { type: 'json' })) || { n: 0, hit: 0, sumAbsErrPct: 0, headToHead: { n: 0, bWins: 0 } };
+    // 모델 연혁 장부(chronicle) — "초기값 → 변경 → 결과"를 순차 기록하는 추가 전용 로그.
+    // 봉인 장부처럼 과거 항목은 수정하지 않고 뒤에 붙이기만 한다.
+    const chronicle = (await store.get('chronicle', { type: 'json' })) || [];
+    if (chronicle.length === 0) {
+      chronicle.push({
+        kind: 'genesis', at: '2026-07-19T07:00:00+09:00',
+        title: '모델 v0.1 가동 — 예측 봉인 시작',
+        detail: {
+          modelV: 'v0.1',
+          formula: '앵커1 = 감정가 × 용도별 낙찰가율(rto1), 앵커2 = 최저가 × rto2, 중앙값 = 앵커 평균, 구간 = [낮은 앵커×(1-w) ~ 높은 앵커×(1+w)]',
+          w0: 0.18, wRange: '0.06 ~ 0.35',
+          wRule: '용도별 표본 20건 이상에서 적중률 95% 미만이면 w +0.01, 98% 초과면 w -0.005',
+          statSrc: '캠코 압류재산 용도별 낙찰가율 공식 통계 (봉인 레코드에 기간 병기)',
+          target: '구간 적중률 95~98% + 중앙값 오차 %·원화 병기',
+          principle: '봉인 후 수정 불가 · 전수 채점 · 실측치만 공개',
+        },
+      });
+    }
     const log = (await store.get('log', { type: 'json' })) || [];
     const recent = (await store.get('recent', { type: 'json' })) || [];
 
@@ -141,8 +159,15 @@ exports.handler = async (event) => {
       if (rate < TARGET_LO) next = Math.min(0.35, Math.round((cur.w + 0.01) * 1000) / 1000);
       else if (rate > TARGET_HI) next = Math.max(0.06, Math.round((cur.w - 0.005) * 1000) / 1000);
       if (next !== cur.w) {
-        log.unshift({ at: new Date().toISOString(), usage, from: cur.w, to: next, n: s.n, hitRate: Math.round(rate * 1000) / 10 });
+        const hitRatePct = Math.round(rate * 1000) / 10;
+        log.unshift({ at: new Date().toISOString(), usage, from: cur.w, to: next, n: s.n, hitRate: hitRatePct });
         calib.byUsage[usage] = { w: next, n: s.n };
+        chronicle.push({
+          kind: 'calib', at: new Date().toISOString(),
+          title: `보정: ${usage} 구간 폭 ${cur.w} → ${next}`,
+          detail: { usage, from: cur.w, to: next, basisN: s.n, hitRate: hitRatePct,
+            reason: hitRatePct < 95 ? `적중률 ${hitRatePct}% < 목표 하한 95% → 구간 확대` : `적중률 ${hitRatePct}% > 목표 상한 98% → 구간 축소` },
+        });
       }
     }
 
@@ -153,8 +178,23 @@ exports.handler = async (event) => {
     while (dailyKeys.length > 90) delete agg.daily[dailyKeys.shift()];
     agg.updatedAt = new Date().toISOString();
 
+    if (graded > 0) {
+      chronicle.push({
+        kind: 'daily', at: new Date().toISOString(),
+        title: `채점 ${graded}건 — 누적 적중률 ${agg.n ? Math.round(agg.hit / agg.n * 1000) / 10 : 0}%`,
+        detail: {
+          gradedToday: graded, cumN: agg.n, cumHit: agg.hit,
+          cumHitRate: agg.n ? Math.round(agg.hit / agg.n * 1000) / 10 : 0,
+          cumAvgAbsErrPct: agg.n ? Math.round(agg.sumAbsErrPct / agg.n * 10) / 10 : 0,
+          ...(aggB.n ? { challenger: { cumN: aggB.n, cumHitRate: Math.round(aggB.hit / aggB.n * 1000) / 10, headToHead: aggB.headToHead } } : {}),
+        },
+      });
+    }
+    while (chronicle.length > 500) chronicle.splice(1, 1); // genesis(0번)는 보존
+
     aggB.updatedAt = new Date().toISOString();
     await Promise.all([
+      store.setJSON('chronicle', chronicle),
       store.setJSON('agg', agg),
       store.setJSON('aggB', aggB),
       store.setJSON('calib', calib),
