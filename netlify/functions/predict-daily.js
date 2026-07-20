@@ -126,17 +126,20 @@ exports.handler = async (event) => {
         lo, mid, hi,                // 만원
         w, statBucket: st ? String(st.clsCdNm).trim() : '',
         statPerd: stats ? stats.perd : '',
+        round: Number(it.round) || 0, fail: Number(it.fail) || 0, // 공매차수·유찰수 실측(회차별 채점·분석용)
         bidEnd: it.bidEnd || '', modelV: MODEL_V,
         sealedAt: new Date().toISOString(),
       });
       sealed++;
 
       // ── v0.5 챌린저 봉인 (predb/*) — 같은 물건을 실측 이력 분위수로 병행 예측 ──
-      // 셀 조회는 hist-stats와 동일한 백오프(L3→L0, 표본 20+). 회차는 유찰수+1로 근사.
+      // 셀 조회는 hist-stats와 동일한 백오프(L3→L0, 표본 20+).
+      // 회차는 온비드 공매차수(pbctNsq, it.round) 실측을 우선 사용하고, 없을 때만 유찰수+1로 근사한다.
       if (cellsData && cellsData.cells) {
         const typeCd = it.assetClass === '동산' ? '0003' : it.assetClass === '자동차' ? '0002' : '0001';
         const usage = String(it.usage || it.type || '기타').trim() || '기타';
-        const rbN = (Number(it.fail) || 0) + 1;
+        const roundReal = Number(it.round) > 0;
+        const rbN = roundReal ? Number(it.round) : ((Number(it.fail) || 0) + 1);
         const rb = rbN >= 4 ? '4+' : String(rbN);
         const tier = it.min < 10000 ? 'lt1' : it.min < 50000 ? 't1to5' : it.min < 100000 ? 't5to10' : 'gte10';
         for (const ck of [`L3|${typeCd}|${usage}|${rb}|${tier}`, `L2|${typeCd}|${usage}|${rb}`, `L1|${typeCd}|${usage}`, `L0|${typeCd}`]) {
@@ -150,6 +153,7 @@ exports.handler = async (event) => {
               id: it.id, pbctCdtnNo: it.pbctCdtnNo, type: it.type,
               lo: bLo, mid: bMid, hi: bHi, // 만원
               cellKey: ck, cellN: cell.n, modelV: 'v0.5-cells',
+              round: rbN, roundReal, // 회차(pbctNsq 실측 여부 roundReal로 표시 — 근사면 false)
               sealedAt: new Date().toISOString(),
             });
             sealedB++;

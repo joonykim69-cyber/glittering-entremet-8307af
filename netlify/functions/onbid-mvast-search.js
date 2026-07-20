@@ -90,6 +90,7 @@ function mapMvastItem(raw, idx) {
     appr: fmtManwon(apprWon),
     min: fmtManwon(minWon),
     fail: failCount,
+    round: Number(raw.pbctNsq) || 0, // 공매차수(회차) 실측 — 예측 엔진 회차 셀 매칭용(없으면 0 → 유찰수+1 근사)
     status: raw.pbctStatCd === '0010' ? '낙찰' : '진행',
     tags: failCount > 0 ? ['#재매각'] : ['#신건'],
     views: 0,
