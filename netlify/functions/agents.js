@@ -1,5 +1,7 @@
 // netlify/functions/agents.js
-// 전문 에이전트 라우터 — A단계: 부동산 전문가(expert) / 지역 전문가(region) / 경쟁 강도(competition).
+// 전문 에이전트 라우터 — 부동산 전문가(expert) / 지역 전문가(region) / 경쟁 강도(competition) /
+//   권리분석 도우미(rights, B단계) / 매각조건 리스크(sale_risk, D단계).
+//   rights·sale_risk는 needsPbanc:true → 공고 계열(cltr_dtl_bidinf→pbanc_dtl) 체이닝으로 공고종류·취소사유·회차·보증금 팩트 수집.
 //
 // 설계 의도(CLAUDE.md "전문 에이전트 시스템" 메모 참조):
 //   - 에이전트 분석은 봉인 예측을 절대 직접 수정하지 않는다. 사용자 근거 표시 +
@@ -8,7 +10,7 @@
 //     수집해 프롬프트에 주입하고, "주어진 데이터에 없는 사실을 만들지 말라"를 강제한다.
 //   - 비용 통제: 물건·조건·에이전트당 1회 생성 후 Blobs 캐시(agent/{agent}/{id}_{cdtn}).
 //
-// 사용법: POST { agent: 'expert'|'region'|'competition',
+// 사용법: POST { agent: 'expert'|'region'|'competition'|'rights'|'sale_risk',
 //               item: { id, pbctCdtnNo, title, usage, type, appr(만원), min(만원), fail, address, assetClass } }
 // 응답:   { agent, cached, analysis, facts, disclaimer, generatedAt }
 
@@ -53,8 +55,24 @@ const STAT_BUCKET = {
   '상가': '근린생활시설', '사무실': '비주거용건물', '공장창고': '산업용및용도복합용건물등',
 };
 
-// ── 공용 팩트 수집: 봉인 예측(pred/predb) + 캠코 용도/지역 통계 + hist 셀 ──
-async function gatherFacts(store, base, it) {
+// ── 공고 계열 체이닝: 물건 → cltr_dtl_bidinf(pbancMngNo·보증금·입찰조건) → pbanc_dtl(공고종류·취소사유·회차) ──
+// 권리분석 도우미(rights)·매각조건 리스크(sale_risk) 전용. 라이브 물건에서만 유효(둘 다 없으면 null).
+async function gatherPbanc(base, it) {
+  const enc = encodeURIComponent;
+  const bi = await fetchJson(`${base}/.netlify/functions/onbid-svc?svc=cltr_dtl_bidinf&cltrMngNo=${enc(it.id)}&pbctCdtnNo=${enc(it.pbctCdtnNo)}`);
+  const b = bi && Array.isArray(bi.items) ? bi.items[0] : null;
+  if (!b) return null;
+  const pbancMngNo = b.pbancMngNo || '';
+  let p = null;
+  if (pbancMngNo) {
+    const pd = await fetchJson(`${base}/.netlify/functions/onbid-svc?svc=pbanc_dtl&pbancMngNo=${enc(pbancMngNo)}`);
+    p = pd && Array.isArray(pd.items) ? pd.items[0] : null;
+  }
+  return { b, p, pbancMngNo };
+}
+
+// ── 공용 팩트 수집: 봉인 예측(pred/predb) + 캠코 용도/지역 통계 + hist 셀 (+ 필요 시 공고 정보) ──
+async function gatherFacts(store, base, it, needsPbanc) {
   const predKey = `${it.id}_${it.pbctCdtnNo}`;
   const typeCd = it.assetClass === '동산' ? '0003' : it.assetClass === '자동차' ? '0002' : '0001';
   const sido = String(it.address || '').split(/\s+/)[0] || '';
@@ -63,10 +81,11 @@ async function gatherFacts(store, base, it) {
   const y = now.getUTCFullYear(), q = Math.ceil((now.getUTCMonth() + 1) / 3);
   const perds = [String(y), `${y}-${q}`, ...(q > 1 ? [`${y}-${q - 1}`] : []), String(y - 1)];
 
-  const [pred, predB, cell] = await Promise.all([
+  const [pred, predB, cell, pbanc] = await Promise.all([
     store.get(`pred/${predKey}`, { type: 'json' }),
     store.get(`predb/${predKey}`, { type: 'json' }),
     fetchJson(`${base}/.netlify/functions/hist-stats?type=${typeCd}&usage=${encodeURIComponent(it.usage || it.type || '기타')}&round=${(Number(it.fail) || 0) + 1}&lowMan=${Number(it.min) || 0}`),
+    needsPbanc ? gatherPbanc(base, it) : Promise.resolve(null),
   ]);
 
   let usg = null, rgn = null;
@@ -85,7 +104,7 @@ async function gatherFacts(store, base, it) {
     }
   }
 
-  return { pred: pred || null, predB: predB || null, cell: cell && cell.status === 'ok' ? cell : null, usg, rgn, sido };
+  return { pred: pred || null, predB: predB || null, cell: cell && cell.status === 'ok' ? cell : null, usg, rgn, sido, pbanc: pbanc || null };
 }
 
 // 팩트를 프롬프트용 텍스트로 직렬화 — 없는 항목은 "없음"으로 명시해 창작을 차단
@@ -107,6 +126,18 @@ function factsText(it, f) {
   L.push(f.cell
     ? `실측 이력 셀(${clean(f.cell.key, 60)}, 표본 ${f.cell.n}건): 최저가 대비 낙찰가율 p10 ${f.cell.lr.p10}% / 중앙값 ${f.cell.lr.p50}% / p90 ${f.cell.lr.p90}%${f.cell.failRate != null ? `, 유찰율 ${f.cell.failRate}%` : ''}`
     : '실측 이력 셀: 아직 없음 (학습 데이터 축적 중)');
+  // 공고·매각조건 정보 (rights·sale_risk 전용, 라이브 물건만) — 없으면 항목 자체를 넣지 않아 창작 유도를 피함
+  if (f.pbanc) {
+    const b = f.pbanc.b || {}, p = f.pbanc.p || {};
+    const yn = v => v === 'Y' ? '가능' : v === 'N' ? '불가' : '미상';
+    L.push(`공고관리번호: ${clean(f.pbanc.pbancMngNo, 30) || '미상'}`);
+    L.push(`보증금 조건: ${clean(b.pbctTdpsCont, 40) || '미상'} / 대금납부: ${clean(b.pmtnPayMtdCont, 20) || '미상'} ${clean(b.pcmtPayTermCont, 30) || ''} / 공동입찰 ${yn(b.collBidPsblYn)} · 대리입찰 ${yn(b.subtBidPsblYn)} · 2회이상입찰 ${yn(b.twtnGthrBidPsblYn)}`);
+    if (p) {
+      L.push(`공고종류: ${clean(p.pbancKindNm, 20) || '미상'}${p.pbancRtrcnRsnCont ? ` / 공고취소사유: ${clean(p.pbancRtrcnRsnCont, 120)}` : ' / 공고취소사유: 없음'} / 공고회차: ${clean(p.pbancNsqNm, 20) || '미상'} / 공고기관: ${clean(p.pbancOrgNm, 30) || '미상'}${p.rltnPbancMngNo ? ` / 직전 공고번호: ${clean(p.rltnPbancMngNo, 30)}(재공고 이력 있음)` : ''} / 입찰금액공개 ${yn(p.bidAmtRlsYn)}`);
+    } else {
+      L.push('공고상세(공고종류·취소사유·회차): 조회 안 됨 — 공고 원문 확인 필요');
+    }
+  }
   return L.join('\n');
 }
 
@@ -131,10 +162,18 @@ ${COMMON_RULES}`,
   },
   rights: {
     name: '권리분석 도우미',
+    needsPbanc: true,
     disclaimer: '본 내용은 법률 자문이 아닌 일반 정보이며, 권리분석은 반드시 등기부등본·공매재산명세서 원문과 변호사·법무사 등 전문가 확인을 거쳐야 합니다.',
-    system: `당신은 신호등옥션의 "권리분석 도우미"입니다. 법률 자문이 아니라, 확인된 데이터를 바탕으로 입찰 전 확인해야 할 항목을 안내하는 체크리스트 도우미입니다: ① 임대차 정보가 있으면 그 사실과 확인 포인트(대항력·보증금 인수 가능성은 단정하지 말고 "원문 확인 필요"로 안내) ② 유찰 횟수가 많다면 가격 요인 외에 권리·물건 흠결 가능성도 확인 대상임을 안내 ③ 이 용도의 물건에서 일반적으로 확인하는 서류 목록(등기부등본, 공매재산명세서, 감정평가서, 임대차 현황) ④ 온비드 원문 공고에서 반드시 읽어야 할 항목. 어떤 경우에도 권리관계를 단정하거나 "안전하다/문제없다"고 판단하지 마세요.
+    system: `당신은 신호등옥션의 "권리분석 도우미"입니다. 법률 자문이 아니라, 확인된 데이터를 바탕으로 입찰 전 확인해야 할 항목을 안내하는 체크리스트 도우미입니다: ① 임대차 정보가 있으면 그 사실과 확인 포인트(대항력·보증금 인수 가능성은 단정하지 말고 "원문 확인 필요"로 안내) ② 유찰 횟수가 많다면 가격 요인 외에 권리·물건 흠결 가능성도 확인 대상임을 안내 ③ 공고 정보가 있으면 공고종류(연기/취소)·재공고 이력·입찰조건(공동/대리입찰 제한 등)에서 확인이 필요한 점 ④ 이 용도의 물건에서 일반적으로 확인하는 서류 목록(등기부등본, 공매재산명세서, 감정평가서, 임대차 현황) ⑤ 온비드 원문 공고에서 반드시 읽어야 할 항목. 어떤 경우에도 권리관계를 단정하거나 "안전하다/문제없다"고 판단하지 마세요.
 ${COMMON_RULES}
 - 첫 문장에 "법률 자문이 아닙니다"를 반드시 포함하세요.`,
+  },
+  sale_risk: {
+    name: '매각조건 리스크',
+    needsPbanc: true,
+    disclaimer: '매각조건 해석은 공고 원문 확인을 대체하지 않으며, 입찰·매수 결정 전 온비드 공고문과 공매재산명세서 원문을 반드시 확인하세요.',
+    system: `당신은 신호등옥션의 "매각조건 리스크" 분석 에이전트입니다. 확인된 데이터(공고종류·공고취소사유·재공고 이력·공고회차·보증금·대금납부조건·공동/대리입찰 가능여부 등)만으로, 이 물건의 "매각 조건"에서 입찰자가 주의할 리스크를 짚습니다: ① 공고종류가 "연기공고"이거나 공고취소사유가 있거나 직전 공고(재공고) 이력이 있으면 그 사실과 의미(일정 변동·취소 가능성)를 먼저 안내 ② 보증금·대금납부 방식/기한이 촉박하거나 특이하면 자금계획 관점의 유의점 ③ 공동/대리입찰·2회이상입찰 제한이 입찰 방식에 주는 제약 ④ 유찰이 반복되는 회차라면 가격 외에 매각조건 자체의 재검토 필요성. 확인된 데이터에 없는 항목은 "공고 원문 확인 필요"로 안내하고, 위험을 단정하거나 반대로 "문제없다"고 안심시키지 마세요. 이것은 매각 "조건"에 대한 안내이지 권리관계 판단이 아닙니다.
+${COMMON_RULES}`,
   },
   competition: {
     name: '경쟁 강도 분석가',
@@ -159,7 +198,7 @@ exports.handler = async (event) => {
   const id = clean(it.id, 40).replace(/[^0-9A-Za-z\-_.]/g, '');
   const cdtn = clean(it.pbctCdtnNo, 20).replace(/[^0-9]/g, '');
   if (!agent || !id || !cdtn) {
-    return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: { message: 'agent(expert|region|competition)와 item.id/item.pbctCdtnNo가 필요합니다.' } }) };
+    return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: { message: 'agent(expert|region|competition|rights|sale_risk)와 item.id/item.pbctCdtnNo가 필요합니다.' } }) };
   }
   it.id = id; it.pbctCdtnNo = cdtn;
 
@@ -172,7 +211,7 @@ exports.handler = async (event) => {
     }
 
     const base = process.env.URL || '';
-    const facts = await gatherFacts(store, base, it);
+    const facts = await gatherFacts(store, base, it, !!agent.needsPbanc);
     const ft = factsText(it, facts);
 
     const res = await fetch(`${base}/.netlify/functions/claude`, {

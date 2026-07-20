@@ -528,6 +528,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
           <button type="button" class="agent-btn" data-agent="region" onclick="runAgent('region',this)">📍 지역 전문가</button>
           <button type="button" class="agent-btn" data-agent="competition" onclick="runAgent('competition',this)">🥊 경쟁 강도 분석</button>
           <button type="button" class="agent-btn" data-agent="rights" onclick="runAgent('rights',this)">⚖️ 권리분석 도우미</button>
+          <button type="button" class="agent-btn" data-agent="sale_risk" onclick="runAgent('sale_risk',this)">📋 매각조건 리스크</button>
         </div>
         <div id="agentOut"></div>
         <p style="font-size:11px;color:var(--mute);margin-top:10px;">※ 분석은 봉인 예측·캠코 통계·실측 이력 등 확인된 데이터만으로 생성되며, 봉인된 예측을 수정하지 않습니다. 통계적 참고자료이며 투자 자문이 아닙니다.</p>
@@ -1348,7 +1349,7 @@ if(isLive&&liveItem){
 }
 
 // ═══ AI 전문가 분석 (agents.js) — 라이브 물건 전용, 서버 캐시로 물건당 1회 생성 ═══
-const AGENT_LABEL={expert:'🏢 부동산 전문가',region:'📍 지역 전문가',competition:'🥊 경쟁 강도 분석',rights:'⚖️ 권리분석 도우미'};
+const AGENT_LABEL={expert:'🏢 부동산 전문가',region:'📍 지역 전문가',competition:'🥊 경쟁 강도 분석',rights:'⚖️ 권리분석 도우미',sale_risk:'📋 매각조건 리스크'};
 // 상세 API가 로드한 임대차 정보 요약 — rights 에이전트에 팩트로 전달 (없으면 빈 문자열)
 let LEAS_SUMMARY='';
 async function runAgent(name,btn){
