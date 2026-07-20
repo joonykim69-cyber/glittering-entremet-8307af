@@ -73,13 +73,12 @@ A 15-page static prototype (`bidcast*.html`) for an Onbid auction winning-bid pr
 각 기능이 어떤 API/키를 기다리는지의 역방향 색인. 연동되는 즉시 해당 기능을 진행할 것.
 
 **① 온비드 endpoint_missing — 승인 페이지 End Point 스크린샷만 있으면 즉시 등록** (레지스트리 기본값 교정 또는 `ONBID_SVC_<ALIAS>_URL` 설정, 재배포 불필요):
-- **공고상세 물건정보 1종**(pbanc_dtl_cltr, 15157220) ← **유일하게 남은 미확정 온비드 서비스**(우선순위). 잠금 해제되는 기능: 권리분석 도우미 강화(공고 유의사항 팩트), 매각조건 리스크 에이전트(D단계, 명도책임·점유·일괄매각 텍스트 피처). 필수 입력 **pbancMngNo**. 승인 페이지 End Point 스크린샷만 대기. **참고: pbanc_dtl(공고상세, 15157218)은 확정됨** — 공고문 전문·공고취소사유·참가수수료를 이미 제공하므로 텍스트 피처의 핵심은 이미 확보. pbanc_dtl_cltr는 공고↔물건 매핑 보강용.
-- ~~물건상세 입찰정보(cltr_dtl_bidinf)~~ — **확정됨**(2026-07-20 승인 페이지): `OnbidCltrBidDtlSrvc2` / `/getCltrBidinf2`, 필수 cltrMngNo+pbctCdtnNo. 부동산·동산·차량 공통. 응답에 **회차별입찰정보·유찰누적횟수·이전입찰내역**(→ 예측 엔진 실제 회차 확정)·입찰관련제출서류·평가배점 등.
-- ~~코드/주소 조회(code_addr)~~ — **확정됨**(2026-07-20 승인 페이지): End Point `OnbidCodeSrvc`, op `/getOnbidUsgCodeInfo`(용도코드, param upCtgrId) + `/getOnbidDtlAddrInfo`(주소, param sdnm/sggnm/emdNm). ← 법정동코드 자동화(주변 실거래 군 단위 확장).
-- 유가증권 상세(scrt_dtl), 정부재산 4종(gov_*), 수탁(trust_nbiz), 국유입찰대상(ntnl_bidtrgt) ← 물건 커버리지 확장 (낮은 우선순위, 여전히 endpoint_missing)
+- **주력 서비스는 전부 확정됨(2026-07-20)** — 부동산·동산·차량 목록/상세, 공고상세, 공고상세 물건정보, 물건상세 입찰정보, 공고상세 입찰정보, 통계, 코드/주소. 아래 ②-a 참조.
+- 유가증권 상세(scrt_dtl), 정부재산 4종(gov_*), 수탁(trust_nbiz), 국유입찰대상(ntnl_bidtrgt) ← 물건 커버리지 확장 (낮은 우선순위, 여전히 endpoint_missing). **현재 서비스가 다루지 않는 자산군** — 커버리지 확장 시 각 승인 페이지 End Point 스크린샷으로 교정. 순위물건 조회수(rank_inqcnt)는 data.go.kr에서 서비스 중지(레지스트리 disabled).
 
 **②-a 레지스트리 확정 완료(2026-07-20 승인 페이지 스크린샷)** — 이제 `onbid-svc?svc=<alias>`로 바로 호출 가능:
 - **공고상세**(pbanc_dtl): `OnbidPbancDtlInfSrvc2` / `/getPbancDtlInf2`, 필수 pbancMngNo. 응답: **공고문 전문**·공고취소사유·참가수수료 → 권리분석/매각조건 텍스트 피처 핵심 소스.
+- **공고상세 물건정보**(pbanc_dtl_cltr): `OnbidPbancCltrDtlSrvc2` / `/getPbancCltrInf2`, 필수 pbancMngNo. 응답: 공고에 속한 물건 목록(재산유형/용도/물건명/**유찰횟수**/**회차·공매차수**/물건주소/입찰시작·종료일시/**감정평가금액·최저입찰가격**) → 공고번호 1개로 그 공고 전 물건·회차 일괄 획득.
 - **물건상세 입찰정보**(cltr_dtl_bidinf): `OnbidCltrBidDtlSrvc2` / `/getCltrBidinf2`(소문자 inf), 필수 cltrMngNo+pbctCdtnNo. 부동산·동산·차량 공통. 응답: **회차별입찰정보·유찰누적횟수·이전입찰내역**·입찰관련제출서류·평가배점 → 예측 엔진 실제 회차 확정·보증금 실측화.
 - **공고상세 입찰정보**(pbanc_dtl_bidinf): `OnbidPbancBidDtlSrvc2` / `/getPbancBidInf2`, 필수 pbancMngNo. 응답: 공동/대리입찰 가능여부·전자보증서·보증금대체서류·제출서류·**입찰일정및장소**·제안서평가항목 → 리포트/권리도우미 입찰 실무 팩트원.
 - **코드/주소 조회**(code_addr): 위 ① 참조.

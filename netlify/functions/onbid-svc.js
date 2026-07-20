@@ -46,9 +46,11 @@ const REGISTRY = {
   // 공고상세 계열 — 필수 입력은 **공고관리번호 pbancMngNo**(물건관리번호 cltrMngNo 아님 — 물건목록 응답의 공고번호로 조회).
   // pbanc_dtl 승인 페이지 확정(2026-07-20): End Point OnbidPbancDtlInfSrvc2 / op getPbancDtlInf2 (유추 코드명에 Inf 누락됐었음).
   // 응답에 **공고문 전문·공고취소사유·참가수수료** → 권리분석/매각조건 텍스트 피처 핵심 소스.
-  // pbanc_dtl_cltr(15157220)만 Base URL/op 아직 패턴 유추 — 승인 페이지 End Point 스크린샷 확정 대기.
+  // pbanc_dtl_cltr 승인 페이지 확정(2026-07-20): End Point OnbidPbancCltrDtlSrvc2 / op getPbancCltrInf2 (유추 Dtl/Cltr 순서 틀렸었음).
+  // 필수 pbancMngNo. 응답: 공고에 속한 물건 목록 — 재산유형/처분방식/용도/물건명/**유찰횟수**/일괄입찰여부/물건주소/
+  // **회차·공매차수**/입찰시작·종료일시/**감정평가금액·최저입찰가격**. → 공고번호 1개로 그 공고 전 물건·회차 일괄 획득.
   pbanc_dtl:        { name: '공고상세',                   code: 'OnbidPbancDtlInfSrvc2',     op: '/getPbancDtlInf2',        confirmed: true }, // data 15157218, 필수 pbancMngNo
-  pbanc_dtl_cltr:   { name: '공고상세 물건정보',          code: 'OnbidPbancDtlCltrSrvc2',    op: '/getPbancDtlCltrInf2' },  // data 15157220 — 승인 페이지 End Point 확정 대기
+  pbanc_dtl_cltr:   { name: '공고상세 물건정보',          code: 'OnbidPbancCltrDtlSrvc2',    op: '/getPbancCltrInf2',       confirmed: true }, // data 15157220, 필수 pbancMngNo
   // 공고상세 입찰정보 — 승인 페이지 스크린샷 확정(2026-07-20): End Point OnbidPbancBidDtlSrvc2 / op getPbancBidInf2 (유추 코드명 순서가 틀렸었음).
   // 필수 pbancMngNo. 응답: 공동입찰가능여부/대리입찰가능여부/전자보증서제출/보증금대체서류/제출서류/입찰일정및장소/제안서평가항목.
   pbanc_dtl_bidinf: { name: '공고상세 입찰정보',          code: 'OnbidPbancBidDtlSrvc2',     op: '/getPbancBidInf2',        confirmed: true },
