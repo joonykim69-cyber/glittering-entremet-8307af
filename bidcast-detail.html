@@ -263,18 +263,19 @@ a{color:inherit;text-decoration:none;}
 :focus-visible{outline:2px solid var(--green);outline-offset:2px;}
 
 /* ═══ 갤러리+지도 분할 ═══ */
-.gallery-map-row{display:grid;grid-template-columns:3fr 2fr;border-bottom:1px solid var(--line);}
-@media(max-width:660px){.gallery-map-row{grid-template-columns:1fr;}}
-.gallery-panel{position:relative;overflow:hidden;background:#111;height:340px;}
-@media(max-width:660px){.gallery-panel{height:220px;}}
+/* 사진(대표 이미지)은 전체 폭으로 크게, 지도는 그 아래 전체 폭 — 실사 사진과 목업 지도를
+   좌우로 나란히 두면 비대칭으로 어색하던 문제 해소(온비드/경매 상세의 표준 배치). */
+.gallery-map-row{display:block;border-bottom:1px solid var(--line);}
+.gallery-panel{position:relative;overflow:hidden;background:#111;height:380px;}
+@media(max-width:660px){.gallery-panel{height:240px;}}
 .gal-inner{width:100%;height:100%;display:grid;place-items:center;font-size:80px;position:relative;overflow:hidden;}
 .gal-inner img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
 .gal-dim{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.5) 0%,transparent 50%);pointer-events:none;}
 .gal-nav{position:absolute;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.55);border:none;color:#fff;font-size:22px;cursor:pointer;z-index:5;display:grid;place-items:center;line-height:1;}
 .gal-prev{left:8px;}.gal-next{right:8px;}
 .gal-count{position:absolute;bottom:8px;right:10px;font-size:11px;font-weight:700;color:#fff;background:rgba(0,0,0,.5);padding:3px 9px;border-radius:999px;z-index:5;}
-.map-panel{position:relative;overflow:hidden;height:340px;border-left:1px solid rgba(255,255,255,.12);}
-@media(max-width:660px){.map-panel{height:160px;border-left:none;border-top:1px solid var(--line);}}
+.map-panel{position:relative;overflow:hidden;height:260px;border-top:1px solid var(--line);}
+@media(max-width:660px){.map-panel{height:190px;}}
 .map-panel .loc-map{height:100%;border-radius:0;border:none;}
 .map-addr-bar{position:absolute;bottom:0;left:0;right:0;padding:8px 13px;background:rgba(255,255,255,.92);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);font-size:11px;color:var(--sub);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
