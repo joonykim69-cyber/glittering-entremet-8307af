@@ -32,27 +32,30 @@ const REGISTRY = {
   rlst_list:        { name: '부동산 물건목록',            code: 'OnbidRlstListSrvc2',        op: '/getRlstCltrList2',       confirmed: true },
   rlst_dtl:         { name: '부동산 물건상세',            code: 'OnbidRlstDtlSrvc2',         op: '/getRlstDtlInf2',         confirmed: true },
   mvast_list:       { name: '동산 물건목록',              code: 'OnbidMvastListSrvc2',       op: '/getMvastCltrList2',      confirmed: true },
-  mvast_dtl:        { name: '동산 물건상세',              code: 'OnbidMvastDtlSrvc2',        op: '/getMvastDtlInf2',        confirmed: true },
+  mvast_dtl:        { name: '동산 물건상세',              code: 'OnbidMvastDtlSrvc2',        op: '/getMvastDtlInf2',        confirmed: true }, // 승인 페이지 확정 2026-07-20, 필수 cltrMngNo+pbctCdtnNo
   vhcl_list:        { name: '차량 물건목록',              code: 'OnbidCarListSrvc2',         op: '/getCarCltrList2',      confirmed: true }, // _health ok (431건)
-  vhcl_dtl:         { name: '차량 물건상세',              code: 'OnbidCarDtlSrvc2',          op: '/getCarDtlInf2',        confirmed: true }, // _health 경로 유효
+  vhcl_dtl:         { name: '차량 물건상세',              code: 'OnbidCarDtlSrvc2',          op: '/getCarDtlInf2',        confirmed: true }, // 승인 페이지 확정 2026-07-20, 필수 cltrMngNo+pbctCdtnNo
   scrt_dtl:         { name: '유가증권 상세정보',          code: 'OnbidScrtDtlSrvc2',         op: '/getScrtDtlInf2' },
   cltr_bidrslt_list:{ name: '물건 입찰결과목록',          code: 'OnbidCltrBidRsltListSrvc2', op: '/getCltrBidRsltList2',    confirmed: true },
   cltr_bidrslt_dtl: { name: '물건 입찰결과상세',          code: 'OnbidCltrBidRsltDtlSrvc2',  op: '/getCltrBidRsltDtl2',     confirmed: true },
   cltr_dtl_bidinf:  { name: '물건상세 입찰정보',          code: 'OnbidCltrDtlBidInfSrvc2',   op: '/getCltrDtlBidInf2' },
-  // 공고상세 계열 — data.go.kr 확인(2026-07-20): 공고상세=15157218, 공고상세 물건정보=15157220.
-  // 필수 입력은 **공고관리번호 pbancMngNo**(물건관리번호 cltrMngNo 아님 — 물건목록 응답의 공고번호로 조회).
-  // 확인된 응답 항목(공고상세): 공고종류/재산유형/처분방식/입찰방법/공매입찰방법/입찰구분/입찰금액공개여부/공고기관/공고일자.
-  // Base URL/op는 여전히 패턴 유추 — 승인 페이지 End Point 스크린샷 또는 프로덕션 _health로 확정 후 ONBID_SVC_*_URL/_OP 교정.
-  pbanc_dtl:        { name: '공고상세',                   code: 'OnbidPbancDtlSrvc2',        op: '/getPbancDtlInf2' },      // data 15157218, 필수 pbancMngNo
-  pbanc_dtl_cltr:   { name: '공고상세 물건정보',          code: 'OnbidPbancDtlCltrSrvc2',    op: '/getPbancDtlCltrInf2' },  // data 15157220
-  // 주의: data.go.kr에 "공고상세 입찰정보"는 별도 서비스로 확인되지 않음("물건상세 입찰정보" 15157251=cltr_dtl_bidinf가 실재). op 유추 유지.
-  pbanc_dtl_bidinf: { name: '공고상세 입찰정보',          code: 'OnbidPbancDtlBidInfSrvc2',  op: '/getPbancDtlBidInf2' },
+  // 공고상세 계열 — 필수 입력은 **공고관리번호 pbancMngNo**(물건관리번호 cltrMngNo 아님 — 물건목록 응답의 공고번호로 조회).
+  // pbanc_dtl(15157218)/pbanc_dtl_cltr(15157220)는 Base URL/op 아직 패턴 유추 — 승인 페이지 End Point 스크린샷으로 확정 대기.
+  pbanc_dtl:        { name: '공고상세',                   code: 'OnbidPbancDtlSrvc2',        op: '/getPbancDtlInf2' },      // data 15157218, 필수 pbancMngNo — 승인 페이지 End Point 확정 대기
+  pbanc_dtl_cltr:   { name: '공고상세 물건정보',          code: 'OnbidPbancDtlCltrSrvc2',    op: '/getPbancDtlCltrInf2' },  // data 15157220 — 승인 페이지 End Point 확정 대기
+  // 공고상세 입찰정보 — 승인 페이지 스크린샷 확정(2026-07-20): End Point OnbidPbancBidDtlSrvc2 / op getPbancBidInf2 (유추 코드명 순서가 틀렸었음).
+  // 필수 pbancMngNo. 응답: 공동입찰가능여부/대리입찰가능여부/전자보증서제출/보증금대체서류/제출서류/입찰일정및장소/제안서평가항목.
+  pbanc_dtl_bidinf: { name: '공고상세 입찰정보',          code: 'OnbidPbancBidDtlSrvc2',     op: '/getPbancBidInf2',        confirmed: true },
   pbanc_bidrslt_list:{ name: '공고 입찰결과목록',         code: 'OnbidPbancBidRsltListSrvc2',op: '/getPbancBidRsltList2',   confirmed: true },
   pbanc_bidrslt_dtl:{ name: '공고 입찰결과상세',          code: 'OnbidPbancBidRsltDtlSrvc2', op: '/getPbancBidRsltDtl2',    confirmed: true },
   stat_usg:         { name: '용도별 입찰 통계',           code: 'OnbidUsgBidStatsSrvc',      op: '/getKamcoCltrUsgStats', confirmed: true }, // 상세기능 확인. 파라미터: statsTypeCd(0041 압류/0044 국유/0045 수탁·유입/0046 공유), inqPerd(YYYY|YYYYMM|YYYY-Q)
   stat_rgn:         { name: '지역별 입찰 통계(캠코)',     code: 'OnbidClarBidStatsSrvc',     op: '/getKamcoCltrClarStats', confirmed: true }, // 상세기능 확인. statsTypeCd(0021 압류/0024 국유/0025 수탁·유입/0026 공유), inqPerd
   stat_rgn_org:     { name: '지역별 입찰 통계(이용기관)', code: 'OnbidClarBidStatsSrvc',     op: '/getOrgCltrClarStats',   confirmed: true }, // 상세기능 확인. inqPerd만 필요
-  code_addr:        { name: '코드 및 주소 조회',          code: 'OnbidCodeAddrSrvc2',        op: '/getOnbidCode2' },
+  // 코드/주소 — 승인 페이지 확정(2026-07-20): End Point OnbidCodeSrvc, op 2종.
+  //   기본 op getOnbidUsgCodeInfo(용도 코드 조회, param upCtgrId 상위카테고리ID).
+  //   주소 조회는 getOnbidDtlAddrInfo(param sdnm/sggnm/emdNm) — ?op=/getOnbidDtlAddrInfo 또는 ONBID_SVC_CODE_ADDR_OP로 전환.
+  //   용도: 법정동코드 자동화 → 주변 실거래 군 단위 커버리지 확장.
+  code_addr:        { name: '코드 및 주소 조회',          code: 'OnbidCodeSrvc',             op: '/getOnbidUsgCodeInfo',    confirmed: true },
   rank_intrst:      { name: '순위물건목록 관심물건순위',  code: 'OnbidItrsCltrRnkClgSrvc',   op: '/getItrsCltrRnkClg',    confirmed: true }, // _health 경로 유효
   rank_rdcrt:       { name: '순위물건목록 저감률순위',    code: 'Onbid50PctDecrCltrSrvc',    op: '/get50PctDecrCltr',     confirmed: true }, // _health 경로 유효
   rank_inqcnt:      { name: '순위물건목록 조회수 순위',   code: 'OnbidRankInqcntSrvc2',      op: '/getRankInqcntList2', disabled: '데이터포털에서 서비스 중지 상태' },

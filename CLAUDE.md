@@ -20,7 +20,7 @@ A static site deployed on Netlify for **신호등옥션 (구 낙찰예보/BidCas
 - `netlify/functions/onbid-vhcl-search.js` — Proxy for the 온비드 **차량** 물건목록 조회서비스 (부동산·동산과 별개의 세 번째 자산군). Base URL/op are pattern-inferred defaults (`OnbidVhclListSrvc2` / `/getVhclCltrList2`) — **unverified**; override via `ONBID_VHCL_API_URL`/`ONBID_VHCL_API_OP` if `_health` says the guess is wrong. Items are marked `assetClass:'자동차'`, `type:'차량'`. Merged into `bidcast-list.html` as a third parallel source.
 - `netlify/functions/onbid-svc.js` — **Registry proxy for ALL ~27 approved data.go.kr services** (the user's account has 36 approvals, 2026-07-14). `?svc=_list` shows the registry, `?svc=_health` pings every service (numOfRows=2) and classifies each as `ok` / `endpoint_ok_params_needed` / `endpoint_missing` / `key_error` — pattern-inferred Base URLs/ops are corrected per-service via `ONBID_SVC_<ALIAS>_URL`/`_OP` env vars (no redeploy needed). `?svc=<alias>` proxies any registered service with raw passthrough (`items`/`totalCount`/`body`). Use this to onboard new services: run `_health`, fix `endpoint_missing` aliases with the End Point from the approval page, then build dedicated mapped proxies/UI as needed.
 - `netlify/functions/rtms-svc.js` — **국토교통부 실거래가(RTMS) 승인 서비스 10종 레지스트리 프록시** (시세 추정 축의 데이터 계층, 승인 2026-07-19: 아파트 매매상세/전월세/분양권, 오피스텔·연립다세대·단독다가구 매매, 단독다가구 전월세, 토지·상업업무용·공장창고 매매). Base `https://apis.data.go.kr/1613000/RTMSDataSvc<유형>`, op `/getRTMSDataSvc<유형>` — 10종 중 9종은 승인 페이지로 확정(2026-07-19), land_trade(토지 매매)만 패턴 유추(`?svc=_health`로 판정, `RTMS_SVC_<ALIAS>_URL/_OP`로 교정). 공통 필수 파라미터 `LAWD_CD`(법정동 앞 5자리)+`DEAL_YMD`(YYYYMM); 응답이 **XML뿐**이라 프록시가 `<item>`을 JSON으로 변환해 반환(1시간 CDN 캐시). 인증키는 `ONBID_SERVICE_KEY` 재사용(같은 data.go.kr 계정; 분리 필요 시 `RTMS_SERVICE_KEY`). 용도: 물건 주변 실거래 표시→현재 시세 추정→(추후) 부동산원 지수 기반 시나리오·수익 시뮬레이션.
-- `netlify/functions/onbid-mvast-detail.js` — Proxy for the 온비드 동산 물건상세 조회서비스 (`ONBID_MVAST_DETAIL_API_URL`, likely `https://apis.data.go.kr/B010003/OnbidMvastDtlSrvc2`; op default `/getMvastDtlInf2`, override via `ONBID_MVAST_DETAIL_API_OP`). Clean 501 until the env var is set. `bidcast-detail.html` routes live items with `assetClass:'동산'` here instead of `onbid-detail`.
+- `netlify/functions/onbid-mvast-detail.js` — Proxy for the 온비드 동산 물건상세 조회서비스. **End Point/op 승인 페이지 확정(2026-07-20)**: Base `https://apis.data.go.kr/B010003/OnbidMvastDtlSrvc2`, op `/getMvastDtlInf2`, 필수 입력 `cltrMngNo`+`pbctCdtnNo` (override via `ONBID_MVAST_DETAIL_API_OP`). Clean 501 until `ONBID_MVAST_DETAIL_API_URL` is set. `bidcast-detail.html` routes live items with `assetClass:'동산'` here instead of `onbid-detail`. 응답 필드 매핑은 첫 실호출 `?debug=1`로 확인 후 다듬기.
 - `netlify/functions/predict-daily.js` — **예측 장부(Prediction Ledger) 봉인** scheduled function (KST 07:00 via netlify.toml cron `0 22 * * *` UTC; manual GET works too). Collects items closing within 오늘~+2일 (부동산+동산+차량), computes an interval [lo, mid, hi] from 캠코 용도별 낙찰가율 (앵커: 감정가×rto1, 최저가×rto2; width w from `calib`, default ±18%), and seals it into Netlify Blobs store `ledger` under `pred/{cltrMngNo}_{pbctCdtnNo}`. **Sealed predictions are never overwritten** — that immutability is the trust story. Items with no statistical basis are skipped (`noBasis`), not guessed.
 - **모델 승격 검증 기준 (2026-07-20 사용자 확정)**: 절차 = 동일 물건 병행 봉인·개찰 전 봉인·동일 채점·전수 기록(자동). 판정 = 미리 고정된 3단계 체크포인트만 사용(수시 판정 금지 — 우연에 속는 것 방지): ① 조기 승격: 비교 100건 시점 승률 62% 이상 ② 표준 승격: 300건 시점 승률 55% 이상 + 세그먼트 붕괴 없음(어떤 용도·가격대도 챔피언 대비 적중률 10%p 이상 하락 금지) + 같은 적중률이면 평균 구간 폭이 좁을 것 ③ 조기 탈락: 200건 시점 승률 50% 이하. 승격/탈락 결정은 사람이 하고 chronicle에 기록. 보조 지표 avgWidthPct(낙찰가 대비 평균 구간 폭 %)를 agg/aggB에 누적 — "넓게 질러서 맞히기" 방지. 참고: 셀 통계 자격 minN=20, 보정 발동 20건과는 별개의 문턱.
 - **챔피언/챌린저 이중 봉인 (2026-07-19 준비 완료)**: predict-daily는 hist/_cells가 존재하면 같은 물건에 v0.5 챌린저 예측(`predb/{id}_{cdtn}`, 최저가×lr 분위수 p10/p50/p90, 백오프 L3→L0·표본 20+, 회차≈유찰수+1 근사)을 병행 봉인. score-daily가 같은 낙찰가로 둘 다 채점해 `aggB`(적중률·오차·상대전적 headToHead)에 집계, scoreboard가 `challenger`로 노출. 학습 데이터가 없으면 챌린저는 조용히 생략 — 백필이 쌓이는 순간 자동으로 경쟁 시작.
@@ -72,15 +72,21 @@ A 15-page static prototype (`bidcast*.html`) for an Onbid auction winning-bid pr
 
 각 기능이 어떤 API/키를 기다리는지의 역방향 색인. 연동되는 즉시 해당 기능을 진행할 것.
 
-**① 온비드 endpoint_missing — 승인 페이지 End Point 스크린샷만 있으면 즉시 등록** (`ONBID_SVC_<ALIAS>_URL` 설정, 재배포 불필요):
-- **공고상세 3종**(pbanc_dtl/pbanc_dtl_cltr/pbanc_dtl_bidinf) ← 최우선. 잠금 해제되는 기능: 권리분석 도우미 강화(공고 유의사항 팩트), 매각조건 리스크 에이전트(D단계, 명도책임·점유·일괄매각 텍스트 피처), 리포트 공고 원문 탭, LLM 텍스트 피처(엔진 4단계). **data.go.kr 확인(2026-07-20)**: 공고상세=15157218, 공고상세 물건정보=15157220, 필수 입력은 **공고관리번호 pbancMngNo**(cltrMngNo 아님 — 물건목록 응답의 공고번호로 조회). 응답 항목: 공고종류/재산유형/처분방식/입찰방법/공고기관/공고일자 등. **주의: "공고상세 입찰정보"는 data.go.kr에 별도 서비스로 확인 안 됨** — 실재하는 건 "물건상세 입찰정보"(15157251=cltr_dtl_bidinf). Base URL/op만 승인 페이지 End Point 또는 프로덕션 `onbid-svc?svc=_health`로 확정하면 즉시 연동.
-- 물건상세 입찰정보(cltr_dtl_bidinf) ← 보증금율·입찰방식 상세 (상세 페이지 보증금 "통상 10% 가정" 실측화)
-- 코드/주소 조회(code_addr) ← 법정동코드 자동화 (주변 실거래의 군 단위 커버리지 확장 대체 수단)
-- 유가증권 상세(scrt_dtl), 정부재산 4종(gov_*), 수탁(trust_nbiz), 국유입찰대상(ntnl_bidtrgt) ← 물건 커버리지 확장 (낮은 우선순위)
+**① 온비드 endpoint_missing — 승인 페이지 End Point 스크린샷만 있으면 즉시 등록** (레지스트리 기본값 교정 또는 `ONBID_SVC_<ALIAS>_URL` 설정, 재배포 불필요):
+- **공고상세 2종**(pbanc_dtl/pbanc_dtl_cltr) ← 최우선. 잠금 해제되는 기능: 권리분석 도우미 강화(공고 유의사항 팩트), 매각조건 리스크 에이전트(D단계, 명도책임·점유·일괄매각 텍스트 피처), 리포트 공고 원문 탭, LLM 텍스트 피처(엔진 4단계). **data.go.kr 확인(2026-07-20)**: 공고상세=15157218, 공고상세 물건정보=15157220, 필수 입력은 **공고관리번호 pbancMngNo**(cltrMngNo 아님 — 물건목록 응답의 공고번호로 조회). 응답 항목: 공고종류/재산유형/처분방식/입찰방법/공고기관/공고일자 등. **아직 endpoint_missing** — 이 2종만 승인 페이지 End Point 스크린샷 대기(나머지 공고 계열은 확정됨).
+- ~~물건상세 입찰정보(cltr_dtl_bidinf)~~ — 아직 endpoint_missing(유추 `OnbidCltrDtlBidInfSrvc2`). ← 보증금율·입찰방식 상세. **단, "공고상세 입찰정보"(pbanc_dtl_bidinf)가 확정되어 대체 가능** (아래 참조).
+- ~~코드/주소 조회(code_addr)~~ — **확정됨**(2026-07-20 승인 페이지): End Point `OnbidCodeSrvc`, op `/getOnbidUsgCodeInfo`(용도코드, param upCtgrId) + `/getOnbidDtlAddrInfo`(주소, param sdnm/sggnm/emdNm). ← 법정동코드 자동화(주변 실거래 군 단위 확장).
+- 유가증권 상세(scrt_dtl), 정부재산 4종(gov_*), 수탁(trust_nbiz), 국유입찰대상(ntnl_bidtrgt) ← 물건 커버리지 확장 (낮은 우선순위, 여전히 endpoint_missing)
 
-**② 연동됐지만 검증 대기** (외부 절차 불필요, 배포 환경 `?debug=1` 첫 응답만 필요):
-- 차량 물건상세(vhcl_dtl / OnbidCarDtlSrvc2): 경로 유효 확인됨, 필드 매핑 미착수 ← 차량 상세 페이지 연식·주행거리 표시
-- 동산 물건상세(onbid-mvast-detail) op 경로: 첫 동산 상세 호출로 검증
+**②-a 레지스트리 확정 완료(2026-07-20 승인 페이지 스크린샷)** — 이제 `onbid-svc?svc=<alias>`로 바로 호출 가능:
+- **공고상세 입찰정보**(pbanc_dtl_bidinf): `OnbidPbancBidDtlSrvc2` / `/getPbancBidInf2`, 필수 pbancMngNo. 응답: 공동/대리입찰 가능여부·전자보증서·보증금대체서류·제출서류·**입찰일정및장소**·제안서평가항목 → 리포트/권리도우미 입찰 실무 팩트원.
+- **코드/주소 조회**(code_addr): 위 ① 참조.
+- **동산 물건상세**(mvast_dtl / onbid-mvast-detail): `OnbidMvastDtlSrvc2` / `/getMvastDtlInf2`, 필수 cltrMngNo+pbctCdtnNo — op 확정, 필드 매핑은 첫 실호출 `?debug=1`로 다듬기.
+- **차량 물건상세**(vhcl_dtl): `OnbidCarDtlSrvc2` / `/getCarDtlInf2`, 필수 cltrMngNo+pbctCdtnNo — op 확정. 응답에 연식/주행거리/유종/배기량/변속기/색상/감정평가/사진URL. ← 차량 상세 페이지. **전용 매핑 프록시 미작성**(현재 onbid-svc 원시 패스스루로만 접근 가능).
+
+**② (구) 연동됐지만 검증 대기** — 위 ②-a로 흡수됨. 남은 것은 각 상세의 **응답 필드 매핑**(`?debug=1` 첫 응답):
+- 차량 물건상세 전용 프록시 작성 + 필드 매핑 ← 차량 상세 페이지 연식·주행거리 표시
+- 동산 물건상세 필드 매핑 확인(onbid-mvast-detail, op는 확정)
 
 **③ 외부 키/신청 필요** (사용자 발급 절차):
 - **한국은행 ECOS API 키** ← 거시·금리 워처 에이전트(⑦): 기준금리·대출금리 국면 피처 + 인사이트 브리핑
