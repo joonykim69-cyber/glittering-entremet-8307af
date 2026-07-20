@@ -231,13 +231,25 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 .rp-overlay.vis { opacity:1; }
 .rp-modal { width:100%; max-width:680px; background:var(--surface); border:1px solid var(--line); border-radius:24px; padding:0; box-shadow:0 30px 80px rgba(16,32,26,.28); transform:scale(.97) translateY(10px); transition:transform .25s var(--ease); }
 .rp-overlay.vis .rp-modal { transform:none; }
-.rp-head { padding:24px 26px 0; position:relative; }
-.rp-close { position:absolute; top:18px; right:18px; background:var(--bg); border:1px solid var(--line); color:var(--sub); cursor:pointer; width:32px; height:32px; border-radius:50%; font-size:14px; }
-.rp-tag { font-size:11.5px; font-weight:800; color:var(--green-deep); background:var(--green-soft); padding:4px 11px; border-radius:999px; }
-.rp-title { font-size:19px; font-weight:900; letter-spacing:-0.02em; margin-top:10px; }
-.rp-tabs { display:flex; gap:4px; margin-top:18px; border-bottom:1px solid var(--line); }
-.rp-tabs button { font:inherit; font-size:13.5px; font-weight:700; cursor:pointer; background:none; border:none; color:var(--sub); padding:12px 16px; border-bottom:2.5px solid transparent; transition:all .2s; }
-.rp-tabs button.on { color:var(--green-deep); border-bottom-color:var(--green); }
+.rp-head { padding:24px 26px 0; position:relative; background:linear-gradient(150deg,#0E2A1F 0%,#00744B 95%); border-radius:24px 24px 0 0; }
+.rp-close { position:absolute; top:18px; right:18px; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.3); color:#fff; cursor:pointer; width:32px; height:32px; border-radius:50%; font-size:14px; }
+.rp-tag { font-size:11.5px; font-weight:800; color:#DFF5EA; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.2); padding:4px 11px; border-radius:999px; }
+.rp-title { font-size:19px; font-weight:900; letter-spacing:-0.02em; margin-top:10px; color:#fff; }
+.rp-tabs { display:flex; gap:6px; margin-top:16px; padding-bottom:16px; overflow-x:auto; }
+.rp-tabs button { font:inherit; font-size:13px; font-weight:700; cursor:pointer; background:rgba(255,255,255,.1); border:none; color:rgba(255,255,255,.7); padding:9px 16px; border-radius:999px; white-space:nowrap; transition:all .2s; }
+.rp-tabs button.on { color:var(--green-deep); background:#fff; font-weight:800; }
+/* 요이땅식 하단 고정 요약 바 */
+.rp-sticky { position:sticky; bottom:0; display:flex; align-items:center; gap:16px; flex-wrap:wrap; background:#10201A; color:#fff; border-radius:0 0 24px 24px; padding:13px 22px; font-size:12px; }
+.rp-sticky .sc { display:flex; flex-direction:column; }
+.rp-sticky .sc .k { font-size:10px; color:rgba(255,255,255,.55); font-weight:700; }
+.rp-sticky .sc .v { font-size:13.5px; font-weight:900; letter-spacing:-0.01em; }
+.rp-sticky .sc .v.orange { color:#FFB65C; }
+.rp-sticky .badge { margin-left:auto; font-size:11px; font-weight:800; padding:5px 12px; border-radius:999px; background:rgba(0,200,127,.18); color:#69F0AE; border:1px solid rgba(0,200,127,.35); white-space:nowrap; }
+.rp-sticky .badge.fail { background:rgba(255,182,92,.15); color:#FFB65C; border-color:rgba(255,182,92,.4); }
+.rp-agent-btn { font:inherit; font-size:12.5px; font-weight:800; cursor:pointer; background:var(--surface); border:1.5px solid var(--green); color:var(--green-deep); padding:10px 18px; border-radius:999px; margin-top:14px; }
+.rp-agent-btn:disabled { opacity:.55; cursor:wait; }
+.rp-agent-out { margin-top:12px; background:var(--bg); border:1px solid var(--line); border-radius:14px; padding:14px 16px; font-size:13px; line-height:1.75; white-space:pre-wrap; word-break:keep-all; }
+.rp-agent-out .disc { font-size:10.5px; color:var(--mute); margin-top:10px; border-top:1px dashed var(--line); padding-top:8px; }
 .rp-body { padding:22px 26px 26px; min-height:220px; }
 .rp-pane { display:none; }
 .rp-pane.on { display:block; }
@@ -582,8 +594,9 @@ h1,h2,h3,h4{font-family:var(--font-head)}
       <div class="rp-pane" id="rpSummary"></div>
       <div class="rp-pane" id="rpRights"></div>
       <div class="rp-pane" id="rpPrice"></div>
-      <p class="rp-foot-note">본 리포트는 과거 낙찰 데이터 기반의 통계적 참고자료(예시)이며, 법률적 판단이나 투자 권유가 아닙니다. 최종 판단과 책임은 이용자 본인에게 있습니다.</p>
+      <p class="rp-foot-note" id="rpFootNote">본 리포트는 과거 낙찰 데이터 기반의 통계적 참고자료이며, 법률적 판단이나 투자 권유가 아닙니다. 최종 판단과 책임은 이용자 본인에게 있습니다.</p>
     </div>
+    <div class="rp-sticky" id="rpSticky"></div>
   </div>
 </div>
 
@@ -1050,7 +1063,9 @@ let userLoggedIn = false;
 let currentReportItem = null;
 
 function openReport(id) {
-  currentReportItem = ITEMS.find(it => String(it.id) === String(id));
+  currentReportItem = ITEMS.find(it => String(it.id) === String(id))
+    || (Array.isArray(RANK_ITEMS) ? RANK_ITEMS.find(it => String(it.id) === String(id)) : null)
+    || (Array.isArray(SOLD_ITEMS) ? SOLD_ITEMS.find(it => String(it.id) === String(id)) : null);
   if (!currentReportItem) return;
   renderReport(currentReportItem);
   rpOverlay.classList.add('open');
@@ -1079,64 +1094,171 @@ function grade(it) {
   return risky ? { g:'B+', safe:false, note:'선순위 임차인 관련 권리관계 확인이 필요합니다' } : { g:'A', safe:true, note:'등기상 인수 위험이 낮은 편입니다' };
 }
 
-function renderReport(it) {
-  const g = grade(it);
-  document.getElementById('rpTag').textContent = `AI 리포트 · 예시 · ${it.caseNo}`;
-  document.getElementById('rpTitle').textContent = it.title;
+function rEsc(t) { return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+function fmtDt12(v) { const t=String(v||''); return t.length>=8?`${t.slice(0,4)}.${t.slice(4,6)}.${t.slice(6,8)}${t.length>=12?' '+t.slice(8,10)+':'+t.slice(10,12):''}`:'—'; }
 
+function renderReport(it) {
+  const live = !!it.pbctCdtnNo; // 실물건은 공매조건번호 보유, 데모(1~9)는 없음
+  const g = grade(it);
+  document.getElementById('rpTag').textContent = live ? `AI 리포트 · 실물건 · ${it.caseNo}` : `AI 리포트 · 예시 · ${it.caseNo}`;
+  document.getElementById('rpTitle').textContent = it.title;
+  document.getElementById('rpFootNote').textContent = live
+    ? '물건 정보는 실시간 온비드 데이터, 분석·예측은 통계적 참고자료입니다. 법률적 판단이나 투자 권유가 아니며 최종 판단과 책임은 이용자 본인에게 있습니다.'
+    : '본 리포트는 과거 낙찰 데이터 기반의 통계적 참고자료(예시)이며, 법률적 판단이나 투자 권유가 아닙니다. 최종 판단과 책임은 이용자 본인에게 있습니다.';
+
+  const pct = it.appr > 0 ? Math.round(it.min / it.appr * 100) + '%' : '—';
+
+  // ── 기본정보 (요이땅 팩트 테이블 대응 — 실물건은 전부 실데이터) ──
   document.getElementById('rpBasic').innerHTML = `
     <div class="rp-grid2">
-      <div class="rp-tile"><div class="k">사건번호</div><div class="v">${it.caseNo}</div></div>
-      <div class="rp-tile"><div class="k">담당 기관</div><div class="v">${it.court}</div></div>
-      <div class="rp-tile"><div class="k">소재지</div><div class="v">${it.address}</div></div>
-      <div class="rp-tile"><div class="k">물건 종류</div><div class="v">${it.type}</div></div>
+      <div class="rp-tile"><div class="k">${live?'물건관리번호':'사건번호'}</div><div class="v">${rEsc(it.caseNo)}</div></div>
+      <div class="rp-tile"><div class="k">${live?'공고기관':'담당 기관'}</div><div class="v">${rEsc(it.court)||'—'}</div></div>
+      <div class="rp-tile"><div class="k">소재지</div><div class="v">${rEsc(it.address)||'—'}</div></div>
+      <div class="rp-tile"><div class="k">용도</div><div class="v">${rEsc(it.usage||it.type)}</div></div>
       <div class="rp-tile"><div class="k">감정가</div><div class="v">${fmtWon(it.appr)}</div></div>
-      <div class="rp-tile"><div class="k">최저입찰가</div><div class="v">${fmtWon(it.min)}</div></div>
-    </div>`;
+      <div class="rp-tile"><div class="k">최저입찰가 (감정가 대비)</div><div class="v">${fmtWon(it.min)} <span style="font-size:11.5px;color:var(--green-deep);font-weight:800;">${pct}</span></div></div>
+      <div class="rp-tile"><div class="k">유찰 횟수</div><div class="v">${it.fail||0}회</div></div>
+      ${it.win > 0
+        ? `<div class="rp-tile"><div class="k">낙찰가 (개찰 완료)</div><div class="v" style="color:var(--red);">${fmtWon(it.win)} ${it.winRate?`<span style="font-size:11.5px;font-weight:800;">(${it.winRate}%)</span>`:''}</div></div>`
+        : `<div class="rp-tile"><div class="k">입찰 마감</div><div class="v">${fmtDt12(it.bidEnd)}</div></div>`}
+    </div>
+    ${live?'':'<p style="font-size:11px;color:var(--mute);margin-top:12px;">※ 예시 데이터</p>'}`;
 
-  document.getElementById('rpSummary').innerHTML = `
-    <span class="rp-safety ${g.safe?'safe':'warn'}"><span class="dot"></span>투자등급 ${g.g} · ${g.safe?'안전':'주의'}</span>
-    <ul class="rp-list">
-      <li>🔎 <b>${g.note}</b></li>
-      <li>📊 유찰 <b>${it.fail}회</b> · 최저가는 감정가 대비 <b>${Math.round(it.min/it.appr*100)}%</b> 수준</li>
-      <li>🏷️ 특징 태그: ${it.tags.join(' ')}</li>
-    </ul>
-    <div class="rp-blur-wrap ${userLoggedIn?'':'locked'}">
-      <div class="rp-blur-target">
-        <ul class="rp-list">
-          <li>💰 AI 추천 입찰가: <b>${fmtWon(Math.round(it.min*1.12))} ~ ${fmtWon(Math.round(it.min*1.2))}</b></li>
-          <li>📈 예상 낙찰가율: <b>${Math.round((it.min*1.16)/it.appr*100)}%</b></li>
-        </ul>
-      </div>
-      <div class="rp-lock-cta">
-        <p>추천 입찰가는 로그인 후 확인할 수 있어요</p>
-        <button type="button" onclick="closeReport();openAuth('login');">로그인하고 확인하기</button>
-      </div>
-    </div>`;
+  // ── 종합분석 — 실물건: 부동산 전문가 에이전트 / 데모: 규칙 기반 예시 ──
+  if (live) {
+    document.getElementById('rpSummary').innerHTML = `
+      <ul class="rp-list">
+        <li>📊 유찰 <b>${it.fail||0}회</b> · 최저가는 감정가 대비 <b>${pct}</b> 수준</li>
+        <li>🏷️ ${it.tags.map(t=>rEsc(t)).join(' ')}</li>
+      </ul>
+      <div id="rpAgentSummary"><button type="button" class="rp-agent-btn" onclick="rpAgent('expert','rpAgentSummary',this)">🏢 부동산 전문가 분석 생성 — 실데이터 기반</button></div>`;
+  } else {
+    document.getElementById('rpSummary').innerHTML = `
+      <span class="rp-safety ${g.safe?'safe':'warn'}"><span class="dot"></span>투자등급 ${g.g} · ${g.safe?'안전':'주의'} <span style="font-weight:700;font-size:11px;opacity:.7;">예시</span></span>
+      <ul class="rp-list">
+        <li>🔎 <b>${g.note}</b></li>
+        <li>📊 유찰 <b>${it.fail}회</b> · 최저가는 감정가 대비 <b>${pct}</b> 수준</li>
+        <li>🏷️ 특징 태그: ${it.tags.join(' ')}</li>
+      </ul>
+      <div class="rp-blur-wrap ${userLoggedIn?'':'locked'}">
+        <div class="rp-blur-target">
+          <ul class="rp-list">
+            <li>💰 AI 추천 입찰가 (예시): <b>${fmtWon(Math.round(it.min*1.12))} ~ ${fmtWon(Math.round(it.min*1.2))}</b></li>
+            <li>📈 예상 낙찰가율 (예시): <b>${it.appr>0?Math.round((it.min*1.16)/it.appr*100)+'%':'—'}</b></li>
+          </ul>
+        </div>
+        <div class="rp-lock-cta">
+          <p>추천 구간은 로그인 후 확인할 수 있어요</p>
+          <button type="button" onclick="closeReport();openAuth('login');">로그인하고 확인하기</button>
+        </div>
+      </div>`;
+  }
 
-  document.getElementById('rpRights').innerHTML = `
-    <span class="rp-safety ${g.safe?'safe':'warn'}"><span class="dot"></span>${g.safe?'인수 위험 낮음':'권리관계 확인 필요'}</span>
-    <ul class="rp-list">
-      <li>말소기준권리: <b>근저당권 (예시 · 2021년 설정)</b> — 이후 등기상 권리는 매각으로 소멸</li>
-      <li>선순위 인수 권리: <b>${g.safe?'없음':'확인 필요 — 매각물건명세서 재확인 권장'}</b></li>
-      <li>임차인 대항력: <b>${it.tags.some(t=>t.includes('임차인'))?'대항력 있음 (선순위 전입 추정)':'해당 없음'}</b></li>
-    </ul>`;
+  // ── 권리분석 — 실물건: 권리분석 도우미 / 데모: 예시 ──
+  if (live) {
+    document.getElementById('rpRights').innerHTML = `
+      <ul class="rp-list">
+        <li>⚖️ 공매의 권리분석은 <b>등기부등본·공매재산명세서 원문</b> 확인이 필수입니다 — 아래 도우미는 확인 체크리스트를 안내합니다 (법률 자문 아님)</li>
+      </ul>
+      <div id="rpAgentRights"><button type="button" class="rp-agent-btn" onclick="rpAgent('rights','rpAgentRights',this)">⚖️ 권리분석 도우미 실행 — 확인 체크리스트</button></div>`;
+  } else {
+    document.getElementById('rpRights').innerHTML = `
+      <span class="rp-safety ${g.safe?'safe':'warn'}"><span class="dot"></span>${g.safe?'인수 위험 낮음':'권리관계 확인 필요'} <span style="font-weight:700;font-size:11px;opacity:.7;">예시</span></span>
+      <ul class="rp-list">
+        <li>말소기준권리: <b>근저당권 (예시 · 2021년 설정)</b> — 이후 등기상 권리는 매각으로 소멸</li>
+        <li>선순위 인수 권리: <b>${g.safe?'없음':'확인 필요 — 매각물건명세서 재확인 권장'}</b></li>
+        <li>임차인 대항력: <b>${it.tags.some(t=>t.includes('임차인'))?'대항력 있음 (선순위 전입 추정)':'해당 없음'}</b></li>
+      </ul>`;
+  }
 
-  const ratio = Math.round((it.min*1.16)/it.appr*100);
-  document.getElementById('rpPrice').innerHTML = `
+  // ── 적정가 분석 — 실물건: 봉인 예측(실데이터) / 데모: 예시 ──
+  renderPricePane(it, live);
+
+  // ── 하단 고정 요약 바 (요이땅식) ──
+  document.getElementById('rpSticky').innerHTML = `
+    <div class="sc"><span class="k">감정가</span><span class="v">${fmtWon(it.appr)}</span></div>
+    <div class="sc"><span class="k">최저입찰가</span><span class="v orange">${fmtWon(it.min)} ${pct!=='—'?`(${pct})`:''}</span></div>
+    <div class="sc"><span class="k">유찰</span><span class="v">${it.fail||0}회</span></div>
+    ${it.win>0?`<div class="sc"><span class="k">낙찰가</span><span class="v orange">${fmtWon(it.win)}</span></div>`:''}
+    <span class="badge ${it.fail>0?'fail':''}">${it.status==='낙찰'?'✔ 매각완료':it.fail>0?`⟳ ${it.fail}회 유찰 후 진행중`:'● 신건 진행중'}</span>`;
+}
+
+// 적정가 분석 탭 — 실물건은 봉인 예측을 비동기 조회해 실데이터로 채움
+async function renderPricePane(it, live) {
+  const pane = document.getElementById('rpPrice');
+  const pct = it.appr > 0 ? Math.round(it.min / it.appr * 100) + '%' : '—';
+  const baseTiles = `
     <div class="rp-grid2">
       <div class="rp-tile"><div class="k">감정가</div><div class="v">${fmtWon(it.appr)}</div></div>
-      <div class="rp-tile"><div class="k">최저입찰가 (감정가 대비)</div><div class="v">${Math.round(it.min/it.appr*100)}%</div></div>
-    </div>
-    <div class="rp-blur-wrap ${userLoggedIn?'':'locked'}" style="margin-top:14px;">
-      <div class="rp-blur-target">
-        <div class="rp-tile"><div class="k">AI 추천 입찰가 (낙찰가율 ${ratio}% 기준)</div><div class="v">${fmtWon(Math.round(it.min*1.16))}</div></div>
-      </div>
-      <div class="rp-lock-cta">
-        <p>추천 입찰가는 로그인 후 확인할 수 있어요</p>
-        <button type="button" onclick="closeReport();openAuth('login');">로그인하고 확인하기</button>
-      </div>
+      <div class="rp-tile"><div class="k">최저입찰가 (감정가 대비)</div><div class="v">${fmtWon(it.min)} <span style="font-size:11.5px;color:var(--green-deep);font-weight:800;">${pct}</span></div></div>
     </div>`;
+
+  if (!live) {
+    const ratio = it.appr > 0 ? Math.round((it.min*1.16)/it.appr*100) : 0;
+    pane.innerHTML = baseTiles + `
+      <div class="rp-blur-wrap ${userLoggedIn?'':'locked'}" style="margin-top:14px;">
+        <div class="rp-blur-target">
+          <div class="rp-tile"><div class="k">AI 추천 입찰가 (예시${ratio?` · 낙찰가율 ${ratio}% 기준`:''})</div><div class="v">${fmtWon(Math.round(it.min*1.16))}</div></div>
+        </div>
+        <div class="rp-lock-cta">
+          <p>추천 구간은 로그인 후 확인할 수 있어요</p>
+          <button type="button" onclick="closeReport();openAuth('login');">로그인하고 확인하기</button>
+        </div>
+      </div>`;
+    return;
+  }
+
+  pane.innerHTML = baseTiles + `<p style="font-size:12px;color:var(--sub);margin-top:14px;">🔒 봉인된 AI 예측을 확인하고 있어요…</p>`;
+  try {
+    const r = await fetch(`/.netlify/functions/scoreboard?pred=${encodeURIComponent(String(it.id))}_${encodeURIComponent(String(it.pbctCdtnNo))}`);
+    const d = r.ok ? await r.json() : null;
+    if (currentReportItem !== it) return; // 다른 물건으로 전환됨
+    if (d && d.pred && d.pred.lo) {
+      const p = d.pred;
+      pane.innerHTML = baseTiles + `
+        <div class="rp-blur-wrap ${userLoggedIn?'':'locked'}" style="margin-top:14px;">
+          <div class="rp-blur-target">
+            <div class="rp-tile"><div class="k">🔒 봉인된 AI 예상 낙찰가 구간 (개찰 전 봉인 · 수정 불가)</div>
+              <div class="v">${fmtWon(p.lo)} ~ ${fmtWon(p.hi)} <span style="font-size:11.5px;color:var(--sub);font-weight:700;">(중앙값 ${fmtWon(p.mid)})</span></div></div>
+            <p style="font-size:11.5px;color:var(--sub);margin-top:10px;">근거: 캠코 ${rEsc(p.statBucket||'')} 낙찰가율 통계(${rEsc(p.statPerd||'')}) · 모델 ${rEsc(p.modelV||'')} · 봉인 ${p.sealedAt?new Date(p.sealedAt).toLocaleDateString('ko-KR'):''} — 개찰 후 자동 채점되어 성적표에 공개됩니다</p>
+          </div>
+          <div class="rp-lock-cta">
+            <p>봉인된 예측 구간은 로그인 후 확인할 수 있어요</p>
+            <button type="button" onclick="closeReport();openAuth('login');">로그인하고 확인하기</button>
+          </div>
+        </div>`;
+    } else {
+      pane.innerHTML = baseTiles + `
+        <p style="font-size:12.5px;color:var(--sub);margin-top:14px;">이 물건은 아직 봉인된 AI 예측이 없습니다 — 예측은 <b>입찰 마감 2일 전부터 매일 아침 봉인</b>되며, 통계 근거가 없는 용도는 예측하지 않습니다 (숫자를 만들지 않는 원칙).</p>`;
+    }
+  } catch (e) {
+    if (currentReportItem === it) pane.innerHTML = baseTiles + `<p style="font-size:12px;color:var(--sub);margin-top:14px;">예측 장부 조회가 지금은 어려워요 — 잠시 후 다시 열어주세요.</p>`;
+  }
+}
+
+// 리포트 안 에이전트 실행 — 상세 페이지 runAgent와 동일 백엔드(agents.js), 물건당 1회 캐시
+async function rpAgent(name, holderId, btn) {
+  const it = currentReportItem;
+  if (!it || !it.pbctCdtnNo) return;
+  btn.disabled = true; btn.textContent = '⏳ 분석 생성 중… (최초 1회만 생성됩니다)';
+  try {
+    const r = await fetch('/.netlify/functions/agents', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agent: name, item: {
+        id: String(it.id), pbctCdtnNo: String(it.pbctCdtnNo),
+        title: it.title || '', usage: it.usage || '', type: it.type || '',
+        appr: Number(it.appr) || 0, min: Number(it.min) || 0, fail: Number(it.fail) || 0,
+        address: it.address || '', assetClass: it.assetClass || '부동산',
+      }}),
+    });
+    const d = await r.json();
+    if (!r.ok || d.error) throw new Error((d.error && d.error.message) || ('HTTP ' + r.status));
+    document.getElementById(holderId).innerHTML =
+      `<div class="rp-agent-out">${rEsc(d.analysis)}<div class="disc">⚖️ ${rEsc(d.disclaimer||'')} · ${d.cached?'캐시됨':'신규 생성'}</div></div>`;
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = '⚠️ 생성 실패 — 다시 시도';
+  }
 }
 
 // ═══════════════════════════════════════
