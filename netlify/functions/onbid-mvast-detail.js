@@ -5,8 +5,8 @@
 // (Base URL 예: https://apis.data.go.kr/B010003/OnbidMvastDtlSrvc2 —
 //  사용자가 data.go.kr 활용신청 승인을 받은 서비스, 승인 페이지의 End Point를 환경변수로 설정)
 //
-// ⚠️ 오퍼레이션 경로는 부동산(getRlstDtlInf2) 패턴에서 유추한 '/getMvastDtlInf2'가 기본값 —
-// 다르면 ONBID_MVAST_DETAIL_API_OP 환경변수로 교체 (코드 재배포 불필요).
+// ✅ End Point/오퍼레이션 승인 페이지 확정(2026-07-20): Base OnbidMvastDtlSrvc2 / op '/getMvastDtlInf2',
+//    필수 입력 cltrMngNo(물건관리번호)+pbctCdtnNo(공매조건번호). 다른 경우만 ONBID_MVAST_DETAIL_API_OP로 교체.
 // 응답 필드는 부동산 상세와 동일 계열로 가정한 tolerant 매핑 + raw 동봉.
 // 첫 실 응답을 ?debug=1로 확인한 뒤 매핑을 다듬을 것.
 //
