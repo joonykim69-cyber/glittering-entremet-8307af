@@ -42,14 +42,19 @@ const REGISTRY = {
   // 필수 cltrMngNo+pbctCdtnNo. 부동산·동산·차량 공통. 응답: 이전입찰내역/이전입찰결과/**유찰누적횟수**/공고관리번호/공고명/
   // 제한경정입찰·평가배점·평가항목·평가기간/공동·대리입찰 가능여부/전자보증서/입찰제한정보/입찰관련제출서류/**회차별입찰정보**.
   // → 예측 엔진의 실제 회차(round) 확정·보증금 실측화 소스. (data 15157251)
-  cltr_dtl_bidinf:  { name: '물건상세 입찰정보',          code: 'OnbidCltrBidDtlSrvc2',      op: '/getCltrBidinf2',         confirmed: true },
+  // ⚠️ 실호출 검증(2026-07-20): OnbidCltrBidDtlSrvc2/getCltrBidinf2 → "API not found". Base는 유효할 수 있으나 op 재확정 필요.
+  //    ?_op= 오버라이드로 후보 탐색 중(getCltrBidInf2 대문자 I 등). 정확값 확정 후 confirmed 부여.
+  cltr_dtl_bidinf:  { name: '물건상세 입찰정보',          code: 'OnbidCltrBidDtlSrvc2',      op: '/getCltrBidinf2' },
   // 공고상세 계열 — 필수 입력은 **공고관리번호 pbancMngNo**(물건관리번호 cltrMngNo 아님 — 물건목록 응답의 공고번호로 조회).
   // pbanc_dtl 승인 페이지 확정(2026-07-20): End Point OnbidPbancDtlInfSrvc2 / op getPbancDtlInf2 (유추 코드명에 Inf 누락됐었음).
   // 응답에 **공고문 전문·공고취소사유·참가수수료** → 권리분석/매각조건 텍스트 피처 핵심 소스.
   // pbanc_dtl_cltr 승인 페이지 확정(2026-07-20): End Point OnbidPbancCltrDtlSrvc2 / op getPbancCltrInf2 (유추 Dtl/Cltr 순서 틀렸었음).
   // 필수 pbancMngNo. 응답: 공고에 속한 물건 목록 — 재산유형/처분방식/용도/물건명/**유찰횟수**/일괄입찰여부/물건주소/
   // **회차·공매차수**/입찰시작·종료일시/**감정평가금액·최저입찰가격**. → 공고번호 1개로 그 공고 전 물건·회차 일괄 획득.
-  pbanc_dtl:        { name: '공고상세',                   code: 'OnbidPbancDtlInfSrvc2',     op: '/getPbancDtlInf2',        confirmed: true }, // data 15157218, 필수 pbancMngNo
+  // ⚠️ 실호출 검증(2026-07-20): OnbidPbancDtlInfSrvc2/getPbancDtlInf2 → "Unexpected errors"(Base URL 재확정 필요). ?_base= 탐색 중.
+  pbanc_dtl:        { name: '공고상세',                   code: 'OnbidPbancDtlInfSrvc2',     op: '/getPbancDtlInf2' },      // data 15157218, 필수 pbancMngNo
+  // ✅ 실호출 검증(2026-07-20): OnbidPbancCltrDtlSrvc2/getPbancCltrInf2 → resultCode 03 NODATA = 엔드포인트 정확.
+  //    단 필수 pbancMngNo가 물건데이터의 onbidPbancNo(예 662306)와 형식이 다름(샘플 202406-21411-00) — 공고번호 매핑 필요.
   pbanc_dtl_cltr:   { name: '공고상세 물건정보',          code: 'OnbidPbancCltrDtlSrvc2',    op: '/getPbancCltrInf2',       confirmed: true }, // data 15157220, 필수 pbancMngNo
   // 공고상세 입찰정보 — 승인 페이지 스크린샷 확정(2026-07-20): End Point OnbidPbancBidDtlSrvc2 / op getPbancBidInf2 (유추 코드명 순서가 틀렸었음).
   // 필수 pbancMngNo. 응답: 공동입찰가능여부/대리입찰가능여부/전자보증서제출/보증금대체서류/제출서류/입찰일정및장소/제안서평가항목.
@@ -130,6 +135,10 @@ exports.handler = async (event) => {
   const alias = qs.svc;
   delete qs.svc;
   const debug = qs.debug; delete qs.debug;
+  // endpoint 탐색용 임시 오버라이드 — ?_op=/getXxx, ?_base=OnbidXxxSrvc2 (또는 전체 URL).
+  // 정확한 End Point를 못 찾은 서비스를 재배포 없이 여러 후보로 시험하기 위한 디버깅 스위치.
+  const opOv = qs._op; delete qs._op;
+  const baseOv = qs._base; delete qs._base;
 
   // ── 레지스트리 목록 ──
   if (alias === '_list') {
@@ -177,14 +186,17 @@ exports.handler = async (event) => {
     return { statusCode: 503, headers: CORS, body: JSON.stringify({ error: { message: `${svc.name}: ${svc.disabled}` } }) };
   }
 
+  const effBase = baseOv ? (/^https?:\/\//.test(baseOv) ? baseOv : (B + baseOv)) : svc.base;
+  const effOp = opOv ? (opOv.startsWith('/') ? opOv : '/' + opOv) : svc.op;
+
   const params = new URLSearchParams({ serviceKey, resultType: 'json', pageNo: qs.page || qs.pageNo || '1', numOfRows: qs.numOfRows || '20' });
   for (const [k, v] of Object.entries(qs)) {
     if (!['page', 'pageNo', 'numOfRows'].includes(k)) params.set(k, v);
   }
-  const upstreamUrl = `${svc.base}${svc.op}?${params.toString().replace(serviceKey, '***').replace(encodeURIComponent(serviceKey), '***')}`;
+  const upstreamUrl = `${effBase}${effOp}?${params.toString().replace(serviceKey, '***').replace(encodeURIComponent(serviceKey), '***')}`;
 
   try {
-    const r = await fetch(`${svc.base}${svc.op}?${params.toString()}`);
+    const r = await fetch(`${effBase}${effOp}?${params.toString()}`);
     const bodyText = await r.text();
     console.log(`[onbid-svc:${alias}] status:`, r.status, '| body(첫 500자):', bodyText.slice(0, 500));
 
