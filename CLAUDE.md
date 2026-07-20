@@ -37,7 +37,7 @@ A static site deployed on Netlify for **신호등옥션 (구 낙찰예보/BidCas
 
 A 15-page static prototype (`bidcast*.html`) for an Onbid auction winning-bid prediction service, benchmarking `yoiddang.co.kr`'s information architecture. Every page ships with **all example data clearly labeled** (예시 데이터 chips) — there is no backend and "login" is a client-side demo only. The only persistence is `localStorage` (keys `bidcast:likes`, `bidcast:recent`, `bidcast:alerts`), shared between the list, detail, and my-page files for the 관심물건/최근 본 물건/알림 demo features.
 
-- `bidcast.html` — Landing page. Hero, 3-step onboarding widget (`#onboarding`), asset-type quick search, example AI-forecast cards, mini accuracy/calendar previews, mock-bid simulation, insight teaser.
+- `bidcast.html` — Landing page. Hero, 3-step onboarding widget (`#onboarding`), asset-type quick search, example AI-forecast cards, mini accuracy/calendar previews, mock-bid simulation, insight teaser. **사용자 성장 트랙 — 예언자 등급(2026-07-20 1차 구현)**: 히어로 바로 아래 `#growth` 섹션 + 상단 nav 우측 사용자 탭. 로그인 시 "나의 예언자 여정" 대시보드(등급 배지+진행바, 봉인/채점/적중률/나vsAI 타일, 봉인 목록, 6등급 로드맵), 비로그인 시 티저. **개인 학습 트랙 — 엔진 공식 성적표(적중률/랩)와 UI·문구로 절대 분리**("내가 고른 물건·나의 연습 기록" 라벨). 데이터는 localStorage 데모: `bidcast:nick`(애칭), `bidcast:mypred`(물건별 {내 구간 lo~hi, (선택)AI 구간, 봉인시각, 개찰 낙찰가, 적중·오차}). 봉인은 모달에서 내 구간 직접 입력→개찰 후 실 낙찰가 입력으로 자기 채점(나 vs AI 비교). 등급 판정 = 채점 건수+개인 적중률(이드몬→몹소스→칼카스→테이레시아스→피티아→아폴론, 신호등 6색). **미구현(추후)**: 관심 물건(bidcast:likes)·상세 페이지 온디맨드 AI 예측과의 자동 연동(현재는 물건명·AI구간 수동 입력), 온비드 개찰 자동 채점.
 - `bidcast-list.html` — Product search: 6 mode tabs (경매검색/예정물건/신건/인기물건/인기검색/매각결과), court/region/price/fail-count/type filters, and an **AI report modal** (기본정보/종합분석/권리분석/적정가 분석 tabs) that blurs the recommended-bid figures until the demo login completes.
 - `bidcast-detail.html` — Item detail page, reached from `bidcast-list.html` card titles via `?id=N`. Resolution order: demo id (1–9) → `DETAILS`; live id (cltrMngNo) → a `sessionStorage` snapshot (`bidcast:detail`) that the list page's `stashDetail()` writes on click, rendering real basic facts + photo immediately, then **asynchronously calls `/.netlify/functions/onbid-detail`** to enrich the page with 기본정보/감정평가/임대차 등 상세 데이터 (API 미연동 시 스냅샷 유지, 칩이 연동 상태 표시); otherwise falls back to item 1. Sections: photo hero + key facts, AI forecast card (blur-locked until demo login, same pattern as the report modal), 기본정보 table, 입찰 이력 timeline, 권리분석 요약, stylized location mock, 유사 물건 cards (same-type first). **입찰 이력·보증금 실측(2026-07-20)**: 라이브 물건은 `onbid-svc?svc=cltr_dtl_bidinf`(물건상세 입찰정보)를 비동기 호출해 timeline을 회차별 실 최저가(`cseqBidInfClgList` 전체 회차 + `prcnBidClgList` 진행 회차 결과 병합, 미래 placeholder 날짜 2999…는 표기 생략)로 교체하고, 보증금 셀(`dDeposit`)을 `pbctTdpsCont` 실값(예 "최저입찰가격*10%")으로 실측화 — 실패 시 스냅샷/가정 유지. 이 응답의 `pbancMngNo`가 공고 계열 연결고리.
 - `bidcast-my.html` — 마이페이지: 관심물건 (hearts saved from list/detail via `bidcast:likes`), 추천 물건 (liked items' type/court/price를 규칙 기반 매칭하여 SUMMARY 내 유사 물건 추천 — "규칙 기반 추천 · 예시 데이터" 명시, 추천 이유 태그 표시, 매칭 점수 노출), 최근 본 물건 (recorded on detail-page views via `bidcast:recent`, capped at 12), and demo alert toggles (`bidcast:alerts`). Own `SUMMARY` dataset keyed by the shared demo ids; liked ids not in `SUMMARY` (e.g. from live data) are silently skipped. Linked from every page's footer 바로가기 column.
@@ -63,7 +63,7 @@ A 15-page static prototype (`bidcast*.html`) for an Onbid auction winning-bid pr
 
 **로스터·단계**: A(구현됨 2026-07-20) ①부동산 전문가(종합분석) ②지역 전문가(지역 브리핑) ⑤경쟁 강도(유찰·관심순위·유찰율 근거) / **B(구현됨 2026-07-20) ③권리분석 도우미** — 공고 계열 연동으로 공고종류·재공고·입찰조건 확인 포인트 강화 / **C(뉴스 구현됨 2026-07-20) ④뉴스·정보(news)** — naver-news 프록시로 소재 시군구 부동산 뉴스 수집·브리핑(NAVER_CLIENT_ID/SECRET 키만 대기, 미설정 시 degrade) / ⑦거시 금리 워처(ECOS 키 필요) / **D(구현됨 2026-07-20) ⑥매각조건 리스크(sale_risk)** — 공고종류(연기/취소)·취소사유·직전공고·보증금·대금납부·입찰제한을 팩트로 매각조건 리스크 안내(권리관계 판단 아님, 공고상세는 hwp 첨부라 텍스트 전문 대신 구조화 필드 활용) / E ⑧감사역(주간 채점 감사→chronicle에 개선 제안 기록, 채택은 사람이 결정).
 
-## 사용자 성장 트랙 — 예언자 등급 시스템 (설계 메모, 2026-07-20 승인 · 구현 보류)
+## 사용자 성장 트랙 — 예언자 등급 시스템 (2026-07-20 승인 · **랜딩 1차 구현됨**)
 
 **왜 만드나 (창업 취지 직결)**: 서비스의 목적은 "사용자가 스스로 공매 입찰 전문가로 성장". 이를 위해 사용자가 **관심 있는 물건만 골라 스스로 예측·시뮬레이션**하고, 개찰 후 채점받아 실력을 키우는 개인 학습 경험을 제공한다.
 
@@ -86,7 +86,7 @@ A 15-page static prototype (`bidcast*.html`) for an Onbid auction winning-bid pr
 
 **이미 있는 씨앗(재활용·확장 대상)**: `bidcast-my.html` "나의 성장"(`bidcast:myscore`), `bidcast-simulator.html` 시뮬레이터, 기존 "나 vs AI 채점". 이들을 "사용자 개인 트랙"으로 일관되게 묶고 등급 시스템을 얹는다.
 
-**구현 시점**: 보류 — 사용자가 적정 시점에 지시. 구현 순서(안): (a) 개인 예측 봉인·채점 데이터 모델 → (b) 6등급 판정·배지 UI(신호등 색) → (c) 랜딩/마이페이지에 등급 노출 → (d) 관심 물건 온디맨드 예측 연결.
+**구현 상태(2026-07-20)**: 랜딩(`bidcast.html`)에 1차 구현 완료 — (a) `bidcast:mypred` 데이터 모델 + 등급 판정 ✅ (b) 상단 사용자 탭(애칭+등급 배지)·6등급 로드맵 UI ✅ (c) 히어로 아래 `#growth` 대시보드 ✅ (d) 봉인/채점 모달(내 구간 직접 입력 + 선택적 AI 구간 → 나 vs AI) ✅. **추후(미구현)**: 관심 물건(bidcast:likes)·상세 페이지 온디맨드 AI 예측 자동 연동(현재 수동 입력), 온비드 개찰 결과 자동 채점(현재 낙찰가 수동 입력), 다른 페이지로 사용자 탭 전파.
 
 ## 보류 중인 작업 (사용자 지시로 연기 — 2026-07-19)
 

@@ -59,6 +59,54 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .nav-user .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px rgba(0,200,127,.7)}
 .nav-user button{background:none;border:none;cursor:pointer;font:inherit;font-size:12px;font-weight:700;color:var(--sub);padding:0 0 0 8px;border-left:1px solid #C4EBD8}
 .nav-user button:hover{color:var(--red)}
+/* ═══ 사용자 성장 트랙 (예언자 등급) ═══ */
+.nav-user.graded{background:#fff;border-color:var(--line);color:var(--ink)}
+.nav-user .grade-dot{width:9px;height:9px;border-radius:50%;box-shadow:0 0 7px currentColor}
+#growth{display:none;background:linear-gradient(180deg,#FFFFFF,#F6FAF7);border-bottom:1px solid var(--line)}
+#growth.on{display:block}
+.gw-wrap{max-width:1120px;margin:0 auto;padding:34px 20px}
+.gw-label{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:800;color:var(--sub);background:#fff;border:1px solid var(--line);padding:6px 13px;border-radius:999px;margin-bottom:16px}
+.gw-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:18px}
+@media(max-width:820px){.gw-grid{grid-template-columns:1fr}}
+.gw-card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px}
+.gw-badge{display:flex;align-items:center;gap:16px}
+.gw-medal{width:66px;height:66px;border-radius:50%;display:grid;place-items:center;font-size:30px;color:#fff;flex-shrink:0;box-shadow:0 6px 18px rgba(0,0,0,.16)}
+.gw-gname{font-size:20px;font-weight:900;letter-spacing:-.02em}
+.gw-gsub{font-size:12.5px;color:var(--sub);margin-top:2px}
+.gw-prog{margin-top:16px}
+.gw-prog-bar{height:10px;background:#EEF3F0;border-radius:999px;overflow:hidden}
+.gw-prog-fill{height:100%;border-radius:999px;transition:width .6s var(--ease)}
+.gw-prog-txt{font-size:12px;color:var(--sub);margin-top:7px}
+.gw-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:16px}
+.gw-stat{background:var(--bg);border-radius:12px;padding:13px 14px}
+.gw-stat .v{font-size:22px;font-weight:900}
+.gw-stat .l{font-size:11.5px;color:var(--sub);margin-top:2px}
+.gw-pred{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:9px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.gw-pred .t{font-size:13.5px;font-weight:700}
+.gw-pred .m{font-size:11.5px;color:var(--sub);margin-top:3px}
+.gw-tag{font-size:11px;font-weight:800;padding:5px 10px;border-radius:999px;white-space:nowrap;border:none;cursor:default}
+.gw-tag.hit{background:#DEF7EC;color:#03543F}.gw-tag.miss{background:#FDE8E8;color:#9B1C1C}
+.gw-tag.wait{background:var(--yellow-soft);color:#8A6100;cursor:pointer}
+.gw-empty{font-size:13px;color:var(--mute);text-align:center;padding:22px 0}
+.gw-road{display:flex;gap:6px;margin-top:12px}
+.gw-step{flex:1;text-align:center}
+.gw-step .c{height:9px;border-radius:999px;margin-bottom:7px;opacity:.3}
+.gw-step.on .c{opacity:1}
+.gw-step .n{font-size:10.5px;font-weight:800;color:var(--mute);line-height:1.3}
+.gw-step.on .n{color:var(--ink)}
+.gw-teaser{text-align:center;padding:8px 10px 6px}
+.gw-teaser .tt{font-size:19px;font-weight:900;margin-bottom:6px}
+.gw-teaser .ts{font-size:13px;color:var(--sub);margin-bottom:16px}
+.gw-teaser .gw-road{max-width:640px;margin:0 auto}
+/* 봉인/채점 모달 */
+.mp-field{margin-top:13px}
+.mp-field label{display:block;font-size:12.5px;font-weight:700;margin-bottom:5px}
+.mp-field input{width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;font:inherit;font-size:14px;box-sizing:border-box}
+.mp-field input:focus{outline:none;border-color:var(--green)}
+.mp-row{display:flex;gap:10px}.mp-row>div{flex:1}
+.mp-hint{font-size:11.5px;color:var(--mute);margin-top:5px}
+.auth-title{font-family:var(--font-head);font-size:20px;font-weight:900;letter-spacing:-.02em}
+.auth-sub{font-size:13px;color:var(--sub);line-height:1.5}
 .nav-hamburger{display:none;background:none;border:1px solid var(--line);border-radius:10px;width:38px;height:38px;cursor:pointer;font-size:16px;color:var(--ink);align-items:center;justify-content:center;flex:none}
 .mobile-nav{display:none;flex-direction:column;gap:2px;padding:10px;background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:0 16px 36px rgba(16,32,26,.14);position:absolute;top:calc(100% + 10px);left:0;right:0;z-index:150}
 .mobile-nav.open{display:flex}
@@ -300,6 +348,77 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 </div>
 </div>
 </div></header>
+
+<!-- ═══ 사용자 성장 트랙 (예언자 등급) — 로그인 시 표시. 엔진 공식 성적표와 별개인 "나의 연습 기록" ═══ -->
+<section id="growth"><div class="gw-wrap">
+  <span class="gw-label">🚦 내가 고른 물건 · 나의 연습 기록 <span style="color:var(--mute);font-weight:600">— 우리 모델 공식 적중률과 별개</span></span>
+  <div id="gwLoggedIn" style="display:none">
+    <div class="gw-grid">
+      <div class="gw-card">
+        <div class="gw-badge">
+          <div class="gw-medal" id="gwMedal">🔮</div>
+          <div><div class="gw-gname" id="gwName">—</div><div class="gw-gsub" id="gwSub">—</div></div>
+        </div>
+        <div class="gw-prog"><div class="gw-prog-bar"><div class="gw-prog-fill" id="gwFill" style="width:0%"></div></div><div class="gw-prog-txt" id="gwNext">—</div></div>
+        <div class="gw-stats">
+          <div class="gw-stat"><div class="v" id="gwSealed">0</div><div class="l">봉인한 예측</div></div>
+          <div class="gw-stat"><div class="v" id="gwScored">0</div><div class="l">채점 완료</div></div>
+          <div class="gw-stat"><div class="v" id="gwHit">—</div><div class="l">나의 적중률</div></div>
+          <div class="gw-stat"><div class="v" id="gwVs">—</div><div class="l">나 vs AI</div></div>
+        </div>
+      </div>
+      <div class="gw-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><b style="font-size:15px">나의 예측</b><button class="btn btn-cta btn-sm" type="button" onclick="openSeal()">+ 새 예측 봉인</button></div>
+        <div id="gwPredList" style="margin-top:6px"></div>
+      </div>
+    </div>
+    <div class="gw-card" style="margin-top:18px">
+      <b style="font-size:15px">예언자 등급 로드맵</b>
+      <div class="gw-road" id="gwRoad"></div>
+    </div>
+  </div>
+  <div id="gwTeaser" class="gw-card">
+    <div class="gw-teaser">
+      <div class="tt">나만의 예측을 봉인하고, 예언자로 성장하세요</div>
+      <div class="ts">관심 물건에 <b>내 낙찰가 구간을 직접 봉인</b>하고 개찰 후 채점받아, 이드몬에서 아폴론까지 6단계로 성장합니다.</div>
+      <div class="gw-road" id="gwRoadTeaser"></div>
+      <div style="margin-top:16px"><button class="btn btn-cta btn-sm" type="button" onclick="openAuth('signup')">가입하고 시작하기</button></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- 예측 봉인 / 채점 모달 -->
+<div class="auth-overlay" id="sealOverlay">
+  <div class="auth-modal">
+    <button class="auth-close" type="button" onclick="closeSeal()" aria-label="닫기">×</button>
+    <div id="sealPanel">
+      <h3 class="auth-title" style="margin-bottom:2px">새 예측 봉인</h3>
+      <p class="auth-sub" style="margin-bottom:4px">관심 물건에 대한 <b>나의 예상 낙찰가 구간</b>을 개찰 전에 봉인합니다.</p>
+      <div class="mp-field"><label>물건명</label><input id="spTitle" type="text" placeholder="예: 평택 장당동 근린생활시설" maxlength="60"></div>
+      <div class="mp-row">
+        <div class="mp-field"><label>감정가(만원)</label><input id="spAppr" type="number" min="0" placeholder="26000"></div>
+        <div class="mp-field"><label>최저입찰가(만원)</label><input id="spMin" type="number" min="0" placeholder="37325"></div>
+      </div>
+      <div class="mp-row">
+        <div class="mp-field"><label>내 예상 하한(만원)</label><input id="spLo" type="number" min="0" placeholder="34000"></div>
+        <div class="mp-field"><label>내 예상 상한(만원)</label><input id="spHi" type="number" min="0" placeholder="40000"></div>
+      </div>
+      <div class="mp-row">
+        <div class="mp-field"><label>AI 예측 하한(만원, 선택)</label><input id="spAiLo" type="number" min="0" placeholder="상세 페이지 값 복사"></div>
+        <div class="mp-field"><label>AI 예측 상한(만원, 선택)</label><input id="spAiHi" type="number" min="0"></div>
+      </div>
+      <p class="mp-hint">AI 구간을 함께 넣으면 개찰 후 "나 vs AI"로 비교됩니다. 개찰 전에 봉인하면 사후에 고칠 수 없습니다 — 이게 정직한 연습의 핵심입니다.</p>
+      <button class="btn btn-cta" style="width:100%;margin-top:16px" type="button" onclick="doSeal()">봉인하기</button>
+    </div>
+    <div id="scorePanel" style="display:none">
+      <h3 class="auth-title" style="margin-bottom:2px">개찰 결과 입력 · 채점</h3>
+      <p class="auth-sub" id="scoreItemName" style="margin-bottom:4px">—</p>
+      <div class="mp-field"><label>실제 낙찰가(만원)</label><input id="scWin" type="number" min="0" placeholder="35800"></div>
+      <p class="mp-hint">온비드 개찰 결과의 낙찰가를 입력하면, 내 예측 구간 적중 여부와 오차가 채점됩니다.</p>
+      <button class="btn btn-cta" style="width:100%;margin-top:16px" type="button" onclick="doScore()">채점하기</button>
+    </div>
+  </div>
+</div>
 
 <section class="metrics"><div class="wrap">
 <div class="metric"><b>92조+</b><span>온비드 누적 낙찰금액 (2021 기준)</span></div>
@@ -627,18 +746,150 @@ function finishAuth(identity) {
   userLoggedIn = true;
   showPanel('apDone');
   document.getElementById('doneTitle').textContent = authMode === 'login' ? '로그인 완료! 다시 오신 걸 환영합니다 🚶' : '가입 완료! 환영합니다 🚶';
-  document.getElementById('doneSub').innerHTML = `<b>${identity}</b>(으)로 연동되었습니다. 지금부터 관심물건 알림과 모의입찰 기록을 이용할 수 있습니다.`;
-  const navRight = document.getElementById('navRight');
-  navRight.innerHTML = `<span class="nav-user"><span class="dot"></span>${identity} <button type="button" onclick="logoutDemo()">로그아웃</button></span>`;
+  document.getElementById('doneSub').innerHTML = `<b>${identity}</b>(으)로 연동되었습니다. 지금부터 관심물건 알림과 나만의 예측 봉인을 이용할 수 있습니다.`;
+  if (!getNick()) lsSet('bidcast:nick', (String(identity).split('@')[0] || '예언자').slice(0, 20));
+  enterGrowthLoggedIn();
 }
 function logoutDemo() {
   userLoggedIn = false;
-  const navRight = document.getElementById('navRight');
-  navRight.innerHTML = `
+  localStorage.removeItem('bidcast:nick'); // 데모 로그아웃 — 개인 기록(mypred)은 보존, 재로그인 시 이어받음
+  document.getElementById('navRight').innerHTML = `
     <button class="btn btn-ghost btn-sm" type="button" onclick="openAuth('login')">로그인</button>
     <button class="btn btn-cta btn-sm" type="button" onclick="openAuth('signup')">사전 알림 신청</button>
   `;
+  const li = document.getElementById('gwLoggedIn'), tz = document.getElementById('gwTeaser');
+  if (li) li.style.display = 'none';
+  if (tz) tz.style.display = '';
 }
+
+/* ═══════════════════════════════════════════════════
+   사용자 성장 트랙 — 예언자 등급 (개인 학습 트랙, localStorage 데모)
+   엔진 공식 성적표(적중률)와 절대 섞지 않는 "나의 연습 기록".
+   ═══════════════════════════════════════════════════ */
+const GRADES = [
+  { n: 1, name: '이드몬', en: 'Idmon', color: '#E5484D', desc: '갓 예언을 시작한 아르고호의 젊은 예언자' },
+  { n: 2, name: '몹소스', en: 'Mopsus', color: '#F2777A', desc: '이드몬을 이은 예언자' },
+  { n: 3, name: '칼카스', en: 'Calchas', color: '#EB763C', desc: '그리스군 종군 예언자' },
+  { n: 4, name: '테이레시아스', en: 'Tiresias', color: '#F5A623', desc: '테베의 눈먼 대예언자' },
+  { n: 5, name: '피티아', en: 'Pythia', color: '#5CC98D', desc: '델포이 아폴론 신탁의 무녀' },
+  { n: 6, name: '아폴론', en: 'Apollon', color: '#00A86B', desc: '예언의 신, 최고 등급' },
+];
+function lsGet(k, d) { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } }
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+function getNick() { return lsGet('bidcast:nick', null); }
+function myPreds() { return lsGet('bidcast:mypred', []); }
+function gwFmt(m) { m = Number(m) || 0; return m >= 10000 ? (m / 10000).toFixed(m % 10000 ? 1 : 0) + '억' : m.toLocaleString() + '만'; }
+function gwEsc(s) { return String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c])); }
+function myStats() {
+  const a = myPreds(), sc = a.filter(p => p.scoredAt), hits = sc.filter(p => p.hit).length;
+  const aiSc = sc.filter(p => p.aiHit != null), myBeat = aiSc.filter(p => p.hit && !p.aiHit).length;
+  return { sealed: a.length, scored: sc.length, hits, hitRate: sc.length ? hits / sc.length : 0, aiScored: aiSc.length, myBeat };
+}
+function myGrade() {
+  const s = myStats();
+  if (s.scored >= 100 && s.hitRate >= 0.65) return 6;
+  if (s.scored >= 60 && s.hitRate >= 0.55) return 5;
+  if (s.scored >= 30 && s.hitRate >= 0.40) return 4;
+  if (s.scored >= 10) return 3;
+  if (s.sealed >= 1) return 2;
+  return 1;
+}
+function nextGoal() {
+  const s = myStats(), g = myGrade();
+  if (g >= 6) return { pct: 100, txt: '최고 등급 아폴론 달성 — 예언의 신' };
+  if (g === 1) return { pct: 0, txt: '첫 예측을 봉인하면 몹소스로 승급' };
+  const reqs = { 3: { sc: 10 }, 4: { sc: 30, h: .40 }, 5: { sc: 60, h: .55 }, 6: { sc: 100, h: .65 } };
+  const r = reqs[g + 1], need = r.sc - s.scored, pct = Math.min(100, Math.round(s.scored / r.sc * 100));
+  let txt;
+  if (need > 0) txt = `다음 등급까지 채점 ${need}건 더`;
+  else if (r.h && s.hitRate < r.h) txt = `채점 수 충족 — 적중률 ${Math.round(r.h * 100)}% 이상 필요 (현재 ${Math.round(s.hitRate * 100)}%)`;
+  else txt = '승급 조건 충족! 다음 봉인·채점 시 승급';
+  return { pct, txt };
+}
+function renderRoad(elId) {
+  const g = myGrade(), el = document.getElementById(elId); if (!el) return;
+  el.innerHTML = GRADES.map(x => `<div class="gw-step ${x.n <= g ? 'on' : ''}"><div class="c" style="background:${x.color}"></div><div class="n">${x.n}. ${x.name}</div></div>`).join('');
+}
+function renderGrowth() {
+  const g = GRADES[myGrade() - 1], s = myStats();
+  const medal = document.getElementById('gwMedal');
+  medal.textContent = g.n >= 5 ? '🔮' : g.n >= 3 ? '✨' : '🌱';
+  medal.style.background = g.color;
+  document.getElementById('gwName').textContent = `${g.n}등급 · ${g.name}`;
+  document.getElementById('gwSub').textContent = `${g.en} — ${g.desc}`;
+  const ng = nextGoal();
+  const fill = document.getElementById('gwFill');
+  fill.style.width = ng.pct + '%'; fill.style.background = g.color;
+  document.getElementById('gwNext').textContent = ng.txt;
+  document.getElementById('gwSealed').textContent = s.sealed;
+  document.getElementById('gwScored').textContent = s.scored;
+  document.getElementById('gwHit').textContent = s.scored ? Math.round(s.hitRate * 100) + '%' : '—';
+  document.getElementById('gwVs').textContent = s.aiScored ? `${s.myBeat}승 / ${s.aiScored}` : '—';
+  const preds = myPreds(), list = document.getElementById('gwPredList');
+  list.innerHTML = preds.length ? preds.map((p, idx) => p).reverse().map((p) => {
+    const idx = preds.indexOf(p);
+    const tag = p.scoredAt ? (p.hit ? '<span class="gw-tag hit">적중</span>' : '<span class="gw-tag miss">빗나감</span>') : `<span class="gw-tag wait" onclick="openScore(${idx})">개찰 결과 입력</span>`;
+    const res = p.scoredAt ? ` · 낙찰 ${gwFmt(p.win)}${p.errPct != null ? ` (오차 ${p.errPct}%)` : ''}` : '';
+    return `<div class="gw-pred"><div><div class="t">${gwEsc(p.title)}</div><div class="m">내 구간 ${gwFmt(p.lo)}~${gwFmt(p.hi)}${res}</div></div>${tag}</div>`;
+  }).join('') : '<div class="gw-empty">아직 봉인한 예측이 없습니다. "+ 새 예측 봉인"으로 시작하세요.</div>';
+  renderRoad('gwRoad');
+}
+let scoreIdx = -1;
+function gwOpen(id) { const o = document.getElementById(id); o.classList.add('open'); requestAnimationFrame(() => o.classList.add('vis')); }
+function gwClose(id) { const o = document.getElementById(id); o.classList.remove('vis'); setTimeout(() => o.classList.remove('open'), 250); }
+function openSeal() {
+  document.getElementById('sealPanel').style.display = ''; document.getElementById('scorePanel').style.display = 'none';
+  ['spTitle', 'spAppr', 'spMin', 'spLo', 'spHi', 'spAiLo', 'spAiHi'].forEach(id => document.getElementById(id).value = '');
+  gwOpen('sealOverlay');
+}
+function closeSeal() { gwClose('sealOverlay'); }
+function doSeal() {
+  const t = document.getElementById('spTitle').value.trim();
+  const lo = Number(document.getElementById('spLo').value), hi = Number(document.getElementById('spHi').value);
+  if (!t) { alert('물건명을 입력하세요.'); return; }
+  if (!(lo > 0) || !(hi > 0) || hi < lo) { alert('예상 구간을 올바르게 입력하세요 (하한 ≤ 상한).'); return; }
+  const aiLo = Number(document.getElementById('spAiLo').value) || 0, aiHi = Number(document.getElementById('spAiHi').value) || 0;
+  const a = myPreds();
+  a.push({ title: t, appr: Number(document.getElementById('spAppr').value) || 0, min: Number(document.getElementById('spMin').value) || 0, lo, hi, aiLo: aiLo > 0 ? aiLo : null, aiHi: aiHi > 0 ? aiHi : null, sealedAt: new Date().toISOString() });
+  lsSet('bidcast:mypred', a);
+  closeSeal(); renderGrowth(); updateNavGrade();
+}
+function openScore(idx) {
+  scoreIdx = idx; const p = myPreds()[idx]; if (!p) return;
+  document.getElementById('scoreItemName').textContent = `${p.title} — 내 구간 ${gwFmt(p.lo)}~${gwFmt(p.hi)}`;
+  document.getElementById('scWin').value = '';
+  document.getElementById('sealPanel').style.display = 'none'; document.getElementById('scorePanel').style.display = '';
+  gwOpen('sealOverlay');
+}
+function doScore() {
+  const win = Number(document.getElementById('scWin').value);
+  if (!(win > 0)) { alert('실제 낙찰가를 입력하세요.'); return; }
+  const a = myPreds(), p = a[scoreIdx]; if (!p) return;
+  p.win = win; p.hit = (win >= p.lo && win <= p.hi);
+  p.errPct = Math.round(Math.abs(win - (p.lo + p.hi) / 2) / win * 1000) / 10;
+  if (p.aiLo > 0 && p.aiHi > 0) p.aiHit = (win >= p.aiLo && win <= p.aiHi); // 나 vs AI 비교용
+  p.scoredAt = new Date().toISOString();
+  lsSet('bidcast:mypred', a);
+  closeSeal(); renderGrowth(); updateNavGrade();
+}
+function updateNavGrade() {
+  if (!getNick()) return;
+  const g = GRADES[myGrade() - 1], nick = getNick();
+  document.getElementById('navRight').innerHTML = `<span class="nav-user graded" style="color:${g.color};cursor:pointer" onclick="document.getElementById('growth').scrollIntoView({behavior:'smooth'})"><span class="grade-dot" style="background:${g.color}"></span>${gwEsc(nick)} · ${g.name} <button type="button" onclick="event.stopPropagation();logoutDemo()">로그아웃</button></span>`;
+}
+function enterGrowthLoggedIn() {
+  userLoggedIn = true;
+  document.getElementById('gwLoggedIn').style.display = '';
+  document.getElementById('gwTeaser').style.display = 'none';
+  renderGrowth(); updateNavGrade();
+}
+function initGrowth() {
+  const gw = document.getElementById('growth'); if (!gw) return;
+  gw.classList.add('on');
+  renderRoad('gwRoadTeaser');
+  if (getNick()) enterGrowthLoggedIn();
+}
+if (document.readyState !== 'loading') initGrowth(); else document.addEventListener('DOMContentLoaded', initGrowth);
 function toggleMobileNav() {
   document.getElementById('mobileNav').classList.toggle('open');
 }
