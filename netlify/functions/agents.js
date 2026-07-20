@@ -1,7 +1,8 @@
 // netlify/functions/agents.js
 // 전문 에이전트 라우터 — 부동산 전문가(expert) / 지역 전문가(region) / 경쟁 강도(competition) /
-//   권리분석 도우미(rights, B단계) / 매각조건 리스크(sale_risk, D단계).
+//   권리분석 도우미(rights, B단계) / 매각조건 리스크(sale_risk, D단계) / 뉴스·정보(news, C단계).
 //   rights·sale_risk는 needsPbanc:true → 공고 계열(cltr_dtl_bidinf→pbanc_dtl) 체이닝으로 공고종류·취소사유·회차·보증금 팩트 수집.
+//   news는 needsNews:true → naver-news 프록시로 소재 시군구 부동산 뉴스 수집(NAVER 키 미설정 시 뉴스 없음으로 degrade).
 //
 // 설계 의도(CLAUDE.md "전문 에이전트 시스템" 메모 참조):
 //   - 에이전트 분석은 봉인 예측을 절대 직접 수정하지 않는다. 사용자 근거 표시 +
@@ -10,7 +11,7 @@
 //     수집해 프롬프트에 주입하고, "주어진 데이터에 없는 사실을 만들지 말라"를 강제한다.
 //   - 비용 통제: 물건·조건·에이전트당 1회 생성 후 Blobs 캐시(agent/{agent}/{id}_{cdtn}).
 //
-// 사용법: POST { agent: 'expert'|'region'|'competition'|'rights'|'sale_risk',
+// 사용법: POST { agent: 'expert'|'region'|'competition'|'rights'|'sale_risk'|'news',
 //               item: { id, pbctCdtnNo, title, usage, type, appr(만원), min(만원), fail, address, assetClass } }
 // 응답:   { agent, cached, analysis, facts, disclaimer, generatedAt }
 
@@ -71,8 +72,19 @@ async function gatherPbanc(base, it) {
   return { b, p, pbancMngNo };
 }
 
-// ── 공용 팩트 수집: 봉인 예측(pred/predb) + 캠코 용도/지역 통계 + hist 셀 (+ 필요 시 공고 정보) ──
-async function gatherFacts(store, base, it, needsPbanc) {
+// ── 지역 뉴스 수집(news 에이전트 전용): 물건 소재 시군구 + 부동산 키워드로 네이버 뉴스 검색 ──
+async function gatherNews(base, it) {
+  const parts = String(it.address || '').split(/\s+/).filter(Boolean);
+  const sgg = parts[1] || parts[0] || ''; // 시군구(없으면 시도)
+  if (!sgg) return null;
+  const query = `${sgg} 부동산`;
+  const d = await fetchJson(`${base}/.netlify/functions/naver-news?query=${encodeURIComponent(query)}&display=5&sort=date`);
+  if (!d || !Array.isArray(d.items) || !d.items.length) return null;
+  return { query, items: d.items.slice(0, 5) };
+}
+
+// ── 공용 팩트 수집: 봉인 예측(pred/predb) + 캠코 용도/지역 통계 + hist 셀 (+ 에이전트별 공고/뉴스) ──
+async function gatherFacts(store, base, it, agent) {
   const predKey = `${it.id}_${it.pbctCdtnNo}`;
   const typeCd = it.assetClass === '동산' ? '0003' : it.assetClass === '자동차' ? '0002' : '0001';
   const sido = String(it.address || '').split(/\s+/)[0] || '';
@@ -81,11 +93,12 @@ async function gatherFacts(store, base, it, needsPbanc) {
   const y = now.getUTCFullYear(), q = Math.ceil((now.getUTCMonth() + 1) / 3);
   const perds = [String(y), `${y}-${q}`, ...(q > 1 ? [`${y}-${q - 1}`] : []), String(y - 1)];
 
-  const [pred, predB, cell, pbanc] = await Promise.all([
+  const [pred, predB, cell, pbanc, news] = await Promise.all([
     store.get(`pred/${predKey}`, { type: 'json' }),
     store.get(`predb/${predKey}`, { type: 'json' }),
     fetchJson(`${base}/.netlify/functions/hist-stats?type=${typeCd}&usage=${encodeURIComponent(it.usage || it.type || '기타')}&round=${(Number(it.fail) || 0) + 1}&lowMan=${Number(it.min) || 0}`),
-    needsPbanc ? gatherPbanc(base, it) : Promise.resolve(null),
+    agent && agent.needsPbanc ? gatherPbanc(base, it) : Promise.resolve(null),
+    agent && agent.needsNews ? gatherNews(base, it) : Promise.resolve(null),
   ]);
 
   let usg = null, rgn = null;
@@ -104,7 +117,7 @@ async function gatherFacts(store, base, it, needsPbanc) {
     }
   }
 
-  return { pred: pred || null, predB: predB || null, cell: cell && cell.status === 'ok' ? cell : null, usg, rgn, sido, pbanc: pbanc || null };
+  return { pred: pred || null, predB: predB || null, cell: cell && cell.status === 'ok' ? cell : null, usg, rgn, sido, pbanc: pbanc || null, news: news || null };
 }
 
 // 팩트를 프롬프트용 텍스트로 직렬화 — 없는 항목은 "없음"으로 명시해 창작을 차단
@@ -137,6 +150,11 @@ function factsText(it, f) {
     } else {
       L.push('공고상세(공고종류·취소사유·회차): 조회 안 됨 — 공고 원문 확인 필요');
     }
+  }
+  // 지역 뉴스 (news 에이전트 전용) — 없으면 항목 자체를 넣지 않음
+  if (f.news) {
+    L.push(`지역 뉴스 검색("${clean(f.news.query, 30)}", 최신순 ${f.news.items.length}건):`);
+    f.news.items.forEach((n, i) => L.push(`  ${i + 1}. ${clean(n.title, 80)} — ${clean(n.desc, 110)}`));
   }
   return L.join('\n');
 }
@@ -181,6 +199,13 @@ ${COMMON_RULES}`,
     system: `당신은 신호등옥션의 "경쟁 강도" 분석 에이전트입니다. 이 물건에 입찰 경쟁이 얼마나 붙을지를 확인된 데이터만으로 추정합니다: ① 유찰 횟수가 경쟁에 주는 신호(가격 매력 vs 흠결 가능성 양면) ② 해당 용도·지역의 경쟁률과 낙찰률 통계 해석 ③ 실측 이력 셀의 유찰율이 있다면 그 의미 ④ 경쟁이 높거나 낮을 때 입찰 전략에 주는 시사점(구간 내에서의 위치 선택 관점 — 특정 입찰가 추천은 금지).
 ${COMMON_RULES}`,
   },
+  news: {
+    name: '뉴스·정보',
+    needsNews: true,
+    disclaimer: '뉴스는 외부 매체 보도이며 개별 물건의 가치나 미래를 보장하지 않습니다. 물건과의 직접 연관은 이용자가 판단하세요.',
+    system: `당신은 신호등옥션의 "뉴스·정보" 에이전트입니다. 물건 소재 지역에 대해 검색된 최근 뉴스만을 근거로 지역 부동산·개발·시장 동향을 담백하게 브리핑합니다: ① 검색된 뉴스가 지역에 대해 말해주는 흐름(개발/공급/규제/시세 등) ② 이 물건을 볼 때 참고할 만한 맥락 ③ 뉴스와 개별 물건 가치의 직접 인과는 단정하지 말 것. 검색된 뉴스가 없거나 물건과 무관해 보이면 그 사실을 밝히고 일반론을 지어내지 마세요.
+${COMMON_RULES}`,
+  },
 };
 
 exports.handler = async (event) => {
@@ -198,7 +223,7 @@ exports.handler = async (event) => {
   const id = clean(it.id, 40).replace(/[^0-9A-Za-z\-_.]/g, '');
   const cdtn = clean(it.pbctCdtnNo, 20).replace(/[^0-9]/g, '');
   if (!agent || !id || !cdtn) {
-    return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: { message: 'agent(expert|region|competition|rights|sale_risk)와 item.id/item.pbctCdtnNo가 필요합니다.' } }) };
+    return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: { message: 'agent(expert|region|competition|rights|sale_risk|news)와 item.id/item.pbctCdtnNo가 필요합니다.' } }) };
   }
   it.id = id; it.pbctCdtnNo = cdtn;
 
@@ -211,7 +236,7 @@ exports.handler = async (event) => {
     }
 
     const base = process.env.URL || '';
-    const facts = await gatherFacts(store, base, it, !!agent.needsPbanc);
+    const facts = await gatherFacts(store, base, it, agent);
     const ft = factsText(it, facts);
 
     const res = await fetch(`${base}/.netlify/functions/claude`, {
