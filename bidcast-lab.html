@@ -280,6 +280,19 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 </section>
 
 <!-- ═══ 캠코 공식 시장 통계 (실 데이터 — 로드 성공 시에만 표시) ═══ -->
+<!-- 챔피언 vs 챌린저 — 동일 물건 병행 봉인·채점 공개 비교 (challenger.n>0일 때만 표시) -->
+<section class="section" id="vsSec" style="padding-top:0; display:none;">
+  <div class="wrap">
+    <span class="eyebrow">Champion vs Challenger</span>
+    <h2 class="title">신 모델 vs 구 모델 — 같은 물건, 공개 대결</h2>
+    <p class="lead">새 모델은 말이 아니라 성적으로 승격됩니다. 두 모델이 <b>같은 물건</b>을 개찰 전에 나란히 봉인하고, 같은 낙찰가로 채점한 결과입니다. 승격 기준: 100건 시점 승률 62%+(조기) 또는 300건 시점 55%+(표준), 200건 시점 50% 이하면 탈락.</p>
+    <div class="acc-card" style="margin-top:24px; overflow-x:auto;">
+      <table style="width:100%; border-collapse:collapse; font-size:13.5px;" id="vsTable"></table>
+    </div>
+    <p class="foot-note" id="vsNote"></p>
+  </div>
+</section>
+
 <!-- 모델 연혁 — 초기값부터 모든 변경·결과의 순차 공개 기록 (scoreboard chronicle, 실데이터) -->
 <section class="section" id="chronicleSec" style="padding-top:0; display:none;">
   <div class="wrap">
@@ -517,6 +530,22 @@ document.addEventListener('keydown', (e) => {
         <div class="chron-body">${body(c)}</div>
       </div>`).join('');
     document.getElementById('chronicleSec').style.display = '';
+
+    // 챔피언 vs 챌린저 비교 표 — 비교 채점이 시작된 뒤에만 표시
+    const ch = d.challenger;
+    if (ch && ch.n > 0 && d.summary && d.summary.n > 0) {
+      const winRate = ch.headToHead && ch.headToHead.n ? Math.round(ch.headToHead.bWins / ch.headToHead.n * 1000) / 10 : null;
+      const row = (k, a, b) => `<tr style="border-bottom:1px solid var(--line);"><td style="padding:10px 8px; color:var(--sub); font-weight:700;">${k}</td><td style="padding:10px 8px; font-weight:800;">${a}</td><td style="padding:10px 8px; font-weight:800;">${b}</td></tr>`;
+      document.getElementById('vsTable').innerHTML =
+        `<tr style="border-bottom:2px solid var(--line);"><th style="text-align:left; padding:10px 8px; font-size:12px; color:var(--mute);">지표</th><th style="text-align:left; padding:10px 8px;">🏆 챔피언 v0.1 (캠코 평균 통계)</th><th style="text-align:left; padding:10px 8px;">🥊 챌린저 v0.5 (실측 분위수)</th></tr>` +
+        row('채점 표본', `${d.summary.n.toLocaleString()}건`, `${ch.n.toLocaleString()}건 (동일 물건 비교)`) +
+        row('구간 적중률', `${d.summary.hitRate}%`, `${ch.hitRate}%`) +
+        row('중앙값 평균 오차', `${d.summary.avgAbsErrPct}%`, `${ch.avgAbsErrPct}%`) +
+        row('평균 구간 폭 (낙찰가 대비)', d.summary.avgWidthPct != null ? `${d.summary.avgWidthPct}%` : '—', ch.avgWidthPct != null ? `${ch.avgWidthPct}%` : '—') +
+        row('상대전적 (오차가 작은 쪽 승)', winRate != null ? `${ch.headToHead.n - ch.headToHead.bWins}승` : '—', winRate != null ? `${ch.headToHead.bWins}승 (승률 ${winRate}%)` : '—');
+      document.getElementById('vsNote').textContent = `✅ 실데이터 — 두 모델 모두 개찰 전 봉인·사후 수정 불가 · 판정은 100/200/300건 체크포인트에서만 수행합니다.`;
+      document.getElementById('vsSec').style.display = '';
+    }
   } catch (e) { console.info('[lab] 모델 연혁 로드 실패(숨김):', e.message); }
 })();
 </script>
