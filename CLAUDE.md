@@ -66,7 +66,7 @@ A 15-page static prototype (`bidcast*.html`) for an Onbid auction winning-bid pr
 - **주변 실거래/시세 추정 기능 마무리** — 사용자가 "나중에 적용"으로 보류. 현재 상태: `rtms-svc.js` 10종 전부 `_health` ok 확인, `bidcast-detail.html`에 "주변 실거래" 섹션 배포됨(조건 미충족 시 자동 숨김이라 무해). 남은 일: ① 군 단위 법정동코드 확장(현재 수도권·광역시 전체+주요 시 181건만), ② 섹션 실물건 표시 검증(사용자 물건 2021-09579-010에서 미표시 — 용도 매핑 보강 PR #27 이후 재검증 안 됨), ③ 시뮬레이터 "예상 시세" 슬라이더에 추정치 자동 주입, ④ 부동산원 가격지수 연동(활용신청 필요) → 6개월~3년 보수/기준/낙관 시나리오 밴드, ⑤ 시세 추정 봉인·채점 루프 편입.
 - **AI 리포트 모달 실물화** — 리포트 페이지 정리는 사용자가 다시 이야기할 때까지 보류. 합의된 순서: 적정가 분석 탭→봉인 엔진 연결, 기본정보·감정평가 탭→상세 API, 종합분석→claude.js 생성, 권리분석은 데이터 없어 예시 유지.
 - **랩 페이지 실측화** — score-daily 채점 데이터가 며칠 쌓인 뒤 진행.
-- **목록 회차(공매조건) 정렬 개선** — 사용자 물건 2022-0100-002855에서 감정가(2.6억)<최저가(3.7억) 표시: 온비드가 같은 물건을 회차별 행으로 반환하는데 dedupe가 첫 행을 취해 가격 조합이 어긋날 수 있음. 최신 공매조건 우선 선택으로 교정 필요 (사용자 지시로 연기).
+- **목록 회차(공매조건) 정렬 — dedupe 문제 아님으로 판명(2026-07-20)** — 물건 2022-0100-002855의 감정가(2.56억)<최저가(3.73억)는 dedupe 탓이 아니라 **실데이터가 그러함**: 상세 API(`rlst_dtl`) 직접 호출에서도 `apslEvlAmt=256000000`, `lowstBidPrcIndctCont=373248000`으로 목록과 동일. 신탁공매 등에서 최저가가 감정가보다 높게 설정되는 정상 케이스로 보임. → dedupe 교정 불필요. 다만 UI에서 "최저가>감정가"가 오해를 줄 수 있으니, 향후 그런 물건에 안내 배지(예: "최저가가 감정가보다 높은 신탁/특수 매각") 표시 검토.
 
 ## API 연동 대기 기능 (기능 ← 필요 API 매핑, 2026-07-20 정리)
 
@@ -76,18 +76,20 @@ A 15-page static prototype (`bidcast*.html`) for an Onbid auction winning-bid pr
 - **주력 서비스는 전부 확정됨(2026-07-20)** — 부동산·동산·차량 목록/상세, 공고상세, 공고상세 물건정보, 물건상세 입찰정보, 공고상세 입찰정보, 통계, 코드/주소. 아래 ②-a 참조.
 - 유가증권 상세(scrt_dtl), 정부재산 4종(gov_*), 수탁(trust_nbiz), 국유입찰대상(ntnl_bidtrgt) ← 물건 커버리지 확장 (낮은 우선순위, 여전히 endpoint_missing). **현재 서비스가 다루지 않는 자산군** — 커버리지 확장 시 각 승인 페이지 End Point 스크린샷으로 교정. 순위물건 조회수(rank_inqcnt)는 data.go.kr에서 서비스 중지(레지스트리 disabled).
 
-**②-a 레지스트리 확정 완료(2026-07-20 승인 페이지 스크린샷)** — 이제 `onbid-svc?svc=<alias>`로 바로 호출 가능:
-- **공고상세**(pbanc_dtl): `OnbidPbancDtlInfSrvc2` / `/getPbancDtlInf2`, 필수 pbancMngNo. 응답: **공고문 전문**·공고취소사유·참가수수료 → 권리분석/매각조건 텍스트 피처 핵심 소스.
-- **공고상세 물건정보**(pbanc_dtl_cltr): `OnbidPbancCltrDtlSrvc2` / `/getPbancCltrInf2`, 필수 pbancMngNo. 응답: 공고에 속한 물건 목록(재산유형/용도/물건명/**유찰횟수**/**회차·공매차수**/물건주소/입찰시작·종료일시/**감정평가금액·최저입찰가격**) → 공고번호 1개로 그 공고 전 물건·회차 일괄 획득.
-- **물건상세 입찰정보**(cltr_dtl_bidinf): `OnbidCltrBidDtlSrvc2` / `/getCltrBidinf2`(소문자 inf), 필수 cltrMngNo+pbctCdtnNo. 부동산·동산·차량 공통. 응답: **회차별입찰정보·유찰누적횟수·이전입찰내역**·입찰관련제출서류·평가배점 → 예측 엔진 실제 회차 확정·보증금 실측화.
-- **공고상세 입찰정보**(pbanc_dtl_bidinf): `OnbidPbancBidDtlSrvc2` / `/getPbancBidInf2`, 필수 pbancMngNo. 응답: 공동/대리입찰 가능여부·전자보증서·보증금대체서류·제출서류·**입찰일정및장소**·제안서평가항목 → 리포트/권리도우미 입찰 실무 팩트원.
-- **코드/주소 조회**(code_addr): 위 ① 참조.
-- **동산 물건상세**(mvast_dtl / onbid-mvast-detail): `OnbidMvastDtlSrvc2` / `/getMvastDtlInf2`, 필수 cltrMngNo+pbctCdtnNo — op 확정, 필드 매핑은 첫 실호출 `?debug=1`로 다듬기.
-- **차량 물건상세**(vhcl_dtl): `OnbidCarDtlSrvc2` / `/getCarDtlInf2`, 필수 cltrMngNo+pbctCdtnNo — op 확정. 응답에 연식/주행거리/유종/배기량/변속기/색상/감정평가/사진URL. ← 차량 상세 페이지. **전용 매핑 프록시 미작성**(현재 onbid-svc 원시 패스스루로만 접근 가능).
+**②-a 레지스트리 값 (2026-07-20 승인 페이지 스크린샷). 실호출 검증은 아래 ②-b 참조 — "스크린샷 확정" ≠ "작동 확정"이었음:**
+- **공고상세 물건정보**(pbanc_dtl_cltr) ✅: `OnbidPbancCltrDtlSrvc2` / `/getPbancCltrInf2`, 필수 pbancMngNo. 실호출 NODATA=엔드포인트 정확. 응답: 공고에 속한 물건 목록(유찰횟수/회차·공매차수/감정평가금액·최저입찰가격 등).
+- **공고상세**(pbanc_dtl) ⚠️: `OnbidPbancDtlInfSrvc2` / `/getPbancDtlInf2` → 실호출 "Unexpected errors"(Base URL 재확정 필요). 응답 예상: 공고문 전문·공고취소사유·참가수수료.
+- **물건상세 입찰정보**(cltr_dtl_bidinf) ⚠️: `OnbidCltrBidDtlSrvc2` / `/getCltrBidinf2` → 실호출 "API not found"(op 재확정 필요). 응답 예상: 회차별입찰정보·유찰누적횟수 → 예측 엔진 회차 확정 소스.
+- **공고상세 입찰정보**(pbanc_dtl_bidinf) ❓: `OnbidPbancBidDtlSrvc2` / `/getPbancBidInf2`, 필수 pbancMngNo. **실호출 미검증**.
+- **코드/주소**(code_addr) ❓: `OnbidCodeSrvc` / `/getOnbidUsgCodeInfo`·`/getOnbidDtlAddrInfo`. **실호출 미검증**.
+- **동산 물건상세**(mvast_dtl) ❓: `OnbidMvastDtlSrvc2` / `/getMvastDtlInf2`, 필수 cltrMngNo+pbctCdtnNo. **실호출 미검증**.
+- **차량 물건상세**(vhcl_dtl) ❓: `OnbidCarDtlSrvc2` / `/getCarDtlInf2`, 필수 cltrMngNo+pbctCdtnNo. **실호출 미검증**. 전용 매핑 프록시 미작성.
+- **부동산 물건상세**(rlst_dtl) ✅✅: `OnbidRlstDtlSrvc2` / `/getRlstDtlInf2` — 실호출 완전 성공, onbid-detail.js 매핑 완비. 필드: apslEvlAmt/lowstBidPrcIndctCont/ltnoPnu(PNU)/apslEvlClgList(감정이력)/cltrEtcCont(시설)/locVntyPscdCont(위치) 등.
 
-**② (구) 연동됐지만 검증 대기** — 위 ②-a로 흡수됨. 남은 것은 각 상세의 **응답 필드 매핑**(`?debug=1` 첫 응답):
-- 차량 물건상세 전용 프록시 작성 + 필드 매핑 ← 차량 상세 페이지 연식·주행거리 표시
-- 동산 물건상세 필드 매핑 확인(onbid-mvast-detail, op는 확정)
+**②-b 실호출 검증 결과(2026-07-20, 물건 2022-0100-002855)** — onbid-svc에 `?_op=`/`?_base=` 오버라이드 추가(endpoint 후보 탐색용):
+- 재확정 필요: pbanc_dtl(Base URL), cltr_dtl_bidinf(op — getCltrBidInf2 대문자 I 후보). 미검증: pbanc_dtl_bidinf/code_addr/mvast_dtl/vhcl_dtl.
+- **공고번호 연결고리 문제**: 공고 API는 `pbancMngNo`(형식 `202406-21411-00`)를 요구하는데, 물건 목록/상세엔 `onbidPbancNo`(예 662306, 숫자)만 존재 → 그대로 넣으면 NODATA. onbidPbancNo→pbancMngNo 변환 경로(다른 API 또는 형식 규칙) 확인 필요. **이게 풀려야 공고 계열(pbanc_*)을 물건 상세에 연결 가능.**
+- 남은 매핑 대상(엔드포인트 확정 후): 차량 상세 전용 프록시+필드 매핑, 동산 상세 필드 매핑, cltr_dtl_bidinf 회차→예측 엔진 연결.
 
 **③ 외부 키/신청 필요** (사용자 발급 절차):
 - **한국은행 ECOS API 키** ← 거시·금리 워처 에이전트(⑦): 기준금리·대출금리 국면 피처 + 인사이트 브리핑
