@@ -73,7 +73,7 @@ A 15-page static prototype (`bidcast*.html`) for an Onbid auction winning-bid pr
 각 기능이 어떤 API/키를 기다리는지의 역방향 색인. 연동되는 즉시 해당 기능을 진행할 것.
 
 **① 온비드 endpoint_missing — 승인 페이지 End Point 스크린샷만 있으면 즉시 등록** (`ONBID_SVC_<ALIAS>_URL` 설정, 재배포 불필요):
-- **공고상세 3종**(pbanc_dtl/pbanc_dtl_cltr/pbanc_dtl_bidinf) ← 최우선. 잠금 해제되는 기능: 권리분석 도우미 강화(공고 유의사항 팩트), 매각조건 리스크 에이전트(D단계, 명도책임·점유·일괄매각 텍스트 피처), 리포트 공고 원문 탭, LLM 텍스트 피처(엔진 4단계)
+- **공고상세 3종**(pbanc_dtl/pbanc_dtl_cltr/pbanc_dtl_bidinf) ← 최우선. 잠금 해제되는 기능: 권리분석 도우미 강화(공고 유의사항 팩트), 매각조건 리스크 에이전트(D단계, 명도책임·점유·일괄매각 텍스트 피처), 리포트 공고 원문 탭, LLM 텍스트 피처(엔진 4단계). **data.go.kr 확인(2026-07-20)**: 공고상세=15157218, 공고상세 물건정보=15157220, 필수 입력은 **공고관리번호 pbancMngNo**(cltrMngNo 아님 — 물건목록 응답의 공고번호로 조회). 응답 항목: 공고종류/재산유형/처분방식/입찰방법/공고기관/공고일자 등. **주의: "공고상세 입찰정보"는 data.go.kr에 별도 서비스로 확인 안 됨** — 실재하는 건 "물건상세 입찰정보"(15157251=cltr_dtl_bidinf). Base URL/op만 승인 페이지 End Point 또는 프로덕션 `onbid-svc?svc=_health`로 확정하면 즉시 연동.
 - 물건상세 입찰정보(cltr_dtl_bidinf) ← 보증금율·입찰방식 상세 (상세 페이지 보증금 "통상 10% 가정" 실측화)
 - 코드/주소 조회(code_addr) ← 법정동코드 자동화 (주변 실거래의 군 단위 커버리지 확장 대체 수단)
 - 유가증권 상세(scrt_dtl), 정부재산 4종(gov_*), 수탁(trust_nbiz), 국유입찰대상(ntnl_bidtrgt) ← 물건 커버리지 확장 (낮은 우선순위)

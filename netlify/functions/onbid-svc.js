@@ -39,8 +39,13 @@ const REGISTRY = {
   cltr_bidrslt_list:{ name: '물건 입찰결과목록',          code: 'OnbidCltrBidRsltListSrvc2', op: '/getCltrBidRsltList2',    confirmed: true },
   cltr_bidrslt_dtl: { name: '물건 입찰결과상세',          code: 'OnbidCltrBidRsltDtlSrvc2',  op: '/getCltrBidRsltDtl2',     confirmed: true },
   cltr_dtl_bidinf:  { name: '물건상세 입찰정보',          code: 'OnbidCltrDtlBidInfSrvc2',   op: '/getCltrDtlBidInf2' },
-  pbanc_dtl:        { name: '공고상세',                   code: 'OnbidPbancDtlSrvc2',        op: '/getPbancDtlInf2' },
-  pbanc_dtl_cltr:   { name: '공고상세 물건정보',          code: 'OnbidPbancDtlCltrSrvc2',    op: '/getPbancDtlCltrInf2' },
+  // 공고상세 계열 — data.go.kr 확인(2026-07-20): 공고상세=15157218, 공고상세 물건정보=15157220.
+  // 필수 입력은 **공고관리번호 pbancMngNo**(물건관리번호 cltrMngNo 아님 — 물건목록 응답의 공고번호로 조회).
+  // 확인된 응답 항목(공고상세): 공고종류/재산유형/처분방식/입찰방법/공매입찰방법/입찰구분/입찰금액공개여부/공고기관/공고일자.
+  // Base URL/op는 여전히 패턴 유추 — 승인 페이지 End Point 스크린샷 또는 프로덕션 _health로 확정 후 ONBID_SVC_*_URL/_OP 교정.
+  pbanc_dtl:        { name: '공고상세',                   code: 'OnbidPbancDtlSrvc2',        op: '/getPbancDtlInf2' },      // data 15157218, 필수 pbancMngNo
+  pbanc_dtl_cltr:   { name: '공고상세 물건정보',          code: 'OnbidPbancDtlCltrSrvc2',    op: '/getPbancDtlCltrInf2' },  // data 15157220
+  // 주의: data.go.kr에 "공고상세 입찰정보"는 별도 서비스로 확인되지 않음("물건상세 입찰정보" 15157251=cltr_dtl_bidinf가 실재). op 유추 유지.
   pbanc_dtl_bidinf: { name: '공고상세 입찰정보',          code: 'OnbidPbancDtlBidInfSrvc2',  op: '/getPbancDtlBidInf2' },
   pbanc_bidrslt_list:{ name: '공고 입찰결과목록',         code: 'OnbidPbancBidRsltListSrvc2',op: '/getPbancBidRsltList2',   confirmed: true },
   pbanc_bidrslt_dtl:{ name: '공고 입찰결과상세',          code: 'OnbidPbancBidRsltDtlSrvc2', op: '/getPbancBidRsltDtl2',    confirmed: true },
