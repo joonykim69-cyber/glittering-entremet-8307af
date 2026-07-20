@@ -29,6 +29,7 @@ A static site deployed on Netlify for **신호등옥션 (구 낙찰예보/BidCas
 - `netlify/functions/agents.js` — **전문 에이전트 라우터 (A단계: expert/region/competition)**. POST {agent, item 스냅샷} → 서버가 봉인 예측(pred/predb)·캠코 용도/지역 통계·hist-stats 셀을 수집해 "확인된 데이터" 블록으로 직렬화 → claude.js 프록시(Haiku, max 700토큰) 호출 → Blobs `agent/{agent}/{id}_{cdtn}` 영구 캐시(물건·조건당 1회 생성). 시스템 프롬프트가 "데이터에 없는 사실 생성 금지·구간으로만·보장 표현 금지·특정 입찰가 추천 금지"를 강제, 역할별 면책 자동 부착. `bidcast-detail.html` 기본정보 탭의 "AI 전문가 분석" 섹션(라이브 물건 전용)이 호출. 설계 의도·로스터·원칙은 "전문 에이전트 시스템" 메모 참조.
 - `netlify/functions/hist-stats.js` — **v0.5 다차원 통계 조회 API**: collect-history가 쌓은 hist/* 레코드를 자산군×용도×회차×가격대 4레벨 셀로 집계(hist/_cells 캐시, _meta.updatedAt 변경 시 재빌드)해 낙찰가율 분위수(p10~p90, 최저가 대비 lr/감정가 대비 wr)와 유찰율을 반환. `?type=&usage=&round=&tier=`(또는 lowMan) 백오프 조회(L3→L0, minN 기본 20), `?rebuild=1` 강제 재빌드, 데이터 없으면 `status:'empty'`. **v0.5 봉인 엔진과 "유사 사례 근거" UI의 공용 데이터 레이어** — 파라미터 없이 호출하면 데이터셋 요약.
 - `netlify/functions/scoreboard.js` — Public GET returning the ledger scoreboard: `summary{n,hitRate,avgAbsErrPct}`, byTier/byUsage/daily, calib, learningLog, recent 20 graded examples, sealDays. 5-min CDN cache. This feeds the landing "살아있는 성적표" and the 랩 page (실측 — 예시 없음). **지표 체계: 구간 적중률(주력, 목표 95~98%) + 중앙값 오차 %·원화 병기 + 가격대별 분해** — point-accuracy claims like "99% 정확" are deliberately NOT made (사용자와 합의된 정직성 원칙, 2026-07-19).
+- `netlify/functions/map-config.js` — 카카오맵 JavaScript 앱키(`KAKAO_MAP_KEY`)를 클라이언트에 전달하는 설정 프록시. 카카오 JS 앱키는 클라이언트 공개용(도메인 화이트리스트가 실보호)이지만 다른 키와 동일하게 환경변수로만 관리하고 코드/리포에 넣지 않는다. 미설정 시 빈 값 반환 → `bidcast-detail.html`이 CSS 지도 목업을 유지(degrade-gracefully). **onbid.co.kr 등 타사 카카오 키 도용 금지**(약관 위반·도메인 불일치로 미작동). `bidcast-detail.html`의 상세 지도가 이 함수로 키를 받아 카카오맵 SDK를 동적 로드하고, 스냅샷 주소(동 단위)로 초기 표시 후 상세 API의 정확한 번지 주소(`onbid-detail`의 `lotAddr`/`roadAddr`)로 재센터한다.
 - `netlify.toml` — Points Netlify at `netlify/functions` with the esbuild bundler; declares the two ledger cron schedules. Also 302-redirects `/` to `/bidcast.html` with `force = true` (Netlify serves an existing file over a redirect without it).
 
 ### 신호등옥션 (BidCast)
@@ -122,7 +123,7 @@ A 15-page static prototype (`bidcast*.html`) for an Onbid auction winning-bid pr
 - **한국은행 ECOS API 키** ← 거시·금리 워처 에이전트(⑦): 기준금리·대출금리 국면 피처 + 인사이트 브리핑
 - **네이버 뉴스 검색 API 키**(무료) ← 뉴스 에이전트(④)의 지역·물건 키워드 뉴스. RSS 수집 크론은 키 없이 선행 가능
 - **한국부동산원 R-ONE 가격지수** 활용신청 ← 시세 6개월~3년 보수/기준/낙관 시나리오 밴드 (시세 축 4단계)
-- (보류) 지도 API 키(카카오/네이버) ← 실지도. Leaflet+OSM 무키 대안 있음. onbid.co.kr 키 도용 금지
+- **카카오맵 키(KAKAO_MAP_KEY) ← 실지도 (2026-07-20 사용자가 카카오맵 채택)**: 상세 페이지(`bidcast-detail`) 카카오맵 연동 코드 배포 완료(`map-config` + SDK 동적 로드 + 번지 지오코딩, 키 없으면 목업 유지). **대기: 사용자가 카카오 개발자 콘솔에서 JavaScript 키 발급 → Netlify 환경변수 `KAKAO_MAP_KEY` 설정 + 플랫폼 Web 사이트 도메인에 배포 도메인(sucessbid.netlify.app 등) 등록**. 설정 즉시 목업→실지도 전환. (`bidcast-map.html` 전용 지도 페이지는 아직 목업 — 키 확인 후 동일 적용 검토.) **onbid.co.kr 등 타사 카카오 키 도용 절대 금지.**
 - (보류·상용) 중고차 시세 DB(엔카 등) ← 차량 시세 근거. 공공 대안 검토 선행
 
 **④ 확보 완료, 기능 보류 중**: RTMS 실거래가 10종 (전부 _health ok) ← 시세 축 재개 시 "보류 중인 작업" 참조
@@ -139,7 +140,7 @@ python3 -m http.server 8000
 ANTHROPIC_API_KEY=sk-... ONBID_SERVICE_KEY=... ONBID_API_URL=https://apis.data.go.kr/... netlify dev
 ```
 
-Deployment happens through Netlify on push (the initial commit was created via Netlify). All secrets/endpoints are configured in the Netlify dashboard, never in code: `ANTHROPIC_API_KEY`, `ONBID_SERVICE_KEY`, `ONBID_API_URL`, `ONBID_DETAIL_API_URL` (set), and `ONBID_MVAST_API_URL`, `ONBID_MVAST_DETAIL_API_URL` (+ optional `ONBID_MVAST_API_OP`/`ONBID_MVAST_DETAIL_API_OP` operation-path overrides) for the 동산 services (pending).
+Deployment happens through Netlify on push (the initial commit was created via Netlify). All secrets/endpoints are configured in the Netlify dashboard, never in code: `ANTHROPIC_API_KEY`, `ONBID_SERVICE_KEY`, `ONBID_API_URL`, `ONBID_DETAIL_API_URL` (set), and `ONBID_MVAST_API_URL`, `ONBID_MVAST_DETAIL_API_URL` (+ optional `ONBID_MVAST_API_OP`/`ONBID_MVAST_DETAIL_API_OP` operation-path overrides) for the 동산 services (pending). 카카오맵 실지도용 `KAKAO_MAP_KEY`(카카오 JavaScript 앱키; 미설정 시 상세 페이지가 지도 목업 유지) — 클라이언트 공개용 키지만 다른 키와 동일하게 대시보드에만 두고 코드/리포에 넣지 않으며, 카카오 콘솔 플랫폼 Web에 배포 도메인 등록 필요.
 
 ## Architecture
 

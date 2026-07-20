@@ -486,8 +486,8 @@ h1,h2,h3,h4{font-family:var(--font-head)}
         <span class="gal-count" id="galCount" style="display:none">1/1</span>
       </div>
       <div class="map-panel">
-        <div class="loc-map" style="height:100%;border-radius:0;border:none;">
-          <div class="loc-pin"><span class="b" id="locBadge">—</span><span class="s"></span></div>
+        <div class="loc-map" id="locMap" style="height:100%;border-radius:0;border:none;">
+          <div class="loc-pin" id="locPinMock"><span class="b" id="locBadge">—</span><span class="s"></span></div>
         </div>
         <div class="map-addr-bar" id="mapAddrBar">—</div>
       </div>
@@ -1056,6 +1056,48 @@ document.getElementById('evalList').innerHTML=evalItems.map((e,i)=>`
 document.getElementById('locBadge').textContent=`${it.type} · ${fmt(it.min)}`;
 document.getElementById('mapAddrBar').textContent=it.address||'—';
 
+// ═══════════════════════════════════════════════════
+// 카카오맵 실지도 (KAKAO_MAP_KEY 설정 시 — 온비드와 동일한 카카오맵).
+// 키 미설정/지오코딩 실패 시 기존 CSS 지도 목업을 그대로 유지(degrade-gracefully).
+// 초기엔 스냅샷 주소(동 단위)로 찍고, 상세 API가 정확한 번지 주소를 주면 window.__setMapAddr로 재센터.
+// ═══════════════════════════════════════════════════
+(function(){
+  let mapObj=null, mapMarker=null, sdkLoading=null;
+  function loadSdk(key){
+    if(window.kakao&&window.kakao.maps) return Promise.resolve();
+    if(sdkLoading) return sdkLoading;
+    sdkLoading=new Promise((res,rej)=>{
+      const s=document.createElement('script');
+      s.src='https://dapi.kakao.com/v2/maps/sdk.js?appkey='+encodeURIComponent(key)+'&autoload=false&libraries=services';
+      s.onload=()=>window.kakao.maps.load(res); s.onerror=rej; document.head.appendChild(s);
+    });
+    return sdkLoading;
+  }
+  function place(addr){
+    if(!addr||!window.kakao||!kakao.maps.services) return;
+    new kakao.maps.services.Geocoder().addressSearch(String(addr).trim(),(result,status)=>{
+      if(status!==kakao.maps.services.Status.OK||!result[0]) return; // 실패 시 현재 상태 유지
+      const el=document.getElementById('locMap'); if(!el) return;
+      const coords=new kakao.maps.LatLng(result[0].y,result[0].x);
+      if(!mapObj){
+        const mock=document.getElementById('locPinMock'); if(mock) mock.remove();
+        el.innerHTML=''; el.style.background='none';
+        mapObj=new kakao.maps.Map(el,{center:coords,level:3});
+        mapMarker=new kakao.maps.Marker({map:mapObj,position:coords});
+      }else{ mapObj.setCenter(coords); mapMarker.setPosition(coords); }
+    });
+  }
+  // 상세 API가 정확한 번지 주소를 확보하면 재센터할 수 있게 노출
+  window.__setMapAddr=function(addr){ if(mapObj&&addr) place(addr); };
+  (async()=>{
+    const addr0=it.address; if(!addr0) return;
+    let cfg; try{ cfg=await fetch('/.netlify/functions/map-config').then(r=>r.json()); }catch(e){ return; }
+    if(!cfg||!cfg.kakaoKey) return; // 키 없음 → 목업 유지
+    try{ await loadSdk(cfg.kakaoKey); }catch(e){ return; }
+    place(addr0);
+  })();
+})();
+
 // 가격 바
 document.getElementById('pbAppr').textContent=fmtMwon(it.appr);
 document.getElementById('pbMin').textContent=fmtMwon(it.min);
@@ -1149,8 +1191,12 @@ if(isLive&&liveItem){
       const data=await r.json();const det=data?.detail;
       if(!det||(det.raw&&!det.title))return;
 
+      // 정확한 번지 주소 확보 시 지도 재센터(카카오맵) + 소재지 갱신
+      const fullAddr=det.lotAddr||det.roadAddr||it.address;
+      if((det.lotAddr||det.roadAddr)&&window.__setMapAddr) window.__setMapAddr(det.lotAddr||det.roadAddr);
+
       // 기본정보 테이블 업데이트
-      const rows=[['소재지',it.address],['재산구분',det.prptDivNm||'—'],['용도(대)',det.usageLcls||'—'],['용도(중)',det.usageMcls||'—'],['용도(소)',det.usageScls||'—']];
+      const rows=[['소재지',fullAddr],['재산구분',det.prptDivNm||'—'],['용도(대)',det.usageLcls||'—'],['용도(중)',det.usageMcls||'—'],['용도(소)',det.usageScls||'—']];
       if(det.apslEvlAmt)rows.push(['감정평가액',fmtWon(det.apslEvlAmt)]);
       rows.push(['처분방식',det.disposeMethod||'매각']);
       rows.push(['입찰방식',[det.bidDiv,det.competeMethod,det.bidMethod].filter(Boolean).join(' · ')||'—']);

@@ -54,6 +54,8 @@ function mapDetail(body) {
     period: bgng && end ? `${bgng} ~ ${end}` : '',
     ltnoPnu: d.ltnoPnu || '',
     roadAddrPnu: d.roadAddrPnu || '',
+    roadAddr: d.cltrRadr || '', // 도로명 주소 (카카오 지오코딩용 — 예 "경기도 평택시 송탄로 89, 201호 (장당동)")
+    lotAddr: d.zadrNm || '',    // 지번 주소 (예 "경기도 평택시 장당동 483-6 201호")
     leasInfList: Array.isArray(d.leasInfList) ? d.leasInfList : [],
     rgstPrmrInfList: Array.isArray(d.rgstPrmrInfList) ? d.rgstPrmrInfList : [],
     ocpyRelList: Array.isArray(d.ocpyRelList) ? d.ocpyRelList : [],
