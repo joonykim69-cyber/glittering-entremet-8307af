@@ -107,6 +107,7 @@ function mapOnbidItem(raw, idx) {
     appr: fmtManwon(apprWon),
     min: fmtManwon(minWon),
     fail: failCount,
+    round: Number(raw.pbctNsq) || 0, // 공매차수(회차) 실측 — 예측 엔진 회차 셀 매칭에 사용(없으면 0 → 소비 측이 유찰수+1로 근사)
     status: raw.pbctStatCd === '0010' ? '낙찰' : '진행',
     tags: failCount > 0 ? ['#재매각'] : ['#신건'],
     views: 0, // 온비드 API에 조회수 필드 없음 — 프론트엔드 표시용 기본값
