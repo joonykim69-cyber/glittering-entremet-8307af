@@ -1063,6 +1063,7 @@ function saveLikeSnap(it) {
       id: String(it.id), title: it.title || '', min: it.min || 0, appr: it.appr || 0,
       type: it.type || '', court: it.court || it.org || '', status: it.status || '진행', thumb: it.thumb || '📦',
       live: true, cltrMngNo: String(it.id), pbctCdtnNo: it.pbctCdtnNo != null ? String(it.pbctCdtnNo) : '',
+      bidEnd: it.bidEnd || '', // 입찰 마감일(yyyyMMddHHmm) — 마이페이지 개찰 임박 배지용
     };
     localStorage.setItem(LIKESNAP_KEY, JSON.stringify(m));
   } catch (e) {}
