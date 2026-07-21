@@ -850,7 +850,7 @@ function doSeal() {
   if (!(lo > 0) || !(hi > 0) || hi < lo) { alert('예상 구간을 올바르게 입력하세요 (하한 ≤ 상한).'); return; }
   const aiLo = Number(document.getElementById('spAiLo').value) || 0, aiHi = Number(document.getElementById('spAiHi').value) || 0;
   const a = myPreds();
-  a.push({ title: t, appr: Number(document.getElementById('spAppr').value) || 0, min: Number(document.getElementById('spMin').value) || 0, lo, hi, aiLo: aiLo > 0 ? aiLo : null, aiHi: aiHi > 0 ? aiHi : null, sealedAt: new Date().toISOString() });
+  a.push({ title: t, appr: Number(document.getElementById('spAppr').value) || 0, min: Number(document.getElementById('spMin').value) || 0, lo, hi, aiLo: aiLo > 0 ? aiLo : null, aiHi: aiHi > 0 ? aiHi : null, cltrMngNo: null, pbctCdtnNo: null, live: false, sealedAt: new Date().toISOString() });
   lsSet('bidcast:mypred', a);
   closeSeal(); renderGrowth(); updateNavGrade();
 }

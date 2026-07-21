@@ -426,7 +426,7 @@ function doMySeal() {
   if (!(lo > 0) || !(hi > 0) || hi < lo) { alert('예상 구간을 올바르게 입력하세요 (하한 ≤ 상한).'); return; }
   const s = SUMMARY[sealItemId] || {};
   const a = myPreds();
-  a.push({ title: s.title || '(물건)', appr: 0, min: s.min || 0, lo, hi, aiLo: null, aiHi: null, sealedAt: new Date().toISOString() });
+  a.push({ title: s.title || '(물건)', appr: 0, min: s.min || 0, lo, hi, aiLo: null, aiHi: null, cltrMngNo: null, pbctCdtnNo: null, live: false, sealedAt: new Date().toISOString() });
   localStorage.setItem('bidcast:mypred', JSON.stringify(a));
   document.getElementById('msForm').style.display = 'none'; document.getElementById('msDone').style.display = '';
   renderLikes();
