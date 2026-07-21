@@ -467,6 +467,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
         <div style="flex:1"><label style="display:block;font-size:12.5px;font-weight:700;margin-bottom:5px">내 예상 하한(만원)</label><input id="msLo" type="number" min="0" style="width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;font:inherit;box-sizing:border-box"></div>
         <div style="flex:1"><label style="display:block;font-size:12.5px;font-weight:700;margin-bottom:5px">내 예상 상한(만원)</label><input id="msHi" type="number" min="0" style="width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;font:inherit;box-sizing:border-box"></div>
       </div>
+      <div id="msAiBand" style="display:none;font-size:12px;font-weight:700;color:var(--green-deep);background:var(--green-soft);border:1px solid #C4EBD8;border-radius:10px;padding:8px 11px;margin-top:8px"></div>
       <p id="msAiHint" style="font-size:11.5px;color:var(--mute);margin-top:7px">※ 개인 학습 기록입니다 — 엔진 공식 성적표(적중률)와는 별개예요.</p>
       <button type="button" onclick="doMySeal()" style="width:100%;margin-top:14px;padding:12px;border:none;border-radius:12px;background:var(--grad);color:#fff;font:inherit;font-weight:800;cursor:pointer">봉인하기</button>
     </div>
@@ -717,14 +718,29 @@ function isSealed(id) {
 }
 // 라이브 물건 상세로 이동 전 스냅샷을 sessionStorage에 넣어 상세 페이지가 실물건으로 렌더되게 함
 function stashLive(id) { const s = likeSnaps()[String(id)]; if (s) { try { sessionStorage.setItem('bidcast:detail', JSON.stringify(s)); } catch (e) {} } }
-let sealItemId = null;
+let sealItemId = null, sealAi = null;
 function openMySeal(id) {
   const s = itemInfo(id); if (!s) return;
-  sealItemId = id;
+  sealItemId = id; sealAi = null;
   document.getElementById('msItemInfo').textContent = [s.title, s.min ? '최저가 ' + fmt(s.min) + '원' : ''].filter(Boolean).join(' · ') || '물건 정보';
   document.getElementById('msLo').value = ''; document.getElementById('msHi').value = '';
+  const band = document.getElementById('msAiBand'); band.style.display = 'none'; band.textContent = '';
   document.getElementById('msForm').style.display = ''; document.getElementById('msDone').style.display = 'none';
   const o = document.getElementById('mySealOverlay'); o.classList.add('open'); requestAnimationFrame(() => o.classList.add('vis')); document.body.style.overflow = 'hidden';
+  // 라이브 물건이면 엔진 봉인 예측(pred/*)을 조회해 AI 구간 자동 채움 — 실패 시 조용히 생략(수동 봉인은 그대로 동작)
+  if (s.live && s.cltrMngNo) {
+    const cdtn = s.pbctCdtnNo ? String(s.pbctCdtnNo) : '';
+    fetch(`/.netlify/functions/scoreboard?pred=${encodeURIComponent(String(s.cltrMngNo) + '_' + cdtn)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        const p = d && d.pred;
+        if (!p || !(p.lo > 0) || !(p.hi > 0) || sealItemId !== id) return; // 그 사이 다른 물건을 열었으면 무시
+        sealAi = { lo: p.lo, hi: p.hi };
+        band.textContent = `🤖 엔진 예상 구간 ${fmt(p.lo)}~${fmt(p.hi)}원 — 봉인 시 함께 저장돼 "나 vs AI"로 채점됩니다`;
+        band.style.display = '';
+      })
+      .catch(() => {});
+  }
 }
 function closeMySeal() { const o = document.getElementById('mySealOverlay'); o.classList.remove('vis'); document.body.style.overflow = ''; setTimeout(() => o.classList.remove('open'), 250); }
 function doMySeal() {
@@ -733,7 +749,8 @@ function doMySeal() {
   const s = itemInfo(sealItemId) || {};
   const a = myPreds();
   // 라이브 물건이면 온비드 id를 실어 랜딩 자동 채점 대상이 되게 저장
-  a.push({ title: s.title || '(물건)', appr: s.appr || 0, min: s.min || 0, lo, hi, aiLo: null, aiHi: null,
+  a.push({ title: s.title || '(물건)', appr: s.appr || 0, min: s.min || 0, lo, hi,
+    aiLo: sealAi && sealAi.lo > 0 ? sealAi.lo : null, aiHi: sealAi && sealAi.hi > 0 ? sealAi.hi : null,
     cltrMngNo: s.live && s.cltrMngNo ? String(s.cltrMngNo) : null,
     pbctCdtnNo: s.live && s.pbctCdtnNo ? String(s.pbctCdtnNo) : null,
     bidEnd: s.live && s.bidEnd ? String(s.bidEnd) : '',
