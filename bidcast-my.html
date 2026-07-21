@@ -526,6 +526,15 @@ function bidDday(bidEnd) {
   else { txt = `마감 D-${days}`; bg = 'var(--bg)'; col = 'var(--sub)'; }
   return `<div style="margin-top:6px;display:inline-block;font-size:11px;font-weight:800;border-radius:6px;padding:2px 8px;background:${bg};color:${col}">${txt}</div>`;
 }
+// 봉인 채점 긴급도 계산용 — 마감일까지 남은 달력일(음수=개찰 지남). 값 없으면 null.
+function daysToBid(bidEnd) {
+  const t = String(bidEnd || '').replace(/[^0-9]/g, '');
+  if (t.length < 8) return null;
+  const end = new Date(+t.slice(0, 4), +t.slice(4, 6) - 1, +t.slice(6, 8));
+  if (isNaN(end.getTime())) return null;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return Math.round((end - today) / 86400000);
+}
 function cardHTML(id, s, extra) {
   return `
   <div class="my-card">
@@ -622,11 +631,18 @@ function renderProphet() {
     return `<div class="gw-pred"><div><div class="t">${gwEsc(p.title)}</div><div class="m">내 구간 ${gwFmt(p.lo)}~${gwFmt(p.hi)}${res}</div>${dday}</div>${tag}</div>`;
   }).join('') : '<div class="gw-empty">아직 봉인한 예측이 없습니다. "+ 새 예측 봉인" 또는 관심물건에서 봉인해 보세요.</div>';
   const asBox = document.getElementById('gwAutoScore');
-  const liveUnscored = preds.filter(p => p.live && p.cltrMngNo && !p.scoredAt).length;
+  const liveUn = preds.filter(p => p.live && p.cltrMngNo && !p.scoredAt);
+  const liveUnscored = liveUn.length;
   if (asBox) {
     if (liveUnscored > 0) {
       asBox.style.display = '';
-      asBox.innerHTML = `<button class="gw-cta" type="button" id="gwAutoBtn" onclick="autoScoreLive()" style="width:100%;background:var(--green-soft);color:var(--green-deep);border:1px solid #C4EBD8">🎯 온비드 개찰 결과로 자동 채점 (라이브 봉인 ${liveUnscored}건)</button><div id="gwAutoMsg" style="font-size:11.5px;color:var(--mute);margin-top:5px"></div>`;
+      // 개찰 지남(채점 가능) vs 임박(D-3)을 bidEnd로 구분해 긴급도 안내
+      const past = liveUn.filter(p => { const d = daysToBid(p.bidEnd); return d != null && d < 0; }).length;
+      const soon = liveUn.filter(p => { const d = daysToBid(p.bidEnd); return d != null && d >= 0 && d <= 3; }).length;
+      const urgent = past > 0
+        ? `<div style="font-size:12px;font-weight:800;color:var(--red);background:var(--red-soft);border:1px solid #F5C6C8;border-radius:10px;padding:8px 11px;margin-bottom:8px">🔴 개찰 완료 ${past}건 — 지금 채점하세요${soon ? ` · 임박 ${soon}건` : ''}</div>`
+        : (soon > 0 ? `<div style="font-size:12px;font-weight:800;color:#8A6100;background:var(--yellow-soft);border:1px solid #F5E3B3;border-radius:10px;padding:8px 11px;margin-bottom:8px">⏰ 개찰 임박 ${soon}건 (D-3 이내) — 개찰 후 채점하세요</div>` : '');
+      asBox.innerHTML = `${urgent}<button class="gw-cta" type="button" id="gwAutoBtn" onclick="autoScoreLive()" style="width:100%;background:var(--green-soft);color:var(--green-deep);border:1px solid #C4EBD8">🎯 온비드 개찰 결과로 자동 채점 (라이브 봉인 ${liveUnscored}건)</button><div id="gwAutoMsg" style="font-size:11.5px;color:var(--mute);margin-top:5px"></div>`;
     } else { asBox.style.display = 'none'; asBox.innerHTML = ''; }
   }
   const guide = document.getElementById('prophetGuide'); // 봉인 0건이면 시작 가이드 노출
