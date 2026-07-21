@@ -91,6 +91,13 @@ async function gatherMacro(base) {
   return ok.length ? { series: ok } : null;
 }
 
+// ── 부동산원 주택가격지수 수집(region 에이전트 전용): R-ONE 최근값+3/6/12개월 변동 ──
+async function gatherRone(base) {
+  const d = await fetchJson(`${base}/.netlify/functions/rone-svc`);
+  if (!d || d.status !== 'ok' || !d.latest) return null;
+  return d;
+}
+
 // ── 공용 팩트 수집: 봉인 예측(pred/predb) + 캠코 용도/지역 통계 + hist 셀 (+ 에이전트별 공고/뉴스/거시) ──
 async function gatherFacts(store, base, it, agent) {
   const predKey = `${it.id}_${it.pbctCdtnNo}`;
@@ -101,13 +108,14 @@ async function gatherFacts(store, base, it, agent) {
   const y = now.getUTCFullYear(), q = Math.ceil((now.getUTCMonth() + 1) / 3);
   const perds = [String(y), `${y}-${q}`, ...(q > 1 ? [`${y}-${q - 1}`] : []), String(y - 1)];
 
-  const [pred, predB, cell, pbanc, news, macro] = await Promise.all([
+  const [pred, predB, cell, pbanc, news, macro, rone] = await Promise.all([
     store.get(`pred/${predKey}`, { type: 'json' }),
     store.get(`predb/${predKey}`, { type: 'json' }),
     fetchJson(`${base}/.netlify/functions/hist-stats?type=${typeCd}&usage=${encodeURIComponent(it.usage || it.type || '기타')}&round=${(Number(it.fail) || 0) + 1}&lowMan=${Number(it.min) || 0}`),
     agent && agent.needsPbanc ? gatherPbanc(base, it) : Promise.resolve(null),
     agent && agent.needsNews ? gatherNews(base, it) : Promise.resolve(null),
     agent && agent.needsMacro ? gatherMacro(base) : Promise.resolve(null),
+    agent && agent.needsRone ? gatherRone(base) : Promise.resolve(null),
   ]);
 
   let usg = null, rgn = null;
@@ -126,7 +134,7 @@ async function gatherFacts(store, base, it, agent) {
     }
   }
 
-  return { pred: pred || null, predB: predB || null, cell: cell && cell.status === 'ok' ? cell : null, usg, rgn, sido, pbanc: pbanc || null, news: news || null, macro: macro || null };
+  return { pred: pred || null, predB: predB || null, cell: cell && cell.status === 'ok' ? cell : null, usg, rgn, sido, pbanc: pbanc || null, news: news || null, macro: macro || null, rone: rone || null };
 }
 
 // 팩트를 프롬프트용 텍스트로 직렬화 — 없는 항목은 "없음"으로 명시해 창작을 차단
@@ -165,6 +173,12 @@ function factsText(it, f) {
     L.push(`지역 뉴스 검색("${clean(f.news.query, 30)}", 최신순 ${f.news.items.length}건):`);
     f.news.items.forEach((n, i) => L.push(`  ${i + 1}. ${clean(n.title, 80)} — ${clean(n.desc, 110)}`));
   }
+  // 부동산원 주택가격지수 (region 에이전트 전용, R-ONE) — 없으면 항목 자체를 넣지 않음
+  if (f.rone) {
+    const c = f.rone.change || {};
+    const p = v => v == null ? '?' : `${v > 0 ? '+' : ''}${v}%`;
+    L.push(`부동산원 주택가격지수(R-ONE, ${clean(f.rone.region, 20) || '전국'} ${clean(f.rone.item, 24) || ''}): 최근 ${f.rone.latest.value} [${clean(f.rone.latest.time, 10)}] (3개월 ${p(c.m3)} / 6개월 ${p(c.m6)} / 12개월 ${p(c.m12)})`);
+  }
   // 거시·금리 (macro 에이전트 전용, 한국은행 ECOS) — 없으면 항목 자체를 넣지 않음
   if (f.macro) {
     L.push(`한국은행 거시·금리 지표(ECOS, 최근값):`);
@@ -194,8 +208,9 @@ ${COMMON_RULES}`,
   },
   region: {
     name: '지역 전문가',
-    disclaimer: '지역 통계는 캠코 공식 집계 기준이며 개별 물건의 가치를 보장하지 않습니다.',
-    system: `당신은 신호등옥션의 "지역 전문가" 분석 에이전트입니다. 물건 소재 지역의 공매 시장 흐름을 확인된 데이터만으로 브리핑합니다: ① 이 지역 공매의 낙찰가율·낙찰률·경쟁률이 말해주는 것 ② 용도별 통계와 지역 통계의 차이가 있다면 그 의미 ③ 이 물건을 지역 맥락에서 볼 때의 체크포인트. 지역 데이터가 "없음"이면 그 사실을 밝히고 일반론으로 대체하지 마세요.
+    needsRone: true,
+    disclaimer: '지역 통계는 캠코 공식 집계 기준이며, 부동산원 가격지수는 시장 전반의 추세로 개별 물건의 가치를 보장하지 않습니다.',
+    system: `당신은 신호등옥션의 "지역 전문가" 분석 에이전트입니다. 물건 소재 지역의 공매 시장 흐름을 확인된 데이터만으로 브리핑합니다: ① 이 지역 공매의 낙찰가율·낙찰률·경쟁률이 말해주는 것 ② 용도별 통계와 지역 통계의 차이가 있다면 그 의미 ③ 부동산원 주택가격지수 추세(최근 3/6/12개월 변동)가 있으면 시장 국면(상승/보합/하락)과 그 맥락 ④ 이 물건을 지역 맥락에서 볼 때의 체크포인트. 지역 데이터나 지수가 "없음"이면 그 사실을 밝히고 일반론으로 대체하지 마세요. 지수는 시장 전반 추세일 뿐 개별 물건 가치를 단정하지 마세요.
 ${COMMON_RULES}`,
   },
   rights: {
