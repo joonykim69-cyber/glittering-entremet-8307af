@@ -617,7 +617,8 @@ function renderProphet() {
     const idx = preds.indexOf(p);
     const tag = p.scoredAt ? (p.hit ? '<span class="gw-tag hit">적중</span>' : '<span class="gw-tag miss">빗나감</span>') : `<span class="gw-tag wait" onclick="openScore(${idx})">개찰 결과 입력</span>`;
     const res = p.scoredAt ? ` · 낙찰 ${gwFmt(p.win)}${p.errPct != null ? ` (오차 ${p.errPct}%)` : ''}` : '';
-    return `<div class="gw-pred"><div><div class="t">${gwEsc(p.title)}</div><div class="m">내 구간 ${gwFmt(p.lo)}~${gwFmt(p.hi)}${res}</div></div>${tag}</div>`;
+    const dday = (!p.scoredAt && p.live && p.bidEnd) ? bidDday(p.bidEnd) : '';
+    return `<div class="gw-pred"><div><div class="t">${gwEsc(p.title)}</div><div class="m">내 구간 ${gwFmt(p.lo)}~${gwFmt(p.hi)}${res}</div>${dday}</div>${tag}</div>`;
   }).join('') : '<div class="gw-empty">아직 봉인한 예측이 없습니다. "+ 새 예측 봉인" 또는 관심물건에서 봉인해 보세요.</div>';
   const asBox = document.getElementById('gwAutoScore');
   const liveUnscored = preds.filter(p => p.live && p.cltrMngNo && !p.scoredAt).length;
@@ -735,6 +736,7 @@ function doMySeal() {
   a.push({ title: s.title || '(물건)', appr: s.appr || 0, min: s.min || 0, lo, hi, aiLo: null, aiHi: null,
     cltrMngNo: s.live && s.cltrMngNo ? String(s.cltrMngNo) : null,
     pbctCdtnNo: s.live && s.pbctCdtnNo ? String(s.pbctCdtnNo) : null,
+    bidEnd: s.live && s.bidEnd ? String(s.bidEnd) : '',
     live: !!s.live, sealedAt: new Date().toISOString() });
   localStorage.setItem('bidcast:mypred', JSON.stringify(a));
   document.getElementById('msForm').style.display = 'none'; document.getElementById('msDone').style.display = '';
