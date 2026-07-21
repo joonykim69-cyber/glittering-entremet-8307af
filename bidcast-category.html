@@ -397,7 +397,7 @@ document.addEventListener('keydown', (e) => {
     var el = navEl(); if (!el) return;
     var g = grade(), c = GC[g - 1];
     el.innerHTML = '<span class="nav-user" style="background:#fff;border:1px solid ' + c + '55;color:' + c + ';cursor:pointer" '
-      + 'onclick="location.href=\'bidcast.html#growth\'" title="나의 예언자 여정">'
+      + 'onclick="location.href=\'bidcast-my.html#prophet\'" title="나의 예언자 여정">'
       + '<span class="dot" style="width:8px;height:8px;border-radius:50%;background:' + c + ';box-shadow:0 0 7px ' + c + 'b0"></span>'
       + esc(n) + ' · ' + GN[g - 1]
       + ' <button type="button" onclick="event.stopPropagation();__bcLogout()">로그아웃</button></span>';
