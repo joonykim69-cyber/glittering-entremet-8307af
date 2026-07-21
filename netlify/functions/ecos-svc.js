@@ -24,8 +24,9 @@ const SERIES = {
   cd91: { name: 'CD(91일) 금리', stat: '817Y002', item: '010502000', cycle: 'D' },
   tb3y: { name: '국고채(3년) 금리', stat: '817Y002', item: '010200000', cycle: 'D' },
 };
-// 기본 노출 시리즈(?series= 미지정 시): 실호출 확정된 것만. cd91/tb3y는 env 또는 ?series=로 opt-in.
-const DEFAULT_SERIES = (process.env.ECOS_DEFAULT_SERIES || 'baseRate').split(',').map(s => s.trim()).filter(Boolean);
+// 기본 노출 시리즈(?series= 미지정 시). cd91/tb3y는 817Y002 일별 표(cycle D)로 시도 —
+// 코드가 맞으면 자동 표시, INFO-200이면 macro 에이전트가 조용히 드롭(무해). ECOS_DEFAULT_SERIES로 교정.
+const DEFAULT_SERIES = (process.env.ECOS_DEFAULT_SERIES || 'baseRate,cd91,tb3y').split(',').map(s => s.trim()).filter(Boolean);
 
 function seriesDef(key) {
   const ov = process.env[`ECOS_SERIES_${key.toUpperCase()}`];
@@ -44,13 +45,28 @@ function monthRange(n) {
   const start = `${s.getUTCFullYear()}${String(s.getUTCMonth() + 1).padStart(2, '0')}`;
   return { start, end };
 }
+// 시점 문자열(YYYYMM 또는 YYYYMMDD)을 UTC ms로
+function parseTime(t) {
+  t = String(t);
+  return Date.UTC(+t.slice(0, 4), (+t.slice(4, 6) || 1) - 1, +t.slice(6, 8) || 1);
+}
+// 주기별 조회 시간범위 + 요청 행수. D(일별)는 YYYYMMDD 최근 ~400일, M(월별)은 YYYYMM 최근 14개월.
+function rangeFor(cycle) {
+  const now = new Date(Date.now() + 9 * 3600 * 1000);
+  if (cycle === 'D') {
+    const ymd = d => `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`;
+    return { start: ymd(new Date(now.getTime() - 400 * 86400000)), end: ymd(now), rows: 500 };
+  }
+  const { start, end } = monthRange(14);
+  return { start, end, rows: 20 };
+}
 
 async function fetchSeries(key, apiKey, debug) {
   const def = seriesDef(key);
   if (!def) return null;
   const cycle = def.cycle || 'M';
-  const { start, end } = cycle === 'M' ? monthRange(14) : monthRange(14);
-  const url = `https://ecos.bok.or.kr/api/StatisticSearch/${apiKey}/json/kr/1/20/${def.stat}/${cycle}/${start}/${end}/${def.item}`;
+  const { start, end, rows: rowCnt } = rangeFor(cycle);
+  const url = `https://ecos.bok.or.kr/api/StatisticSearch/${apiKey}/json/kr/1/${rowCnt}/${def.stat}/${cycle}/${start}/${end}/${def.item}`;
   try {
     const r = await fetch(url);
     const text = await r.text();
@@ -62,16 +78,25 @@ async function fetchSeries(key, apiKey, debug) {
     const clean = rows.filter(x => x.DATA_VALUE != null && x.DATA_VALUE !== '').sort((a, b) => String(a.TIME).localeCompare(String(b.TIME)));
     if (!clean.length) return { key, name: def.name, error: 'NODATA' };
     const last = clean[clean.length - 1];
-    const prevM = clean.length >= 2 ? clean[clean.length - 2] : null; // 직전 주기
-    const yoy = clean.find(x => String(x.TIME) === shiftYm(last.TIME, -12)) || clean[0]; // 12개월 전(없으면 최초)
+    // 전월/전년 대비 기준점 — 월별은 직전월·12개월전, 일별은 ~30일전·~365일전 이하의 마지막 관측
+    let prevRow, yoyRow;
+    if (cycle === 'D') {
+      const lastT = parseTime(last.TIME);
+      const rev = [...clean].reverse();
+      prevRow = rev.find(x => parseTime(x.TIME) <= lastT - 30 * 86400000) || null;
+      yoyRow = rev.find(x => parseTime(x.TIME) <= lastT - 365 * 86400000) || clean[0];
+    } else {
+      prevRow = clean.length >= 2 ? clean[clean.length - 2] : null;
+      yoyRow = clean.find(x => String(x.TIME) === shiftYm(last.TIME, -12)) || clean[0];
+    }
     const num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
     return {
       key, name: def.name, unit: last.UNIT_NAME || '%',
       latest: { time: last.TIME, value: num(last.DATA_VALUE) },
-      prev: prevM ? { time: prevM.TIME, value: num(prevM.DATA_VALUE) } : null,
-      yoy: yoy ? { time: yoy.TIME, value: num(yoy.DATA_VALUE) } : null,
-      changePp: prevM ? Math.round((num(last.DATA_VALUE) - num(prevM.DATA_VALUE)) * 100) / 100 : null,
-      yoyPp: yoy ? Math.round((num(last.DATA_VALUE) - num(yoy.DATA_VALUE)) * 100) / 100 : null,
+      prev: prevRow ? { time: prevRow.TIME, value: num(prevRow.DATA_VALUE) } : null,
+      yoy: yoyRow ? { time: yoyRow.TIME, value: num(yoyRow.DATA_VALUE) } : null,
+      changePp: prevRow ? Math.round((num(last.DATA_VALUE) - num(prevRow.DATA_VALUE)) * 100) / 100 : null,
+      yoyPp: yoyRow ? Math.round((num(last.DATA_VALUE) - num(yoyRow.DATA_VALUE)) * 100) / 100 : null,
       ...(debug ? { url: url.replace(apiKey, '***'), rows: clean.length } : {}),
     };
   } catch (e) {
