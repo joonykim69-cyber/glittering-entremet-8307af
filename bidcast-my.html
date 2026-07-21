@@ -341,6 +341,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
       <h2 id="secLikes">♥ 관심물건</h2>
       <a class="more" href="bidcast-list.html">물건 더 찾아보기 →</a>
     </div>
+    <div id="likesNudge" style="display:none;font-size:12.5px;font-weight:700;border-radius:12px;padding:10px 14px;margin-bottom:12px"></div>
     <div id="likesArea"></div>
   </section>
 
@@ -734,6 +735,19 @@ function renderLikes() {
     ...demo.map(id => cardHTML(id, SUMMARY[id], { unheart:true, seal:true })),
   ];
   area.innerHTML = `<div class="my-grid">${cards.join('')}</div>`;
+  // 봉인 전환 넛지 — 관심물건 중 아직 예측 안 한 개수 안내
+  const nudge = document.getElementById('likesNudge');
+  if (nudge) {
+    const total = live.length + demo.length;
+    const unsealed = [...live, ...demo].filter(id => !isSealed(id)).length;
+    if (unsealed > 0) {
+      nudge.style.display = ''; nudge.style.background = 'var(--yellow-soft)'; nudge.style.color = '#8A6100';
+      nudge.textContent = `🔮 관심물건 ${total}개 중 ${unsealed}개는 아직 예측 전이에요 — 카드의 "🔮 봉인"으로 예언자 여정을 시작하세요.`;
+    } else {
+      nudge.style.display = ''; nudge.style.background = 'var(--green-soft)'; nudge.style.color = 'var(--green-deep)';
+      nudge.textContent = `✅ 관심물건 ${total}개 모두 예측 봉인 완료! 개찰 후 채점해 등급을 올려보세요.`;
+    }
+  }
 }
 
 function removeLike(id) {
