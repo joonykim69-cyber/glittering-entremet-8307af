@@ -58,7 +58,12 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'no_table', message: 'RONE_STATBL_ID(통계표 ID) 미설정 — ?list=아파트 로 통계표를 찾아 env RONE_STATBL_ID에 설정하세요.' }) };
     }
     const cycle = qs.cycle || process.env.RONE_DTACYCLE_CD || 'MM';
-    const params = new URLSearchParams({ KEY: apiKey, Type: 'json', pIndex: '1', pSize: qs.pSize || '40', STATBL_ID: statbl, DTACYCLE_CD: cycle });
+    // 최근 시간창 — R-ONE은 오래된 시점부터 반환하므로 최근 범위를 지정(안 하면 1987년 데이터만 긁힘).
+    const now = new Date(Date.now() + 9 * 3600 * 1000);
+    const ym = d => `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+    const startT = qs.start || process.env.RONE_START_WRTTIME || (cycle === 'MM' ? ym(new Date(Date.UTC(now.getUTCFullYear() - 3, now.getUTCMonth(), 1))) : String(now.getUTCFullYear() - 4));
+    const endT = qs.end || process.env.RONE_END_WRTTIME || (cycle === 'MM' ? ym(now) : String(now.getUTCFullYear()));
+    const params = new URLSearchParams({ KEY: apiKey, Type: 'json', pIndex: '1', pSize: qs.pSize || '500', STATBL_ID: statbl, DTACYCLE_CD: cycle, START_WRTTIME: startT, END_WRTTIME: endT });
     const itm = qs.itm || process.env.RONE_ITM_ID; if (itm) params.set('ITM_ID', itm);
     const cls = qs.cls || process.env.RONE_CLS_ID; if (cls) params.set('CLS_ID', cls);
     const url = `${BASE}/SttsApiTblData.do?${params.toString()}`;
@@ -69,27 +74,50 @@ exports.handler = async (event) => {
     }
     if (raw.RESULT) return { statusCode: 502, headers: CORS, body: JSON.stringify({ error: { message: `R-ONE: ${raw.RESULT.CODE} ${raw.RESULT.MESSAGE}` }, ...(debug ? { url: url.replace(apiKey, '***') } : {}) }) };
 
-    const rows = extractRows(raw, 'SttsApiTblData')
-      .map(x => ({ time: String(x.WRTTIME_IDTFR_ID || x.WRTTIME_DESC || ''), value: num(x.DTA_VAL), region: x.CLS_NM || x.CLS_FULLNM || '', item: x.ITM_NM || '', unit: x.UI_NM || '' }))
-      .filter(x => x.time && x.value != null)
-      .sort((a, b) => a.time.localeCompare(b.time));
+    const rawRows = extractRows(raw, 'SttsApiTblData');
+    // 분류 키: 시점/값 외의 *_ID·*_NM 필드 조합(다차원 테이블에서 하나의 시계열을 식별)
+    const clsKeyOf = x => Object.keys(x).filter(k => /(_ID|_NM|_FULLNM)$/.test(k) && !/WRTTIME/.test(k) && k !== 'STATBL_ID' && k !== 'DTACYCLE_CD').sort().map(k => `${k}=${x[k]}`).join('|');
+    const clsLabelOf = x => Object.keys(x).filter(k => /_NM$/.test(k) && !/WRTTIME/.test(k)).map(k => x[k]).filter(Boolean).join(' · ');
+    const all = rawRows
+      .map(x => ({ time: String(x.WRTTIME_IDTFR_ID || x.WRTTIME_DESC || ''), value: num(x.DTA_VAL), key: clsKeyOf(x), label: clsLabelOf(x), unit: x.UI_NM || '' }))
+      .filter(x => x.time && x.value != null);
 
-    if (!rows.length) {
+    if (!all.length) {
       return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'empty', statbl, ...(debug ? { url: url.replace(apiKey, '***'), snippet: t.slice(0, 500) } : {}) }) };
     }
+
+    // 분류(시계열)별 그룹핑
+    const groups = new Map();
+    for (const x of all) { if (!groups.has(x.key)) groups.set(x.key, { key: x.key, label: x.label, unit: x.unit, rows: [] }); groups.get(x.key).rows.push(x); }
+    // 다차원인데 CLS/ITM 필터가 없으면 어떤 시계열을 쓸지 모호 → multi로 반환(사용자/코드가 필터 선택)
+    if (groups.size > 1 && !cls && !itm) {
+      const list = [...groups.values()].map(g => ({ label: g.label, points: g.rows.length })).slice(0, 30);
+      return {
+        statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'multi_series', statbl, cycle,
+          message: `이 통계표는 다차원(지역·용도 등 ${groups.size}개 시계열)입니다. RONE_CLS_ID/RONE_ITM_ID로 하나를 지정하세요("코드조회"에서 코드 확인).`,
+          series: list,
+          ...(debug ? { url: url.replace(apiKey, '***'), rawFirst: rawRows[0] || null, fieldKeys: rawRows[0] ? Object.keys(rawRows[0]) : [] } : {}),
+        }),
+      };
+    }
+
+    // 단일 시계열(또는 필터로 하나로 좁혀짐) → 시간순 정렬 후 추세 계산
+    const rows = (groups.size === 1 ? [...groups.values()][0].rows : all).sort((a, b) => a.time.localeCompare(b.time));
     const last = rows[rows.length - 1];
     const at = k => { const r2 = rows[rows.length - 1 - k]; return r2 ? r2.value : null; };
-    const chg = (prev) => prev != null && prev !== 0 ? Math.round((last.value - prev) / prev * 1000) / 10 : null;
+    const chg = prev => prev != null && prev !== 0 ? Math.round((last.value - prev) / prev * 1000) / 10 : null;
 
     return {
       statusCode: 200,
       headers: { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=21600' },
       body: JSON.stringify({
-        status: 'ok', statbl, cycle, region: last.region, item: last.item, unit: last.unit,
+        status: 'ok', statbl, cycle, region: last.label, item: last.label, unit: last.unit,
         latest: { time: last.time, value: last.value },
         change: { m3: chg(at(3)), m6: chg(at(6)), m12: chg(at(12)) }, // %
-        points: rows.slice(-13),
-        ...(debug ? { url: url.replace(apiKey, '***'), rows: rows.length } : {}),
+        points: rows.slice(-13).map(p => ({ time: p.time, value: p.value })),
+        ...(debug ? { url: url.replace(apiKey, '***'), rows: rows.length, rawFirst: rawRows[0] || null, fieldKeys: rawRows[0] ? Object.keys(rawRows[0]) : [] } : {}),
       }),
     };
   } catch (e) {
