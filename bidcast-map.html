@@ -549,7 +549,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 </footer>
 
 <!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLcE=" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script>
 // ═══════════════════════════════════════
 // 예시 데이터 — 실 API 연동 전 데모용
@@ -604,16 +604,17 @@ function loadKakaoSDK(key) {
 async function resolveEngine() {
   try {
     const cfg = await fetch('/.netlify/functions/map-config').then(r => r.json());
-    if (cfg && cfg.kakaoKey) {
-      await loadKakaoSDK(cfg.kakaoKey);
-      if (window.kakao && window.kakao.maps) {
-        USE_KAKAO = true;
-        kakaoGeocoder = new kakao.maps.services.Geocoder();
-        const chip = document.getElementById('mapDataChip');
-        if (chip) chip.textContent = '📋 예시 데이터 · 카카오맵';
-      }
+    if (!cfg || !cfg.kakaoKey) { console.warn('[map] KAKAO_MAP_KEY 없음(map-config 빈 값) → Leaflet 폴백'); return; }
+    console.log('[map] 카카오 키 확보, SDK 로드 시도');
+    await loadKakaoSDK(cfg.kakaoKey);
+    if (window.kakao && window.kakao.maps) {
+      USE_KAKAO = true;
+      kakaoGeocoder = new kakao.maps.services.Geocoder();
+      const chip = document.getElementById('mapDataChip');
+      if (chip) chip.textContent = '📋 예시 데이터 · 카카오맵';
+      console.log('[map] 카카오맵 엔진 활성');
     }
-  } catch (e) { /* 실패 시 Leaflet 폴백 */ }
+  } catch (e) { console.warn('[map] 카카오 SDK 로드 실패(도메인 미등록/키 오류 가능) → Leaflet 폴백', e); }
 }
 
 function initMap() {
@@ -624,6 +625,11 @@ function initMap() {
     });
     kakaoInfo = new kakao.maps.InfoWindow({ removable: true, zIndex: 5 });
     kakao.maps.event.addListener(map, 'click', () => { kakaoInfo.close(); deselectAll(); });
+    return;
+  }
+  if (typeof L === 'undefined') { // Leaflet CDN 로드 실패 등 — 페이지 크래시 방지
+    console.warn('[map] Leaflet(L) 미로드 → 지도 생략(목록·필터는 정상)');
+    const chip = document.getElementById('mapDataChip'); if (chip) chip.textContent = '📋 예시 데이터 · 지도 로드 실패(목록만)';
     return;
   }
   map = L.map('leafletMap', {
@@ -665,6 +671,7 @@ function popupHTML(it) {
 }
 
 function addMarker(it) {
+  if (!map) return; // 지도 엔진 미로드 시 마커 생략
   const entry = markerMap[it.id];
   if (!entry || entry.latlng == null) return;
   if (USE_KAKAO) {
@@ -1129,6 +1136,7 @@ const loadingEl = document.getElementById('mapLoading');
     // sidebar 먼저 렌더 (지도 좌표 없어도 목록은 즉시 표시)
     filteredItems = computeFiltered();
     renderSidebar(filteredItems);
+    if (!map) return; // 지도 엔진 미로드(Leaflet 실패 등) → 목록·필터만 제공
     // geocoding 시작 → 완료되면 applyFilters() 가 마커 추가
     geocodeAll().then(() => {
       // URL id 포커스 처리
