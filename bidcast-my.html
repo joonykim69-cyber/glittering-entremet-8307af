@@ -627,8 +627,15 @@ function renderProphet() {
     const idx = preds.indexOf(p);
     const tag = p.scoredAt ? (p.hit ? '<span class="gw-tag hit">적중</span>' : '<span class="gw-tag miss">빗나감</span>') : `<span class="gw-tag wait" onclick="openScore(${idx})">개찰 결과 입력</span>`;
     const res = p.scoredAt ? ` · 낙찰 ${gwFmt(p.win)}${p.errPct != null ? ` (오차 ${p.errPct}%)` : ''}` : '';
+    // 채점되고 AI 구간이 있었던 항목은 나 vs AI 결과를 함께 표시
+    const vs = (p.scoredAt && p.aiHit != null)
+      ? (p.hit && !p.aiHit ? '<span class="gw-tag hit" style="margin-left:5px">🏆 나 승</span>'
+        : (!p.hit && p.aiHit ? '<span class="gw-tag miss" style="margin-left:5px">🤖 AI 승</span>'
+          : (p.hit && p.aiHit ? '<span class="gw-tag" style="margin-left:5px;background:var(--green-soft);color:var(--green-deep)">둘 다 적중</span>'
+            : '<span class="gw-tag" style="margin-left:5px;background:var(--bg);color:var(--mute)">둘 다 빗나감</span>')))
+      : '';
     const dday = (!p.scoredAt && p.live && p.bidEnd) ? bidDday(p.bidEnd) : '';
-    return `<div class="gw-pred"><div><div class="t">${gwEsc(p.title)}</div><div class="m">내 구간 ${gwFmt(p.lo)}~${gwFmt(p.hi)}${res}</div>${dday}</div>${tag}</div>`;
+    return `<div class="gw-pred"><div><div class="t">${gwEsc(p.title)}</div><div class="m">내 구간 ${gwFmt(p.lo)}~${gwFmt(p.hi)}${res}</div>${dday}</div><div style="display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end">${tag}${vs}</div></div>`;
   }).join('') : '<div class="gw-empty">아직 봉인한 예측이 없습니다. "+ 새 예측 봉인" 또는 관심물건에서 봉인해 보세요.</div>';
   const asBox = document.getElementById('gwAutoScore');
   const liveUn = preds.filter(p => p.live && p.cltrMngNo && !p.scoredAt);
