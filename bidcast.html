@@ -369,6 +369,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
       </div>
       <div class="gw-card">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><b style="font-size:15px">나의 예측</b><button class="btn btn-cta btn-sm" type="button" onclick="openSeal()">+ 새 예측 봉인</button></div>
+        <div id="gwAutoScore" style="display:none;margin-top:10px"></div>
         <div id="gwPredList" style="margin-top:6px"></div>
       </div>
     </div>
@@ -832,7 +833,71 @@ function renderGrowth() {
     const res = p.scoredAt ? ` · 낙찰 ${gwFmt(p.win)}${p.errPct != null ? ` (오차 ${p.errPct}%)` : ''}` : '';
     return `<div class="gw-pred"><div><div class="t">${gwEsc(p.title)}</div><div class="m">내 구간 ${gwFmt(p.lo)}~${gwFmt(p.hi)}${res}</div></div>${tag}</div>`;
   }).join('') : '<div class="gw-empty">아직 봉인한 예측이 없습니다. "+ 새 예측 봉인"으로 시작하세요.</div>';
+  // 라이브 물건(온비드 실제 id 보유) 중 미채점 봉인이 있으면 자동 채점 버튼 노출
+  const asBox = document.getElementById('gwAutoScore');
+  const liveUnscored = preds.filter(p => p.live && p.cltrMngNo && !p.scoredAt).length;
+  if (asBox) {
+    if (liveUnscored > 0) {
+      asBox.style.display = '';
+      asBox.innerHTML = `<button class="btn btn-sm" type="button" id="gwAutoBtn" onclick="autoScoreLive()" style="width:100%;background:var(--green-soft);color:var(--green-deep);border:1px solid #C4EBD8;font-weight:800;cursor:pointer">🎯 온비드 개찰 결과로 자동 채점 (라이브 봉인 ${liveUnscored}건)</button><div id="gwAutoMsg" style="font-size:11.5px;color:var(--mute);margin-top:5px"></div>`;
+    } else {
+      asBox.style.display = 'none'; asBox.innerHTML = '';
+    }
+  }
   renderRoad('gwRoad');
+}
+// ═══ 온비드 개찰 결과 자동 채점 ═══
+// live:true + cltrMngNo 를 가진 미채점 봉인을 온비드 입찰결과(3자산군, 최근 90일 개찰완료)와
+// 물건 id로 조인해 실 낙찰가(winAmt, 원)를 만원으로 환산·자동 채점한다.
+// winAmt 없거나 매칭 실패 시 조용히 건너뜀(수동 입력 유지) — 오채점 위험 0.
+let autoScoring = false;
+async function autoScoreLive() {
+  if (autoScoring) return;
+  const a = myPreds();
+  const targets = a.filter(p => p.live && p.cltrMngNo && !p.scoredAt);
+  if (!targets.length) return;
+  autoScoring = true;
+  const btn = document.getElementById('gwAutoBtn'), msg = document.getElementById('gwAutoMsg');
+  if (btn) { btn.disabled = true; btn.textContent = '온비드 개찰 결과 조회 중…'; }
+  try {
+    const types = ['0001', '0002', '0003']; // 부동산/자동차/동산
+    const rs = await Promise.allSettled(types.map(t =>
+      fetch(`/.netlify/functions/onbid-bidresults?cltrTypeCd=${t}&numOfRows=100`).then(r => r.ok ? r.json() : null)));
+    const byId = new Map();
+    for (const x of rs) {
+      if (x.status !== 'fulfilled' || !x.value || !Array.isArray(x.value.results)) continue;
+      for (const row of x.value.results) {
+        if (!row.id) continue;
+        byId.set(String(row.id), row);
+        if (row.pbctCdtnNo) byId.set(`${row.id}_${row.pbctCdtnNo}`, row);
+      }
+    }
+    let scored = 0, waiting = 0;
+    for (const p of targets) {
+      const row = (p.pbctCdtnNo && byId.get(`${p.cltrMngNo}_${p.pbctCdtnNo}`)) || byId.get(String(p.cltrMngNo));
+      if (!row) { waiting++; continue; }               // 아직 개찰 전 or 90일 밖
+      if (row.statCd !== '0010' || !(row.winAmt > 0)) { waiting++; continue; } // 유찰/취소/낙찰가 없음 → 수동 유지
+      const win = Math.round(row.winAmt / 10000);        // 원 → 만원
+      if (!(win > 0)) { waiting++; continue; }
+      p.win = win; p.hit = (win >= p.lo && win <= p.hi);
+      p.errPct = Math.round(Math.abs(win - (p.lo + p.hi) / 2) / win * 1000) / 10;
+      if (p.aiLo > 0 && p.aiHi > 0) p.aiHit = (win >= p.aiLo && win <= p.aiHi);
+      p.scoredAt = new Date().toISOString(); p.autoScored = true;
+      scored++;
+    }
+    lsSet('bidcast:mypred', a);
+    renderGrowth(); updateNavGrade();
+    const m = document.getElementById('gwAutoMsg');
+    if (m) m.textContent = scored
+      ? `✅ ${scored}건 자동 채점 완료${waiting ? ` · ${waiting}건은 아직 개찰 전이거나 낙찰가 미확인(수동 입력 가능)` : ''}`
+      : '개찰 완료된 라이브 봉인을 찾지 못했습니다 — 아직 개찰 전이거나 최근 90일 밖일 수 있어요.';
+  } catch (e) {
+    const m = document.getElementById('gwAutoMsg');
+    if (m) m.textContent = '온비드 개찰 결과 조회에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+  } finally {
+    autoScoring = false;
+    const b = document.getElementById('gwAutoBtn'); if (b) b.disabled = false;
+  }
 }
 let scoreIdx = -1;
 function gwOpen(id) { const o = document.getElementById(id); o.classList.add('open'); requestAnimationFrame(() => o.classList.add('vis')); }
