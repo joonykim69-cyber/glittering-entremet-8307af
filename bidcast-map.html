@@ -579,30 +579,64 @@ let filteredItems = [];
 let focusedId = null;
 
 // ═══════════════════════════════════════
-// Leaflet 지도 & 마커
+// 지도 & 마커 — 카카오맵(KAKAO_MAP_KEY 설정 시) / OpenStreetMap(Leaflet) 폴백 이중 엔진
+// map-config에서 카카오 JS 키를 받으면 카카오 실지도, 없거나 로드 실패 시 기존 OSM 유지(degrade).
 // ═══════════════════════════════════════
 let map = null;
-// id → { marker, latlng } 매핑
+let USE_KAKAO = false;
+let kakaoGeocoder = null;
+// id → { latlng:[lat,lng], marker(리플릿) | overlay(카카오), it } 매핑
 const markerMap = {};
+let kakaoInfo = null; // 카카오 인포윈도우(단일 재사용)
+
+// 카카오 SDK 동적 로드(상세 페이지와 동일 패턴)
+function loadKakaoSDK(key) {
+  return new Promise((resolve, reject) => {
+    if (window.kakao && window.kakao.maps) return resolve();
+    const s = document.createElement('script');
+    s.src = 'https://dapi.kakao.com/v2/maps/sdk.js?appkey=' + encodeURIComponent(key) + '&autoload=false&libraries=services';
+    s.onload = () => window.kakao.maps.load(resolve);
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+// map-config로 엔진 결정 — 키 있으면 카카오, 없으면 Leaflet 폴백
+async function resolveEngine() {
+  try {
+    const cfg = await fetch('/.netlify/functions/map-config').then(r => r.json());
+    if (cfg && cfg.kakaoKey) {
+      await loadKakaoSDK(cfg.kakaoKey);
+      if (window.kakao && window.kakao.maps) {
+        USE_KAKAO = true;
+        kakaoGeocoder = new kakao.maps.services.Geocoder();
+        const chip = document.getElementById('mapDataChip');
+        if (chip) chip.textContent = '📋 예시 데이터 · 카카오맵';
+      }
+    }
+  } catch (e) { /* 실패 시 Leaflet 폴백 */ }
+}
 
 function initMap() {
+  if (USE_KAKAO) {
+    map = new kakao.maps.Map(document.getElementById('leafletMap'), {
+      center: new kakao.maps.LatLng(36.5, 127.9),
+      level: 13, // 전국 뷰(레벨↑=축소)
+    });
+    kakaoInfo = new kakao.maps.InfoWindow({ removable: true, zIndex: 5 });
+    kakao.maps.event.addListener(map, 'click', () => { kakaoInfo.close(); deselectAll(); });
+    return;
+  }
   map = L.map('leafletMap', {
     center: [36.5, 127.9],
     zoom: 7,
     zoomControl: true,
     attributionControl: true,
   });
-
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> 기여자',
     maxZoom: 19,
   }).addTo(map);
-
-  // 지도 클릭 → 팝업 닫기
-  map.on('click', () => {
-    map.closePopup();
-    deselectAll();
-  });
+  map.on('click', () => { map.closePopup(); deselectAll(); });
 }
 
 function makeIcon(it, active) {
@@ -633,36 +667,60 @@ function popupHTML(it) {
 function addMarker(it) {
   const entry = markerMap[it.id];
   if (!entry || entry.latlng == null) return;
+  if (USE_KAKAO) {
+    const pos = new kakao.maps.LatLng(entry.latlng[0], entry.latlng[1]);
+    const cls = ['lf-pin', it.status === '낙찰' ? 'sold' : it.fail > 0 ? 'warn' : '', it.id === focusedId ? 'active' : ''].filter(Boolean).join(' ');
+    const el = document.createElement('div');
+    el.className = cls;
+    el.style.cursor = 'pointer';
+    el.innerHTML = `<span class="lf-pin-badge">${escHtml(it.type)} · ${fmtWon(it.min)}</span><span class="lf-pin-stem"></span>`;
+    el.addEventListener('click', ev => { ev.stopPropagation(); onMarkerClick(it.id); });
+    const overlay = new kakao.maps.CustomOverlay({ position: pos, content: el, yAnchor: 1, zIndex: it.id === focusedId ? 4 : 2 });
+    overlay.setMap(map);
+    entry.marker = overlay;
+    entry.el = el;
+    entry.kpos = pos;
+    return;
+  }
   const marker = L.marker(entry.latlng, {
     icon: makeIcon(it, it.id === focusedId),
     title: it.title,
   }).addTo(map);
-
-  marker.bindPopup(popupHTML(it), {
-    maxWidth: 260,
-    minWidth: 240,
-    closeButton: false,
-    className: 'bidcast-popup',
-  });
-
-  marker.on('click', e => {
-    L.DomEvent.stopPropagation(e);
-    onMarkerClick(it.id);
-  });
-
-  marker.on('popupclose', () => {
-    if (focusedId === it.id) deselectAll();
-  });
-
+  marker.bindPopup(popupHTML(it), { maxWidth: 260, minWidth: 240, closeButton: false, className: 'bidcast-popup' });
+  marker.on('click', e => { L.DomEvent.stopPropagation(e); onMarkerClick(it.id); });
+  marker.on('popupclose', () => { if (focusedId === it.id) deselectAll(); });
   entry.marker = marker;
 }
 
 function removeMarker(id) {
   const entry = markerMap[id];
   if (entry && entry.marker) {
-    entry.marker.remove();
+    if (USE_KAKAO) entry.marker.setMap(null);
+    else entry.marker.remove();
     entry.marker = null;
+    entry.el = null;
   }
+}
+
+// 마커 활성(active) 시각 갱신 — 엔진별
+function setMarkerActive(it, active) {
+  const e = markerMap[it.id];
+  if (!e || !e.marker) return;
+  if (USE_KAKAO) {
+    if (e.el) {
+      e.el.className = ['lf-pin', it.status === '낙찰' ? 'sold' : it.fail > 0 ? 'warn' : '', active ? 'active' : ''].filter(Boolean).join(' ');
+      e.marker.setZIndex(active ? 4 : 2);
+    }
+  } else {
+    e.marker.setIcon(makeIcon(it, active));
+  }
+}
+// 마커 팝업 열기 — 엔진별
+function openMarkerPopup(it) {
+  const e = markerMap[it.id];
+  if (!e || !e.marker) return;
+  if (USE_KAKAO) { kakaoInfo.setContent(`<div style="padding:2px">${popupHTML(it)}</div>`); kakaoInfo.setPosition(e.kpos); kakaoInfo.open(map); }
+  else e.marker.openPopup();
 }
 
 // ═══════════════════════════════════════
@@ -684,12 +742,21 @@ async function geocodeAll() {
     markerMap[it.id] = markerMap[it.id] || {};
 
     try {
-      const query = encodeURIComponent(it.address + ', 대한민국');
-      const url = `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1&accept-language=ko`;
-      const res = await fetch(url, { headers: { 'User-Agent': 'BidCast/1.0 (demo)' } });
-      const data = await res.json();
-      if (data && data[0]) {
-        markerMap[it.id].latlng = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+      if (USE_KAKAO) {
+        // 카카오 지오코더(한국 주소 정확도↑) — Promise 래핑
+        const ll = await new Promise(resolve => {
+          kakaoGeocoder.addressSearch(String(it.address).trim(), (result, status) => {
+            if (status === kakao.maps.services.Status.OK && result[0]) resolve([parseFloat(result[0].y), parseFloat(result[0].x)]);
+            else resolve(null);
+          });
+        });
+        if (ll) markerMap[it.id].latlng = ll;
+      } else {
+        const query = encodeURIComponent(it.address + ', 대한민국');
+        const url = `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1&accept-language=ko`;
+        const res = await fetch(url, { headers: { 'User-Agent': 'BidCast/1.0 (demo)' } });
+        const data = await res.json();
+        if (data && data[0]) markerMap[it.id].latlng = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
       }
     } catch (_) {
       // geocoding 실패 시 해당 아이템 핀 생략
@@ -700,8 +767,8 @@ async function geocodeAll() {
     ratio.textContent = `${done}/${total}`;
     text.textContent = `위치 변환 중 (${it.address})`;
 
-    // Nominatim 이용 정책: 1초 이상 간격
-    if (done < total) await new Promise(r => setTimeout(r, 1100));
+    // Nominatim 이용 정책: 1초 이상 간격 (카카오 지오코더는 불필요)
+    if (!USE_KAKAO && done < total) await new Promise(r => setTimeout(r, 1100));
   }
 
   bar.classList.add('hidden');
@@ -738,11 +805,8 @@ function onMarkerClick(id) {
   const it = ITEMS.find(x => x.id === id);
   if (!it) return;
 
-  // 모든 마커 아이콘 초기화
-  filteredItems.forEach(fi => {
-    const e = markerMap[fi.id];
-    if (e && e.marker) e.marker.setIcon(makeIcon(fi, fi.id === id));
-  });
+  // 모든 마커 active 상태 갱신
+  filteredItems.forEach(fi => setMarkerActive(fi, fi.id === id));
 
   // 사이드바 highlight + 스크롤
   document.querySelectorAll('.side-item').forEach(s => s.classList.remove('active'));
@@ -753,10 +817,7 @@ function onMarkerClick(id) {
   }
 
   // 팝업 열기
-  const entry = markerMap[id];
-  if (entry && entry.marker) {
-    entry.marker.openPopup();
-  }
+  openMarkerPopup(it);
 }
 
 // ═══════════════════════════════════════
@@ -772,16 +833,18 @@ function onSideItemClick(id) {
   const sideEl = document.getElementById(`side-${id}`);
   if (sideEl) sideEl.classList.add('active');
 
-  // 마커 아이콘 active 갱신
-  filteredItems.forEach(fi => {
-    const e = markerMap[fi.id];
-    if (e && e.marker) e.marker.setIcon(makeIcon(fi, fi.id === id));
-  });
+  // 마커 active 갱신
+  filteredItems.forEach(fi => setMarkerActive(fi, fi.id === id));
 
   const entry = markerMap[id];
   if (entry && entry.latlng) {
-    map.setView(entry.latlng, Math.max(map.getZoom(), 14), { animate:true });
-    if (entry.marker) entry.marker.openPopup();
+    if (USE_KAKAO) {
+      map.setCenter(new kakao.maps.LatLng(entry.latlng[0], entry.latlng[1]));
+      if (map.getLevel() > 5) map.setLevel(5);
+    } else {
+      map.setView(entry.latlng, Math.max(map.getZoom(), 14), { animate:true });
+    }
+    openMarkerPopup(it);
   }
 
   // 모바일: 지도로 스크롤
@@ -793,10 +856,8 @@ function onSideItemClick(id) {
 function deselectAll() {
   focusedId = null;
   document.querySelectorAll('.side-item').forEach(s => s.classList.remove('active'));
-  filteredItems.forEach(fi => {
-    const e = markerMap[fi.id];
-    if (e && e.marker) e.marker.setIcon(makeIcon(fi, false));
-  });
+  filteredItems.forEach(fi => setMarkerActive(fi, false));
+  if (USE_KAKAO && kakaoInfo) kakaoInfo.close();
 }
 
 // ═══════════════════════════════════════
@@ -1057,37 +1118,45 @@ handleUrlFocus();
 rebuildCourtDropdown();
 initTypeChips();
 
-// 지도 초기화 → geocoding → 렌더
+// 지도 초기화 → geocoding → 렌더 (map-config로 엔진 결정 후 진행)
 const loadingEl = document.getElementById('mapLoading');
-initMap();
-loadingEl.style.opacity = '0';
-setTimeout(() => {
-  loadingEl.style.display = 'none';
-  // sidebar 먼저 렌더 (지도 좌표 없어도 목록은 즉시 표시)
-  filteredItems = computeFiltered();
-  renderSidebar(filteredItems);
-  // geocoding 시작 → 완료되면 applyFilters() 가 마커 추가
-  geocodeAll().then(() => {
-    // URL id 포커스 처리
-    if (focusedId) {
-      const entry = markerMap[focusedId];
-      if (entry && entry.latlng) {
-        map.setView(entry.latlng, 15, { animate:false });
-        onMarkerClick(focusedId);
+(async () => {
+  await resolveEngine(); // 카카오 키 있으면 카카오, 없으면 Leaflet 폴백
+  initMap();
+  loadingEl.style.opacity = '0';
+  setTimeout(() => {
+    loadingEl.style.display = 'none';
+    // sidebar 먼저 렌더 (지도 좌표 없어도 목록은 즉시 표시)
+    filteredItems = computeFiltered();
+    renderSidebar(filteredItems);
+    // geocoding 시작 → 완료되면 applyFilters() 가 마커 추가
+    geocodeAll().then(() => {
+      // URL id 포커스 처리
+      if (focusedId) {
+        const entry = markerMap[focusedId];
+        if (entry && entry.latlng) {
+          if (USE_KAKAO) { map.setCenter(new kakao.maps.LatLng(entry.latlng[0], entry.latlng[1])); map.setLevel(4); }
+          else map.setView(entry.latlng, 15, { animate:false });
+          onMarkerClick(focusedId);
+        }
+      } else {
+        // 마커들이 있으면 전체 보이도록 범위 맞춤
+        const coords = Object.values(markerMap).filter(e => e.latlng).map(e => e.latlng);
+        if (USE_KAKAO) {
+          if (coords.length >= 1) {
+            const bounds = new kakao.maps.LatLngBounds();
+            coords.forEach(c => bounds.extend(new kakao.maps.LatLng(c[0], c[1])));
+            map.setBounds(bounds);
+          }
+        } else if (coords.length > 1) {
+          map.fitBounds(coords, { padding:[40, 40], maxZoom:12 });
+        } else if (coords.length === 1) {
+          map.setView(coords[0], 13);
+        }
       }
-    } else {
-      // 마커들이 있으면 전체 보이도록 fitBounds
-      const coords = Object.values(markerMap)
-        .filter(e => e.latlng)
-        .map(e => e.latlng);
-      if (coords.length > 1) {
-        map.fitBounds(coords, { padding:[40, 40], maxZoom:12 });
-      } else if (coords.length === 1) {
-        map.setView(coords[0], 13);
-      }
-    }
-  });
-}, 400);
+    });
+  }, 400);
+})();
 
 // ═══════════════════════════════════════
 // 공용 데모 Auth
