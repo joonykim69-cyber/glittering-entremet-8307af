@@ -83,7 +83,15 @@ async function gatherNews(base, it) {
   return { query, items: d.items.slice(0, 5) };
 }
 
-// ── 공용 팩트 수집: 봉인 예측(pred/predb) + 캠코 용도/지역 통계 + hist 셀 (+ 에이전트별 공고/뉴스) ──
+// ── 거시·금리 수집(macro 에이전트 전용): 한국은행 ECOS 기준금리·시장금리 최근값+추세 ──
+async function gatherMacro(base) {
+  const d = await fetchJson(`${base}/.netlify/functions/ecos-svc`);
+  if (!d || !Array.isArray(d.series)) return null;
+  const ok = d.series.filter(s => s && !s.error && s.latest && s.latest.value != null);
+  return ok.length ? { series: ok } : null;
+}
+
+// ── 공용 팩트 수집: 봉인 예측(pred/predb) + 캠코 용도/지역 통계 + hist 셀 (+ 에이전트별 공고/뉴스/거시) ──
 async function gatherFacts(store, base, it, agent) {
   const predKey = `${it.id}_${it.pbctCdtnNo}`;
   const typeCd = it.assetClass === '동산' ? '0003' : it.assetClass === '자동차' ? '0002' : '0001';
@@ -93,12 +101,13 @@ async function gatherFacts(store, base, it, agent) {
   const y = now.getUTCFullYear(), q = Math.ceil((now.getUTCMonth() + 1) / 3);
   const perds = [String(y), `${y}-${q}`, ...(q > 1 ? [`${y}-${q - 1}`] : []), String(y - 1)];
 
-  const [pred, predB, cell, pbanc, news] = await Promise.all([
+  const [pred, predB, cell, pbanc, news, macro] = await Promise.all([
     store.get(`pred/${predKey}`, { type: 'json' }),
     store.get(`predb/${predKey}`, { type: 'json' }),
     fetchJson(`${base}/.netlify/functions/hist-stats?type=${typeCd}&usage=${encodeURIComponent(it.usage || it.type || '기타')}&round=${(Number(it.fail) || 0) + 1}&lowMan=${Number(it.min) || 0}`),
     agent && agent.needsPbanc ? gatherPbanc(base, it) : Promise.resolve(null),
     agent && agent.needsNews ? gatherNews(base, it) : Promise.resolve(null),
+    agent && agent.needsMacro ? gatherMacro(base) : Promise.resolve(null),
   ]);
 
   let usg = null, rgn = null;
@@ -117,7 +126,7 @@ async function gatherFacts(store, base, it, agent) {
     }
   }
 
-  return { pred: pred || null, predB: predB || null, cell: cell && cell.status === 'ok' ? cell : null, usg, rgn, sido, pbanc: pbanc || null, news: news || null };
+  return { pred: pred || null, predB: predB || null, cell: cell && cell.status === 'ok' ? cell : null, usg, rgn, sido, pbanc: pbanc || null, news: news || null, macro: macro || null };
 }
 
 // 팩트를 프롬프트용 텍스트로 직렬화 — 없는 항목은 "없음"으로 명시해 창작을 차단
@@ -155,6 +164,17 @@ function factsText(it, f) {
   if (f.news) {
     L.push(`지역 뉴스 검색("${clean(f.news.query, 30)}", 최신순 ${f.news.items.length}건):`);
     f.news.items.forEach((n, i) => L.push(`  ${i + 1}. ${clean(n.title, 80)} — ${clean(n.desc, 110)}`));
+  }
+  // 거시·금리 (macro 에이전트 전용, 한국은행 ECOS) — 없으면 항목 자체를 넣지 않음
+  if (f.macro) {
+    L.push(`한국은행 거시·금리 지표(ECOS, 최근값):`);
+    f.macro.series.forEach(s => {
+      const t = String(s.latest.time);
+      const tm = t.length === 6 ? `${t.slice(0, 4)}.${t.slice(4, 6)}` : t;
+      const mm = s.changePp != null ? ` (전월대비 ${s.changePp > 0 ? '+' : ''}${s.changePp}%p)` : '';
+      const yy = s.yoyPp != null ? ` (전년대비 ${s.yoyPp > 0 ? '+' : ''}${s.yoyPp}%p)` : '';
+      L.push(`  · ${clean(s.name, 24)}: ${s.latest.value}${s.unit || '%'} [${tm}]${mm}${yy}`);
+    });
   }
   return L.join('\n');
 }
@@ -206,6 +226,13 @@ ${COMMON_RULES}`,
     system: `당신은 신호등옥션의 "뉴스·정보" 에이전트입니다. 물건 소재 지역에 대해 검색된 최근 뉴스만을 근거로 지역 부동산·개발·시장 동향을 담백하게 브리핑합니다: ① 검색된 뉴스가 지역에 대해 말해주는 흐름(개발/공급/규제/시세 등) ② 이 물건을 볼 때 참고할 만한 맥락 ③ 뉴스와 개별 물건 가치의 직접 인과는 단정하지 말 것. 검색된 뉴스가 없거나 물건과 무관해 보이면 그 사실을 밝히고 일반론을 지어내지 마세요.
 ${COMMON_RULES}`,
   },
+  macro: {
+    name: '거시·금리 워처',
+    needsMacro: true,
+    disclaimer: '금리·거시 지표는 한국은행 ECOS 공식 통계이며, 개별 물건의 낙찰가나 수익을 예측·보장하지 않습니다. 대출 조건은 금융기관·개인 신용에 따라 다릅니다.',
+    system: `당신은 신호등옥션의 "거시·금리 워처" 에이전트입니다. 확인된 한국은행 ECOS 금리·거시 지표만을 근거로, 이 물건에 입찰·낙찰 후 자금 조달 관점에서 참고할 금리 국면을 담백하게 브리핑합니다: ① 현재 기준금리·시장금리 수준과 최근 추세(전월/전년 대비)가 말해주는 금리 국면(완화/긴축/횡보) ② 그 국면이 경락잔금대출 등 자금 계획에 주는 일반적 시사점(구체 대출금리·한도는 금융기관마다 다름을 명시) ③ 금리 방향이 공매 시장 수요·경쟁에 주는 큰 틀의 영향(단정 금지, 경향으로만). 확인된 지표가 "없음"이면 그 사실을 밝히고 수치를 지어내지 마세요. 특정 대출 상품·금리·입찰가를 추천하지 마세요.
+${COMMON_RULES}`,
+  },
 };
 
 exports.handler = async (event) => {
@@ -223,7 +250,7 @@ exports.handler = async (event) => {
   const id = clean(it.id, 40).replace(/[^0-9A-Za-z\-_.]/g, '');
   const cdtn = clean(it.pbctCdtnNo, 20).replace(/[^0-9]/g, '');
   if (!agent || !id || !cdtn) {
-    return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: { message: 'agent(expert|region|competition|rights|sale_risk|news)와 item.id/item.pbctCdtnNo가 필요합니다.' } }) };
+    return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: { message: 'agent(expert|region|competition|rights|sale_risk|news|macro)와 item.id/item.pbctCdtnNo가 필요합니다.' } }) };
   }
   it.id = id; it.pbctCdtnNo = cdtn;
 

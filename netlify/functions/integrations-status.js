@@ -28,7 +28,7 @@ exports.handler = async (event) => {
     { key: 'onbid', label: '온비드 물건 목록·상세·개찰결과', envs: ['ONBID_SERVICE_KEY'], stage: 'ready' },
     { key: 'naverNews', label: '뉴스·정보 에이전트', envs: ['NAVER_CLIENT_ID', 'NAVER_CLIENT_SECRET'], stage: 'ready' },
     { key: 'kakaoMap', label: '상세 페이지 실지도', envs: ['KAKAO_MAP_KEY'], stage: 'ready' },
-    { key: 'ecos', label: '거시·금리 워처 에이전트', envs: ['ECOS_API_KEY'], stage: 'pending', note: '키 설정 후 에이전트 코드 추가 필요' },
+    { key: 'ecos', label: '거시·금리 워처 에이전트', envs: ['ECOS_API_KEY'], stage: 'ready' },
     { key: 'rone', label: '시세 시나리오 밴드(부동산원 지수)', envs: ['RONE_API_KEY'], stage: 'pending', note: '활용신청 + 시세 축 코드 필요' },
   ];
 
