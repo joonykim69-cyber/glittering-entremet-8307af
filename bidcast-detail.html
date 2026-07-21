@@ -977,7 +977,11 @@ function galNav(dir){
 // AI 예보
 const lo=Math.round(it.min*1.02),hi=Math.round(it.min*1.13),rec=Math.round(it.min*1.07);
 // "내 예측 봉인"이 물건 정보·AI 구간을 자동으로 채우도록 전역에 노출(만원 단위)
-window.__ai={lo,hi,min:it.min,appr:it.appr,title:it.title};
+// 라이브 물건은 온비드 물건 id(cltrMngNo+pbctCdtnNo)도 실어, 향후 개찰 결과 자동 채점의 매칭 키로 봉인 레코드에 저장한다.
+window.__ai={lo,hi,min:it.min,appr:it.appr,title:it.title,
+  cltrMngNo:isLive?String(liveItem.id):null,
+  pbctCdtnNo:(isLive&&liveItem.pbctCdtnNo)?String(liveItem.pbctCdtnNo):null,
+  live:isLive};
 document.getElementById('aiRange').textContent=`${fmt(lo)} ~ ${fmt(hi)}`;
 document.getElementById('aiRec').textContent=fmt(rec)+'원';
 document.getElementById('aiConf').textContent=it.fail>=2?'중간':'높음';
@@ -1463,7 +1467,9 @@ function doMySeal(){
   const ai=window.__ai||{};
   let a;try{a=JSON.parse(localStorage.getItem('bidcast:mypred')||'[]');}catch(e){a=[];}
   if(!Array.isArray(a))a=[];
-  a.push({title:ai.title||it.title||'(물건)',appr:ai.appr||0,min:ai.min||0,lo,hi,aiLo:ai.lo||null,aiHi:ai.hi||null,sealedAt:new Date().toISOString()});
+  a.push({title:ai.title||it.title||'(물건)',appr:ai.appr||0,min:ai.min||0,lo,hi,aiLo:ai.lo||null,aiHi:ai.hi||null,
+    cltrMngNo:ai.cltrMngNo||null,pbctCdtnNo:ai.pbctCdtnNo||null,live:!!ai.live,
+    sealedAt:new Date().toISOString()});
   localStorage.setItem('bidcast:mypred',JSON.stringify(a));
   document.getElementById('msForm').style.display='none';document.getElementById('msDone').style.display='';
 }
