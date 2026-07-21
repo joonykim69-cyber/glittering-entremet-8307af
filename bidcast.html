@@ -368,15 +368,12 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
           <div class="gw-stat"><div class="v" id="gwVs">—</div><div class="l">나 vs AI</div></div>
         </div>
       </div>
-      <div class="gw-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><b style="font-size:15px">나의 예측</b><button class="btn btn-cta btn-sm" type="button" onclick="openSeal()">+ 새 예측 봉인</button></div>
-        <div id="gwAutoScore" style="display:none;margin-top:10px"></div>
-        <div id="gwPredList" style="margin-top:6px"></div>
+      <div class="gw-card" style="display:flex;flex-direction:column;justify-content:center;gap:11px;text-align:center">
+        <div style="font-size:28px">🔮</div>
+        <div style="font-size:15px;font-weight:800">봉인·채점·자동채점은 마이페이지에서</div>
+        <div style="font-size:12.5px;color:var(--sub);line-height:1.55">관심물건부터 예언자 여정까지 — 봉인 목록, 개찰 결과 채점, 온비드 자동 채점, 등급 로드맵을 한 곳에서 관리하세요.</div>
+        <a class="btn btn-cta btn-sm" href="bidcast-my.html#prophet" style="text-decoration:none;align-self:center">마이페이지에서 전체 관리 →</a>
       </div>
-    </div>
-    <div class="gw-card" style="margin-top:18px">
-      <b style="font-size:15px">예언자 등급 로드맵</b>
-      <div class="gw-road" id="gwRoad"></div>
     </div>
   </div>
   <div id="gwTeaser" class="gw-card">
@@ -827,14 +824,16 @@ function renderGrowth() {
   document.getElementById('gwScored').textContent = s.scored;
   document.getElementById('gwHit').textContent = s.scored ? Math.round(s.hitRate * 100) + '%' : '—';
   document.getElementById('gwVs').textContent = s.aiScored ? `${s.myBeat}승 / ${s.aiScored}` : '—';
+  // 봉인 목록·자동채점·로드맵은 마이페이지(#prophet)로 이관 — 랜딩 요약에는 해당 요소가 없으면 건너뜀
   const preds = myPreds(), list = document.getElementById('gwPredList');
-  list.innerHTML = preds.length ? preds.map((p, idx) => p).reverse().map((p) => {
-    const idx = preds.indexOf(p);
-    const tag = p.scoredAt ? (p.hit ? '<span class="gw-tag hit">적중</span>' : '<span class="gw-tag miss">빗나감</span>') : `<span class="gw-tag wait" onclick="openScore(${idx})">개찰 결과 입력</span>`;
-    const res = p.scoredAt ? ` · 낙찰 ${gwFmt(p.win)}${p.errPct != null ? ` (오차 ${p.errPct}%)` : ''}` : '';
-    return `<div class="gw-pred"><div><div class="t">${gwEsc(p.title)}</div><div class="m">내 구간 ${gwFmt(p.lo)}~${gwFmt(p.hi)}${res}</div></div>${tag}</div>`;
-  }).join('') : '<div class="gw-empty">아직 봉인한 예측이 없습니다. "+ 새 예측 봉인"으로 시작하세요.</div>';
-  // 라이브 물건(온비드 실제 id 보유) 중 미채점 봉인이 있으면 자동 채점 버튼 노출
+  if (list) {
+    list.innerHTML = preds.length ? preds.map((p, idx) => p).reverse().map((p) => {
+      const idx = preds.indexOf(p);
+      const tag = p.scoredAt ? (p.hit ? '<span class="gw-tag hit">적중</span>' : '<span class="gw-tag miss">빗나감</span>') : `<span class="gw-tag wait" onclick="openScore(${idx})">개찰 결과 입력</span>`;
+      const res = p.scoredAt ? ` · 낙찰 ${gwFmt(p.win)}${p.errPct != null ? ` (오차 ${p.errPct}%)` : ''}` : '';
+      return `<div class="gw-pred"><div><div class="t">${gwEsc(p.title)}</div><div class="m">내 구간 ${gwFmt(p.lo)}~${gwFmt(p.hi)}${res}</div></div>${tag}</div>`;
+    }).join('') : '<div class="gw-empty">아직 봉인한 예측이 없습니다.</div>';
+  }
   const asBox = document.getElementById('gwAutoScore');
   const liveUnscored = preds.filter(p => p.live && p.cltrMngNo && !p.scoredAt).length;
   if (asBox) {
@@ -845,7 +844,7 @@ function renderGrowth() {
       asBox.style.display = 'none'; asBox.innerHTML = '';
     }
   }
-  renderRoad('gwRoad');
+  renderRoad('gwRoad'); // renderRoad는 대상 없으면 return (안전)
 }
 // ═══ 온비드 개찰 결과 자동 채점 ═══
 // live:true + cltrMngNo 를 가진 미채점 봉인을 온비드 입찰결과(3자산군, 최근 90일 개찰완료)와
