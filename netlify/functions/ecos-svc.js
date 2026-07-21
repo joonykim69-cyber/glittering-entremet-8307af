@@ -16,12 +16,16 @@ const CORS = {
 };
 
 // 기본 시리즈 레지스트리 (STAT_CODE, ITEM_CODE, CYCLE). env ECOS_SERIES_<KEY>로 덮어쓰기 가능.
-// baseRate(한국은행 기준금리)는 널리 쓰이는 722Y001/0101000/M. 나머지는 실호출(?debug=1)로 검증 후 교정 대상.
+// baseRate(한국은행 기준금리) 722Y001/0101000/M — 실호출 확정(2026-07-21).
+// cd91/tb3y: 817Y002는 "시장금리(일별)"이라 월(M) 조회 시 INFO-200(데이터 없음). 월간 시장금리 표(721Y001 등)의
+//   정확한 item 코드 재확인 전까지 기본 노출에서 제외 — 필요 시 env ECOS_SERIES_CD91/TB3Y="STAT,ITEM,CYCLE"로 활성.
 const SERIES = {
   baseRate: { name: '한국은행 기준금리', stat: '722Y001', item: '0101000', cycle: 'M' },
-  cd91: { name: 'CD(91일) 금리', stat: '817Y002', item: '010502000', cycle: 'M' },
-  tb3y: { name: '국고채(3년) 금리', stat: '817Y002', item: '010200000', cycle: 'M' },
+  cd91: { name: 'CD(91일) 금리', stat: '817Y002', item: '010502000', cycle: 'D' },
+  tb3y: { name: '국고채(3년) 금리', stat: '817Y002', item: '010200000', cycle: 'D' },
 };
+// 기본 노출 시리즈(?series= 미지정 시): 실호출 확정된 것만. cd91/tb3y는 env 또는 ?series=로 opt-in.
+const DEFAULT_SERIES = (process.env.ECOS_DEFAULT_SERIES || 'baseRate').split(',').map(s => s.trim()).filter(Boolean);
 
 function seriesDef(key) {
   const ov = process.env[`ECOS_SERIES_${key.toUpperCase()}`];
@@ -92,7 +96,7 @@ exports.handler = async (event) => {
   }
   const qs = event.queryStringParameters || {};
   const debug = !!qs.debug;
-  const want = qs.series ? String(qs.series).split(',').map(s => s.trim()).filter(Boolean) : Object.keys(SERIES);
+  const want = qs.series ? String(qs.series).split(',').map(s => s.trim()).filter(Boolean) : DEFAULT_SERIES;
 
   try {
     const out = await Promise.all(want.map(k => fetchSeries(k, apiKey, debug)));
