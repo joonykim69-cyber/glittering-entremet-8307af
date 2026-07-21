@@ -1107,27 +1107,45 @@ document.getElementById('mapAddrBar').textContent=it.address||'—';
     });
     return sdkLoading;
   }
+  function render(result){
+    const el=document.getElementById('locMap'); if(!el) return;
+    const coords=new kakao.maps.LatLng(result.y,result.x);
+    if(!mapObj){
+      const mock=document.getElementById('locPinMock'); if(mock) mock.remove();
+      el.innerHTML=''; el.style.background='none';
+      mapObj=new kakao.maps.Map(el,{center:coords,level:3});
+      mapMarker=new kakao.maps.Marker({map:mapObj,position:coords});
+      console.log('[map] 실지도 렌더 완료');
+    }else{ mapObj.setCenter(coords); mapMarker.setPosition(coords); }
+  }
+  // 주소 후보: 원주소 → 호·층 제거 → 동/읍/면까지 (정밀도 낮춰가며 재시도)
+  function candidates(addr){
+    const s=String(addr).trim();
+    const noUnit=s.replace(/\s*(지하)?\s*\d+\s*(층|호)(?!\S).*$/,'').trim();
+    const dong=(s.match(/^(.*?[가-힣]+(?:동|읍|면|리))(?=\s|\d|$)/)||[])[1];
+    return [...new Set([s,noUnit,dong].filter(Boolean))];
+  }
   function place(addr){
     if(!addr||!window.kakao||!kakao.maps.services) return;
-    new kakao.maps.services.Geocoder().addressSearch(String(addr).trim(),(result,status)=>{
-      if(status!==kakao.maps.services.Status.OK||!result[0]) return; // 실패 시 현재 상태 유지
-      const el=document.getElementById('locMap'); if(!el) return;
-      const coords=new kakao.maps.LatLng(result[0].y,result[0].x);
-      if(!mapObj){
-        const mock=document.getElementById('locPinMock'); if(mock) mock.remove();
-        el.innerHTML=''; el.style.background='none';
-        mapObj=new kakao.maps.Map(el,{center:coords,level:3});
-        mapMarker=new kakao.maps.Marker({map:mapObj,position:coords});
-      }else{ mapObj.setCenter(coords); mapMarker.setPosition(coords); }
-    });
+    const geocoder=new kakao.maps.services.Geocoder();
+    const tries=candidates(addr);
+    (function attempt(i){
+      if(i>=tries.length){ console.warn('[map] 지오코딩 실패(모든 후보) → 목업 유지', tries); return; }
+      geocoder.addressSearch(tries[i],(result,status)=>{
+        if(status===kakao.maps.services.Status.OK&&result[0]){ render(result[0]); }
+        else { console.log('[map] 지오코딩 재시도', tries[i], 'status=', status); attempt(i+1); }
+      });
+    })(0);
   }
   // 상세 API가 정확한 번지 주소를 확보하면 재센터할 수 있게 노출
   window.__setMapAddr=function(addr){ if(mapObj&&addr) place(addr); };
   (async()=>{
-    const addr0=it.address; if(!addr0) return;
-    let cfg; try{ cfg=await fetch('/.netlify/functions/map-config').then(r=>r.json()); }catch(e){ return; }
-    if(!cfg||!cfg.kakaoKey) return; // 키 없음 → 목업 유지
-    try{ await loadSdk(cfg.kakaoKey); }catch(e){ return; }
+    const addr0=it.address; if(!addr0){ console.warn('[map] 주소 없음 → 목업 유지'); return; }
+    let cfg; try{ cfg=await fetch('/.netlify/functions/map-config').then(r=>r.json()); }catch(e){ console.warn('[map] map-config 조회 실패', e); return; }
+    if(!cfg||!cfg.kakaoKey){ console.warn('[map] KAKAO_MAP_KEY 없음(map-config 빈 값) → 목업 유지'); return; }
+    console.log('[map] 카카오 키 확보, SDK 로드 시도');
+    try{ await loadSdk(cfg.kakaoKey); }catch(e){ console.warn('[map] 카카오 SDK 로드 실패(도메인 미등록/키 오류 가능) → 목업 유지', e); return; }
+    console.log('[map] SDK 로드 완료, 지오코딩:', addr0);
     place(addr0);
   })();
 })();
