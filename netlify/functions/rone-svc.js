@@ -66,6 +66,8 @@ exports.handler = async (event) => {
     const params = new URLSearchParams({ KEY: apiKey, Type: 'json', pIndex: '1', pSize: qs.pSize || '500', STATBL_ID: statbl, DTACYCLE_CD: cycle, START_WRTTIME: startT, END_WRTTIME: endT });
     const itm = qs.itm || process.env.RONE_ITM_ID; if (itm) params.set('ITM_ID', itm);
     const cls = qs.cls || process.env.RONE_CLS_ID; if (cls) params.set('CLS_ID', cls);
+    // GRP_ID: 지역 차원(예 GRP_NM "동구"/"전국"). 다차원 표(지역×용도)를 하나로 좁히는 핵심 필터.
+    const grp = qs.grp || process.env.RONE_GRP_ID; if (grp) params.set('GRP_ID', grp);
     const url = `${BASE}/SttsApiTblData.do?${params.toString()}`;
 
     const r = await fetch(url); const t = await r.text();
@@ -77,7 +79,7 @@ exports.handler = async (event) => {
     const rawRows = extractRows(raw, 'SttsApiTblData');
     // 분류 키: 시점/값 외의 *_ID·*_NM 필드 조합(다차원 테이블에서 하나의 시계열을 식별)
     const clsKeyOf = x => Object.keys(x).filter(k => /(_ID|_NM|_FULLNM)$/.test(k) && !/WRTTIME/.test(k) && k !== 'STATBL_ID' && k !== 'DTACYCLE_CD').sort().map(k => `${k}=${x[k]}`).join('|');
-    const clsLabelOf = x => Object.keys(x).filter(k => /_NM$/.test(k) && !/WRTTIME/.test(k)).map(k => x[k]).filter(Boolean).join(' · ');
+    const clsLabelOf = x => Object.keys(x).filter(k => /_NM$/.test(k) && !/WRTTIME/.test(k) && k !== 'UI_NM').map(k => x[k]).filter(Boolean).join(' · ');
     const all = rawRows
       .map(x => ({ time: String(x.WRTTIME_IDTFR_ID || x.WRTTIME_DESC || ''), value: num(x.DTA_VAL), key: clsKeyOf(x), label: clsLabelOf(x), unit: x.UI_NM || '' }))
       .filter(x => x.time && x.value != null);
@@ -89,8 +91,8 @@ exports.handler = async (event) => {
     // 분류(시계열)별 그룹핑
     const groups = new Map();
     for (const x of all) { if (!groups.has(x.key)) groups.set(x.key, { key: x.key, label: x.label, unit: x.unit, rows: [] }); groups.get(x.key).rows.push(x); }
-    // 다차원인데 CLS/ITM 필터가 없으면 어떤 시계열을 쓸지 모호 → multi로 반환(사용자/코드가 필터 선택)
-    if (groups.size > 1 && !cls && !itm) {
+    // 다차원인데 필터가 없어 시계열이 여럿이면 모호 → multi로 반환(사용자/코드가 GRP/CLS/ITM 지정)
+    if (groups.size > 1 && !cls && !itm && !grp) {
       const list = [...groups.values()].map(g => ({ label: g.label, points: g.rows.length })).slice(0, 30);
       return {
         statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' },
