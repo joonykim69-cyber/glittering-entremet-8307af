@@ -985,6 +985,7 @@ const lo=Math.round(it.min*1.02),hi=Math.round(it.min*1.13),rec=Math.round(it.mi
 window.__ai={lo,hi,min:it.min,appr:it.appr,title:it.title,
   cltrMngNo:isLive?String(liveItem.id):null,
   pbctCdtnNo:(isLive&&liveItem.pbctCdtnNo)?String(liveItem.pbctCdtnNo):null,
+  bidEnd:isLive?((liveItem&&liveItem.bidEnd)||it.bidEnd||''):'',
   live:isLive};
 document.getElementById('aiRange').textContent=`${fmt(lo)} ~ ${fmt(hi)}`;
 document.getElementById('aiRec').textContent=fmt(rec)+'원';
@@ -1503,7 +1504,7 @@ function doMySeal(){
   let a;try{a=JSON.parse(localStorage.getItem('bidcast:mypred')||'[]');}catch(e){a=[];}
   if(!Array.isArray(a))a=[];
   a.push({title:ai.title||it.title||'(물건)',appr:ai.appr||0,min:ai.min||0,lo,hi,aiLo:ai.lo||null,aiHi:ai.hi||null,
-    cltrMngNo:ai.cltrMngNo||null,pbctCdtnNo:ai.pbctCdtnNo||null,live:!!ai.live,
+    cltrMngNo:ai.cltrMngNo||null,pbctCdtnNo:ai.pbctCdtnNo||null,bidEnd:ai.live?(ai.bidEnd||''):'',live:!!ai.live,
     sealedAt:new Date().toISOString()});
   localStorage.setItem('bidcast:mypred',JSON.stringify(a));
   document.getElementById('msForm').style.display='none';document.getElementById('msDone').style.display='';
