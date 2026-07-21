@@ -404,7 +404,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
       <div style="font-size:40px;margin-bottom:8px">🔒</div>
       <div style="font-size:16px;font-weight:900;margin-bottom:6px">예측이 봉인되었습니다</div>
       <p style="font-size:13px;color:var(--sub);line-height:1.5;margin-bottom:16px">개찰 후 랜딩의 <b>"나의 예언자 여정"</b>에서 실제 낙찰가를 입력하면 채점되고, 예언자 등급이 오릅니다.</p>
-      <a class="rp-cta-g" href="bidcast.html#growth" style="display:inline-block">나의 예언자 여정 보기 →</a>
+      <a class="rp-cta-g" href="bidcast-my.html#prophet" style="display:inline-block">나의 예언자 여정 보기 →</a>
     </div>
   </div>
 </div>
@@ -1562,7 +1562,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&authOverlay.classLi
     var el = navEl(); if (!el) return;
     var g = grade(), c = GC[g - 1];
     el.innerHTML = '<span class="nav-user" style="background:#fff;border:1px solid ' + c + '55;color:' + c + ';cursor:pointer" '
-      + 'onclick="location.href=\'bidcast.html#growth\'" title="나의 예언자 여정">'
+      + 'onclick="location.href=\'bidcast-my.html#prophet\'" title="나의 예언자 여정">'
       + '<span class="dot" style="width:8px;height:8px;border-radius:50%;background:' + c + ';box-shadow:0 0 7px ' + c + 'b0"></span>'
       + esc(n) + ' · ' + GN[g - 1]
       + ' <button type="button" onclick="event.stopPropagation();__bcLogout()">로그아웃</button></span>';

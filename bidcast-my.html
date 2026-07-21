@@ -178,6 +178,43 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
 .logo-mark .tl.r { background:#FF5F63; box-shadow:0 0 .32em rgba(255,95,99,.95); }
 .logo-mark .tl.y { background:#FFC24B; box-shadow:0 0 .32em rgba(255,194,75,.95); }
 .logo-mark .tl.g { background:#00E08F; box-shadow:0 0 .38em rgba(0,224,143,1); }
+/* ═══ 예언자 여정 대시보드 (랜딩 #growth 이식, bidcast:mypred) ═══ */
+.gw-label{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:800;color:var(--sub);background:#fff;border:1px solid var(--line);padding:6px 13px;border-radius:999px;margin-bottom:16px}
+.gw-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:18px}
+@media(max-width:820px){.gw-grid{grid-template-columns:1fr}}
+.gw-card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px}
+.gw-badge{display:flex;align-items:center;gap:16px}
+.gw-medal{width:66px;height:66px;border-radius:50%;display:grid;place-items:center;font-size:30px;color:#fff;flex-shrink:0;box-shadow:0 6px 18px rgba(0,0,0,.16)}
+.gw-gname{font-size:20px;font-weight:900;letter-spacing:-.02em}
+.gw-gsub{font-size:12.5px;color:var(--sub);margin-top:2px}
+.gw-prog{margin-top:16px}
+.gw-prog-bar{height:10px;background:#EEF3F0;border-radius:999px;overflow:hidden}
+.gw-prog-fill{height:100%;border-radius:999px;transition:width .6s var(--ease)}
+.gw-prog-txt{font-size:12px;color:var(--sub);margin-top:7px}
+.gw-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:16px}
+.gw-stat{background:var(--bg);border-radius:12px;padding:13px 14px}
+.gw-stat .v{font-size:22px;font-weight:900}
+.gw-stat .l{font-size:11.5px;color:var(--sub);margin-top:2px}
+.gw-pred{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:9px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.gw-pred .t{font-size:13.5px;font-weight:700}
+.gw-pred .m{font-size:11.5px;color:var(--sub);margin-top:3px}
+.gw-tag{font-size:11px;font-weight:800;padding:5px 10px;border-radius:999px;white-space:nowrap;border:none;cursor:default}
+.gw-tag.hit{background:#DEF7EC;color:#03543F}.gw-tag.miss{background:#FDE8E8;color:#9B1C1C}
+.gw-tag.wait{background:var(--yellow-soft);color:#8A6100;cursor:pointer}
+.gw-empty{font-size:13px;color:var(--mute);text-align:center;padding:22px 0}
+.gw-road{display:flex;gap:6px;margin-top:12px}
+.gw-step{flex:1;text-align:center}
+.gw-step .c{height:9px;border-radius:999px;margin-bottom:7px;opacity:.3}
+.gw-step.on .c{opacity:1}
+.gw-step .n{font-size:10.5px;font-weight:800;color:var(--mute);line-height:1.3}
+.gw-step.on .n{color:var(--ink)}
+.gw-cta{background:var(--grad);color:#fff;border:none;cursor:pointer;font:inherit;font-size:13px;font-weight:800;padding:8px 15px;border-radius:999px}
+.mp-field{margin-top:13px}
+.mp-field label{display:block;font-size:12.5px;font-weight:700;margin-bottom:5px}
+.mp-field input{width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;font:inherit;font-size:14px;box-sizing:border-box}
+.mp-field input:focus{outline:none;border-color:var(--green)}
+.mp-row{display:flex;gap:10px}.mp-row>div{flex:1}
+.mp-hint{font-size:11.5px;color:var(--mute);margin-top:5px}
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Nunito:wght@700;800;900&family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap">
 <style>
@@ -240,6 +277,38 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 </header>
 
 <main class="wrap list-pad">
+
+  <!-- 🔮 나의 예언자 여정 — bidcast:mypred 기반 개인 대시보드 (랜딩 #growth 이식·일원화) -->
+  <section class="section" id="prophet" aria-labelledby="secProphet">
+    <div class="section-head">
+      <h2 id="secProphet">🔮 나의 예언자 여정</h2>
+      <span class="demo-chip" style="margin:0">내가 고른 물건 · 나의 연습 기록 — 엔진 공식 성적표와 별개</span>
+    </div>
+    <div class="gw-grid">
+      <div class="gw-card">
+        <div class="gw-badge">
+          <div class="gw-medal" id="gwMedal">🌱</div>
+          <div><div class="gw-gname" id="gwName">—</div><div class="gw-gsub" id="gwSub">—</div></div>
+        </div>
+        <div class="gw-prog"><div class="gw-prog-bar"><div class="gw-prog-fill" id="gwFill" style="width:0%"></div></div><div class="gw-prog-txt" id="gwNext">—</div></div>
+        <div class="gw-stats">
+          <div class="gw-stat"><div class="v" id="gwSealed">0</div><div class="l">봉인한 예측</div></div>
+          <div class="gw-stat"><div class="v" id="gwScored">0</div><div class="l">채점 완료</div></div>
+          <div class="gw-stat"><div class="v" id="gwHit">—</div><div class="l">나의 적중률</div></div>
+          <div class="gw-stat"><div class="v" id="gwVs">—</div><div class="l">나 vs AI</div></div>
+        </div>
+      </div>
+      <div class="gw-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><b style="font-size:15px">나의 예측</b><button class="gw-cta" type="button" onclick="openSeal()">+ 새 예측 봉인</button></div>
+        <div id="gwAutoScore" style="display:none;margin-top:10px"></div>
+        <div id="gwPredList" style="margin-top:6px"></div>
+      </div>
+    </div>
+    <div class="gw-card" style="margin-top:18px">
+      <b style="font-size:15px">예언자 등급 로드맵</b>
+      <div class="gw-road" id="gwRoad"></div>
+    </div>
+  </section>
 
   <!-- 나의 성장 — 시뮬레이터 나 vs AI 채점 기록 기반 (localStorage bidcast:myscore) -->
   <section class="section" aria-labelledby="secGrowth">
@@ -329,6 +398,39 @@ h1,h2,h3,h4{font-family:var(--font-head)}
   </div>
 </footer>
 
+<!-- 예언자 여정 — 새 예측 봉인 / 개찰 채점 모달 (랜딩 #growth 이식) -->
+<div class="auth-overlay" id="sealOverlay" role="dialog" aria-modal="true">
+  <div class="auth-modal">
+    <button type="button" onclick="closeSeal()" aria-label="닫기" style="position:absolute;top:16px;right:16px;background:var(--bg);border:1px solid var(--line);color:var(--sub);cursor:pointer;width:34px;height:34px;border-radius:50%;font-size:15px;line-height:1">×</button>
+    <div id="sealPanel">
+      <h3 style="font-family:var(--font-head);font-size:20px;font-weight:900;margin-bottom:2px">새 예측 봉인</h3>
+      <p style="font-size:13px;color:var(--sub);line-height:1.5;margin-bottom:4px">관심 물건에 대한 <b>나의 예상 낙찰가 구간</b>을 개찰 전에 봉인합니다.</p>
+      <div class="mp-field"><label>물건명</label><input id="spTitle" type="text" placeholder="예: 평택 장당동 근린생활시설" maxlength="60"></div>
+      <div class="mp-row">
+        <div class="mp-field"><label>감정가(만원)</label><input id="spAppr" type="number" min="0" placeholder="26000"></div>
+        <div class="mp-field"><label>최저입찰가(만원)</label><input id="spMin" type="number" min="0" placeholder="37325"></div>
+      </div>
+      <div class="mp-row">
+        <div class="mp-field"><label>내 예상 하한(만원)</label><input id="spLo" type="number" min="0" placeholder="34000"></div>
+        <div class="mp-field"><label>내 예상 상한(만원)</label><input id="spHi" type="number" min="0" placeholder="40000"></div>
+      </div>
+      <div class="mp-row">
+        <div class="mp-field"><label>AI 예측 하한(만원, 선택)</label><input id="spAiLo" type="number" min="0" placeholder="상세 페이지 값 복사"></div>
+        <div class="mp-field"><label>AI 예측 상한(만원, 선택)</label><input id="spAiHi" type="number" min="0"></div>
+      </div>
+      <p class="mp-hint">AI 구간을 함께 넣으면 개찰 후 "나 vs AI"로 비교됩니다. 개찰 전에 봉인하면 사후에 고칠 수 없습니다 — 이게 정직한 연습의 핵심입니다.</p>
+      <button class="gw-cta" style="width:100%;margin-top:16px" type="button" onclick="doSeal()">봉인하기</button>
+    </div>
+    <div id="scorePanel" style="display:none">
+      <h3 style="font-family:var(--font-head);font-size:20px;font-weight:900;margin-bottom:2px">개찰 결과 입력 · 채점</h3>
+      <p style="font-size:13px;color:var(--sub);line-height:1.5;margin-bottom:4px" id="scoreItemName">—</p>
+      <div class="mp-field"><label>실제 낙찰가(만원)</label><input id="scWin" type="number" min="0" placeholder="35800"></div>
+      <p class="mp-hint">온비드 개찰 결과의 낙찰가를 입력하면, 내 예측 구간 적중 여부와 오차가 채점됩니다.</p>
+      <button class="gw-cta" style="width:100%;margin-top:16px" type="button" onclick="doScore()">채점하기</button>
+    </div>
+  </div>
+</div>
+
 <!-- 내 예측 봉인 모달 (예언자 등급 트랙 — 랜딩/상세와 동일한 bidcast:mypred 구조로 저장) -->
 <div class="auth-overlay" id="mySealOverlay" role="dialog" aria-modal="true">
   <div class="auth-modal">
@@ -348,7 +450,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
       <div style="font-size:40px;margin-bottom:8px">🔒</div>
       <div style="font-size:16px;font-weight:900;margin-bottom:6px">예측이 봉인되었습니다</div>
       <p style="font-size:13px;color:var(--sub);line-height:1.5;margin-bottom:16px">개찰 후 랜딩의 <b>"나의 예언자 여정"</b>에서 실제 낙찰가를 입력하면 채점되고, 예언자 등급이 오릅니다.</p>
-      <a href="bidcast.html#growth" style="display:inline-block;padding:11px 20px;border-radius:12px;background:var(--grad);color:#fff;font-weight:800;text-decoration:none">나의 예언자 여정 보기 →</a>
+      <a href="bidcast-my.html#prophet" style="display:inline-block;padding:11px 20px;border-radius:12px;background:var(--grad);color:#fff;font-weight:800;text-decoration:none">나의 예언자 여정 보기 →</a>
     </div>
   </div>
 </div>
@@ -397,7 +499,7 @@ function cardHTML(id, s, extra) {
       <div class="p">최저 ${fmt(s.min)}원</div>
       ${extra.when ? `<div class="when">${extra.when} 조회</div>` : ''}
       ${extra.seal ? (isSealed(id)
-        ? `<a class="my-seal-btn done" href="bidcast.html#growth">🔒 봉인됨 · 여정 보기</a>`
+        ? `<a class="my-seal-btn done" href="bidcast-my.html#prophet">🔒 봉인됨 · 여정 보기</a>`
         : `<button type="button" class="my-seal-btn" onclick="openMySeal('${id}')">🔮 내 예측 봉인</button>`) : ''}
     </div>
   </div>`;
@@ -408,6 +510,160 @@ function cardHTML(id, s, extra) {
 // 랜딩/상세 페이지와 동일한 저장 구조를 사용해 랜딩 "나의 예언자 여정"에 자동 반영.
 // ═══════════════════════════════════════
 function myPreds() { try { const a = JSON.parse(localStorage.getItem('bidcast:mypred') || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+
+// ═══════════════════════════════════════
+// 🔮 예언자 여정 대시보드 (랜딩 #growth 이식 — bidcast:mypred). renderGrowth→renderProphet(이름 충돌 회피),
+// nav 배지는 공용 배지 스크립트가 담당하므로 updateNavGrade 호출은 제거.
+// ═══════════════════════════════════════
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+function gwFmt(m) { m = Number(m) || 0; return m >= 10000 ? (m / 10000).toFixed(m % 10000 ? 1 : 0) + '억' : m.toLocaleString() + '만'; }
+function gwEsc(s) { return String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c])); }
+const GRADES = [
+  { n: 1, name: '이드몬', en: 'Idmon', color: '#E5484D', desc: '갓 예언을 시작한 아르고호의 젊은 예언자' },
+  { n: 2, name: '몹소스', en: 'Mopsus', color: '#F2777A', desc: '이드몬을 이은 예언자' },
+  { n: 3, name: '칼카스', en: 'Calchas', color: '#EB763C', desc: '그리스군 종군 예언자' },
+  { n: 4, name: '테이레시아스', en: 'Tiresias', color: '#F5A623', desc: '테베의 눈먼 대예언자' },
+  { n: 5, name: '피티아', en: 'Pythia', color: '#5CC98D', desc: '델포이 아폴론 신탁의 무녀' },
+  { n: 6, name: '아폴론', en: 'Apollon', color: '#00A86B', desc: '예언의 신, 최고 등급' },
+];
+function myStats() {
+  const a = myPreds(), sc = a.filter(p => p.scoredAt), hits = sc.filter(p => p.hit).length;
+  const aiSc = sc.filter(p => p.aiHit != null), myBeat = aiSc.filter(p => p.hit && !p.aiHit).length;
+  return { sealed: a.length, scored: sc.length, hits, hitRate: sc.length ? hits / sc.length : 0, aiScored: aiSc.length, myBeat };
+}
+function myGrade() {
+  const s = myStats();
+  if (s.scored >= 100 && s.hitRate >= 0.65) return 6;
+  if (s.scored >= 60 && s.hitRate >= 0.55) return 5;
+  if (s.scored >= 30 && s.hitRate >= 0.40) return 4;
+  if (s.scored >= 10) return 3;
+  if (s.sealed >= 1) return 2;
+  return 1;
+}
+function nextGoal() {
+  const s = myStats(), g = myGrade();
+  if (g >= 6) return { pct: 100, txt: '최고 등급 아폴론 달성 — 예언의 신' };
+  if (g === 1) return { pct: 0, txt: '첫 예측을 봉인하면 몹소스로 승급' };
+  const reqs = { 3: { sc: 10 }, 4: { sc: 30, h: .40 }, 5: { sc: 60, h: .55 }, 6: { sc: 100, h: .65 } };
+  const r = reqs[g + 1], need = r.sc - s.scored, pct = Math.min(100, Math.round(s.scored / r.sc * 100));
+  let txt;
+  if (need > 0) txt = `다음 등급까지 채점 ${need}건 더`;
+  else if (r.h && s.hitRate < r.h) txt = `채점 수 충족 — 적중률 ${Math.round(r.h * 100)}% 이상 필요 (현재 ${Math.round(s.hitRate * 100)}%)`;
+  else txt = '승급 조건 충족! 다음 봉인·채점 시 승급';
+  return { pct, txt };
+}
+function renderRoad(elId) {
+  const g = myGrade(), el = document.getElementById(elId); if (!el) return;
+  el.innerHTML = GRADES.map(x => `<div class="gw-step ${x.n <= g ? 'on' : ''}"><div class="c" style="background:${x.color}"></div><div class="n">${x.n}. ${x.name}</div></div>`).join('');
+}
+function renderProphet() {
+  const g = GRADES[myGrade() - 1], s = myStats();
+  const medal = document.getElementById('gwMedal'); if (!medal) return;
+  medal.textContent = g.n >= 5 ? '🔮' : g.n >= 3 ? '✨' : '🌱';
+  medal.style.background = g.color;
+  document.getElementById('gwName').textContent = `${g.n}등급 · ${g.name}`;
+  document.getElementById('gwSub').textContent = `${g.en} — ${g.desc}`;
+  const ng = nextGoal();
+  const fill = document.getElementById('gwFill');
+  fill.style.width = ng.pct + '%'; fill.style.background = g.color;
+  document.getElementById('gwNext').textContent = ng.txt;
+  document.getElementById('gwSealed').textContent = s.sealed;
+  document.getElementById('gwScored').textContent = s.scored;
+  document.getElementById('gwHit').textContent = s.scored ? Math.round(s.hitRate * 100) + '%' : '—';
+  document.getElementById('gwVs').textContent = s.aiScored ? `${s.myBeat}승 / ${s.aiScored}` : '—';
+  const preds = myPreds(), list = document.getElementById('gwPredList');
+  list.innerHTML = preds.length ? preds.map(p => p).reverse().map(p => {
+    const idx = preds.indexOf(p);
+    const tag = p.scoredAt ? (p.hit ? '<span class="gw-tag hit">적중</span>' : '<span class="gw-tag miss">빗나감</span>') : `<span class="gw-tag wait" onclick="openScore(${idx})">개찰 결과 입력</span>`;
+    const res = p.scoredAt ? ` · 낙찰 ${gwFmt(p.win)}${p.errPct != null ? ` (오차 ${p.errPct}%)` : ''}` : '';
+    return `<div class="gw-pred"><div><div class="t">${gwEsc(p.title)}</div><div class="m">내 구간 ${gwFmt(p.lo)}~${gwFmt(p.hi)}${res}</div></div>${tag}</div>`;
+  }).join('') : '<div class="gw-empty">아직 봉인한 예측이 없습니다. "+ 새 예측 봉인" 또는 관심물건에서 봉인해 보세요.</div>';
+  const asBox = document.getElementById('gwAutoScore');
+  const liveUnscored = preds.filter(p => p.live && p.cltrMngNo && !p.scoredAt).length;
+  if (asBox) {
+    if (liveUnscored > 0) {
+      asBox.style.display = '';
+      asBox.innerHTML = `<button class="gw-cta" type="button" id="gwAutoBtn" onclick="autoScoreLive()" style="width:100%;background:var(--green-soft);color:var(--green-deep);border:1px solid #C4EBD8">🎯 온비드 개찰 결과로 자동 채점 (라이브 봉인 ${liveUnscored}건)</button><div id="gwAutoMsg" style="font-size:11.5px;color:var(--mute);margin-top:5px"></div>`;
+    } else { asBox.style.display = 'none'; asBox.innerHTML = ''; }
+  }
+  renderRoad('gwRoad');
+}
+let autoScoring = false;
+async function autoScoreLive() {
+  if (autoScoring) return;
+  const a = myPreds();
+  const targets = a.filter(p => p.live && p.cltrMngNo && !p.scoredAt);
+  if (!targets.length) return;
+  autoScoring = true;
+  const btn = document.getElementById('gwAutoBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '온비드 개찰 결과 조회 중…'; }
+  try {
+    const types = ['0001', '0002', '0003'];
+    const rs = await Promise.allSettled(types.map(t => fetch(`/.netlify/functions/onbid-bidresults?cltrTypeCd=${t}&numOfRows=100`).then(r => r.ok ? r.json() : null)));
+    const byId = new Map();
+    for (const x of rs) {
+      if (x.status !== 'fulfilled' || !x.value || !Array.isArray(x.value.results)) continue;
+      for (const row of x.value.results) { if (!row.id) continue; byId.set(String(row.id), row); if (row.pbctCdtnNo) byId.set(`${row.id}_${row.pbctCdtnNo}`, row); }
+    }
+    let scored = 0, waiting = 0;
+    for (const p of targets) {
+      const row = (p.pbctCdtnNo && byId.get(`${p.cltrMngNo}_${p.pbctCdtnNo}`)) || byId.get(String(p.cltrMngNo));
+      if (!row) { waiting++; continue; }
+      if (row.statCd !== '0010' || !(row.winAmt > 0)) { waiting++; continue; }
+      const win = Math.round(row.winAmt / 10000);
+      if (!(win > 0)) { waiting++; continue; }
+      p.win = win; p.hit = (win >= p.lo && win <= p.hi);
+      p.errPct = Math.round(Math.abs(win - (p.lo + p.hi) / 2) / win * 1000) / 10;
+      if (p.aiLo > 0 && p.aiHi > 0) p.aiHit = (win >= p.aiLo && win <= p.aiHi);
+      p.scoredAt = new Date().toISOString(); p.autoScored = true; scored++;
+    }
+    lsSet('bidcast:mypred', a);
+    renderProphet();
+    const m = document.getElementById('gwAutoMsg');
+    if (m) m.textContent = scored ? `✅ ${scored}건 자동 채점 완료${waiting ? ` · ${waiting}건은 아직 개찰 전이거나 낙찰가 미확인(수동 입력 가능)` : ''}` : '개찰 완료된 라이브 봉인을 찾지 못했습니다 — 아직 개찰 전이거나 최근 90일 밖일 수 있어요.';
+  } catch (e) {
+    const m = document.getElementById('gwAutoMsg'); if (m) m.textContent = '온비드 개찰 결과 조회에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+  } finally { autoScoring = false; const b = document.getElementById('gwAutoBtn'); if (b) b.disabled = false; }
+}
+let scoreIdx = -1;
+function gwOpen(id) { const o = document.getElementById(id); o.classList.add('open'); requestAnimationFrame(() => o.classList.add('vis')); document.body.style.overflow = 'hidden'; }
+function gwClose(id) { const o = document.getElementById(id); o.classList.remove('vis'); document.body.style.overflow = ''; setTimeout(() => o.classList.remove('open'), 250); }
+function openSeal() {
+  document.getElementById('sealPanel').style.display = ''; document.getElementById('scorePanel').style.display = 'none';
+  ['spTitle', 'spAppr', 'spMin', 'spLo', 'spHi', 'spAiLo', 'spAiHi'].forEach(id => document.getElementById(id).value = '');
+  gwOpen('sealOverlay');
+}
+function closeSeal() { gwClose('sealOverlay'); }
+function doSeal() {
+  const t = document.getElementById('spTitle').value.trim();
+  const lo = Number(document.getElementById('spLo').value), hi = Number(document.getElementById('spHi').value);
+  if (!t) { alert('물건명을 입력하세요.'); return; }
+  if (!(lo > 0) || !(hi > 0) || hi < lo) { alert('예상 구간을 올바르게 입력하세요 (하한 ≤ 상한).'); return; }
+  const aiLo = Number(document.getElementById('spAiLo').value) || 0, aiHi = Number(document.getElementById('spAiHi').value) || 0;
+  const a = myPreds();
+  a.push({ title: t, appr: Number(document.getElementById('spAppr').value) || 0, min: Number(document.getElementById('spMin').value) || 0, lo, hi, aiLo: aiLo > 0 ? aiLo : null, aiHi: aiHi > 0 ? aiHi : null, cltrMngNo: null, pbctCdtnNo: null, live: false, sealedAt: new Date().toISOString() });
+  lsSet('bidcast:mypred', a);
+  closeSeal(); renderProphet();
+}
+function openScore(idx) {
+  scoreIdx = idx; const p = myPreds()[idx]; if (!p) return;
+  document.getElementById('scoreItemName').textContent = `${p.title} — 내 구간 ${gwFmt(p.lo)}~${gwFmt(p.hi)}`;
+  document.getElementById('scWin').value = '';
+  document.getElementById('sealPanel').style.display = 'none'; document.getElementById('scorePanel').style.display = '';
+  gwOpen('sealOverlay');
+}
+function doScore() {
+  const win = Number(document.getElementById('scWin').value);
+  if (!(win > 0)) { alert('실제 낙찰가를 입력하세요.'); return; }
+  const a = myPreds(), p = a[scoreIdx]; if (!p) return;
+  p.win = win; p.hit = (win >= p.lo && win <= p.hi);
+  p.errPct = Math.round(Math.abs(win - (p.lo + p.hi) / 2) / win * 1000) / 10;
+  if (p.aiLo > 0 && p.aiHi > 0) p.aiHit = (win >= p.aiLo && win <= p.aiHi);
+  p.scoredAt = new Date().toISOString();
+  lsSet('bidcast:mypred', a);
+  closeSeal(); renderProphet();
+}
+document.getElementById('sealOverlay').addEventListener('click', e => { if (e.target.id === 'sealOverlay') closeSeal(); });
 // 라이브 관심물건 스냅샷(리스트/상세에서 좋아요 시 저장) — 데모 SUMMARY와 함께 관심물건 렌더
 function likeSnaps() { try { const m = JSON.parse(localStorage.getItem('bidcast:likesnap') || '{}'); return m && typeof m === 'object' ? m : {}; } catch (e) { return {}; } }
 function itemInfo(id) { return SUMMARY[id] || likeSnaps()[String(id)] || null; }
@@ -439,7 +695,7 @@ function doMySeal() {
     live: !!s.live, sealedAt: new Date().toISOString() });
   localStorage.setItem('bidcast:mypred', JSON.stringify(a));
   document.getElementById('msForm').style.display = 'none'; document.getElementById('msDone').style.display = '';
-  renderLikes();
+  renderLikes(); renderProphet();
 }
 document.getElementById('mySealOverlay').addEventListener('click', e => { if (e.target.id === 'mySealOverlay') closeMySeal(); });
 
@@ -559,6 +815,7 @@ function renderRecommendations() {
     </div>`).join('')}</div>`;
 }
 
+renderProphet();
 renderLikes();
 renderRecommendations();
 renderRecent();
@@ -688,7 +945,7 @@ document.addEventListener('keydown', (e) => {
     var el = navEl(); if (!el) return;
     var g = grade(), c = GC[g - 1];
     el.innerHTML = '<span class="nav-user" style="background:#fff;border:1px solid ' + c + '55;color:' + c + ';cursor:pointer" '
-      + 'onclick="location.href=\'bidcast.html#growth\'" title="나의 예언자 여정">'
+      + 'onclick="location.href=\'bidcast-my.html#prophet\'" title="나의 예언자 여정">'
       + '<span class="dot" style="width:8px;height:8px;border-radius:50%;background:' + c + ';box-shadow:0 0 7px ' + c + 'b0"></span>'
       + esc(n) + ' · ' + GN[g - 1]
       + ' <button type="button" onclick="event.stopPropagation();__bcLogout()">로그아웃</button></span>';
