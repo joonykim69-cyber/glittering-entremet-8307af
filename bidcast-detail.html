@@ -1448,7 +1448,8 @@ function saveLikeSnapDetail(){
     const m=JSON.parse(localStorage.getItem('bidcast:likesnap')||'{}');
     m[String(storageId)]={id:String(storageId),title:it.title||'',min:it.min||0,appr:it.appr||0,
       type:it.type||'',court:it.court||liveItem.org||'',status:it.status||'진행',thumb:it.thumb||'📦',
-      live:true,cltrMngNo:String(liveItem.id),pbctCdtnNo:liveItem.pbctCdtnNo!=null?String(liveItem.pbctCdtnNo):''};
+      live:true,cltrMngNo:String(liveItem.id),pbctCdtnNo:liveItem.pbctCdtnNo!=null?String(liveItem.pbctCdtnNo):'',
+      bidEnd:liveItem.bidEnd||it.bidEnd||''};
     localStorage.setItem('bidcast:likesnap',JSON.stringify(m));
   }catch(e){}
 }

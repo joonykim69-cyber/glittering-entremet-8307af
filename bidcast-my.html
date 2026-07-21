@@ -503,6 +503,22 @@ const ago = ts => {
   return `${Math.round(h / 24)}일 전`;
 };
 
+// 입찰 마감일(yyyyMMddHHmm)로 개찰 임박 배지 — 라이브 관심물건 전용. 값 없으면 빈 문자열.
+function bidDday(bidEnd) {
+  const t = String(bidEnd || '').replace(/[^0-9]/g, '');
+  if (t.length < 8) return '';
+  const end = new Date(+t.slice(0, 4), +t.slice(4, 6) - 1, +t.slice(6, 8)); // 마감일 자정
+  if (isNaN(end.getTime())) return '';
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const days = Math.round((end - today) / 86400000); // 달력일 기준 D-day
+  let txt, bg, col;
+  if (days < 0) { txt = '개찰 마감'; bg = '#EEF3F0'; col = 'var(--mute)'; }
+  else if (days === 0) { txt = '🔴 오늘 마감'; bg = 'var(--red-soft)'; col = 'var(--red)'; }
+  else if (days <= 3) { txt = `🔴 마감 D-${days}`; bg = 'var(--red-soft)'; col = 'var(--red)'; }
+  else if (days <= 7) { txt = `⏰ 마감 D-${days}`; bg = 'var(--yellow-soft)'; col = '#8A6100'; }
+  else { txt = `마감 D-${days}`; bg = 'var(--bg)'; col = 'var(--sub)'; }
+  return `<div style="margin-top:6px;display:inline-block;font-size:11px;font-weight:800;border-radius:6px;padding:2px 8px;background:${bg};color:${col}">${txt}</div>`;
+}
 function cardHTML(id, s, extra) {
   return `
   <div class="my-card">
@@ -515,6 +531,7 @@ function cardHTML(id, s, extra) {
       <div class="t"><a href="bidcast-detail.html?id=${encodeURIComponent(id)}"${extra.live ? ` onclick="stashLive('${String(id).replace(/[^0-9A-Za-z\-_.]/g,'')}')"` : ''}>${s.title}</a>${extra.live ? ' <span style="font-size:10px;font-weight:800;color:var(--green-deep);background:var(--green-soft);border-radius:5px;padding:1px 5px;vertical-align:middle">실시간</span>' : ''}</div>
       <div class="m">${s.court} · ${s.type}${s.fail > 0 ? ` · 유찰 ${s.fail}회` : ''}</div>
       <div class="p">최저 ${fmt(s.min)}원</div>
+      ${extra.live ? bidDday(s.bidEnd) : ''}
       ${extra.when ? `<div class="when">${extra.when} 조회</div>` : ''}
       ${extra.seal ? (isSealed(id)
         ? `<a class="my-seal-btn done" href="bidcast-my.html#prophet">🔒 봉인됨 · 여정 보기</a>`
