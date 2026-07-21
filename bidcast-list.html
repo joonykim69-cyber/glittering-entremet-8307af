@@ -1046,10 +1046,33 @@ function stashDetail(id) {
 // ═══════════════════════════════════════
 // 관심물건 토글
 // ═══════════════════════════════════════
+// 라이브(온비드 실물) 관심물건은 마이페이지에서도 보이도록 스냅샷을 영속 저장.
+// 데모 물건(1~9)은 마이페이지 SUMMARY로 렌더되므로 스냅샷 불필요.
+const LIKESNAP_KEY = 'bidcast:likesnap';
+function findItem(id) {
+  return ITEMS.find(x => String(x.id) === String(id))
+    || (Array.isArray(RANK_ITEMS) ? RANK_ITEMS.find(x => String(x.id) === String(id)) : null)
+    || (Array.isArray(SOLD_ITEMS) ? SOLD_ITEMS.find(x => String(x.id) === String(id)) : null);
+}
+function saveLikeSnap(it) {
+  if (!it || it.pbctCdtnNo == null) return; // pbctCdtnNo 보유 = 라이브 물건
+  try {
+    const m = JSON.parse(localStorage.getItem(LIKESNAP_KEY) || '{}');
+    m[String(it.id)] = {
+      id: String(it.id), title: it.title || '', min: it.min || 0, appr: it.appr || 0,
+      type: it.type || '', court: it.court || it.org || '', status: it.status || '진행', thumb: it.thumb || '📦',
+      live: true, cltrMngNo: String(it.id), pbctCdtnNo: it.pbctCdtnNo != null ? String(it.pbctCdtnNo) : '',
+    };
+    localStorage.setItem(LIKESNAP_KEY, JSON.stringify(m));
+  } catch (e) {}
+}
+function removeLikeSnap(id) {
+  try { const m = JSON.parse(localStorage.getItem(LIKESNAP_KEY) || '{}'); delete m[String(id)]; localStorage.setItem(LIKESNAP_KEY, JSON.stringify(m)); } catch (e) {}
+}
 function toggleLike(id, el) {
   id = String(id);
-  if (likedIds.has(id)) { likedIds.delete(id); el.classList.remove('on'); }
-  else { likedIds.add(id); el.classList.add('on'); }
+  if (likedIds.has(id)) { likedIds.delete(id); el.classList.remove('on'); removeLikeSnap(id); }
+  else { likedIds.add(id); el.classList.add('on'); saveLikeSnap(findItem(id)); }
   saveLikes();
   el.setAttribute('aria-pressed', likedIds.has(id));
   el.setAttribute('aria-label', likedIds.has(id) ? '관심물건 해제' : '관심물건 등록');

@@ -1419,10 +1419,22 @@ async function runAgent(name,btn){
 // ═══ 관심물건 ═══
 const LIKES_KEY='bidcast:likes';
 function readLikes(){return new Set(JSON.parse(localStorage.getItem(LIKES_KEY)||'[]').map(String));}
+// 라이브 관심물건 스냅샷 영속 저장(마이페이지에서 렌더 + 봉인·자동채점 연동)
+function saveLikeSnapDetail(){
+  if(!isLive||!liveItem)return; // 데모 물건은 SUMMARY로 렌더
+  try{
+    const m=JSON.parse(localStorage.getItem('bidcast:likesnap')||'{}');
+    m[String(storageId)]={id:String(storageId),title:it.title||'',min:it.min||0,appr:it.appr||0,
+      type:it.type||'',court:it.court||liveItem.org||'',status:it.status||'진행',thumb:it.thumb||'📦',
+      live:true,cltrMngNo:String(liveItem.id),pbctCdtnNo:liveItem.pbctCdtnNo!=null?String(liveItem.pbctCdtnNo):''};
+    localStorage.setItem('bidcast:likesnap',JSON.stringify(m));
+  }catch(e){}
+}
+function removeLikeSnapDetail(id){try{const m=JSON.parse(localStorage.getItem('bidcast:likesnap')||'{}');delete m[String(id)];localStorage.setItem('bidcast:likesnap',JSON.stringify(m));}catch(e){}}
 function toggleHeart(){
   const btn=document.getElementById('heartBtn');if(!btn)return;
   const likes=readLikes(),key=String(storageId);
-  if(likes.has(key))likes.delete(key);else likes.add(key);
+  if(likes.has(key)){likes.delete(key);removeLikeSnapDetail(key);}else{likes.add(key);saveLikeSnapDetail();}
   localStorage.setItem(LIKES_KEY,JSON.stringify([...likes]));
   const on=likes.has(key);
   btn.classList.toggle('on',on);btn.setAttribute('aria-pressed',String(on));

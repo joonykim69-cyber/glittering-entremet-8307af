@@ -391,7 +391,7 @@ function cardHTML(id, s, extra) {
       ${extra.unheart ? `<button type="button" class="unheart" onclick="removeLike('${id}')" aria-label="관심물건에서 삭제">✕</button>` : ''}
     </div>
     <div class="my-body">
-      <div class="t"><a href="bidcast-detail.html?id=${id}">${s.title}</a></div>
+      <div class="t"><a href="bidcast-detail.html?id=${encodeURIComponent(id)}"${extra.live ? ` onclick="stashLive('${String(id).replace(/[^0-9A-Za-z\-_.]/g,'')}')"` : ''}>${s.title}</a>${extra.live ? ' <span style="font-size:10px;font-weight:800;color:var(--green-deep);background:var(--green-soft);border-radius:5px;padding:1px 5px;vertical-align:middle">실시간</span>' : ''}</div>
       <div class="m">${s.court} · ${s.type}${s.fail > 0 ? ` · 유찰 ${s.fail}회` : ''}</div>
       <div class="p">최저 ${fmt(s.min)}원</div>
       ${extra.when ? `<div class="when">${extra.when} 조회</div>` : ''}
@@ -407,13 +407,18 @@ function cardHTML(id, s, extra) {
 // 랜딩/상세 페이지와 동일한 저장 구조를 사용해 랜딩 "나의 예언자 여정"에 자동 반영.
 // ═══════════════════════════════════════
 function myPreds() { try { const a = JSON.parse(localStorage.getItem('bidcast:mypred') || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+// 라이브 관심물건 스냅샷(리스트/상세에서 좋아요 시 저장) — 데모 SUMMARY와 함께 관심물건 렌더
+function likeSnaps() { try { const m = JSON.parse(localStorage.getItem('bidcast:likesnap') || '{}'); return m && typeof m === 'object' ? m : {}; } catch (e) { return {}; } }
+function itemInfo(id) { return SUMMARY[id] || likeSnaps()[String(id)] || null; }
 function isSealed(id) {
-  const t = SUMMARY[id] && SUMMARY[id].title;
+  const s = itemInfo(id); const t = s && s.title;
   return !!t && myPreds().some(p => p && p.title === t);
 }
+// 라이브 물건 상세로 이동 전 스냅샷을 sessionStorage에 넣어 상세 페이지가 실물건으로 렌더되게 함
+function stashLive(id) { const s = likeSnaps()[String(id)]; if (s) { try { sessionStorage.setItem('bidcast:detail', JSON.stringify(s)); } catch (e) {} } }
 let sealItemId = null;
 function openMySeal(id) {
-  const s = SUMMARY[id]; if (!s) return;
+  const s = itemInfo(id); if (!s) return;
   sealItemId = id;
   document.getElementById('msItemInfo').textContent = [s.title, s.min ? '최저가 ' + fmt(s.min) + '원' : ''].filter(Boolean).join(' · ') || '물건 정보';
   document.getElementById('msLo').value = ''; document.getElementById('msHi').value = '';
@@ -424,9 +429,13 @@ function closeMySeal() { const o = document.getElementById('mySealOverlay'); o.c
 function doMySeal() {
   const lo = Number(document.getElementById('msLo').value), hi = Number(document.getElementById('msHi').value);
   if (!(lo > 0) || !(hi > 0) || hi < lo) { alert('예상 구간을 올바르게 입력하세요 (하한 ≤ 상한).'); return; }
-  const s = SUMMARY[sealItemId] || {};
+  const s = itemInfo(sealItemId) || {};
   const a = myPreds();
-  a.push({ title: s.title || '(물건)', appr: 0, min: s.min || 0, lo, hi, aiLo: null, aiHi: null, cltrMngNo: null, pbctCdtnNo: null, live: false, sealedAt: new Date().toISOString() });
+  // 라이브 물건이면 온비드 id를 실어 랜딩 자동 채점 대상이 되게 저장
+  a.push({ title: s.title || '(물건)', appr: s.appr || 0, min: s.min || 0, lo, hi, aiLo: null, aiHi: null,
+    cltrMngNo: s.live && s.cltrMngNo ? String(s.cltrMngNo) : null,
+    pbctCdtnNo: s.live && s.pbctCdtnNo ? String(s.pbctCdtnNo) : null,
+    live: !!s.live, sealedAt: new Date().toISOString() });
   localStorage.setItem('bidcast:mypred', JSON.stringify(a));
   document.getElementById('msForm').style.display = 'none'; document.getElementById('msDone').style.display = '';
   renderLikes();
@@ -435,19 +444,26 @@ document.getElementById('mySealOverlay').addEventListener('click', e => { if (e.
 
 function renderLikes() {
   const likes = JSON.parse(localStorage.getItem(LIKES_KEY) || '[]').map(String);
-  const known = likes.filter(id => SUMMARY[id]);
-  document.getElementById('statLikes').textContent = known.length;
+  const snaps = likeSnaps();
+  const demo = likes.filter(id => SUMMARY[id]);
+  const live = likes.filter(id => !SUMMARY[id] && snaps[id]); // 라이브(온비드 실물) 관심물건
+  document.getElementById('statLikes').textContent = demo.length + live.length;
   const area = document.getElementById('likesArea');
-  if (!known.length) {
+  if (!demo.length && !live.length) {
     area.innerHTML = `<div class="empty"><div class="ico">♥</div><p>아직 관심물건이 없어요.<br/>물건 카드의 하트를 누르면 여기에 모아드려요.</p><a href="bidcast-list.html">물건 검색하러 가기</a></div>`;
     return;
   }
-  area.innerHTML = `<div class="my-grid">${known.map(id => cardHTML(id, SUMMARY[id], { unheart:true, seal:true })).join('')}</div>`;
+  const cards = [
+    ...live.map(id => cardHTML(id, snaps[id], { unheart:true, seal:true, live:true })),
+    ...demo.map(id => cardHTML(id, SUMMARY[id], { unheart:true, seal:true })),
+  ];
+  area.innerHTML = `<div class="my-grid">${cards.join('')}</div>`;
 }
 
 function removeLike(id) {
   const likes = JSON.parse(localStorage.getItem(LIKES_KEY) || '[]').map(String).filter(k => k !== String(id));
   localStorage.setItem(LIKES_KEY, JSON.stringify(likes));
+  try { const m = likeSnaps(); if (m[String(id)]) { delete m[String(id)]; localStorage.setItem('bidcast:likesnap', JSON.stringify(m)); } } catch (e) {}
   renderLikes();
   renderRecommendations();
 }
