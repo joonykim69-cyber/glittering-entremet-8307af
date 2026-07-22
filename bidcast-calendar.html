@@ -331,9 +331,9 @@ function bidEndInt(be){ return parseInt(String(be).replace(/[^0-9]/g,'').slice(0
 let calLive = { counts:false, sched:false };
 function calMarkLive(){
   const chip=document.getElementById('calDataChip'); if(!chip) return;
-  if(calLive.counts && calLive.sched) chip.textContent='✅ 실시간 온비드 데이터 — 이번 주 건수·마감 임박 물건 (월별/30일은 참고 예시)';
+  if(calLive.counts && calLive.sched) chip.textContent='✅ 실시간 온비드 데이터 — 이번 주 건수·다가오는 30일·마감 임박 물건 (월별은 참고 예시)';
   else if(calLive.counts) chip.textContent='✅ 이번 주 요일별 건수 실시간 (마감 물건·월별은 예시)';
-  else if(calLive.sched) chip.textContent='✅ 마감 임박 물건 실시간 (요일별 건수·월별은 예시)';
+  else if(calLive.sched) chip.textContent='✅ 마감 임박 물건·다가오는 30일 실시간 (요일별 건수·월별은 예시)';
 }
 (async () => {
   // 1) 요일별 건수 (onbid-calendar: 월~금 totalCount)
@@ -349,13 +349,26 @@ function calMarkLive(){
       calLive.counts = true; calMarkLive();
     }
   } catch(e){ console.info('[cal] 요일별 건수 연동 실패, 예시 유지:', e.message); }
-  // 2) 다가오는 입찰 물건 (onbid-search, 마감일 순)
+  // 날짜 창 계산 (KST): 오늘 ~ +30일
+  const nd=new Date(Date.now()+9*3600*1000);
+  const now=nd.getUTCFullYear()*10000+(nd.getUTCMonth()+1)*100+nd.getUTCDate();
+  const ymd=d=>d.getUTCFullYear()*10000+(d.getUTCMonth()+1)*100+d.getUTCDate();
+  const startYmd=ymd(nd), endYmd=ymd(new Date(nd.getTime()+30*86400000));
+  // 2a) 전체 진행 물건 totalCount (창 없이 조회 — "전체"의 의미 유지)
   try {
-    const data = await fetch('/.netlify/functions/onbid-search?page=1&numOfRows=100').then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); });
+    const all = await fetch('/.netlify/functions/onbid-search?page=1&numOfRows=1').then(r=>r.ok?r.json():Promise.reject());
+    if (all && all.totalCount) document.getElementById('sumAll').textContent = Number(all.totalCount).toLocaleString();
+  } catch(e){ console.info('[cal] 전체 건수 연동 실패, 예시 유지:', e.message); }
+  // 2b) 다가오는 입찰 물건 — 마감 임박 기간창(오늘~+30일)으로 직접 질의해 "진짜 임박" 물건만,
+  //     그중 마감 빠른 순으로 정렬. 먼 미래(내년 등) 물건이 표본에 섞이던 문제 해소.
+  try {
+    const data = await fetch(`/.netlify/functions/onbid-search?page=1&numOfRows=100&bidPrdYmdStart=${startYmd}&bidPrdYmdEnd=${endYmd}`).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); });
     if (data && Array.isArray(data.items) && data.items.length) {
-      // 전체 진행 물건 = 실제 totalCount로 교체(예시값과 섞여 "이번 주 > 전체" 모순이 나던 문제 해소)
-      if (data.totalCount) document.getElementById('sumAll').textContent = Number(data.totalCount).toLocaleString();
-      const nd=new Date(Date.now()+9*3600*1000); const now=nd.getUTCFullYear()*10000+(nd.getUTCMonth()+1)*100+nd.getUTCDate();
+      // 다가오는 30일 건수 = 창 totalCount로 실연동 + 라벨에서 (예시) 제거
+      if (data.totalCount) {
+        document.getElementById('sum30').textContent = Number(data.totalCount).toLocaleString();
+        const lbl = document.getElementById('sum30').nextElementSibling; if (lbl) lbl.textContent = '다가오는 30일';
+      }
       const items = data.items.filter(it=>it.bidEnd && bidEndInt(it.bidEnd) >= now)
         .sort((a,b)=> bidEndInt(a.bidEnd)-bidEndInt(b.bidEnd)).slice(0,12);
       if (items.length) {
