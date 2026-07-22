@@ -240,12 +240,15 @@ const TYPE_DATA = {
   '기계장비': { count: 240, region: [['경기',90],['인천',60],['대구',40],['그 외',50]] },
   '유가증권': { count: 95, region: [['서울',70],['경기',15],['그 외',10]] },
 };
-const COURT_DATA = {
-  '서울중앙지방법원': { count: 468, type: [['아파트',210],['토지',110],['상가',80],['그 외',68]] },
-  '서울동부지방법원': { count: 312, type: [['아파트',150],['상가',80],['토지',52],['그 외',30]] },
-  '수원지방법원': { count: 540, type: [['아파트',260],['토지',180],['그 외',100]] },
-  '인천지방법원': { count: 298, type: [['아파트',120],['차량',90],['그 외',88]] },
-  '부산지방법원': { count: 355, type: [['아파트',170],['상가',95],['그 외',90]] },
+// 공고기관(기관) 축 — 온비드 공매는 법원 관할 개념이 없고 공고기관(orgNm)이 주체이므로
+// "법원"이 아니라 실제 공고기관명으로 구성한다. 아래는 예시이며, 허브·리프에서
+// loadHubOrgs()/loadRepItems()가 온비드 실물건의 orgNm 집계(표본)로 교체한다.
+let COURT_DATA = {
+  '한국자산관리공사': { count: 1240, type: [['아파트',420],['토지',300],['상가',210],['그 외',310]] },
+  '코리아신탁주식회사': { count: 560, type: [['아파트',240],['상가',150],['토지',90],['그 외',80]] },
+  '무궁화신탁주식회사': { count: 430, type: [['아파트',180],['토지',120],['그 외',130]] },
+  '한국토지신탁': { count: 380, type: [['토지',200],['아파트',110],['그 외',70]] },
+  '대한자산신탁': { count: 295, type: [['아파트',130],['상가',95],['그 외',70]] },
 };
 const REP_ICONS = { '아파트':'🏢','토지':'🏞️','상가':'🏬','차량':'🚗','기계장비':'🏭','유가증권':'📈' };
 
@@ -258,13 +261,13 @@ function fmtCount(n) { return n.toLocaleString() + '건'; }
 
 function renderHub() {
   document.getElementById('h1').textContent = '카테고리로 둘러보기';
-  document.getElementById('leadP').textContent = '지역별 · 물건유형별 · 법원별로 공매 물건과 AI 예측 데이터를 모아봤습니다.';
+  document.getElementById('leadP').textContent = '지역별 · 물건유형별 · 기관별(공고기관)로 공매 물건과 AI 예측 데이터를 모아봤습니다.';
   document.title = '카테고리 — 신호등옥션';
 
   const blocks = [
     ['지역별', 'region', REGION_DATA],
     ['물건유형별', 'type', TYPE_DATA],
-    ['법원별', 'court', COURT_DATA],
+    ['기관별 (공고기관)', 'court', COURT_DATA],
   ];
   main.innerHTML = blocks.map(([label, axisKey, data]) => `
     <div class="axis-block">
@@ -276,7 +279,8 @@ function renderHub() {
           </a>`).join('')}
       </div>
     </div>`).join('');
-  loadHubCounts(); // 지역 블록 건수 실연동(유형·법원은 서버 필터/개념 없어 예시 유지)
+  loadHubCounts(); // 지역 블록 건수 실연동(지역 서버 필터 totalCount)
+  loadHubOrgs();   // 기관 블록 실연동(온비드 실물건 orgNm 집계·표본)
 }
 
 // 허브 지역 블록 건수 실연동 — onbid-search 지역 필터 totalCount(지역당 numOfRows=1 병렬). 실패 시 예시 유지.
@@ -294,40 +298,69 @@ async function loadHubCounts() {
     const chip = document.querySelector(`.axis-chip[data-axis="region"][data-value="${sel}"] .c`);
     if (chip) { chip.textContent = fmtCount(tc); any = true; }
   });
-  if (any) { const c = document.querySelector('.demo-chip'); if (c) c.textContent = '✅ 지역별 건수는 실시간 온비드 데이터 (유형·법원은 참고 예시)'; }
+  if (any) { const c = document.querySelector('.demo-chip'); if (c) c.textContent = '✅ 지역별 건수 · 기관별 목록은 실시간 온비드 데이터 (유형 분포는 참고 예시)'; }
+}
+
+// 허브 기관 블록 실연동 — 온비드 실물건 한 페이지(표본 100건)를 공고기관(orgNm)으로 집계해
+// 상위 기관을 실제 이름으로 노출(예시 법원명 대체). 실패 시 예시 유지(degrade).
+async function loadHubOrgs() {
+  try {
+    const data = await fetch('/.netlify/functions/onbid-search?page=1&numOfRows=100').then(r => r.ok ? r.json() : Promise.reject());
+    if (!data || !Array.isArray(data.items) || !data.items.length) return;
+    const byOrg = {};
+    data.items.forEach(it => { const o = String(it.court || it.orgNm || '').trim(); if (o) byOrg[o] = (byOrg[o] || 0) + 1; });
+    const top = Object.entries(byOrg).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    if (!top.length) return;
+    COURT_DATA = {};
+    top.forEach(([k, v]) => { COURT_DATA[k] = { count: v, type: [], sample: true }; });
+    const blocks = document.querySelectorAll('.axis-block');
+    const block = blocks[2]; if (!block) return;
+    const grid = block.querySelector('.axis-grid'); if (!grid) return;
+    grid.innerHTML = top.map(([k, v]) => `
+      <a class="axis-chip" data-axis="court" data-value="${escC(k)}" href="bidcast-category.html?axis=court&value=${encodeURIComponent(k)}">
+        <span class="n">${escC(k)}</span><span class="c">표본 ${v}건</span>
+      </a>`).join('');
+    const h3 = block.querySelector('h3'); if (h3) h3.textContent = '기관별 (실시간 표본)';
+  } catch (e) { console.info('[cat] 기관 블록 연동 실패, 예시 유지:', e.message); }
 }
 
 function renderLeaf() {
-  const AXIS_LABEL = { region:'지역', type:'물건유형', court:'법원' };
+  const AXIS_LABEL = { region:'지역', type:'물건유형', court:'기관' };
   const DATASET = { region:REGION_DATA, type:TYPE_DATA, court:COURT_DATA }[axis];
-  if (!DATASET || !DATASET[value]) { renderHub(); return; }
-  const d = DATASET[value];
+  if (!DATASET) { renderHub(); return; }
+  const isCourt = axis === 'court';
+  // 기관(court)은 실 공고기관명이라 예시 데이터셋에 없어도 허용(실데이터가 채움)
+  if (!DATASET[value] && !isCourt) { renderHub(); return; }
+  const d = DATASET[value] || { count: 0, sub: [], type: [], region: [] };
   const label = AXIS_LABEL[axis];
 
   document.title = `${value} 공매 AI 분석 — 신호등옥션`;
-  document.getElementById('breadcrumb').innerHTML = `<a href="bidcast.html">홈</a> / <a href="bidcast-category.html">카테고리</a> / ${value}`;
-  document.getElementById('h1').textContent = `${value} 공매 AI 분석 (${fmtCount(d.count)})`;
+  document.getElementById('breadcrumb').innerHTML = `<a href="bidcast.html">홈</a> / <a href="bidcast-category.html">카테고리</a> / ${escC(value)}`;
+  document.getElementById('h1').textContent = `${value} 공매 AI 분석${d.count && !isCourt ? ` (${fmtCount(d.count)})` : ''}`;
   document.getElementById('leadP').textContent = `${label} "${value}" 기준으로 모은 공매 물건 통계와 대표 물건입니다.`;
 
   const distTitle = axis === 'type' ? '지역별 분포' : '물건유형 분포';
-  const distList = axis === 'type' ? d.region : (axis === 'court' ? d.type : d.sub);
-  const maxV = Math.max(...distList.map(x => x[1]));
+  const distList = axis === 'type' ? d.region : (isCourt ? d.type : d.sub);
+  const hasDist = Array.isArray(distList) && distList.length;
+  const maxV = hasDist ? Math.max(...distList.map(x => x[1])) : 1;
 
   main.innerHTML = `
     ${buildSwitcher(axis, value)}
     <div class="leaf-stats">
-      <div class="leaf-stat"><div class="v" id="leafCount">${fmtCount(d.count)}</div><div class="k">전체 진행 물건</div></div>
-      <div class="leaf-stat"><div class="v">${distList[0][0]}</div><div class="k">최다 비중 항목</div></div>
+      <div class="leaf-stat"><div class="v" id="leafCount">${d.count ? fmtCount(d.count) : '집계 중'}</div><div class="k" id="leafCountK">${isCourt ? '표본 내 물건 수' : '전체 진행 물건'}</div></div>
+      <div class="leaf-stat"><div class="v" id="leafTopItem">${hasDist ? distList[0][0] : '—'}</div><div class="k">최다 비중 항목</div></div>
       <div class="leaf-stat"><div class="v">±10%</div><div class="k">AI 예측 목표 오차 범위</div></div>
-      <div class="leaf-stat" id="catStatusTile"><div class="v">예시</div><div class="k">실 데이터는 API 연동 후 반영</div></div>
+      <div class="leaf-stat" id="catStatusTile"><div class="v">${isCourt ? '연동 중' : '예시'}</div><div class="k">${isCourt ? '온비드 실물건 불러오는 중' : '실 데이터는 API 연동 후 반영'}</div></div>
     </div>
-    <div class="dist-card">
+    <div class="dist-card" id="distCard">
       <h4>${distTitle}</h4>
-      ${distList.map(([k,v]) => `
+      <div id="distBody">
+      ${hasDist ? distList.map(([k,v]) => `
         <div class="dist-row">
-          <div class="lbl"><span>${k}</span><b>${v.toLocaleString()}건</b></div>
+          <div class="lbl"><span>${escC(k)}</span><b>${v.toLocaleString()}건</b></div>
           <div class="track"><i style="width:${Math.round(v/maxV*100)}%;"></i></div>
-        </div>`).join('')}
+        </div>`).join('') : '<p style="font-size:12.5px;color:var(--mute);margin:4px 0;">실시간 표본에서 유형 분포를 집계 중…</p>'}
+      </div>
     </div>
     <h3 id="repHead" style="margin-top:30px;font-size:16px;font-weight:800;">대표 물건 (예시)</h3>
     <div class="rep-grid" id="repGrid">
@@ -353,18 +386,22 @@ function escC(s){ return String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;',
 function stashCatLive(id){ const s=catSnaps[id]; if(s){ try{ sessionStorage.setItem('bidcast:detail', JSON.stringify(s)); }catch(e){} } }
 function fmtWonCat(man){ man=Number(man)||0; if(!man) return '미공개'; return man>=10000?(man/10000).toFixed(1).replace(/\.0$/,'')+'억':man.toLocaleString()+'만'; }
 async function loadRepItems(axis, value){
-  if (axis === 'court') return; // 공매는 법원 관할 개념이 없음(기관=orgNm) → 실연동 부적합, 예시 유지
   try {
-    const p = new URLSearchParams({ page:'1', numOfRows:'60' });
+    // 기관(court)은 서버 필터가 없어 넓게 받아 클라이언트에서 orgNm 매칭 → 표본 100건
+    const p = new URLSearchParams({ page:'1', numOfRows: axis==='court' ? '100' : '60' });
     if (axis === 'region') p.set('region', value);
     const data = await fetch('/.netlify/functions/onbid-search?'+p).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); });
     if (!data || !Array.isArray(data.items) || !data.items.length) return;
-    let items = data.items;
-    if (axis === 'type') items = items.filter(it => (it.type||'') === value);
-    items = items.filter(it => it.address).slice(0, 6);
-    if (!items.length) return;
+    // 기관 축이면 셀렉트를 표본에서 발견한 실제 공고기관으로 갱신
+    if (axis === 'court') refreshCourtOptions(data.items, value);
+    let pool = data.items;
+    if (axis === 'type') pool = pool.filter(it => (it.type||'') === value);
+    if (axis === 'court') pool = pool.filter(it => String(it.court||it.orgNm||'').trim() === value);
+    const matchedCount = pool.length;
+    const cards = pool.filter(it => it.address).slice(0, 6);
+    if (!cards.length) return;
     const grid = document.getElementById('repGrid'); if (!grid) return;
-    grid.innerHTML = items.map(it => {
+    grid.innerHTML = cards.map(it => {
       const id=String(it.id);
       catSnaps[id]={ id, title:it.title||'', min:it.min||0, appr:it.appr||0, type:it.type||'', court:it.court||it.orgNm||'', status:it.status||'진행', thumb:REP_ICONS[it.type]||'🏢', photo:it.photo||'', live:true, cltrMngNo:id, pbctCdtnNo:it.pbctCdtnNo!=null?String(it.pbctCdtnNo):'', bidEnd:it.bidEnd||'', address:it.address||'' };
       const safeId=id.replace(/[^0-9A-Za-z\-_.]/g,'');
@@ -377,28 +414,56 @@ async function loadRepItems(axis, value){
     }).join('');
     const head=document.getElementById('repHead'); if(head) head.textContent='대표 물건 (실시간)';
     if (axis === 'region' && data.totalCount) { const lc=document.getElementById('leafCount'); if(lc) lc.textContent=fmtCount(Number(data.totalCount)); }
+    if (axis === 'court') {
+      const lc=document.getElementById('leafCount'); if(lc) lc.textContent=fmtCount(matchedCount);
+      // 표본에서 이 기관 물건의 유형 분포를 실시간으로 집계
+      const byType={}; pool.forEach(it=>{ const t=it.type||'기타'; byType[t]=(byType[t]||0)+1; });
+      const dist=Object.entries(byType).sort((a,b)=>b[1]-a[1]);
+      const body=document.getElementById('distBody'); const mx=Math.max(...dist.map(x=>x[1]),1);
+      if(body && dist.length){ body.innerHTML = dist.map(([k,v])=>`
+        <div class="dist-row">
+          <div class="lbl"><span>${escC(k)}</span><b>${v.toLocaleString()}건</b></div>
+          <div class="track"><i style="width:${Math.round(v/mx*100)}%;"></i></div>
+        </div>`).join('');
+      }
+      const ti=document.getElementById('leafTopItem'); if(ti && dist[0]) ti.textContent=dist[0][0];
+      const dc=document.querySelector('#distCard h4'); if(dc) dc.textContent='물건유형 분포 (실시간 표본)';
+    }
     const tile=document.getElementById('catStatusTile'); if(tile) tile.innerHTML='<div class="v" style="color:var(--green-deep)">실시간</div><div class="k">온비드 실물건 연동됨</div>';
-    const chip=document.querySelector('.demo-chip'); if(chip) chip.textContent='✅ 대표 물건은 실시간 온비드 데이터 (분포 통계는 참고 예시)';
+    const chip=document.querySelector('.demo-chip'); if(chip) chip.textContent = axis==='court' ? '✅ 대표 물건·유형 분포는 실시간 온비드 표본 (기관은 공고기관 orgNm 기준)' : '✅ 대표 물건은 실시간 온비드 데이터 (분포 통계는 참고 예시)';
   } catch(e){ console.info('[cat] 대표 물건 연동 실패, 예시 유지:', e.message); }
 }
 
-// 리프 페이지 카테고리 전환 셀렉트 — 지역·물건유형·법원 3개 축을 모두 노출해
-// 허브로 돌아가지 않고도 서울↔경기(같은 축)뿐 아니라 지역→유형→법원(축 전환)까지 바로 이동.
+// 기관 축 리프에서 표본으로 발견한 실제 공고기관 목록으로 셀렉트 옵션 갱신(현재 값 유지·선택)
+function refreshCourtOptions(items, current){
+  const byOrg={}; items.forEach(it=>{ const o=String(it.court||it.orgNm||'').trim(); if(o) byOrg[o]=(byOrg[o]||0)+1; });
+  let orgs=Object.entries(byOrg).sort((a,b)=>b[1]-a[1]).map(x=>x[0]).slice(0,20);
+  if(current && orgs.indexOf(current)<0) orgs.unshift(current);
+  const sel=document.querySelector('.leaf-switch select[data-ax="court"]'); if(!sel) return;
+  sel.innerHTML = ['<option value="">기관 선택…</option>']
+    .concat(orgs.map(o=>`<option value="${escC(o)}"${o===current?' selected':''}>${escC(o)}</option>`)).join('');
+}
+
+// 리프 페이지 카테고리 전환 셀렉트 — 지역·물건유형·기관 3개 축을 모두 노출해
+// 허브로 돌아가지 않고도 서울↔경기(같은 축)뿐 아니라 지역→유형→기관(축 전환)까지 바로 이동.
 // 현재 축은 현재 값이 선택돼 강조, 나머지 두 축은 "선택" 플레이스홀더.
+// 기관 축의 현재 값은 실 공고기관명이라 예시 데이터셋에 없을 수 있어, 없으면 옵션을 보강한다.
 function buildSwitcher(curAxis, curValue) {
   const AX = [
     ['region', '지역', REGION_DATA],
     ['type', '물건유형', TYPE_DATA],
-    ['court', '법원', COURT_DATA],
+    ['court', '기관', COURT_DATA],
   ];
   const groups = AX.map(([ax, label, data]) => {
     const isCur = ax === curAxis;
+    let keys = Object.keys(data);
+    if (isCur && curValue && keys.indexOf(curValue) < 0) keys = [curValue].concat(keys);
     const opts = [`<option value="">${escC(label)} 선택…</option>`].concat(
-      Object.keys(data).map(k => `<option value="${escC(k)}"${isCur && k === curValue ? ' selected' : ''}>${escC(k)}</option>`)
+      keys.map(k => `<option value="${escC(k)}"${isCur && k === curValue ? ' selected' : ''}>${escC(k)}</option>`)
     ).join('');
     return `<div class="ls-group${isCur ? ' cur' : ''}">
       <span class="ls-label">${escC(label)}${isCur ? ' · 현재' : ''}</span>
-      <select aria-label="${escC(label)} 선택" onchange="switchLeaf('${ax}', this.value)">${opts}</select>
+      <select data-ax="${ax}" aria-label="${escC(label)} 선택" onchange="switchLeaf('${ax}', this.value)">${opts}</select>
     </div>`;
   }).join('');
   return `<div class="leaf-switch">
@@ -416,7 +481,7 @@ function buildRepCards(axis, value) {
   const types = axis === 'type' ? [value] : ['아파트','토지','상가'];
   return types.slice(0,3).map((t, i) => ({
     ico: REP_ICONS[t] || '🏢',
-    title: axis === 'region' ? `${value} ${t} 물건 #${i+1}` : (axis === 'court' ? `${value} 관할 ${t} 물건 #${i+1}` : `${value} 대표 물건 #${i+1}`),
+    title: axis === 'region' ? `${value} ${t} 물건 #${i+1}` : (axis === 'court' ? `${value} 공고 ${t} 물건 #${i+1}` : `${value} 대표 물건 #${i+1}`),
     meta: axis === 'region' ? `${value} · 유찰 ${i}회` : (axis === 'court' ? `${value} · ${t}` : `전국 · 유찰 ${i}회`),
     price: `감정가 ${(3+i*2)}.${i}억 (예시)`,
   }));
