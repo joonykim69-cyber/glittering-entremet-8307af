@@ -1188,6 +1188,37 @@ document.getElementById('simGrid').innerHTML=simIds.slice(0,3).map(k=>{
   </a>`;
 }).join('');
 
+// 라이브 물건: 유사물건을 온비드 실물건(같은 유형 우선)으로 교체. 실패 시 위 데모 유지(degrade).
+function stashSim(id){ const s=window.__simSnaps&&window.__simSnaps[id]; if(s){ try{ sessionStorage.setItem('bidcast:detail',JSON.stringify(s)); }catch(e){} } }
+async function loadSimilarLive(){
+  const grid=document.getElementById('simGrid'); if(!grid) return;
+  const escS=s=>String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+  const EM={'아파트':'🏢','오피스텔':'🏢','단독주택':'🏠','연립다세대':'🏘️','토지':'🏞️','상가':'🏬','공장창고':'🏭','농지임야':'🌲','차량':'🚗','기계장비':'⚙️','유가증권':'📈'};
+  try{
+    const data=await fetch('/.netlify/functions/onbid-search?page=1&numOfRows=60').then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); });
+    if(!data||!Array.isArray(data.items)||!data.items.length) return;
+    const curId=String(liveItem.id);
+    const pool=data.items.filter(x=>String(x.id)!==curId && x.min>0 && x.title);
+    const same=pool.filter(x=>(x.type||'')===(it.type||''));
+    const chosen=(same.length>=3?same:same.concat(pool.filter(x=>same.indexOf(x)<0))).slice(0,3);
+    if(!chosen.length) return;
+    window.__simSnaps={};
+    grid.innerHTML=chosen.map(x=>{
+      const id=String(x.id);
+      window.__simSnaps[id]={ id, title:x.title||'', min:x.min||0, appr:x.appr||0, type:x.type||'', court:x.court||x.orgNm||'', status:x.status||'진행', thumb:EM[x.type]||'🏢', photo:x.photo||'', address:x.address||'', live:true, cltrMngNo:id, pbctCdtnNo:x.pbctCdtnNo!=null?String(x.pbctCdtnNo):'', bidEnd:x.bidEnd||'' };
+      const safe=id.replace(/[^0-9A-Za-z\-_.]/g,'');
+      const thumb=x.photo&&/^https?:\/\//.test(x.photo)?`<img src="${escS(x.photo)}" alt="" style="width:100%;height:66px;object-fit:cover;border-radius:8px" loading="lazy" onerror="this.remove()">`:(EM[x.type]||'🏢');
+      return `<a class="sim-card" href="bidcast-detail.html?id=${encodeURIComponent(id)}" onclick="stashSim('${safe}')">
+        <div class="sth">${thumb}</div>
+        <div class="st">${escS(x.title)}</div>
+        <div class="sm">${escS(x.court||x.orgNm||'')} · ${x.fail>0?`유찰 ${x.fail}회`:'신건'}</div>
+        <div class="sp">최저 ${fmt(x.min)}원</div>
+      </a>`;
+    }).join('');
+  }catch(e){ console.info('[detail] 유사물건 실연동 실패, 데모 유지:', e.message); }
+}
+if(isLive) loadSimilarLive();
+
 // ═══════════════════════════════════════════════════
 // 온비드 상세 API 연동 (실시간 물건)
 // ═══════════════════════════════════════════════════
