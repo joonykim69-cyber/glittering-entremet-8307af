@@ -556,7 +556,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 // 예시 데이터 — 실 API 연동 전 데모용
 // address 필드: Nominatim geocoding 쿼리에 사용
 // ═══════════════════════════════════════
-const ITEMS = [
+let ITEMS = [
   { id:1, type:'아파트',   region:'서울', court:'서울중앙지방법원', title:'서울 강남구 역삼동 아파트 24평',     address:'서울 강남구 역삼동',        appr:65000, min:52000, fail:1, status:'진행', thumb:'🏢', caseNo:'2026타경1021' },
   { id:2, type:'토지',     region:'경기', court:'수원지방법원',     title:'경기 시흥시 배곧동 대지 152㎡',      address:'경기도 시흥시 배곧동',       appr:84000, min:84000, fail:0, status:'진행', thumb:'🏞️', caseNo:'2026타경0492' },
   { id:3, type:'상가',     region:'서울', court:'서울동부지방법원', title:'서울 서대문구 충정로 상가 1층',       address:'서울 서대문구 충정로3가',     appr:41000, min:41000, fail:0, status:'낙찰', thumb:'🏬', caseNo:'2025타경7710' },
@@ -567,6 +567,66 @@ const ITEMS = [
   { id:8, type:'토지',     region:'인천', court:'인천지방법원',     title:'인천 서구 청라동 임야 3,120㎡',      address:'인천 서구 청라동',           appr:56000, min:56000, fail:0, status:'진행', thumb:'🌲', caseNo:'2026타경0512' },
   { id:9, type:'차량',     region:'서울', court:'서울동부지방법원', title:'승용차 그랜저 (2020년식)',            address:'서울 송파구 잠실동',         appr:1850,  min:1850,  fail:0, status:'낙찰', thumb:'🚗', caseNo:'2025타경9042' },
 ];
+
+// ═══════════════════════════════════════
+// 실 데이터 연동 — onbid-search(부동산)+동산+차량을 로드해 지도 물건을 실물건으로 교체.
+// 지도 내부 id는 정수 유지(마커 로직 호환), 실 온비드 id(cltrMngNo)는 realId로 분리 보관.
+// 실패 시 위 예시 ITEMS를 그대로 사용(degrade-gracefully).
+// ═══════════════════════════════════════
+const TYPE_EMOJI = {'아파트':'🏢','오피스텔':'🏢','단독주택':'🏠','연립다세대':'🏘️','토지':'🏞️','상가':'🏬','사무실':'🏢','공장창고':'🏭','농지임야':'🌲','기타부동산':'📦','차량':'🚗','기계장비':'⚙️','유가증권':'📈','선박항공':'🚢','기타동산':'📦'};
+function regionFromAddr(addr) {
+  const t = String(addr || '').trim().split(/\s+/)[0] || '';
+  if (/^서울/.test(t)) return '서울'; if (/^부산/.test(t)) return '부산'; if (/^대구/.test(t)) return '대구';
+  if (/^인천/.test(t)) return '인천'; if (/^광주/.test(t)) return '광주'; if (/^대전/.test(t)) return '대전';
+  if (/^울산/.test(t)) return '울산'; if (/^세종/.test(t)) return '세종'; if (/^경기/.test(t)) return '경기';
+  if (/^강원/.test(t)) return '강원'; if (/^충청북|^충북/.test(t)) return '충북'; if (/^충청남|^충남/.test(t)) return '충남';
+  if (/^전라북|^전북/.test(t)) return '전북'; if (/^전라남|^전남/.test(t)) return '전남';
+  if (/^경상북|^경북/.test(t)) return '경북'; if (/^경상남|^경남/.test(t)) return '경남'; if (/^제주/.test(t)) return '제주';
+  return '';
+}
+let liveMode = false, liveSnaps = {};
+// 데이터 출처(예시/실시간) + 지도 엔진을 한 곳에서 칩에 반영 — 여러 곳의 경쟁 갱신을 일원화
+function updateMapChip(engineNote) {
+  const c = document.getElementById('mapDataChip'); if (!c) return;
+  const data = liveMode ? '✅ 실시간 온비드 데이터' : '📋 예시 데이터';
+  const eng = engineNote || (USE_KAKAO ? '카카오맵' : 'OpenStreetMap');
+  c.textContent = `${data} · ${eng}`;
+}
+// 라이브 물건 상세 이동 전 스냅샷을 sessionStorage에 주입(상세 페이지가 실물건으로 렌더)
+function stashDetailLive(intId) { const s = liveSnaps[intId]; if (s) { try { sessionStorage.setItem('bidcast:detail', JSON.stringify(s)); } catch (e) {} } }
+async function loadRealItems() {
+  try {
+    const p = new URLSearchParams({ page:'1', numOfRows:'60' });
+    const [rl, mv, vh] = await Promise.allSettled([
+      fetch('/.netlify/functions/onbid-search?' + p).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
+      fetch('/.netlify/functions/onbid-mvast-search?' + p).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
+      fetch('/.netlify/functions/onbid-vhcl-search?' + p).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
+    ]);
+    if (rl.status !== 'fulfilled' || !Array.isArray(rl.value.items) || !rl.value.items.length) throw new Error('부동산 목록 없음');
+    const mvItems = (mv.status === 'fulfilled' && Array.isArray(mv.value.items)) ? mv.value.items : [];
+    const vhItems = (vh.status === 'fulfilled' && Array.isArray(vh.value.items)) ? vh.value.items : [];
+    const seen = new Set();
+    const uniq = [...rl.value.items, ...mvItems, ...vhItems].filter(it => { const k = String(it.id); if (seen.has(k)) return false; seen.add(k); return true; });
+    let i = 0; const mapped = []; const snaps = {};
+    for (const it of uniq) {
+      if (!it.address) continue; // 주소 없으면 지오코딩 불가 → 제외
+      const iid = ++i;
+      const rec = {
+        id: iid, live: true, realId: String(it.id), cdtn: it.pbctCdtnNo != null ? String(it.pbctCdtnNo) : '',
+        type: it.type || '기타부동산', region: regionFromAddr(it.address), court: it.court || it.orgNm || '',
+        title: it.title || '', address: it.address, appr: it.appr || 0, min: it.min || 0, fail: it.fail || 0,
+        status: it.status || '진행', thumb: TYPE_EMOJI[it.type] || '📍', caseNo: String(it.id), bidEnd: it.bidEnd || '',
+      };
+      mapped.push(rec);
+      snaps[iid] = { id: rec.realId, title: rec.title, min: rec.min, appr: rec.appr, type: rec.type, court: rec.court, status: rec.status, thumb: rec.thumb, live: true, cltrMngNo: rec.realId, pbctCdtnNo: rec.cdtn, bidEnd: rec.bidEnd, address: rec.address };
+    }
+    if (!mapped.length) throw new Error('지오코딩 가능한 물건 없음');
+    ITEMS = mapped; liveSnaps = snaps; liveMode = true;
+    const c2 = document.getElementById('dataSourceChip'); if (c2) c2.textContent = `✅ 실시간 온비드 데이터 ${mapped.length}건`;
+  } catch (e) {
+    console.info('[map] 실 데이터 연동 실패, 예시 데이터 유지:', e.message);
+  }
+}
 
 // ═══════════════════════════════════════
 // 필터 상태
@@ -611,8 +671,6 @@ async function resolveEngine() {
     if (window.kakao && window.kakao.maps) {
       USE_KAKAO = true;
       kakaoGeocoder = new kakao.maps.services.Geocoder();
-      const chip = document.getElementById('mapDataChip');
-      if (chip) chip.textContent = '📋 예시 데이터 · 카카오맵';
       console.log('[map] 카카오맵 엔진 활성');
     }
   } catch (e) { console.warn('[map] 카카오 SDK 로드 실패(도메인 미등록/키 오류 가능) → Leaflet 폴백', e); }
@@ -630,7 +688,7 @@ function initMap() {
   }
   if (typeof L === 'undefined') { // Leaflet CDN 로드 실패 등 — 페이지 크래시 방지
     console.warn('[map] Leaflet(L) 미로드 → 지도 생략(목록·필터는 정상)');
-    const chip = document.getElementById('mapDataChip'); if (chip) chip.textContent = '📋 예시 데이터 · 지도 로드 실패(목록만)';
+    updateMapChip('지도 로드 실패(목록만)');
     return;
   }
   map = L.map('leafletMap', {
@@ -665,7 +723,7 @@ function popupHTML(it) {
       <div class="pop-appr">최저 <b>${fmtWon(it.min)}</b></div>
     </div>
     <div class="pop-actions">
-      <a class="pop-detail" href="bidcast-detail.html?id=${it.id}">상세 보기 →</a>
+      <a class="pop-detail" href="bidcast-detail.html?id=${it.live ? encodeURIComponent(it.realId) : it.id}"${it.live ? ` onclick="stashDetailLive(${it.id})"` : ''}>상세 보기 →</a>
       <a class="pop-bot" href="bidcast-bot.html?item=${it.id}">🤖 예보봇</a>
     </div>
   </div>`;
@@ -1123,14 +1181,16 @@ function handleUrlFocus() {
 // 초기화
 // ═══════════════════════════════════════
 handleUrlFocus();
-rebuildCourtDropdown();
-initTypeChips();
 
 // 지도 초기화 → geocoding → 렌더 (map-config로 엔진 결정 후 진행)
 const loadingEl = document.getElementById('mapLoading');
 (async () => {
-  await resolveEngine(); // 카카오 키 있으면 카카오, 없으면 Leaflet 폴백
+  // 엔진 결정과 실물건 로드를 병렬로 — 실패해도 예시 ITEMS로 degrade
+  await Promise.all([resolveEngine(), loadRealItems()]);
+  rebuildCourtDropdown(); // 실 데이터 기관으로 드롭다운 재구성
+  initTypeChips();
   initMap();
+  updateMapChip(); // 데이터 출처·엔진을 정확히 반영(예시/실시간 + 카카오/OSM)
   loadingEl.style.opacity = '0';
   setTimeout(() => {
     loadingEl.style.display = 'none';
