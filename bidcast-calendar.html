@@ -60,12 +60,16 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 @media (max-width:820px) { .two-col { grid-template-columns:1fr; } }
 .panel { background:var(--surface); border:1px solid var(--line); border-radius:20px; padding:22px 24px; }
 .panel h3 { font-size:15.5px; font-weight:800; margin-bottom:14px; }
+.day-cap { font-size:11px; font-weight:700; color:var(--mute); padding:0 0 9px; letter-spacing:-0.01em; }
 .day-row { display:flex; align-items:center; justify-content:space-between; padding:11px 0; border-bottom:1px solid var(--line); font-size:13.5px; }
 .day-row:last-child { border-bottom:none; }
 .day-row .d { color:var(--sub); font-weight:600; }
+.day-row .d .dnum { color:var(--mute); font-weight:700; font-variant-numeric:tabular-nums; margin-left:5px; }
 .day-row .n { font-weight:800; }
 .day-row.past .n { color:var(--sub); }
 .day-row.future .n { color:var(--green-deep); }
+.day-row.today .d { color:var(--green-deep); font-weight:800; }
+.day-row.today .todaytag { display:inline-block; font-size:9.5px; font-weight:800; color:#fff; background:var(--green); border-radius:5px; padding:1px 6px; margin-left:6px; vertical-align:middle; }
 
 /* 월별 캘린더 그래프 */
 .month-grid { display:grid; grid-template-columns:repeat(9,1fr); gap:8px; margin-top:24px; }
@@ -275,17 +279,33 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 const WEEKDAYS = ['월','화','수','목','금','토','일'];
 const UPCOMING = [124,98,312,176,143,0,0];
 const PAST = [88,151,203,97,64,0,0];
+const CAL_NOW = new Date(Date.now() + 9*3600*1000); // KST 기준 오늘
 
-function renderDayList(elId, values, futureLike) {
-  const el = document.getElementById(elId);
-  el.innerHTML = WEEKDAYS.map((d, i) => `
-    <div class="day-row ${futureLike ? 'future' : 'past'}">
-      <span class="d">${d}요일</span>
-      <span class="n">${values[i] > 0 ? values[i].toLocaleString() + '건' : '휴장'}</span>
-    </div>`).join('');
+// weekOffset: 0=이번 주, -1=지난 주. 그 주의 월요일(KST) 반환.
+function weekMonday(offset) {
+  const d = new Date(CAL_NOW.getTime());
+  const dow = d.getUTCDay(); // 0=일..6=토
+  d.setUTCDate(d.getUTCDate() + (dow === 0 ? -6 : 1 - dow) + (offset || 0) * 7);
+  return d;
 }
-renderDayList('upcomingList', UPCOMING, true);
-renderDayList('pastList', PAST, false);
+function renderDayList(elId, values, futureLike, weekOffset) {
+  const el = document.getElementById(elId);
+  const mon = weekMonday(weekOffset || 0);
+  const dates = WEEKDAYS.map((_, i) => { const dt = new Date(mon.getTime()); dt.setUTCDate(dt.getUTCDate() + i); return dt; });
+  const f = dates[0], l = dates[6];
+  const cap = `${f.getUTCMonth()+1}월 ${Math.ceil(f.getUTCDate()/7)}주 · ${f.getUTCMonth()+1}.${f.getUTCDate()}~${l.getUTCMonth()+1}.${l.getUTCDate()}`;
+  const todayKey = CAL_NOW.getUTCFullYear()*10000 + (CAL_NOW.getUTCMonth()+1)*100 + CAL_NOW.getUTCDate();
+  el.innerHTML = `<div class="day-cap">${cap}</div>` + WEEKDAYS.map((d, i) => {
+    const dt = dates[i];
+    const isToday = (dt.getUTCFullYear()*10000 + (dt.getUTCMonth()+1)*100 + dt.getUTCDate()) === todayKey;
+    return `<div class="day-row ${futureLike ? 'future' : 'past'}${isToday ? ' today' : ''}">
+      <span class="d">${d}요일 <span class="dnum">${dt.getUTCMonth()+1}.${dt.getUTCDate()}</span>${isToday ? ' <span class="todaytag">오늘</span>' : ''}</span>
+      <span class="n">${values[i] > 0 ? values[i].toLocaleString() + '건' : '휴장'}</span>
+    </div>`;
+  }).join('');
+}
+renderDayList('upcomingList', UPCOMING, true, 0);
+renderDayList('pastList', PAST, false, -1);
 
 document.getElementById('sumToday').textContent = UPCOMING[0];
 document.getElementById('sumWeek').textContent = UPCOMING.reduce((a,b)=>a+b,0).toLocaleString();
@@ -342,7 +362,7 @@ function calMarkLive(){
     if (cal && Array.isArray(cal.days) && cal.days.length) {
       const byDow = {}; cal.days.forEach(d=>{ byDow[d.dow]=(byDow[d.dow]||0)+(Number(d.count)||0); });
       const live = WEEKDAYS.map(d => byDow[d] || 0); // 토·일은 onbid-calendar 미포함 → 0(휴장)
-      renderDayList('upcomingList', live, true);
+      renderDayList('upcomingList', live, true, 0);
       const todayDow = ['일','월','화','수','목','금','토'][new Date(Date.now()+9*3600*1000).getUTCDay()];
       document.getElementById('sumToday').textContent = (byDow[todayDow]||0).toLocaleString();
       document.getElementById('sumWeek').textContent = live.reduce((a,b)=>a+b,0).toLocaleString();
