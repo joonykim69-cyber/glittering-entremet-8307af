@@ -533,6 +533,8 @@ h1,h2,h3,h4{font-family:var(--font-head)}
         <div class="pb-note" id="pbMinNote">—</div>
       </div>
     </div>
+    <!-- 신탁/특수 매각 안내: 최저가 > 감정가인 정상 케이스(신탁사가 최저가를 감정가보다 높게 설정) -->
+    <div id="trustSaleBadge" style="display:none;margin-top:10px;font-size:12.5px;font-weight:700;color:#8A6100;background:var(--yellow-soft,#FDF4D7);border:1px solid #F5E3B3;border-radius:12px;padding:10px 14px;line-height:1.55;">🔔 <b>최저입찰가가 감정가보다 높습니다.</b> 신탁·특수 매각에서 신탁사가 최저가를 감정가보다 높게 설정한 경우로, <b>감정가 대비 할인이 아닙니다</b>. 입찰 전 온비드 공고 원문과 매각조건을 반드시 확인하세요.</div>
 
     <!-- ══ 탭 1: 기본정보 ══ -->
     <div class="tab-panel" id="tab-basic">
@@ -1159,6 +1161,8 @@ document.getElementById('pbAppr').textContent=fmtMwon(it.appr);
 document.getElementById('pbMin').textContent=fmtMwon(it.min);
 if(isLive)document.getElementById('pbApprTag').textContent='실데이터 (온비드)';
 document.getElementById('pbMinPct').textContent=minPct>0?`(감정가의 ${minPct}%)`:'';
+// 최저가 > 감정가면 신탁/특수 매각 안내 배지 표시(실데이터 특성 — 오해 방지)
+if(it.appr>0&&it.min>it.appr){const tb=document.getElementById('trustSaleBadge');if(tb)tb.style.display='';}
 document.getElementById('pbMinNote').textContent=it.fail>0?`${it.fail}회 유찰 후 최저가`:'1회차 최저가';
 
 // CTA 링크
@@ -1449,6 +1453,7 @@ function saveLikeSnapDetail(){
     const m=JSON.parse(localStorage.getItem('bidcast:likesnap')||'{}');
     m[String(storageId)]={id:String(storageId),title:it.title||'',min:it.min||0,appr:it.appr||0,
       type:it.type||'',court:it.court||liveItem.org||'',status:it.status||'진행',thumb:it.thumb||'📦',
+      photo:it.photo||liveItem.photo||'', // 온비드 썸네일 URL — 비교·마이페이지 실사진용
       live:true,cltrMngNo:String(liveItem.id),pbctCdtnNo:liveItem.pbctCdtnNo!=null?String(liveItem.pbctCdtnNo):'',
       bidEnd:liveItem.bidEnd||it.bidEnd||''};
     localStorage.setItem('bidcast:likesnap',JSON.stringify(m));

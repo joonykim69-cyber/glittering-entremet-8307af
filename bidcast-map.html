@@ -618,7 +618,7 @@ async function loadRealItems() {
         status: it.status || '진행', thumb: TYPE_EMOJI[it.type] || '📍', caseNo: String(it.id), bidEnd: it.bidEnd || '',
       };
       mapped.push(rec);
-      snaps[iid] = { id: rec.realId, title: rec.title, min: rec.min, appr: rec.appr, type: rec.type, court: rec.court, status: rec.status, thumb: rec.thumb, live: true, cltrMngNo: rec.realId, pbctCdtnNo: rec.cdtn, bidEnd: rec.bidEnd, address: rec.address };
+      snaps[iid] = { id: rec.realId, title: rec.title, min: rec.min, appr: rec.appr, type: rec.type, court: rec.court, status: rec.status, thumb: rec.thumb, photo: it.photo || '', live: true, cltrMngNo: rec.realId, pbctCdtnNo: rec.cdtn, bidEnd: rec.bidEnd, address: rec.address };
     }
     if (!mapped.length) throw new Error('지오코딩 가능한 물건 없음');
     ITEMS = mapped; liveSnaps = snaps; liveMode = true;

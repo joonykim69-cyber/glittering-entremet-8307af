@@ -335,7 +335,7 @@ async function loadRepItems(axis, value){
     const grid = document.getElementById('repGrid'); if (!grid) return;
     grid.innerHTML = items.map(it => {
       const id=String(it.id);
-      catSnaps[id]={ id, title:it.title||'', min:it.min||0, appr:it.appr||0, type:it.type||'', court:it.court||it.orgNm||'', status:it.status||'진행', thumb:REP_ICONS[it.type]||'🏢', live:true, cltrMngNo:id, pbctCdtnNo:it.pbctCdtnNo!=null?String(it.pbctCdtnNo):'', bidEnd:it.bidEnd||'', address:it.address||'' };
+      catSnaps[id]={ id, title:it.title||'', min:it.min||0, appr:it.appr||0, type:it.type||'', court:it.court||it.orgNm||'', status:it.status||'진행', thumb:REP_ICONS[it.type]||'🏢', photo:it.photo||'', live:true, cltrMngNo:id, pbctCdtnNo:it.pbctCdtnNo!=null?String(it.pbctCdtnNo):'', bidEnd:it.bidEnd||'', address:it.address||'' };
       const safeId=id.replace(/[^0-9A-Za-z\-_.]/g,'');
       return `<a class="rep-card" href="bidcast-detail.html?id=${encodeURIComponent(id)}" onclick="stashCatLive('${safeId}')">
         <div class="th">${REP_ICONS[it.type]||'🏢'}</div>

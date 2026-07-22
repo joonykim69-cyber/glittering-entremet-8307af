@@ -260,14 +260,14 @@ try {
       const t = String(s.bidEnd || '').replace(/[^0-9]/g, '');
       let period = '실시간';
       if (t.length >= 8) { const mm=+t.slice(4,6), dd=+t.slice(6,8); const wd=['일','월','화','수','목','금','토'][new Date(+t.slice(0,4),mm-1,dd).getDay()]; period = `~ ${mm}.${dd}(${wd})`; }
-      ITEMS[String(id)] = { type:s.type||'기타', title:s.title||'(물건)', court:s.court||'', appr:s.appr||0, min:s.min||0, fail:s.fail||0, status:s.status||'진행', thumb:s.thumb||'📦', period, live:true, cltrMngNo:String(s.cltrMngNo||id), pbctCdtnNo:s.pbctCdtnNo!=null?String(s.pbctCdtnNo):'' };
+      ITEMS[String(id)] = { type:s.type||'기타', title:s.title||'(물건)', court:s.court||'', appr:s.appr||0, min:s.min||0, fail:s.fail||0, status:s.status||'진행', thumb:s.thumb||'📦', photo:s.photo||'', period, live:true, cltrMngNo:String(s.cltrMngNo||id), pbctCdtnNo:s.pbctCdtnNo!=null?String(s.pbctCdtnNo):'' };
       hasLive = true;
     }
   }
 } catch (e) {}
 if (hasLive) { const chip = document.querySelector('.demo-chip'); if (chip) chip.textContent = '✅ 관심물건(실시간) + 예시 함께 비교 · AI 예상은 규칙 기반 참고치'; }
 // 라이브 물건 상세 이동 전 스냅샷 주입(상세 페이지가 실물건으로 렌더)
-function stashCmpLive(id) { const x = ITEMS[id]; if (x && x.live) { try { sessionStorage.setItem('bidcast:detail', JSON.stringify({ id:String(x.cltrMngNo||id), title:x.title, min:x.min, appr:x.appr, type:x.type, court:x.court, status:x.status, thumb:x.thumb, live:true, cltrMngNo:String(x.cltrMngNo||id), pbctCdtnNo:x.pbctCdtnNo||'', bidEnd:'' })); } catch (e) {} } }
+function stashCmpLive(id) { const x = ITEMS[id]; if (x && x.live) { try { sessionStorage.setItem('bidcast:detail', JSON.stringify({ id:String(x.cltrMngNo||id), title:x.title, min:x.min, appr:x.appr, type:x.type, court:x.court, status:x.status, thumb:x.thumb, photo:x.photo||'', live:true, cltrMngNo:String(x.cltrMngNo||id), pbctCdtnNo:x.pbctCdtnNo||'', bidEnd:'' })); } catch (e) {} } }
 
 const fmt = n => n >= 10000 ? (n/10000).toFixed(n % 10000 === 0 ? 0 : 1) + '억' : n.toLocaleString() + '만';
 let userLoggedIn = false;

@@ -192,8 +192,8 @@ h1,h2,h3,h4{font-family:var(--font-head)}
     <span class="demo-chip" id="calDataChip">🔧 아래 건수는 예시 데이터입니다</span>
     <div class="sum-row">
       <div class="sum"><div class="num" id="sumToday">18</div><div class="lbl">오늘 입찰</div></div>
-      <div class="sum"><div class="num" id="sumWeek">124</div><div class="lbl">이번 주 입찰</div></div>
-      <div class="sum"><div class="num" id="sum30">612</div><div class="lbl">다가오는 30일</div></div>
+      <div class="sum"><div class="num" id="sumWeek">124</div><div class="lbl">이번 주 입찰(일별 합계)</div></div>
+      <div class="sum"><div class="num" id="sum30">612</div><div class="lbl">다가오는 30일 (예시)</div></div>
       <div class="sum"><div class="num" id="sumAll">4,208</div><div class="lbl">전체 진행 물건</div></div>
     </div>
   </div>
@@ -350,13 +350,15 @@ function calMarkLive(){
   try {
     const data = await fetch('/.netlify/functions/onbid-search?page=1&numOfRows=100').then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); });
     if (data && Array.isArray(data.items) && data.items.length) {
+      // 전체 진행 물건 = 실제 totalCount로 교체(예시값과 섞여 "이번 주 > 전체" 모순이 나던 문제 해소)
+      if (data.totalCount) document.getElementById('sumAll').textContent = Number(data.totalCount).toLocaleString();
       const nd=new Date(Date.now()+9*3600*1000); const now=nd.getUTCFullYear()*10000+(nd.getUTCMonth()+1)*100+nd.getUTCDate();
       const items = data.items.filter(it=>it.bidEnd && bidEndInt(it.bidEnd) >= now)
         .sort((a,b)=> bidEndInt(a.bidEnd)-bidEndInt(b.bidEnd)).slice(0,12);
       if (items.length) {
         document.getElementById('schedList').innerHTML = items.map(it => {
           const id=String(it.id);
-          calSnaps[id]={ id, title:it.title||'', min:it.min||0, appr:it.appr||0, type:it.type||'', court:it.court||it.orgNm||'', status:it.status||'진행', thumb:TYPE_EMOJI_C[it.type]||'📦', live:true, cltrMngNo:id, pbctCdtnNo:it.pbctCdtnNo!=null?String(it.pbctCdtnNo):'', bidEnd:it.bidEnd||'', address:it.address||'' };
+          calSnaps[id]={ id, title:it.title||'', min:it.min||0, appr:it.appr||0, type:it.type||'', court:it.court||it.orgNm||'', status:it.status||'진행', thumb:TYPE_EMOJI_C[it.type]||'📦', photo:it.photo||'', live:true, cltrMngNo:id, pbctCdtnNo:it.pbctCdtnNo!=null?String(it.pbctCdtnNo):'', bidEnd:it.bidEnd||'', address:it.address||'' };
           const t=String(it.bidEnd).replace(/[^0-9]/g,''); const mm=+t.slice(4,6), dd=+t.slice(6,8);
           const wd=['일','월','화','수','목','금','토'][new Date(+t.slice(0,4),mm-1,dd).getDay()];
           const safeId=id.replace(/[^0-9A-Za-z\-_.]/g,'');
