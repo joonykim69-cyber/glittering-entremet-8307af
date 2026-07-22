@@ -92,8 +92,11 @@ async function gatherMacro(base) {
 }
 
 // ── 부동산원 주택가격지수 수집(region 에이전트 전용): R-ONE 최근값+3/6/12개월 변동 ──
-async function gatherRone(base) {
-  const d = await fetchJson(`${base}/.netlify/functions/rone-svc`);
+async function gatherRone(base, sido) {
+  // 물건 소재 시도를 넘겨 지역별 지수(예 부산 물건 → 부산 아파트 매매가격지수)를 받는다.
+  // 지역 미매칭이면 rone-svc가 전국으로 폴백. 시도 미상이면 파라미터 없이(env 기본=전국) 호출.
+  const q = sido ? `?region=${encodeURIComponent(sido)}` : '';
+  const d = await fetchJson(`${base}/.netlify/functions/rone-svc${q}`);
   if (!d || d.status !== 'ok' || !d.latest) return null;
   return d;
 }
@@ -115,7 +118,7 @@ async function gatherFacts(store, base, it, agent) {
     agent && agent.needsPbanc ? gatherPbanc(base, it) : Promise.resolve(null),
     agent && agent.needsNews ? gatherNews(base, it) : Promise.resolve(null),
     agent && agent.needsMacro ? gatherMacro(base) : Promise.resolve(null),
-    agent && agent.needsRone ? gatherRone(base) : Promise.resolve(null),
+    agent && agent.needsRone ? gatherRone(base, sido) : Promise.resolve(null),
   ]);
 
   let usg = null, rgn = null;

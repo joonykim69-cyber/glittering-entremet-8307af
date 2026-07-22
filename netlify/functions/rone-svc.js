@@ -20,6 +20,14 @@ const BASE = 'https://www.reb.or.kr/r-one/openapi';
 
 function num(v) { const n = parseFloat(String(v ?? '').replace(/,/g, '')); return Number.isFinite(n) ? n : null; }
 
+// 시도명(예 "충청북도"/"서울특별시")을 R-ONE 지역 라벨 약칭(예 "충북"/"서울")으로 정규화.
+function shortSido(s) {
+  s = String(s || '').trim();
+  const M = { '충청북': '충북', '충청남': '충남', '전라북': '전북', '전라남': '전남', '경상북': '경북', '경상남': '경남' };
+  for (const k of Object.keys(M)) { if (s.startsWith(k)) return M[k]; }
+  return s.slice(0, 2); // 서울/부산/대구/인천/광주/대전/울산/세종/경기/강원/제주 등은 앞 2글자
+}
+
 // R-ONE 응답은 [{head:[...]},{row:[...]}] 형태(다른 통계 API와 유사). row 배열만 추출.
 function extractRows(raw, svcKey) {
   const node = raw && raw[svcKey];
@@ -64,10 +72,13 @@ exports.handler = async (event) => {
     const startT = qs.start || process.env.RONE_START_WRTTIME || (cycle === 'MM' ? ym(new Date(Date.UTC(now.getUTCFullYear() - 3, now.getUTCMonth(), 1))) : String(now.getUTCFullYear() - 4));
     const endT = qs.end || process.env.RONE_END_WRTTIME || (cycle === 'MM' ? ym(now) : String(now.getUTCFullYear()));
     const params = new URLSearchParams({ KEY: apiKey, Type: 'json', pIndex: '1', pSize: qs.pSize || '500', STATBL_ID: statbl, DTACYCLE_CD: cycle, START_WRTTIME: startT, END_WRTTIME: endT });
+    // ?region=<시도>: 소재지 시도의 시계열을 라벨 매칭으로 선택(동적 지역화). 지정 시 지역 필터(cls/grp)를
+    // 비워 전 지역 시계열을 받은 뒤 라벨로 고른다(없으면 전국 폴백).
+    const regionQ = qs.region ? String(qs.region).trim() : '';
     const itm = qs.itm || process.env.RONE_ITM_ID; if (itm) params.set('ITM_ID', itm);
-    const cls = qs.cls || process.env.RONE_CLS_ID; if (cls) params.set('CLS_ID', cls);
+    const cls = qs.cls || (regionQ ? '' : process.env.RONE_CLS_ID); if (cls) params.set('CLS_ID', cls);
     // GRP_ID: 지역 차원(예 GRP_NM "동구"/"전국"). 다차원 표(지역×용도)를 하나로 좁히는 핵심 필터.
-    const grp = qs.grp || process.env.RONE_GRP_ID; if (grp) params.set('GRP_ID', grp);
+    const grp = qs.grp || (regionQ ? '' : process.env.RONE_GRP_ID); if (grp) params.set('GRP_ID', grp);
     const url = `${BASE}/SttsApiTblData.do?${params.toString()}`;
 
     const r = await fetch(url); const t = await r.text();
@@ -93,6 +104,34 @@ exports.handler = async (event) => {
     // 분류(시계열)별 그룹핑
     const groups = new Map();
     for (const x of all) { if (!groups.has(x.key)) groups.set(x.key, { key: x.key, label: x.label, unit: x.unit, ids: x.ids, rows: [] }); groups.get(x.key).rows.push(x); }
+
+    // 시계열 → 추세 응답 빌더 (region 매칭·단일 시계열 공용)
+    const trendBody = (g, extra) => {
+      const rows2 = g.rows.slice().sort((a, b) => a.time.localeCompare(b.time));
+      const last = rows2[rows2.length - 1];
+      const at = k => { const r2 = rows2[rows2.length - 1 - k]; return r2 ? r2.value : null; };
+      const chg = prev => prev != null && prev !== 0 ? Math.round((last.value - prev) / prev * 1000) / 10 : null;
+      return JSON.stringify({
+        status: 'ok', statbl, cycle, region: g.label, item: g.label, unit: g.unit,
+        latest: { time: last.time, value: last.value },
+        change: { m3: chg(at(3)), m6: chg(at(6)), m12: chg(at(12)) },
+        points: rows2.slice(-13).map(p => ({ time: p.time, value: p.value })),
+        ...extra,
+        ...(debug ? { url: url.replace(apiKey, '***'), rows: rows2.length } : {}),
+      });
+    };
+
+    // ?region 지정: 소재 시도 라벨과 매칭되는 시계열 선택(없으면 전국 폴백 → 그래도 없으면 첫 시계열).
+    if (regionQ) {
+      const want = shortSido(regionQ);
+      const gs = [...groups.values()];
+      const g = gs.find(x => (x.label || '').includes(want)) || gs.find(x => (x.label || '').includes('전국')) || gs[0];
+      if (g) {
+        const matched = (g.label || '').includes(want);
+        return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=21600' }, body: trendBody(g, { matchedRegion: want, regionMatched: matched }) };
+      }
+    }
+
     // 다차원인데 필터가 없어 시계열이 여럿이면 모호 → multi로 반환(사용자/코드가 GRP/CLS/ITM 지정)
     if (groups.size > 1 && !cls && !itm && !grp) {
       // 각 시계열의 라벨 + 바로 env에 넣을 식별 ID(GRP_ID/CLS_ID/ITM_ID)를 함께 노출 → 자가 설정 가능.
