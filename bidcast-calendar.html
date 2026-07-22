@@ -81,10 +81,13 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 .sched-row { display:flex; gap:14px; align-items:center; padding:12px 4px; border-bottom:1px solid var(--line); text-decoration:none; transition:background .15s; border-radius:10px; }
 .sched-row:hover { background:var(--green-soft); }
 .sched-row:last-child { border-bottom:none; }
-.sched-date { flex:none; width:64px; text-align:center; background:var(--bg); border:1px solid var(--line); border-radius:12px; padding:7px 4px; }
-.sched-date .dd { font-size:16px; font-weight:900; color:var(--green-deep); font-variant-numeric:tabular-nums; }
-.sched-date .wd { font-size:10.5px; font-weight:700; color:var(--sub); }
-.sched-ico { flex:none; font-size:22px; }
+.sched-date { flex:none; width:80px; text-align:center; background:var(--bg); border:1px solid var(--line); border-radius:12px; padding:6px 4px; line-height:1.28; }
+.sched-date .yy { display:block; font-size:9.5px; font-weight:700; color:var(--mute); }
+.sched-date .dd { display:block; font-size:15px; font-weight:900; color:var(--green-deep); font-variant-numeric:tabular-nums; }
+.sched-date .wd { display:block; font-size:10px; font-weight:700; color:var(--sub); }
+.sched-date .mw { display:block; font-size:9.5px; font-weight:800; color:var(--green-deep); margin-top:2px; }
+.sched-ico { flex:none; width:44px; height:44px; font-size:22px; display:flex; align-items:center; justify-content:center; border-radius:10px; overflow:hidden; }
+.sched-ico .sched-photo { width:100%; height:100%; object-fit:cover; }
 .sched-body { flex:1; min-width:0; }
 .sched-body .t { font-size:13.5px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .sched-body .m { font-size:11.5px; color:var(--sub); margin-top:1px; }
@@ -299,7 +302,7 @@ const SCHEDULE = [
 ];
 document.getElementById('schedList').innerHTML = SCHEDULE.map(s => `
   <a class="sched-row" href="bidcast-detail.html?id=${s.id}">
-    <span class="sched-date"><span class="dd">${s.dd}</span><br/><span class="wd">${s.wd} 마감</span></span>
+    <span class="sched-date"><span class="yy">2026년</span><span class="dd">${s.dd}</span><span class="wd">${s.wd} 마감</span><span class="mw">${s.dd.split('.')[0]}월 ${Math.ceil((+s.dd.split('.')[1]||1)/7)}주</span></span>
     <span class="sched-ico">${s.thumb}</span>
     <span class="sched-body"><span class="t">${s.title}</span><br/><span class="m">${s.meta}</span></span>
     <span class="sched-price"><span class="p">최저 ${s.min}</span>${s.fail > 0 ? `<br/><span class="tag">유찰 ${s.fail}회</span>` : ''}</span>
@@ -359,12 +362,13 @@ function calMarkLive(){
         document.getElementById('schedList').innerHTML = items.map(it => {
           const id=String(it.id);
           calSnaps[id]={ id, title:it.title||'', min:it.min||0, appr:it.appr||0, type:it.type||'', court:it.court||it.orgNm||'', status:it.status||'진행', thumb:TYPE_EMOJI_C[it.type]||'📦', photo:it.photo||'', live:true, cltrMngNo:id, pbctCdtnNo:it.pbctCdtnNo!=null?String(it.pbctCdtnNo):'', bidEnd:it.bidEnd||'', address:it.address||'' };
-          const t=String(it.bidEnd).replace(/[^0-9]/g,''); const mm=+t.slice(4,6), dd=+t.slice(6,8);
-          const wd=['일','월','화','수','목','금','토'][new Date(+t.slice(0,4),mm-1,dd).getDay()];
+          const t=String(it.bidEnd).replace(/[^0-9]/g,''); const yy=+t.slice(0,4), mm=+t.slice(4,6), dd=+t.slice(6,8);
+          const wd=['일','월','화','수','목','금','토'][new Date(yy,mm-1,dd).getDay()];
+          const wk=Math.ceil(dd/7); // 해당 월의 몇째 주
           const safeId=id.replace(/[^0-9A-Za-z\-_.]/g,'');
           return `<a class="sched-row" href="bidcast-detail.html?id=${encodeURIComponent(id)}" onclick="stashCalLive('${safeId}')">
-            <span class="sched-date"><span class="dd">${mm}.${dd}</span><br/><span class="wd">${wd} 마감</span></span>
-            <span class="sched-ico">${TYPE_EMOJI_C[it.type]||'📦'}</span>
+            <span class="sched-date"><span class="yy">${yy}년</span><span class="dd">${mm}.${dd}</span><span class="wd">${wd} 마감</span><span class="mw">${mm}월 ${wk}주</span></span>
+            <span class="sched-ico">${it.photo && /^https?:\/\//.test(it.photo) ? `<img class="sched-photo" src="${escH(it.photo)}" alt="" loading="lazy" onerror="this.remove()">` : (TYPE_EMOJI_C[it.type]||'📦')}</span>
             <span class="sched-body"><span class="t">${escH(it.title)}</span><br/><span class="m">${escH(it.court||it.orgNm||'')} · ${escH(it.type||'')}</span></span>
             <span class="sched-price"><span class="p">최저 ${fmtMinMan(it.min)}</span>${it.fail>0?`<br/><span class="tag">유찰 ${it.fail}회</span>`:''}</span>
           </a>`;
