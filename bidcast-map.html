@@ -201,10 +201,14 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 }
 .leaflet-popup-content { margin:0 !important; width:240px !important; }
 .leaflet-popup-tip-container { display:none; }
-.lf-popup { padding:16px; }
-.lf-popup .pop-kind { font-size:11px; font-weight:800; color:var(--green-deep); margin-bottom:4px; }
-.lf-popup h5 { font-size:13.5px; font-weight:800; line-height:1.4; margin-bottom:4px; }
-.lf-popup .pop-meta { font-size:11.5px; color:var(--sub); }
+.lf-popup { padding:18px; width:266px; }
+.lf-popup.has-photo { padding-top:0; }
+.lf-popup .pop-photo { display:block; width:calc(100% + 36px); height:150px; object-fit:cover; margin:0 -18px 14px; }
+.lf-popup .pop-kind { font-size:11.5px; font-weight:800; color:var(--green-deep); margin-bottom:5px; }
+.lf-popup h5 { font-size:15px; font-weight:800; line-height:1.4; margin-bottom:5px; }
+.lf-popup .pop-addr { font-size:11.5px; color:var(--mute); margin:0 0 4px; line-height:1.45; }
+.lf-popup .pop-dday { display:inline-block; font-size:11px; font-weight:800; border-radius:7px; padding:3px 9px; margin-top:9px; }
+.lf-popup .pop-meta { font-size:12px; color:var(--sub); }
 .lf-popup .pop-price { margin-top:10px; display:flex; gap:10px; }
 .lf-popup .pop-appr { font-size:11.5px; color:var(--sub); }
 .lf-popup .pop-appr b { font-size:13px; font-weight:800; color:var(--ink); }
@@ -615,7 +619,7 @@ async function loadRealItems() {
         id: iid, live: true, realId: String(it.id), cdtn: it.pbctCdtnNo != null ? String(it.pbctCdtnNo) : '',
         type: it.type || '기타부동산', region: regionFromAddr(it.address), court: it.court || it.orgNm || '',
         title: it.title || '', address: it.address, appr: it.appr || 0, min: it.min || 0, fail: it.fail || 0,
-        status: it.status || '진행', thumb: TYPE_EMOJI[it.type] || '📍', caseNo: String(it.id), bidEnd: it.bidEnd || '',
+        status: it.status || '진행', thumb: TYPE_EMOJI[it.type] || '📍', photo: it.photo || '', caseNo: String(it.id), bidEnd: it.bidEnd || '',
       };
       mapped.push(rec);
       snaps[iid] = { id: rec.realId, title: rec.title, min: rec.min, appr: rec.appr, type: rec.type, court: rec.court, status: rec.status, thumb: rec.thumb, photo: it.photo || '', live: true, cltrMngNo: rec.realId, pbctCdtnNo: rec.cdtn, bidEnd: rec.bidEnd, address: rec.address };
@@ -714,14 +718,36 @@ function makeIcon(it, active) {
   return L.divIcon({ html, className:'', iconSize:[null, null], iconAnchor:[60, 38] });
 }
 
+// 팝업용 개찰 임박 D-day 배지 (bidEnd yyyyMMddHHmm) — 값 없으면 빈 문자열
+function popDday(bidEnd) {
+  const t = String(bidEnd || '').replace(/[^0-9]/g, '');
+  if (t.length < 8) return '';
+  const end = new Date(+t.slice(0, 4), +t.slice(4, 6) - 1, +t.slice(6, 8));
+  if (isNaN(end.getTime())) return '';
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const d = Math.round((end - today) / 86400000);
+  let txt, bg, col;
+  if (d < 0) return '';
+  else if (d === 0) { txt = '🔴 오늘 마감'; bg = 'var(--red-soft)'; col = 'var(--red)'; }
+  else if (d <= 3) { txt = `🔴 마감 D-${d}`; bg = 'var(--red-soft)'; col = 'var(--red)'; }
+  else if (d <= 7) { txt = `⏰ 마감 D-${d}`; bg = '#FDF4D7'; col = '#8A6100'; }
+  else { txt = `마감 D-${d}`; bg = 'var(--bg)'; col = 'var(--sub)'; }
+  return `<span class="pop-dday" style="background:${bg};color:${col}">${txt}</span>`;
+}
 function popupHTML(it) {
-  return `<div class="lf-popup">
-    <div class="pop-kind">${it.type} ${popBadge(it)}</div>
+  const pct = it.appr > 0 ? Math.round(it.min / it.appr * 100) + '%' : '';
+  const photo = (it.photo && /^https?:\/\//.test(it.photo))
+    ? `<img class="pop-photo" src="${it.photo}" alt="" loading="lazy" onerror="this.remove()">` : '';
+  return `<div class="lf-popup${photo ? ' has-photo' : ''}">
+    ${photo}
+    <div class="pop-kind">${escHtml(it.type)} ${popBadge(it)}</div>
     <h5>${escHtml(it.title)}</h5>
+    ${it.address ? `<p class="pop-addr">📍 ${escHtml(it.address)}</p>` : ''}
     <p class="pop-meta">${escHtml(it.court)} · ${escHtml(it.caseNo || '')}</p>
+    ${popDday(it.bidEnd)}
     <div class="pop-price">
       <div class="pop-appr">감정가 <b>${fmtWon(it.appr)}</b></div>
-      <div class="pop-appr">최저 <b>${fmtWon(it.min)}</b></div>
+      <div class="pop-appr">최저 <b>${fmtWon(it.min)}</b>${pct ? ` <span style="color:#C85000;font-weight:800">(${pct})</span>` : ''}</div>
     </div>
     <div class="pop-actions">
       <a class="pop-detail" href="bidcast-detail.html?id=${it.live ? encodeURIComponent(it.realId) : it.id}"${it.live ? ` onclick="stashDetailLive(${it.id})"` : ''}>상세 보기 →</a>

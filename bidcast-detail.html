@@ -1454,6 +1454,7 @@ function saveLikeSnapDetail(){
     m[String(storageId)]={id:String(storageId),title:it.title||'',min:it.min||0,appr:it.appr||0,
       type:it.type||'',court:it.court||liveItem.org||'',status:it.status||'진행',thumb:it.thumb||'📦',
       photo:it.photo||liveItem.photo||'', // 온비드 썸네일 URL — 비교·마이페이지 실사진용
+      address:it.address||liveItem.address||'', // 소재지 — 상세 지도 지오코딩용
       live:true,cltrMngNo:String(liveItem.id),pbctCdtnNo:liveItem.pbctCdtnNo!=null?String(liveItem.pbctCdtnNo):'',
       bidEnd:liveItem.bidEnd||it.bidEnd||''};
     localStorage.setItem('bidcast:likesnap',JSON.stringify(m));
