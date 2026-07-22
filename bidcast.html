@@ -6,6 +6,27 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>신호등옥션 — AI 공매 낙찰가 예측</title>
 <meta name="description" content="온비드 공매 전 자산군의 예상 낙찰가 범위와 입찰 신호를 확인하세요. 매일 예측을 봉인하고 개찰 후 전수 채점하는 살아있는 성적표."/>
+<link rel="canonical" href="https://sucessbid.netlify.app/"/>
+<!-- 소셜 공유 미리보기 (Open Graph / Twitter) -->
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="신호등옥션"/>
+<meta property="og:locale" content="ko_KR"/>
+<meta property="og:url" content="https://sucessbid.netlify.app/"/>
+<meta property="og:title" content="신호등옥션 — AI 공매 낙찰가 예측"/>
+<meta property="og:description" content="온비드 공매 전 자산군의 예상 낙찰가 범위와 입찰 신호를 확인하세요. 매일 예측을 봉인하고 개찰 후 전수 채점하는 살아있는 성적표."/>
+<meta property="og:image" content="https://sucessbid.netlify.app/og-image.png"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta property="og:image:alt" content="신호등옥션 — 지금 들어가도 될까? AI가 신호로 알려드립니다"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="신호등옥션 — AI 공매 낙찰가 예측"/>
+<meta name="twitter:description" content="온비드 공매 전 자산군의 예상 낙찰가 범위와 입찰 신호. 매일 봉인·전수 채점하는 살아있는 성적표."/>
+<meta name="twitter:image" content="https://sucessbid.netlify.app/og-image.png"/>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebSite","name":"신호등옥션","alternateName":"BidCast","url":"https://sucessbid.netlify.app/","description":"온비드 공매 전 자산군의 예상 낙찰가 범위와 입찰 신호를 제공하는 공매 낙찰가 예측 서비스","inLanguage":"ko-KR"}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Nunito:wght@700;800;900&family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap">
 <style>
 /* ═══════════════════════════════════════════════════
@@ -18,6 +39,9 @@
 body{margin:0;font-family:var(--font);color:var(--ink);background:var(--bg);word-break:keep-all;line-height:1.6}
 a{color:var(--green-deep);text-decoration:none}
 a:hover{color:var(--green)}
+:focus-visible{outline:2px solid var(--green);outline-offset:2px;border-radius:4px}
+.skip-link{position:absolute;left:12px;top:-48px;z-index:300;background:var(--green-deep);color:#fff;font-weight:800;font-size:13px;padding:10px 16px;border-radius:0 0 10px 10px;transition:top .2s var(--ease)}
+.skip-link:focus{top:0;color:#fff}
 h1,h2,h3,p{margin:0}
 h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:var(--font-head)}
 .wrap{max-width:1160px;margin:0 auto;padding:0 24px}
@@ -279,6 +303,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .auth-center{text-align:center;padding:26px 0 10px}
 .auth-spinner{width:52px;height:52px;margin:0 auto 18px;border-radius:50%;border:4px solid var(--green-soft);border-top-color:var(--green);animation:spin 0.9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
 .auth-center h4{font-size:17px;font-weight:800}
 .auth-center p{font-size:13px;color:var(--sub);margin-top:6px}
 .auth-success-ico{width:60px;height:60px;margin:0 auto 18px;border-radius:50%;background:var(--green-soft);border:1.5px solid #C4EBD8;display:grid;place-items:center;font-size:26px;color:var(--green-deep);box-shadow:0 0 22px rgba(0,200,127,.35)}
@@ -301,6 +326,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 </style>
 </head>
 <body>
+<a href="#main" class="skip-link">본문 바로가기</a>
 <nav class="nav"><div class="wrap">
 <span class="logo"><span class="logo-box"><i></i><i></i><i></i></span><b>신호등<em>옥션</em></b></span>
 <div class="nav-links">
@@ -319,7 +345,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 </div>
 </div></nav>
 
-<header class="hero"><div class="wrap hero-inner">
+<header class="hero" id="main"><div class="wrap hero-inner">
 <span class="badge"><span class="badge-lights"><i></i><i></i><i></i></span>공공데이터포털 온비드 공식 API 기반</span>
 <h1>지금 들어가도 될까?<br>AI가 신호로 알려드립니다</h1>
 <p class="sub" style="max-width:600px;font-size:17px">부동산만이 아닙니다. 차량·동산·기계장비·유가증권까지 — 온비드 공매 전 자산군의 과거 낙찰 데이터를 학습한 예측 엔진이 예상 낙찰가 범위와 입찰 신호를 보여드립니다.</p>
@@ -647,7 +673,15 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 // ═══════════════════════════════════════
 // FAQ 아코디언
 // ═══════════════════════════════════════
-document.querySelectorAll('.faq-q').forEach(function(q){q.addEventListener('click',function(){q.parentElement.classList.toggle('open');});});
+document.querySelectorAll('.faq-q').forEach(function(q){
+  var item=q.parentElement;
+  q.setAttribute('role','button');
+  q.setAttribute('tabindex','0');
+  q.setAttribute('aria-expanded', item.classList.contains('open')?'true':'false');
+  function toggle(){ var open=item.classList.toggle('open'); q.setAttribute('aria-expanded', open?'true':'false'); }
+  q.addEventListener('click', toggle);
+  q.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggle(); } });
+});
 
 // ═══════════════════════════════════════
 // 간편로그인 · 회원가입 모달 (데모) — SNS 3종 + 이메일 코드 인증
