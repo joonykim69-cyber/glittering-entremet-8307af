@@ -5,7 +5,7 @@
 <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title id="pageTitle">카테고리 — 신호등옥션</title>
-<meta name="description" content="지역별·물건유형별·법원별로 공매 물건과 AI 예측 데이터를 모아봅니다."/>
+<meta name="description" content="지역별·물건유형별·기관별(공고기관)로 공매 물건과 AI 예측 데이터를 모아봅니다."/>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"/>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -185,7 +185,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
   <div class="wrap">
     <div class="breadcrumb" id="breadcrumb"><a href="bidcast.html">홈</a> / <a href="bidcast-category.html">카테고리</a></div>
     <h1 id="h1">카테고리로 둘러보기</h1>
-    <p id="leadP">지역별 · 물건유형별 · 법원별로 공매 물건과 AI 예측 데이터를 모아봤습니다.</p>
+    <p id="leadP">지역별 · 물건유형별 · 기관별(공고기관)로 공매 물건과 AI 예측 데이터를 모아봤습니다.</p>
     <span class="demo-chip">🔧 아래 통계와 물건은 예시 데이터입니다</span>
   </div>
 </header>
@@ -378,8 +378,8 @@ function renderLeaf() {
 }
 
 // ═══════════════════════════════════════
-// 대표 물건 실 데이터 연동 — region은 onbid-search 지역 필터, type은 클라이언트 필터.
-// court(법원)는 공매 기관 개념과 맞지 않아 예시 유지. 실패 시 예시 유지(degrade).
+// 대표 물건 실 데이터 연동 — region은 onbid-search 지역 필터, type은 클라이언트 필터,
+// court(=기관/공고기관 orgNm)는 표본을 orgNm으로 매칭. 실패 시 예시 유지(degrade).
 // ═══════════════════════════════════════
 const catSnaps = {};
 function escC(s){ return String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])); }
