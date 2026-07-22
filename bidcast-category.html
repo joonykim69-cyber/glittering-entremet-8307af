@@ -63,6 +63,13 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 .axis-chip .c { font-size:12px; color:var(--green-deep); font-weight:800; white-space:nowrap; }
 
 /* LEAF */
+.leaf-switch { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:22px; padding:14px 18px; background:var(--surface); border:1px solid var(--line); border-radius:16px; }
+.leaf-switch .ls-label { font-size:12.5px; font-weight:800; color:var(--sub); }
+.leaf-switch select { font:inherit; font-size:13.5px; font-weight:700; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:9px 14px; cursor:pointer; min-width:150px; }
+.leaf-switch select:focus-visible { outline:2px solid var(--green); outline-offset:2px; }
+.leaf-switch .ls-hub { margin-left:auto; font-size:12.5px; font-weight:700; color:var(--green-deep); text-decoration:none; white-space:nowrap; }
+.leaf-switch .ls-hub:hover { text-decoration:underline; }
+@media (max-width:560px) { .leaf-switch .ls-hub { margin-left:0; } }
 .leaf-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:24px; }
 .leaf-stat { background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px 18px; }
 .leaf-stat .v { font-size:20px; font-weight:900; color:var(--green-deep); }
@@ -304,6 +311,7 @@ function renderLeaf() {
   const maxV = Math.max(...distList.map(x => x[1]));
 
   main.innerHTML = `
+    ${buildSwitcher(axis, value, DATASET, label)}
     <div class="leaf-stats">
       <div class="leaf-stat"><div class="v" id="leafCount">${fmtCount(d.count)}</div><div class="k">전체 진행 물건</div></div>
       <div class="leaf-stat"><div class="v">${distList[0][0]}</div><div class="k">최다 비중 항목</div></div>
@@ -369,6 +377,23 @@ async function loadRepItems(axis, value){
     const tile=document.getElementById('catStatusTile'); if(tile) tile.innerHTML='<div class="v" style="color:var(--green-deep)">실시간</div><div class="k">온비드 실물건 연동됨</div>';
     const chip=document.querySelector('.demo-chip'); if(chip) chip.textContent='✅ 대표 물건은 실시간 온비드 데이터 (분포 통계는 참고 예시)';
   } catch(e){ console.info('[cat] 대표 물건 연동 실패, 예시 유지:', e.message); }
+}
+
+// 리프 페이지 축 전환 셀렉트 — 같은 축(지역/유형/법원) 안에서 다른 값으로 바로 이동.
+// 허브로 돌아가지 않고도 서울↔경기, 아파트↔토지 등 전환 가능.
+function buildSwitcher(axis, value, dataset, label) {
+  const opts = Object.keys(dataset).map(k =>
+    `<option value="${escC(k)}"${k === value ? ' selected' : ''}>${escC(k)}</option>`
+  ).join('');
+  return `<div class="leaf-switch">
+    <span class="ls-label">다른 ${escC(label)} 보기</span>
+    <select aria-label="${escC(label)} 선택" onchange="switchLeaf('${escC(axis)}', this.value)">${opts}</select>
+    <a class="ls-hub" href="bidcast-category.html?axis=${encodeURIComponent(axis)}">← ${escC(label)} 전체 목록</a>
+  </div>`;
+}
+function switchLeaf(ax, val) {
+  if (!val) return;
+  location.href = `bidcast-category.html?axis=${encodeURIComponent(ax)}&value=${encodeURIComponent(val)}`;
 }
 
 function buildRepCards(axis, value) {
