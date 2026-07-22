@@ -67,6 +67,7 @@ exports.handler = async (event) => {
     const agg = (await store.get('agg', { type: 'json' })) || {
       n: 0, hit: 0, sumAbsErrPct: 0,
       byTier: {}, byUsage: {}, daily: {},
+      errBuckets: { le5: 0, le10: 0, le15: 0, le20: 0 }, byAsset: {}, // 랩 오차분포·자산군별 실측화
     };
     const calib = (await store.get('calib', { type: 'json' })) || { byUsage: {} };
     // v0.5 챌린저(predb/*) 비교 집계 — 챔피언과 같은 물건에서만 채점되므로 공정 비교가 된다
@@ -128,6 +129,17 @@ exports.handler = async (event) => {
       agg.byUsage[usage].n++; if (hit) agg.byUsage[usage].hit++;
       agg.daily[today] = agg.daily[today] || { n: 0, hit: 0 };
       agg.daily[today].n++; if (hit) agg.daily[today].hit++;
+      // 랩 오차 분포(중앙값 오차 절대값의 누적 버킷) + 자산군별 적중률 실측화
+      const aerr = Math.abs(errPct);
+      agg.errBuckets = agg.errBuckets || { le5: 0, le10: 0, le15: 0, le20: 0 };
+      if (aerr <= 5) agg.errBuckets.le5++;
+      if (aerr <= 10) agg.errBuckets.le10++;
+      if (aerr <= 15) agg.errBuckets.le15++;
+      if (aerr <= 20) agg.errBuckets.le20++;
+      const asset = pred.assetClass || '부동산';
+      agg.byAsset = agg.byAsset || {};
+      agg.byAsset[asset] = agg.byAsset[asset] || { n: 0, hit: 0 };
+      agg.byAsset[asset].n++; if (hit) agg.byAsset[asset].hit++;
 
       recent.unshift({
         id: r.id, title: pred.title || r.title || '', usage,
