@@ -238,7 +238,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 // ═══════════════════════════════════════
 // 예시 물건 데이터셋 (데모) — id는 bidcast-list.html ITEMS / bidcast-detail.html DETAILS와 일치
 // ═══════════════════════════════════════
-const ITEMS = {
+let ITEMS = {
   1: { type:'아파트', title:'서울 강남구 역삼동 아파트 24평', court:'서울중앙지방법원', appr:65000, min:52000, fail:1, status:'진행', thumb:'🏢', period:'~ 7.23(수)' },
   2: { type:'토지', title:'경기 시흥시 배곧동 대지 152㎡', court:'수원지방법원', appr:84000, min:84000, fail:0, status:'진행', thumb:'🏞️', period:'~ 7.30(수)' },
   3: { type:'상가', title:'서울 서대문구 충정로 상가 1층', court:'서울동부지방법원', appr:41000, min:41000, fail:0, status:'낙찰', thumb:'🏬', period:'마감' },
@@ -250,12 +250,31 @@ const ITEMS = {
   9: { type:'차량', title:'승용차 그랜저 (2020년식)', court:'서울동부지방법원', appr:2310, min:1850, fail:0, status:'낙찰', thumb:'🚗', period:'마감' },
 };
 
+// 라이브 관심물건(bidcast:likesnap) 병합 — 실물건도 비교 대상으로. cltrMngNo를 키로 사용.
+let hasLive = false;
+try {
+  const snaps = JSON.parse(localStorage.getItem('bidcast:likesnap') || '{}');
+  if (snaps && typeof snaps === 'object') {
+    for (const [id, s] of Object.entries(snaps)) {
+      if (!s || !s.live) continue;
+      const t = String(s.bidEnd || '').replace(/[^0-9]/g, '');
+      let period = '실시간';
+      if (t.length >= 8) { const mm=+t.slice(4,6), dd=+t.slice(6,8); const wd=['일','월','화','수','목','금','토'][new Date(+t.slice(0,4),mm-1,dd).getDay()]; period = `~ ${mm}.${dd}(${wd})`; }
+      ITEMS[String(id)] = { type:s.type||'기타', title:s.title||'(물건)', court:s.court||'', appr:s.appr||0, min:s.min||0, fail:s.fail||0, status:s.status||'진행', thumb:s.thumb||'📦', period, live:true, cltrMngNo:String(s.cltrMngNo||id), pbctCdtnNo:s.pbctCdtnNo!=null?String(s.pbctCdtnNo):'' };
+      hasLive = true;
+    }
+  }
+} catch (e) {}
+if (hasLive) { const chip = document.querySelector('.demo-chip'); if (chip) chip.textContent = '✅ 관심물건(실시간) + 예시 함께 비교 · AI 예상은 규칙 기반 참고치'; }
+// 라이브 물건 상세 이동 전 스냅샷 주입(상세 페이지가 실물건으로 렌더)
+function stashCmpLive(id) { const x = ITEMS[id]; if (x && x.live) { try { sessionStorage.setItem('bidcast:detail', JSON.stringify({ id:String(x.cltrMngNo||id), title:x.title, min:x.min, appr:x.appr, type:x.type, court:x.court, status:x.status, thumb:x.thumb, live:true, cltrMngNo:String(x.cltrMngNo||id), pbctCdtnNo:x.pbctCdtnNo||'', bidEnd:'' })); } catch (e) {} } }
+
 const fmt = n => n >= 10000 ? (n/10000).toFixed(n % 10000 === 0 ? 0 : 1) + '억' : n.toLocaleString() + '만';
 let userLoggedIn = false;
 
-// URL ?ids=1,2,3 → 슬롯 프리필 (기본 1,7 — 같은 유형 비교 예시)
+// URL ?ids=1,2,3 → 슬롯 프리필 (기본 1,7 — 같은 유형 비교 예시). 라이브 id(cltrMngNo, 문자열)도 허용.
 const rawIds = (new URLSearchParams(location.search).get('ids') || '1,7')
-  .split(',').map(s => parseInt(s.trim(), 10)).filter(n => ITEMS[n]).slice(0, 3);
+  .split(',').map(s => s.trim()).filter(k => ITEMS[k]).slice(0, 3);
 const slots = [rawIds[0] ?? '', rawIds[1] ?? '', rawIds[2] ?? ''];
 
 function renderSlots() {
@@ -263,7 +282,7 @@ function renderSlots() {
     const sel = document.getElementById('slot' + i);
     sel.innerHTML = `<option value="">— 선택 안 함 —</option>` +
       Object.keys(ITEMS).map(k =>
-        `<option value="${k}" ${String(slots[i]) === k ? 'selected' : ''}>${ITEMS[k].thumb} ${ITEMS[k].title}</option>`).join('');
+        `<option value="${k}" ${String(slots[i]) === k ? 'selected' : ''}>${ITEMS[k].thumb} ${ITEMS[k].title}${ITEMS[k].live ? ' · 실시간' : ''}</option>`).join('');
   });
 }
 
@@ -288,11 +307,14 @@ function renderTable() {
   const bestCount = live.filter(x => x.min / x.appr === bestRatio).length;
   const isBest = x => x.status === '진행' && bestRatio !== null && x.min / x.appr === bestRatio && live.length > 1 && bestCount === 1;
 
+  const escT = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+  const detHref = x => `bidcast-detail.html?id=${encodeURIComponent(x.id)}`;
+  const detClick = x => x.live ? ` onclick="stashCmpLive('${String(x.id).replace(/[^0-9A-Za-z\-_.]/g, '')}')"` : '';
   const head = `<thead><tr><th></th>${items.map(x => `
     <th class="cmp-head">
       <div class="th-ico">${x.thumb}</div>
-      <div class="th-t"><a href="bidcast-detail.html?id=${x.id}">${x.title}</a></div>
-      <div class="th-m">${x.court}</div>
+      <div class="th-t"><a href="${detHref(x)}"${detClick(x)}>${escT(x.title)}</a></div>
+      <div class="th-m">${escT(x.court)}${x.live ? ' <span style="font-size:10px;color:var(--green-deep);font-weight:800">실시간</span>' : ''}</div>
     </th>`).join('')}</tr></thead>`;
 
   const rows = [
@@ -312,7 +334,7 @@ function renderTable() {
   const body = `<tbody>
     ${rows.map(([k, fn]) => `<tr><th>${k}</th>${items.map(x => `<td>${fn(x)}</td>`).join('')}</tr>`).join('')}
     ${aiRows.map(([k, fn]) => `<tr class="ai-row ${userLoggedIn ? 'unlocked' : ''}"><th>${k}</th>${items.map(x => `<td>${fn(x)}</td>`).join('')}</tr>`).join('')}
-    <tr><th></th>${items.map(x => `<td><a class="det-link" href="bidcast-detail.html?id=${x.id}">상세 페이지 →</a></td>`).join('')}</tr>
+    <tr><th></th>${items.map(x => `<td><a class="det-link" href="${detHref(x)}"${detClick(x)}>상세 페이지 →</a></td>`).join('')}</tr>
   </tbody>`;
 
   t.innerHTML = head + body;

@@ -70,6 +70,15 @@ exports.handler = async (event) => {
         summary,
         byTier: agg?.byTier || {},
         byUsage: agg?.byUsage || {},
+        byAsset: agg?.byAsset || {},           // 자산군별(부동산/차량/동산 등) 적중률 — 랩 실측화
+        // 오차 범위별 누적 비율(중앙값 오차 기준) — 랩 오차분포 실측화. 표본 없으면 null.
+        errDist: (n && agg?.errBuckets) ? {
+          n,
+          le5: Math.round((agg.errBuckets.le5 || 0) / n * 1000) / 10,
+          le10: Math.round((agg.errBuckets.le10 || 0) / n * 1000) / 10,
+          le15: Math.round((agg.errBuckets.le15 || 0) / n * 1000) / 10,
+          le20: Math.round((agg.errBuckets.le20 || 0) / n * 1000) / 10,
+        } : null,
         daily: agg?.daily || {},
         calib: calib?.byUsage || {},
         learningLog: log || [],

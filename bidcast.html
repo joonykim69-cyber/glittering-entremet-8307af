@@ -6,6 +6,27 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>신호등옥션 — AI 공매 낙찰가 예측</title>
 <meta name="description" content="온비드 공매 전 자산군의 예상 낙찰가 범위와 입찰 신호를 확인하세요. 매일 예측을 봉인하고 개찰 후 전수 채점하는 살아있는 성적표."/>
+<link rel="canonical" href="https://sucessbid.netlify.app/"/>
+<!-- 소셜 공유 미리보기 (Open Graph / Twitter) -->
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="신호등옥션"/>
+<meta property="og:locale" content="ko_KR"/>
+<meta property="og:url" content="https://sucessbid.netlify.app/"/>
+<meta property="og:title" content="신호등옥션 — AI 공매 낙찰가 예측"/>
+<meta property="og:description" content="온비드 공매 전 자산군의 예상 낙찰가 범위와 입찰 신호를 확인하세요. 매일 예측을 봉인하고 개찰 후 전수 채점하는 살아있는 성적표."/>
+<meta property="og:image" content="https://sucessbid.netlify.app/og-image.png"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta property="og:image:alt" content="신호등옥션 — 지금 들어가도 될까? AI가 신호로 알려드립니다"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="신호등옥션 — AI 공매 낙찰가 예측"/>
+<meta name="twitter:description" content="온비드 공매 전 자산군의 예상 낙찰가 범위와 입찰 신호. 매일 봉인·전수 채점하는 살아있는 성적표."/>
+<meta name="twitter:image" content="https://sucessbid.netlify.app/og-image.png"/>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebSite","name":"신호등옥션","alternateName":"BidCast","url":"https://sucessbid.netlify.app/","description":"온비드 공매 전 자산군의 예상 낙찰가 범위와 입찰 신호를 제공하는 공매 낙찰가 예측 서비스","inLanguage":"ko-KR"}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Nunito:wght@700;800;900&family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap">
 <style>
 /* ═══════════════════════════════════════════════════
@@ -13,11 +34,14 @@
    디자인 원본: claude.ai/design "웹서비스 랜딩 페이지 디자인" bidcast-landing.html
    + 기존 실데이터 기능 이식 (데모 로그인 모달 / AI 예보 카드 라이브 / 성적표 실측)
 ═══════════════════════════════════════════════════ */
-:root{--bg:#F6FAF7;--surface:#FFFFFF;--ink:#10201A;--sub:#55655D;--mute:#93A29A;--line:#E1EAE4;--green:#00A86B;--green-deep:#00744B;--green-soft:#E4F7EE;--red:#E5484D;--red-soft:#FDEBEB;--yellow:#F5B90F;--yellow-soft:#FDF4D7;--grad:linear-gradient(120deg,#00C87F 0%,#00A86B 55%,#009E8A 100%);--glow:0 0 0 4px rgba(0,200,127,.14), 0 10px 34px rgba(0,168,107,.35);--radius:20px;--ease:cubic-bezier(.16,1,.3,1);--font:'Poppins','Noto Sans KR',-apple-system,'Malgun Gothic',sans-serif;--font-head:'Nunito','Noto Sans KR',-apple-system,'Malgun Gothic',sans-serif}
+:root{--bg:#F6FAF7;--surface:#FFFFFF;--ink:#10201A;--sub:#55655D;--mute:#697A70;--line:#E1EAE4;--green:#00A86B;--green-deep:#00744B;--green-soft:#E4F7EE;--red:#E5484D;--red-soft:#FDEBEB;--yellow:#F5B90F;--yellow-soft:#FDF4D7;--grad:linear-gradient(120deg,#00C87F 0%,#00A86B 55%,#009E8A 100%);--glow:0 0 0 4px rgba(0,200,127,.14), 0 10px 34px rgba(0,168,107,.35);--radius:20px;--ease:cubic-bezier(.16,1,.3,1);--font:'Poppins','Noto Sans KR',-apple-system,'Malgun Gothic',sans-serif;--font-head:'Nunito','Noto Sans KR',-apple-system,'Malgun Gothic',sans-serif}
 *{box-sizing:border-box}
 body{margin:0;font-family:var(--font);color:var(--ink);background:var(--bg);word-break:keep-all;line-height:1.6}
 a{color:var(--green-deep);text-decoration:none}
 a:hover{color:var(--green)}
+:focus-visible{outline:2px solid var(--green);outline-offset:2px;border-radius:4px}
+.skip-link{position:absolute;left:12px;top:-48px;z-index:300;background:var(--green-deep);color:#fff;font-weight:800;font-size:13px;padding:10px 16px;border-radius:0 0 10px 10px;transition:top .2s var(--ease)}
+.skip-link:focus{top:0;color:#fff}
 h1,h2,h3,p{margin:0}
 h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:var(--font-head)}
 .wrap{max-width:1160px;margin:0 auto;padding:0 24px}
@@ -32,7 +56,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .chip-yellow{background:var(--yellow-soft);color:#8a6d00}
 .chip-red{background:var(--red-soft);color:var(--red)}
 .kicker{font-size:13px;font-weight:800;color:var(--green-deep);letter-spacing:.08em}
-.h2{font-size:34px;font-weight:900;letter-spacing:-.02em;line-height:1.3;text-wrap:pretty}
+.h2{font-size:clamp(24px,3.6vw,34px);font-weight:900;letter-spacing:-.02em;line-height:1.3;text-wrap:pretty}
 .sub{font-size:16px;color:var(--sub);line-height:1.7;text-wrap:pretty}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 2px 16px rgba(16,32,26,.04)}
 .section{padding:90px 0}
@@ -116,7 +140,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 /* hero */
 .hero{padding:76px 0 60px;text-align:center}
 .hero-inner{display:flex;flex-direction:column;align-items:center;gap:24px}
-.hero h1{font-size:52px;font-weight:900;letter-spacing:-.02em;line-height:1.22;text-wrap:pretty}
+.hero h1{font-size:clamp(31px,5.5vw,52px);font-weight:900;letter-spacing:-.02em;line-height:1.22;text-wrap:pretty}
 .hero .badge{display:inline-flex;align-items:center;gap:10px;background:var(--green-soft);border-radius:999px;padding:8px 18px;font-size:13px;font-weight:700;color:var(--green-deep)}
 .badge-lights{display:inline-flex;gap:4px}
 .badge-lights i{width:8px;height:8px;border-radius:50%}
@@ -153,7 +177,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .metric b{display:block;font-size:32px;font-weight:900;letter-spacing:-.02em;color:var(--green-deep);white-space:nowrap}
 .metric span{font-size:13px;color:var(--sub)}
 /* steps */
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
 .step{padding:32px 28px;display:flex;flex-direction:column;gap:18px;border-top:4px solid var(--line)}
 .step.stop{border-top-color:var(--red)}
 .step.ready{border-top-color:var(--yellow)}
@@ -172,7 +196,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .tool a{color:inherit}
 .tools{display:flex;flex-direction:column;gap:14px}
 /* forecast */
-.fgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
 .fcard{padding:26px 24px;display:flex;flex-direction:column;gap:14px}
 .fcard .cat{font-size:12px;color:var(--mute)}
 .fcard h3{font-size:18px;font-weight:800;letter-spacing:-.01em;line-height:1.4}
@@ -222,7 +246,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .faq-item.open .faq-a{display:block}
 /* final cta — 파란 풀폭 밴드 (디자인 지시 2026-07-19), 기존 대비 1/2 스케일 */
 .final{position:relative;overflow:hidden;background:#1667E8;padding:40px 24px;text-align:center;color:#fff}
-.final h2{font-size:26px;font-weight:900;letter-spacing:-.02em;line-height:1.35;color:#fff}
+.final h2{font-size:clamp(21px,3vw,26px);font-weight:900;letter-spacing:-.02em;line-height:1.35;color:#fff}
 .final p{font-size:13.5px;color:rgba(255,255,255,.85);max-width:420px;margin:0 auto;line-height:1.65}
 .final .inner{position:relative;display:flex;flex-direction:column;gap:14px;align-items:center}
 .final .btn-cta{background:#fff;color:#1667E8;box-shadow:0 6px 18px rgba(0,0,0,.2);font-size:13.5px;padding:11px 24px}
@@ -279,6 +303,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .auth-center{text-align:center;padding:26px 0 10px}
 .auth-spinner{width:52px;height:52px;margin:0 auto 18px;border-radius:50%;border:4px solid var(--green-soft);border-top-color:var(--green);animation:spin 0.9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
 .auth-center h4{font-size:17px;font-weight:800}
 .auth-center p{font-size:13px;color:var(--sub);margin-top:6px}
 .auth-success-ico{width:60px;height:60px;margin:0 auto 18px;border-radius:50%;background:var(--green-soft);border:1.5px solid #C4EBD8;display:grid;place-items:center;font-size:26px;color:var(--green-deep);box-shadow:0 0 22px rgba(0,200,127,.35)}
@@ -289,19 +314,19 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .nav-links{display:none}
 .nav-hamburger{display:flex;margin-left:auto}
 .nav-actions .btn-ghost{display:none}
-.hero h1{font-size:36px}
+.section{padding:56px 0}
+.hero{padding:48px 0 44px}
 .metrics .wrap{grid-template-columns:repeat(2,1fr);row-gap:24px}
 .metric:nth-child(3){border-left:none}
-.steps,.fgrid{grid-template-columns:1fr}
 .split{flex-direction:column}
 .labcard{width:100% !important}
 .foot-grid{grid-template-columns:1fr 1fr}
-.h2{font-size:26px}
 .mock-body{overflow-x:auto}
 }
 </style>
 </head>
 <body>
+<a href="#main" class="skip-link">본문 바로가기</a>
 <nav class="nav"><div class="wrap">
 <span class="logo"><span class="logo-box"><i></i><i></i><i></i></span><b>신호등<em>옥션</em></b></span>
 <div class="nav-links">
@@ -320,13 +345,13 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 </div>
 </div></nav>
 
-<header class="hero"><div class="wrap hero-inner">
+<header class="hero" id="main"><div class="wrap hero-inner">
 <span class="badge"><span class="badge-lights"><i></i><i></i><i></i></span>공공데이터포털 온비드 공식 API 기반</span>
 <h1>지금 들어가도 될까?<br>AI가 신호로 알려드립니다</h1>
 <p class="sub" style="max-width:600px;font-size:17px">부동산만이 아닙니다. 차량·동산·기계장비·유가증권까지 — 온비드 공매 전 자산군의 과거 낙찰 데이터를 학습한 예측 엔진이 예상 낙찰가 범위와 입찰 신호를 보여드립니다.</p>
 <div style="display:flex;gap:12px"><button class="btn btn-cta" type="button" onclick="openAuth('signup')">사전 알림 신청하기</button><a class="btn btn-ghost" href="bidcast-list.html">예측 검색 해보기</a></div>
 <p class="disclaimer">※ 예측 정보는 과거 낙찰 데이터 기반의 통계적 참고자료이며, 입찰 결과를 보장하지 않습니다.</p>
-<div class="mock">
+<div class="mock" aria-hidden="true">
 <div class="mock-top">
 <span class="logo small"><span class="logo-box"><i></i><i></i><i></i></span><b>신호등<em>옥션</em></b></span>
 <div class="mock-search">🔍 사건번호·자산군으로 검색</div>
@@ -337,11 +362,11 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 <div class="mcard"><div class="tags"><span class="chip chip-green">🟢 기회 신호</span><span class="chip chip-yellow">유찰 2회</span></div><div class="t">서울 광진구 광장동 토지 152㎡</div><div class="p">감정가 8.4억 · 최저가 5.4억</div><div class="meter"><div class="bar"><i style="width:86%"></i></div><span>86%</span></div><div class="foot"><span>예측 근거 34건</span></div></div>
 <div class="mcard"><div class="tags"><span class="chip chip-green">🟢 기회 신호</span><span class="chip chip-yellow">유찰 1회</span></div><div class="t">5톤 카고트럭 (2021년식)</div><div class="p">감정가 3,200만 · 최저가 2,240만</div><div class="meter"><div class="bar"><i style="width:84%"></i></div><span>84%</span></div><div class="foot"><span>예측 근거 61건</span></div></div>
 </div>
-<div class="mcol"><div class="mcol-h"><span>분석 중</span><span>3</span></div>
+<div class="mcol"><div class="mcol-h"><span>AI 예측 분석</span><span>3</span></div>
 <div class="mcard"><div class="tags"><span class="chip chip-green">🟢 기회 신호</span><span class="chip chip-green">선순위 없음</span></div><div class="t">인천 연수구 송도동 아파트 59㎡</div><div class="p">감정가 6.8억 · 최저가 5.4억</div><div class="meter"><div class="bar"><i style="width:88%"></i></div><span>88%</span></div><div class="foot"><span>예측 근거 42건</span></div></div>
 <div class="mcard"><div class="tags"><span class="chip chip-yellow">🟡 주의 신호</span><span class="chip chip-red">⚠ 표본 적음</span></div><div class="t">CNC 머시닝센터 외 3점</div><div class="p">감정가 1.1억 · 최저가 4,510만</div><div class="meter"><div class="bar"><i class="warn" style="width:52%"></i></div><span>52%</span></div><div class="foot"><span>예측 근거 18건</span></div></div>
 </div>
-<div class="mcol"><div class="mcol-h"><span>모의 입찰 완료</span><span>6</span></div>
+<div class="mcol"><div class="mcol-h"><span>개찰 채점 완료</span><span>6</span></div>
 <div class="mcard"><div class="tags"><span class="chip chip-green">🟢 AI 오차 +0.6%</span></div><div class="t">서울 송파구 잠실동 아파트 76㎡</div><div class="p">실제 7.21억 · AI 예측 6.9~7.5억</div><div class="meter"><div class="bar"><i style="width:92%"></i></div><span>92%</span></div><div class="foot"><span>채점 완료</span></div></div>
 <div class="mcard"><div class="tags"><span class="chip chip-red">⚠ 내 오차 −5.7%</span><span class="chip chip-yellow">복기 필요</span></div><div class="t">승용차 그랜저 (2019년식)</div><div class="p">실제 1,840만 · 내 입찰 1,735만</div><div class="meter"><div class="bar"><i class="warn" style="width:71%"></i></div><span>71%</span></div><div class="foot"><span>채점 완료</span></div></div>
 </div>
@@ -372,6 +397,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
         <div style="font-size:28px">🔮</div>
         <div style="font-size:15px;font-weight:800">봉인·채점·자동채점은 마이페이지에서</div>
         <div style="font-size:12.5px;color:var(--sub);line-height:1.55">관심물건부터 예언자 여정까지 — 봉인 목록, 개찰 결과 채점, 온비드 자동 채점, 등급 로드맵을 한 곳에서 관리하세요.</div>
+        <div id="gwSummaryUrgent" style="display:none;font-size:12.5px;font-weight:800;color:var(--red);background:var(--red-soft);border-radius:10px;padding:8px 11px"></div>
         <a class="btn btn-cta btn-sm" href="bidcast-my.html#prophet" style="text-decoration:none;align-self:center">마이페이지에서 전체 관리 →</a>
       </div>
     </div>
@@ -421,7 +447,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 
 <section class="metrics"><div class="wrap">
 <div class="metric"><b>92조+</b><span>온비드 누적 낙찰금액 (2021 기준)</span></div>
-<div class="metric"><b>1,799건</b><span>최근 한 회차 압류재산 물건 수</span></div>
+<div class="metric"><b>1,799건</b><span>한 회차 압류재산 물건 수 (관측 예시)</span></div>
 <div class="metric"><b>전 자산군</b><span>부동산 외 동산·유가증권까지</span></div>
 <div class="metric"><b>95~98%</b><span>구간 적중률 목표 (실측 공개)</span></div>
 </div></section>
@@ -551,6 +577,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 <h2>공매 입찰, 감이 아니라<br>데이터로 준비하세요</h2>
 <p>출시 알림을 신청하시면 오픈 시 얼리버드 혜택과 함께 가장 먼저 알려드립니다. 신청은 무료이며, 언제든 취소할 수 있습니다.</p>
 <button class="btn btn-cta" type="button" onclick="openAuth('signup')">사전 알림 신청하기</button>
+<div style="margin-top:14px"><a href="bidcast-list.html" style="color:#fff;opacity:.85;font-size:14px;font-weight:700;text-decoration:underline;text-underline-offset:3px">또는 지금 실시간 물건 검색해보기 →</a></div>
 </div>
 </section>
 
@@ -646,7 +673,15 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 // ═══════════════════════════════════════
 // FAQ 아코디언
 // ═══════════════════════════════════════
-document.querySelectorAll('.faq-q').forEach(function(q){q.addEventListener('click',function(){q.parentElement.classList.toggle('open');});});
+document.querySelectorAll('.faq-q').forEach(function(q){
+  var item=q.parentElement;
+  q.setAttribute('role','button');
+  q.setAttribute('tabindex','0');
+  q.setAttribute('aria-expanded', item.classList.contains('open')?'true':'false');
+  function toggle(){ var open=item.classList.toggle('open'); q.setAttribute('aria-expanded', open?'true':'false'); }
+  q.addEventListener('click', toggle);
+  q.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggle(); } });
+});
 
 // ═══════════════════════════════════════
 // 간편로그인 · 회원가입 모달 (데모) — SNS 3종 + 이메일 코드 인증
@@ -843,6 +878,20 @@ function renderGrowth() {
     } else {
       asBox.style.display = 'none'; asBox.innerHTML = '';
     }
+  }
+  // 랜딩 요약: 개찰 지난 미채점 라이브 봉인이 있으면 "채점 대기" 긴급 안내(마이페이지로 유도)
+  const urg = document.getElementById('gwSummaryUrgent');
+  if (urg) {
+    const pastDue = preds.filter(p => {
+      if (!(p.live && p.cltrMngNo && !p.scoredAt)) return false;
+      const t = String(p.bidEnd || '').replace(/[^0-9]/g, '');
+      if (t.length < 8) return false;
+      const end = new Date(+t.slice(0, 4), +t.slice(4, 6) - 1, +t.slice(6, 8));
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      return !isNaN(end.getTime()) && end < today;
+    }).length;
+    if (pastDue > 0) { urg.style.display = ''; urg.textContent = `🔴 개찰 완료 ${pastDue}건 — 마이페이지에서 지금 채점하세요`; }
+    else { urg.style.display = 'none'; urg.textContent = ''; }
   }
   renderRoad('gwRoad'); // renderRoad는 대상 없으면 return (안전)
 }

@@ -235,12 +235,12 @@ h1,h2,h3,h4{font-family:var(--font-head)}
     <span class="eyebrow">Error Distribution</span>
     <h2 class="title">오차 범위별 예측 비율</h2>
     <p class="lead">낙찰가율(낙찰가 ÷ 감정가) 기준, AI 예측이 실제 결과와 얼마나 가까웠는지의 누적 분포입니다.</p>
-    <div class="acc-card" style="margin-top:24px;">
+    <div class="acc-card" style="margin-top:24px;" id="errDistCard">
       <div class="acc-bar"><div class="lbl"><span>±5% 이내</span><b>38%</b></div><div class="track"><i style="width:38%;"></i></div></div>
       <div class="acc-bar"><div class="lbl"><span>±10% 이내</span><b>64%</b></div><div class="track"><i style="width:64%;"></i></div></div>
       <div class="acc-bar"><div class="lbl"><span>±15% 이내</span><b>81%</b></div><div class="track"><i style="width:81%;"></i></div></div>
       <div class="acc-bar"><div class="lbl"><span>±20% 이내</span><b>91%</b></div><div class="track"><i style="width:91%;"></i></div></div>
-      <p class="foot-note">🔧 위 수치는 서비스 오픈 전 <b>목표치 예시</b>입니다. 오픈 후 실제 개찰 결과로 매일 갱신됩니다. 평균절대오차(MAE) · 표준편차 · 고평가/저평가 비율은 오픈 시 함께 공개합니다.</p>
+      <p class="foot-note" id="errDistFoot">🔧 위 수치는 서비스 오픈 전 <b>목표치 예시</b>입니다. 오픈 후 실제 개찰 결과로 매일 갱신됩니다. 평균절대오차(MAE) · 표준편차 · 고평가/저평가 비율은 오픈 시 함께 공개합니다.</p>
     </div>
   </div>
 </section>
@@ -270,13 +270,13 @@ h1,h2,h3,h4{font-family:var(--font-head)}
     <span class="eyebrow">By Asset Type</span>
     <h2 class="title">자산군별 목표 정확도</h2>
     <p class="lead">부동산은 감정가·등기부 등 표준화된 비교축이 많아 정확도가 높고, 동산·유가증권은 물건마다 형태가 달라 상대적으로 낮습니다. 이 차이도 숨기지 않습니다.</p>
-    <div class="asset-acc-grid">
+    <div class="asset-acc-grid" id="assetAccGrid">
       <div class="asset-acc"><span class="ico">🏢</span><h4>부동산</h4><div class="bar"><i style="width:91%;"></i></div><div class="pct">91%</div><div class="note">±10% 이내 목표</div></div>
       <div class="asset-acc"><span class="ico">🚗</span><h4>차량</h4><div class="bar"><i style="width:87%;"></i></div><div class="pct">87%</div><div class="note">±10% 이내 목표</div></div>
       <div class="asset-acc"><span class="ico">⚙️</span><h4>동산·기계장비</h4><div class="bar"><i style="width:58%;"></i></div><div class="pct">58%</div><div class="note">±10% 이내 목표 · 표본 축적 중</div></div>
       <div class="asset-acc"><span class="ico">📈</span><h4>유가증권</h4><div class="bar"><i style="width:47%;"></i></div><div class="pct">47%</div><div class="note">±10% 이내 목표 · 표본 축적 중</div></div>
     </div>
-    <p class="foot-note">🔧 목표치 예시입니다. 동산·유가증권은 표준화된 비교축이 적어 초기 정확도가 낮을 수 있음을 미리 밝힙니다 — 데이터가 쌓일수록 개선됩니다.</p>
+    <p class="foot-note" id="assetAccFoot">🔧 목표치 예시입니다. 동산·유가증권은 표준화된 비교축이 적어 초기 정확도가 낮을 수 있음을 미리 밝힙니다 — 데이터가 쌓일수록 개선됩니다.</p>
   </div>
 </section>
 
@@ -501,6 +501,33 @@ document.addEventListener('keydown', (e) => {
     const r = await fetch('/.netlify/functions/scoreboard');
     if (!r.ok) return;
     const d = await r.json();
+
+    // ── 오차 범위별 예측 비율 실측화 (표본 있을 때만 예시→실측 교체) ──
+    if (d.errDist && d.errDist.n > 0) {
+      const ed = d.errDist, card = document.getElementById('errDistCard');
+      if (card) {
+        const bar = (lbl, v) => `<div class="acc-bar"><div class="lbl"><span>${lbl}</span><b>${v}%</b></div><div class="track"><i style="width:${Math.max(0, Math.min(100, v))}%;"></i></div></div>`;
+        card.innerHTML = bar('±5% 이내', ed.le5) + bar('±10% 이내', ed.le10) + bar('±15% 이내', ed.le15) + bar('±20% 이내', ed.le20) +
+          `<p class="foot-note">✅ 실측 — 개찰 완료 <b>${ed.n.toLocaleString()}건</b> 전수 채점(중앙값 오차 기준 누적 분포). 봉인 후 수정 불가.</p>`;
+      }
+    }
+
+    // ── 자산군별 정확도 실측화 (byAsset 표본 있을 때만 교체) ──
+    if (d.byAsset && Object.keys(d.byAsset).length) {
+      const grid = document.getElementById('assetAccGrid');
+      const ICO = { '부동산': '🏢', '차량': '🚗', '자동차': '🚗', '동산': '⚙️', '유가증권': '📈' };
+      const entries = Object.entries(d.byAsset).filter(([, s]) => s && s.n > 0).sort((a, b) => b[1].n - a[1].n);
+      if (grid && entries.length) {
+        const esc0 = v => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+        grid.innerHTML = entries.map(([name, s]) => {
+          const rate = Math.round(s.hit / s.n * 100);
+          return `<div class="asset-acc"><span class="ico">${ICO[name] || '📦'}</span><h4>${esc0(name)}</h4><div class="bar"><i style="width:${rate}%;"></i></div><div class="pct">${rate}%</div><div class="note">구간 적중 · 채점 ${s.n.toLocaleString()}건</div></div>`;
+        }).join('');
+        const foot = document.getElementById('assetAccFoot');
+        if (foot) foot.innerHTML = '✅ 실측 — 자산군별 구간 적중률(개찰 전 봉인·전수 채점). 표본이 적은 자산군은 변동이 클 수 있습니다.';
+      }
+    }
+
     const list = Array.isArray(d.chronicle) ? d.chronicle : [];
     if (!list.length) return;
     const esc = v => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;');

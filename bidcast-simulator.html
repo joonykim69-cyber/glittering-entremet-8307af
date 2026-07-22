@@ -114,6 +114,9 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 .saved-item button:hover { border-color:var(--red); color:var(--red); }
 .saved-empty { font-size:12.5px; color:var(--mute); background:var(--surface); border:1px dashed var(--line); border-radius:14px; padding:18px; text-align:center; }
 .sim-note { font-size:11.5px; color:var(--mute); margin-top:16px; }
+.xtrack-link { display:flex; align-items:center; gap:6px; margin-top:16px; padding:13px 16px; border-radius:14px; background:var(--green-soft); border:1px solid #C4EBD8; color:var(--green-deep); text-decoration:none; font-size:12.5px; font-weight:800; transition:transform .12s; }
+.xtrack-link:hover { transform:translateY(-1px); }
+.xtrack-link .arw { margin-left:auto; font-size:15px; }
 
 /* 모의 경매 대전 */
 .battle-card { margin-top:18px; }
@@ -329,6 +332,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
     <h2 id="savedTitle">저장한 시나리오</h2>
     <div id="savedArea"></div>
     <div id="myScoreArea"></div>
+    <a href="bidcast-my.html#prophet" class="xtrack-link">🔮 이 연습이 <b>예언자 등급</b>이 됩니다 — 마이페이지 여정에서 봉인·채점 기록으로 등급을 올려보세요 <span class="arw">→</span></a>
     <p class="sim-note">※ 시나리오는 이 브라우저에만 저장됩니다(최대 10개). 실물건이 연결된 시나리오는 개찰 후 🏁 개찰 채점으로 실제 낙찰가·AI 봉인 예측과 대조됩니다 (개찰 전에는 채점 불가). 본 계산은 참고용이며 투자 결과를 보장하지 않습니다.</p>
   </section>
 </main>

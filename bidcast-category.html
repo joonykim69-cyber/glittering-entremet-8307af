@@ -285,10 +285,10 @@ function renderLeaf() {
 
   main.innerHTML = `
     <div class="leaf-stats">
-      <div class="leaf-stat"><div class="v">${fmtCount(d.count)}</div><div class="k">전체 진행 물건</div></div>
+      <div class="leaf-stat"><div class="v" id="leafCount">${fmtCount(d.count)}</div><div class="k">전체 진행 물건</div></div>
       <div class="leaf-stat"><div class="v">${distList[0][0]}</div><div class="k">최다 비중 항목</div></div>
       <div class="leaf-stat"><div class="v">±10%</div><div class="k">AI 예측 목표 오차 범위</div></div>
-      <div class="leaf-stat"><div class="v">예시</div><div class="k">실 데이터는 API 연동 후 반영</div></div>
+      <div class="leaf-stat" id="catStatusTile"><div class="v">예시</div><div class="k">실 데이터는 API 연동 후 반영</div></div>
     </div>
     <div class="dist-card">
       <h4>${distTitle}</h4>
@@ -298,8 +298,8 @@ function renderLeaf() {
           <div class="track"><i style="width:${Math.round(v/maxV*100)}%;"></i></div>
         </div>`).join('')}
     </div>
-    <h3 style="margin-top:30px;font-size:16px;font-weight:800;">대표 물건 (예시)</h3>
-    <div class="rep-grid">
+    <h3 id="repHead" style="margin-top:30px;font-size:16px;font-weight:800;">대표 물건 (예시)</h3>
+    <div class="rep-grid" id="repGrid">
       ${buildRepCards(axis, value).map(r => `
         <a class="rep-card" href="bidcast-list.html">
           <div class="th">${r.ico}</div>
@@ -310,6 +310,45 @@ function renderLeaf() {
     </div>
     <a class="more-link" href="bidcast-list.html">전체 리스트에서 더 보기 →</a>
   `;
+  loadRepItems(axis, value); // 실 데이터 연동(region/type) — 실패 시 위 예시 유지
+}
+
+// ═══════════════════════════════════════
+// 대표 물건 실 데이터 연동 — region은 onbid-search 지역 필터, type은 클라이언트 필터.
+// court(법원)는 공매 기관 개념과 맞지 않아 예시 유지. 실패 시 예시 유지(degrade).
+// ═══════════════════════════════════════
+const catSnaps = {};
+function escC(s){ return String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])); }
+function stashCatLive(id){ const s=catSnaps[id]; if(s){ try{ sessionStorage.setItem('bidcast:detail', JSON.stringify(s)); }catch(e){} } }
+function fmtWonCat(man){ man=Number(man)||0; if(!man) return '미공개'; return man>=10000?(man/10000).toFixed(1).replace(/\.0$/,'')+'억':man.toLocaleString()+'만'; }
+async function loadRepItems(axis, value){
+  if (axis === 'court') return; // 공매는 법원 관할 개념이 없음(기관=orgNm) → 실연동 부적합, 예시 유지
+  try {
+    const p = new URLSearchParams({ page:'1', numOfRows:'60' });
+    if (axis === 'region') p.set('region', value);
+    const data = await fetch('/.netlify/functions/onbid-search?'+p).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); });
+    if (!data || !Array.isArray(data.items) || !data.items.length) return;
+    let items = data.items;
+    if (axis === 'type') items = items.filter(it => (it.type||'') === value);
+    items = items.filter(it => it.address).slice(0, 6);
+    if (!items.length) return;
+    const grid = document.getElementById('repGrid'); if (!grid) return;
+    grid.innerHTML = items.map(it => {
+      const id=String(it.id);
+      catSnaps[id]={ id, title:it.title||'', min:it.min||0, appr:it.appr||0, type:it.type||'', court:it.court||it.orgNm||'', status:it.status||'진행', thumb:REP_ICONS[it.type]||'🏢', live:true, cltrMngNo:id, pbctCdtnNo:it.pbctCdtnNo!=null?String(it.pbctCdtnNo):'', bidEnd:it.bidEnd||'', address:it.address||'' };
+      const safeId=id.replace(/[^0-9A-Za-z\-_.]/g,'');
+      return `<a class="rep-card" href="bidcast-detail.html?id=${encodeURIComponent(id)}" onclick="stashCatLive('${safeId}')">
+        <div class="th">${REP_ICONS[it.type]||'🏢'}</div>
+        <div class="t">${escC(it.title)}</div>
+        <div class="m">${escC(it.court||it.orgNm||'')} · ${escC(it.type||'')}${it.fail>0?` · 유찰 ${it.fail}회`:''}</div>
+        <div class="p">감정가 ${fmtWonCat(it.appr)} · 최저 ${fmtWonCat(it.min)}</div>
+      </a>`;
+    }).join('');
+    const head=document.getElementById('repHead'); if(head) head.textContent='대표 물건 (실시간)';
+    if (axis === 'region' && data.totalCount) { const lc=document.getElementById('leafCount'); if(lc) lc.textContent=fmtCount(Number(data.totalCount)); }
+    const tile=document.getElementById('catStatusTile'); if(tile) tile.innerHTML='<div class="v" style="color:var(--green-deep)">실시간</div><div class="k">온비드 실물건 연동됨</div>';
+    const chip=document.querySelector('.demo-chip'); if(chip) chip.textContent='✅ 대표 물건은 실시간 온비드 데이터 (분포 통계는 참고 예시)';
+  } catch(e){ console.info('[cat] 대표 물건 연동 실패, 예시 유지:', e.message); }
 }
 
 function buildRepCards(axis, value) {
