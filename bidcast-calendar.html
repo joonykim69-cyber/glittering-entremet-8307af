@@ -189,7 +189,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
   <div class="wrap">
     <h1>입찰 캘린더</h1>
     <p>다가오는 입찰 마감을 한눈에. 관심물건으로 등록하면 마감 전에 알림을 보내드립니다.</p>
-    <span class="demo-chip">🔧 아래 건수는 예시 데이터입니다</span>
+    <span class="demo-chip" id="calDataChip">🔧 아래 건수는 예시 데이터입니다</span>
     <div class="sum-row">
       <div class="sum"><div class="num" id="sumToday">18</div><div class="lbl">오늘 입찰</div></div>
       <div class="sum"><div class="num" id="sumWeek">124</div><div class="lbl">이번 주 입찰</div></div>
@@ -314,6 +314,64 @@ const MONTHS = [
 document.getElementById('monthGrid').innerHTML = MONTHS.map(mo => `
   <div class="month-cell ${mo.now ? 'now' : ''}"><div class="mm">${mo.m}</div><div class="mv">${mo.v}</div></div>
 `).join('');
+
+// ═══════════════════════════════════════
+// 실 데이터 연동 — onbid-calendar(요일별 건수) + onbid-search(마감 임박 물건, 마감일 순).
+// 각각 실패해도 위 예시가 그대로 유지됨(degrade-gracefully).
+// ═══════════════════════════════════════
+const TYPE_EMOJI_C = {'아파트':'🏢','오피스텔':'🏢','단독주택':'🏠','연립다세대':'🏘️','토지':'🏞️','상가':'🏬','사무실':'🏢','공장창고':'🏭','농지임야':'🌲','기타부동산':'📦','차량':'🚗','기계장비':'⚙️','유가증권':'📈','선박항공':'🚢','기타동산':'📦'};
+const calSnaps = {};
+function escH(s){ return String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])); }
+function stashCalLive(id){ const s=calSnaps[id]; if(s){ try{ sessionStorage.setItem('bidcast:detail', JSON.stringify(s)); }catch(e){} } }
+function fmtMinMan(man){ man=Number(man)||0; if(!man) return '미공개'; return man>=10000 ? (man/10000).toFixed(1).replace(/\.0$/,'')+'억' : man.toLocaleString()+'만'; }
+function bidEndInt(be){ return parseInt(String(be).replace(/[^0-9]/g,'').slice(0,8),10)||0; }
+let calLive = { counts:false, sched:false };
+function calMarkLive(){
+  const chip=document.getElementById('calDataChip'); if(!chip) return;
+  if(calLive.counts && calLive.sched) chip.textContent='✅ 실시간 온비드 데이터 — 이번 주 건수·마감 임박 물건 (월별/30일은 참고 예시)';
+  else if(calLive.counts) chip.textContent='✅ 이번 주 요일별 건수 실시간 (마감 물건·월별은 예시)';
+  else if(calLive.sched) chip.textContent='✅ 마감 임박 물건 실시간 (요일별 건수·월별은 예시)';
+}
+(async () => {
+  // 1) 요일별 건수 (onbid-calendar: 월~금 totalCount)
+  try {
+    const cal = await fetch('/.netlify/functions/onbid-calendar').then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); });
+    if (cal && Array.isArray(cal.days) && cal.days.length) {
+      const byDow = {}; cal.days.forEach(d=>{ byDow[d.dow]=(byDow[d.dow]||0)+(Number(d.count)||0); });
+      const live = WEEKDAYS.map(d => byDow[d] || 0); // 토·일은 onbid-calendar 미포함 → 0(휴장)
+      renderDayList('upcomingList', live, true);
+      const todayDow = ['일','월','화','수','목','금','토'][new Date(Date.now()+9*3600*1000).getUTCDay()];
+      document.getElementById('sumToday').textContent = (byDow[todayDow]||0).toLocaleString();
+      document.getElementById('sumWeek').textContent = live.reduce((a,b)=>a+b,0).toLocaleString();
+      calLive.counts = true; calMarkLive();
+    }
+  } catch(e){ console.info('[cal] 요일별 건수 연동 실패, 예시 유지:', e.message); }
+  // 2) 다가오는 입찰 물건 (onbid-search, 마감일 순)
+  try {
+    const data = await fetch('/.netlify/functions/onbid-search?page=1&numOfRows=100').then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); });
+    if (data && Array.isArray(data.items) && data.items.length) {
+      const nd=new Date(Date.now()+9*3600*1000); const now=nd.getUTCFullYear()*10000+(nd.getUTCMonth()+1)*100+nd.getUTCDate();
+      const items = data.items.filter(it=>it.bidEnd && bidEndInt(it.bidEnd) >= now)
+        .sort((a,b)=> bidEndInt(a.bidEnd)-bidEndInt(b.bidEnd)).slice(0,12);
+      if (items.length) {
+        document.getElementById('schedList').innerHTML = items.map(it => {
+          const id=String(it.id);
+          calSnaps[id]={ id, title:it.title||'', min:it.min||0, appr:it.appr||0, type:it.type||'', court:it.court||it.orgNm||'', status:it.status||'진행', thumb:TYPE_EMOJI_C[it.type]||'📦', live:true, cltrMngNo:id, pbctCdtnNo:it.pbctCdtnNo!=null?String(it.pbctCdtnNo):'', bidEnd:it.bidEnd||'', address:it.address||'' };
+          const t=String(it.bidEnd).replace(/[^0-9]/g,''); const mm=+t.slice(4,6), dd=+t.slice(6,8);
+          const wd=['일','월','화','수','목','금','토'][new Date(+t.slice(0,4),mm-1,dd).getDay()];
+          const safeId=id.replace(/[^0-9A-Za-z\-_.]/g,'');
+          return `<a class="sched-row" href="bidcast-detail.html?id=${encodeURIComponent(id)}" onclick="stashCalLive('${safeId}')">
+            <span class="sched-date"><span class="dd">${mm}.${dd}</span><br/><span class="wd">${wd} 마감</span></span>
+            <span class="sched-ico">${TYPE_EMOJI_C[it.type]||'📦'}</span>
+            <span class="sched-body"><span class="t">${escH(it.title)}</span><br/><span class="m">${escH(it.court||it.orgNm||'')} · ${escH(it.type||'')}</span></span>
+            <span class="sched-price"><span class="p">최저 ${fmtMinMan(it.min)}</span>${it.fail>0?`<br/><span class="tag">유찰 ${it.fail}회</span>`:''}</span>
+          </a>`;
+        }).join('');
+        calLive.sched = true; calMarkLive();
+      }
+    }
+  } catch(e){ console.info('[cal] 마감 임박 물건 연동 실패, 예시 유지:', e.message); }
+})();
 
 // 간편로그인 (공용 데모 컴포넌트)
 const authOverlay = document.getElementById('authOverlay');
