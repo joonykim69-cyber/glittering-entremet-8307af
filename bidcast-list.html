@@ -1063,6 +1063,7 @@ function saveLikeSnap(it) {
       id: String(it.id), title: it.title || '', min: it.min || 0, appr: it.appr || 0,
       type: it.type || '', court: it.court || it.org || '', status: it.status || '진행', thumb: it.thumb || '📦',
       photo: it.photo || '', // 온비드 썸네일 URL — 상세·비교·마이페이지 실사진용
+      address: it.address || '', // 소재지 — 마이페이지·비교함→상세 이동 시 지도 지오코딩용
       live: true, cltrMngNo: String(it.id), pbctCdtnNo: it.pbctCdtnNo != null ? String(it.pbctCdtnNo) : '',
       bidEnd: it.bidEnd || '', // 입찰 마감일(yyyyMMddHHmm) — 마이페이지 개찰 임박 배지용
     };
