@@ -267,6 +267,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
         <div class="lbl"><span>예상 시세 (급매 기준)</span><span class="v" id="tMarket">3.8억원</span></div>
         <input type="range" id="sMarket" min="1000" max="200000" step="500" value="38000" aria-label="예상 시세"/>
         <div class="rng"><span>1,000만원</span><span>20억원</span></div>
+        <p id="mktRefNote" style="display:none;font-size:11.5px;color:var(--green-deep);background:var(--green-soft);border-radius:10px;padding:9px 12px;margin-top:10px;line-height:1.5;"></p>
       </div>
 
       <div class="ctl">
@@ -443,6 +444,15 @@ sliders.forEach(id => $(id).addEventListener('input', render));
   if (Number.isFinite(appr)) $('sAppr').value = Math.min(Math.max(appr, 1000), 150000);
   if (Number.isFinite(ratio)) $('sRatio').value = Math.min(Math.max(ratio, 50), 120);
   if (Number.isFinite(appr)) $('sMarket').value = Math.min(Math.round(appr * 1.08 / 500) * 500, 200000); // 시세 기본값: 감정가 +8% 가정
+  // 상세 페이지 "주변 실거래"(국토부 실거래가)에서 넘어온 ㎡당 중앙값 참고치 — 시세 슬라이더의 데이터 앵커.
+  const mktM2 = parseInt(p.get('mktM2'), 10), mktRef = (p.get('mktRef') || '').slice(0, 80);
+  if (Number.isFinite(mktM2) && mktM2 > 0 && mktRef) {
+    const note = $('mktRefNote');
+    if (note) {
+      note.textContent = `📊 ${mktRef} — 전용면적(㎡)을 곱해 예상 시세를 조정하세요. (예: 전용 60㎡ ⇒ 약 ${(mktM2 * 60 / 10000).toFixed(1)}억원)`;
+      note.style.display = 'block';
+    }
+  }
   const title = (p.get('title') || '').slice(0, 60);
   // 실물건 채점 연결용: id는 문자열(cltrMngNo 가능), cdtn은 공매조건번호
   window.PRE_ID = (p.get('id') || '').slice(0, 40).replace(/[^0-9A-Za-z\-_.]/g, '');
