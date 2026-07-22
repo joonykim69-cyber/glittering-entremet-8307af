@@ -13,7 +13,7 @@
    디자인 원본: claude.ai/design "웹서비스 랜딩 페이지 디자인" bidcast-landing.html
    + 기존 실데이터 기능 이식 (데모 로그인 모달 / AI 예보 카드 라이브 / 성적표 실측)
 ═══════════════════════════════════════════════════ */
-:root{--bg:#F6FAF7;--surface:#FFFFFF;--ink:#10201A;--sub:#55655D;--mute:#93A29A;--line:#E1EAE4;--green:#00A86B;--green-deep:#00744B;--green-soft:#E4F7EE;--red:#E5484D;--red-soft:#FDEBEB;--yellow:#F5B90F;--yellow-soft:#FDF4D7;--grad:linear-gradient(120deg,#00C87F 0%,#00A86B 55%,#009E8A 100%);--glow:0 0 0 4px rgba(0,200,127,.14), 0 10px 34px rgba(0,168,107,.35);--radius:20px;--ease:cubic-bezier(.16,1,.3,1);--font:'Poppins','Noto Sans KR',-apple-system,'Malgun Gothic',sans-serif;--font-head:'Nunito','Noto Sans KR',-apple-system,'Malgun Gothic',sans-serif}
+:root{--bg:#F6FAF7;--surface:#FFFFFF;--ink:#10201A;--sub:#55655D;--mute:#697A70;--line:#E1EAE4;--green:#00A86B;--green-deep:#00744B;--green-soft:#E4F7EE;--red:#E5484D;--red-soft:#FDEBEB;--yellow:#F5B90F;--yellow-soft:#FDF4D7;--grad:linear-gradient(120deg,#00C87F 0%,#00A86B 55%,#009E8A 100%);--glow:0 0 0 4px rgba(0,200,127,.14), 0 10px 34px rgba(0,168,107,.35);--radius:20px;--ease:cubic-bezier(.16,1,.3,1);--font:'Poppins','Noto Sans KR',-apple-system,'Malgun Gothic',sans-serif;--font-head:'Nunito','Noto Sans KR',-apple-system,'Malgun Gothic',sans-serif}
 *{box-sizing:border-box}
 body{margin:0;font-family:var(--font);color:var(--ink);background:var(--bg);word-break:keep-all;line-height:1.6}
 a{color:var(--green-deep);text-decoration:none}
@@ -32,7 +32,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .chip-yellow{background:var(--yellow-soft);color:#8a6d00}
 .chip-red{background:var(--red-soft);color:var(--red)}
 .kicker{font-size:13px;font-weight:800;color:var(--green-deep);letter-spacing:.08em}
-.h2{font-size:34px;font-weight:900;letter-spacing:-.02em;line-height:1.3;text-wrap:pretty}
+.h2{font-size:clamp(24px,3.6vw,34px);font-weight:900;letter-spacing:-.02em;line-height:1.3;text-wrap:pretty}
 .sub{font-size:16px;color:var(--sub);line-height:1.7;text-wrap:pretty}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 2px 16px rgba(16,32,26,.04)}
 .section{padding:90px 0}
@@ -116,7 +116,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 /* hero */
 .hero{padding:76px 0 60px;text-align:center}
 .hero-inner{display:flex;flex-direction:column;align-items:center;gap:24px}
-.hero h1{font-size:52px;font-weight:900;letter-spacing:-.02em;line-height:1.22;text-wrap:pretty}
+.hero h1{font-size:clamp(31px,5.5vw,52px);font-weight:900;letter-spacing:-.02em;line-height:1.22;text-wrap:pretty}
 .hero .badge{display:inline-flex;align-items:center;gap:10px;background:var(--green-soft);border-radius:999px;padding:8px 18px;font-size:13px;font-weight:700;color:var(--green-deep)}
 .badge-lights{display:inline-flex;gap:4px}
 .badge-lights i{width:8px;height:8px;border-radius:50%}
@@ -153,7 +153,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .metric b{display:block;font-size:32px;font-weight:900;letter-spacing:-.02em;color:var(--green-deep);white-space:nowrap}
 .metric span{font-size:13px;color:var(--sub)}
 /* steps */
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
 .step{padding:32px 28px;display:flex;flex-direction:column;gap:18px;border-top:4px solid var(--line)}
 .step.stop{border-top-color:var(--red)}
 .step.ready{border-top-color:var(--yellow)}
@@ -172,7 +172,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .tool a{color:inherit}
 .tools{display:flex;flex-direction:column;gap:14px}
 /* forecast */
-.fgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
 .fcard{padding:26px 24px;display:flex;flex-direction:column;gap:14px}
 .fcard .cat{font-size:12px;color:var(--mute)}
 .fcard h3{font-size:18px;font-weight:800;letter-spacing:-.01em;line-height:1.4}
@@ -222,7 +222,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .faq-item.open .faq-a{display:block}
 /* final cta — 파란 풀폭 밴드 (디자인 지시 2026-07-19), 기존 대비 1/2 스케일 */
 .final{position:relative;overflow:hidden;background:#1667E8;padding:40px 24px;text-align:center;color:#fff}
-.final h2{font-size:26px;font-weight:900;letter-spacing:-.02em;line-height:1.35;color:#fff}
+.final h2{font-size:clamp(21px,3vw,26px);font-weight:900;letter-spacing:-.02em;line-height:1.35;color:#fff}
 .final p{font-size:13.5px;color:rgba(255,255,255,.85);max-width:420px;margin:0 auto;line-height:1.65}
 .final .inner{position:relative;display:flex;flex-direction:column;gap:14px;align-items:center}
 .final .btn-cta{background:#fff;color:#1667E8;box-shadow:0 6px 18px rgba(0,0,0,.2);font-size:13.5px;padding:11px 24px}
@@ -289,14 +289,13 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .nav-links{display:none}
 .nav-hamburger{display:flex;margin-left:auto}
 .nav-actions .btn-ghost{display:none}
-.hero h1{font-size:36px}
+.section{padding:56px 0}
+.hero{padding:48px 0 44px}
 .metrics .wrap{grid-template-columns:repeat(2,1fr);row-gap:24px}
 .metric:nth-child(3){border-left:none}
-.steps,.fgrid{grid-template-columns:1fr}
 .split{flex-direction:column}
 .labcard{width:100% !important}
 .foot-grid{grid-template-columns:1fr 1fr}
-.h2{font-size:26px}
 .mock-body{overflow-x:auto}
 }
 </style>
