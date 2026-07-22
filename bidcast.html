@@ -230,6 +230,23 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .ledger-tile .v.waiting{color:var(--mute);font-size:16px}
 .ledger-tile .k{font-size:11.5px;color:var(--sub);margin-top:4px;line-height:1.5}
 .ledger-log-item{font-size:12px;color:var(--sub);background:var(--green-soft);border-radius:10px;padding:8px 12px}
+/* ═══ 엔진 자가진단 섹션 ═══ */
+.es-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:26px}
+@media (max-width:760px){.es-grid{grid-template-columns:1fr}}
+.es-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;gap:8px}
+.es-card .es-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.es-card .es-name{font-size:14px;font-weight:800;color:var(--ink)}
+.es-card .es-name small{display:block;font-size:10.5px;font-weight:700;color:var(--mute);margin-top:2px}
+.es-badge{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:800;padding:5px 11px;border-radius:999px;white-space:nowrap}
+.es-badge .es-dot{width:8px;height:8px;border-radius:50%}
+.es-badge.ok{background:var(--green-soft);color:var(--green-deep)} .es-badge.ok .es-dot{background:var(--green);box-shadow:0 0 7px var(--green)}
+.es-badge.wait{background:var(--yellow-soft);color:#8A6100} .es-badge.wait .es-dot{background:var(--yellow)}
+.es-badge.err{background:var(--red-soft);color:var(--red)} .es-badge.err .es-dot{background:var(--red)}
+.es-detail{font-size:12.5px;color:var(--sub);line-height:1.55}
+.es-detail b{color:var(--green-deep);font-weight:800}
+.es-sub{font-size:11px;color:var(--mute);line-height:1.5}
+.es-note{margin-top:16px;font-size:11.5px;color:var(--mute);text-align:center;line-height:1.6}
+.es-skel{height:96px;border-radius:16px;background:linear-gradient(90deg,var(--bg),var(--surface),var(--bg));border:1px solid var(--line)}
 .simrow{display:flex;justify-content:space-between;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:14px 18px}
 .simrow span{font-size:14px;color:var(--sub)}
 .simrow b{font-size:22px;font-weight:900;letter-spacing:-.02em}
@@ -356,17 +373,17 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 <span class="logo small"><span class="logo-box"><i></i><i></i><i></i></span><b>신호등<em>옥션</em></b></span>
 <div class="mock-search">🔍 사건번호·자산군으로 검색</div>
 </div>
-<div class="mock-tool"><b>이번 주 관심 공매 물건</b><span>☆</span><span>필터</span><span>정렬 ▾</span><span class="chip chip-demo" style="margin-left:auto">예시 데이터</span></div>
+<div class="mock-tool"><b>이번 주 관심 공매 물건</b><span>☆</span><span>필터</span><span>정렬 ▾</span><span class="chip chip-demo" id="mockChip" style="margin-left:auto">예시 데이터</span></div>
 <div class="mock-body">
-<div class="mcol"><div class="mcol-h"><span>관심 물건</span><span>4</span></div>
+<div class="mcol" id="mCol1"><div class="mcol-h"><span>관심 물건</span><span>4</span></div>
 <div class="mcard"><div class="tags"><span class="chip chip-green">🟢 기회 신호</span><span class="chip chip-yellow">유찰 2회</span></div><div class="t">서울 광진구 광장동 토지 152㎡</div><div class="p">감정가 8.4억 · 최저가 5.4억</div><div class="meter"><div class="bar"><i style="width:86%"></i></div><span>86%</span></div><div class="foot"><span>예측 근거 34건</span></div></div>
 <div class="mcard"><div class="tags"><span class="chip chip-green">🟢 기회 신호</span><span class="chip chip-yellow">유찰 1회</span></div><div class="t">5톤 카고트럭 (2021년식)</div><div class="p">감정가 3,200만 · 최저가 2,240만</div><div class="meter"><div class="bar"><i style="width:84%"></i></div><span>84%</span></div><div class="foot"><span>예측 근거 61건</span></div></div>
 </div>
-<div class="mcol"><div class="mcol-h"><span>AI 예측 분석</span><span>3</span></div>
+<div class="mcol" id="mCol2"><div class="mcol-h"><span>AI 예측 분석</span><span>3</span></div>
 <div class="mcard"><div class="tags"><span class="chip chip-green">🟢 기회 신호</span><span class="chip chip-green">선순위 없음</span></div><div class="t">인천 연수구 송도동 아파트 59㎡</div><div class="p">감정가 6.8억 · 최저가 5.4억</div><div class="meter"><div class="bar"><i style="width:88%"></i></div><span>88%</span></div><div class="foot"><span>예측 근거 42건</span></div></div>
 <div class="mcard"><div class="tags"><span class="chip chip-yellow">🟡 주의 신호</span><span class="chip chip-red">⚠ 표본 적음</span></div><div class="t">CNC 머시닝센터 외 3점</div><div class="p">감정가 1.1억 · 최저가 4,510만</div><div class="meter"><div class="bar"><i class="warn" style="width:52%"></i></div><span>52%</span></div><div class="foot"><span>예측 근거 18건</span></div></div>
 </div>
-<div class="mcol"><div class="mcol-h"><span>개찰 채점 완료</span><span>6</span></div>
+<div class="mcol" id="mCol3"><div class="mcol-h"><span>개찰 채점 완료</span><span>6</span></div>
 <div class="mcard"><div class="tags"><span class="chip chip-green">🟢 AI 오차 +0.6%</span></div><div class="t">서울 송파구 잠실동 아파트 76㎡</div><div class="p">실제 7.21억 · AI 예측 6.9~7.5억</div><div class="meter"><div class="bar"><i style="width:92%"></i></div><span>92%</span></div><div class="foot"><span>채점 완료</span></div></div>
 <div class="mcard"><div class="tags"><span class="chip chip-red">⚠ 내 오차 −5.7%</span><span class="chip chip-yellow">복기 필요</span></div><div class="t">승용차 그랜저 (2019년식)</div><div class="p">실제 1,840만 · 내 입찰 1,735만</div><div class="meter"><div class="bar"><i class="warn" style="width:71%"></i></div><span>71%</span></div><div class="foot"><span>채점 완료</span></div></div>
 </div>
@@ -537,6 +554,16 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 <div class="bar-row"><span>±20% 이내</span><div class="track"><i style="width:91%"></i></div><b>91%</b></div>
 <div class="foot-note" id="labFoot">누적 비율 기준 · 서비스 오픈 후 실측치로 대체됩니다.</div>
 </div>
+</div></section>
+
+<!-- ═══ 엔진 자가진단 — 예측 봉인·자동 채점·학습 수집·연동이 지금 실제로 도는지 실시간 점검 ═══ -->
+<section class="section" id="engine-status" style="background:var(--surface);border-top:1px solid var(--line);border-bottom:1px solid var(--line)"><div class="wrap">
+<div class="sec-head"><span class="kicker">SYSTEM STATUS</span><h2 class="h2">엔진이 지금 살아 있나요?</h2>
+<p class="sub" style="max-width:660px;margin:8px auto 0">예측 봉인·개찰 자동 채점·학습 데이터 수집이 <b>지금 실제로 돌고 있는지</b> 백엔드 장부에서 바로 읽어 점검합니다. 꾸며낸 값이 아니라 실시간 상태입니다.</p></div>
+<div class="es-grid" id="esGrid">
+  <div class="es-skel"></div><div class="es-skel"></div><div class="es-skel"></div><div class="es-skel"></div>
+</div>
+<div class="es-note" id="esNote">상태를 불러오는 중…</div>
 </div></section>
 
 <section class="section" id="simulator" style="background:var(--surface);border-top:1px solid var(--line);border-bottom:1px solid var(--line)"><div class="wrap split">
@@ -1191,6 +1218,194 @@ async function loadLedger() {
   }
 }
 loadLedger();
+
+// ═══════════════════════════════════════
+// 엔진 자가진단 — scoreboard·hist-stats·integrations-status를 실시간으로 읽어
+// 예측 봉인(predict-daily)·자동 채점(score-daily)·학습 수집(collect-history)·연동 상태를 점검.
+// 모두 실측 응답 기반. 함수 미배포/오류면 정직하게 "확인 불가"로 표시(가짜 초록 금지).
+// ═══════════════════════════════════════
+async function loadEngineStatus() {
+  const grid = document.getElementById('esGrid'); if (!grid) return;
+  const rel = iso => {
+    if (!iso) return '';
+    const t = new Date(iso).getTime(); if (isNaN(t)) return '';
+    const diff = Date.now() - t; const h = Math.floor(diff / 3600000);
+    if (h < 1) return '방금'; if (h < 24) return h + '시간 전';
+    const d = Math.floor(h / 24); return d + '일 전';
+  };
+  const freshH = iso => { const t = iso ? new Date(iso).getTime() : NaN; return isNaN(t) ? Infinity : (Date.now() - t) / 3600000; };
+  const [sbR, hsR, inR] = await Promise.allSettled([
+    fetch('/.netlify/functions/scoreboard').then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))),
+    fetch('/.netlify/functions/hist-stats').then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))),
+    fetch('/.netlify/functions/integrations-status').then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))),
+  ]);
+  const sb = sbR.status === 'fulfilled' ? sbR.value : null;
+  const hs = hsR.status === 'fulfilled' ? hsR.value : null;
+  const ins = inR.status === 'fulfilled' ? inR.value : null;
+
+  const cards = [];
+  // 1) 예측 봉인 (predict-daily, 매일 07:00 KST)
+  (() => {
+    const name = '예측 봉인', sched = 'predict-daily · 매일 07:00';
+    if (!sb) return cards.push(card(name, sched, 'err', '확인 불가', '장부(scoreboard) 응답을 받지 못했습니다.', ''));
+    const sealDays = sb.sealDays || {};
+    const total = Object.values(sealDays).reduce((s, v) => s + (Number(v) || 0), 0);
+    const last = sb.lastSealAt || null;
+    if (!total) return cards.push(card(name, sched, 'wait', '봉인 대기', '아직 봉인된 예측이 없습니다.', '초기 단계이거나, 통계 근거(용도별 낙찰가율)가 있는 마감 임박 물건을 기다리는 중입니다.'));
+    if (freshH(last) <= 48) return cards.push(card(name, sched, 'ok', '정상 가동', `누적 <b>${total.toLocaleString()}건</b> 봉인 · 최근 봉인 ${rel(last)}`, '매일 아침 마감 임박 물건을 개찰 전에 봉인하고 있습니다.'));
+    return cards.push(card(name, sched, 'wait', '최근 봉인 없음', `누적 <b>${total.toLocaleString()}건</b> · 마지막 봉인 ${rel(last) || '기록 없음'}`, '최근 48시간 내 신규 봉인이 없습니다 — 마감 임박 물건이 없었거나 스케줄 점검이 필요할 수 있습니다.'));
+  })();
+  // 2) 자동 채점 (score-daily, 매일 19:30 KST)
+  (() => {
+    const name = '자동 채점', sched = 'score-daily · 매일 19:30';
+    if (!sb) return cards.push(card(name, sched, 'err', '확인 불가', '장부(scoreboard) 응답을 받지 못했습니다.', ''));
+    const n = (sb.summary && sb.summary.n) || 0;
+    const total = Object.values(sb.sealDays || {}).reduce((s, v) => s + (Number(v) || 0), 0);
+    if (n) return cards.push(card(name, sched, 'ok', '정상 가동', `채점 <b>${n.toLocaleString()}건</b> · 구간 적중률 <b>${sb.summary.hitRate}%</b> · 갱신 ${rel(sb.updatedAt)}`, '개찰 결과가 나오는 대로 봉인 예측과 전수 대조해 자동 채점합니다.'));
+    if (total) return cards.push(card(name, sched, 'wait', '개찰 대기', '봉인은 됐고, 아직 채점된 건이 없습니다.', '봉인 물건의 개찰이 끝나면(보통 2~3일 내) 저녁 채점에서 자동 반영됩니다.'));
+    return cards.push(card(name, sched, 'wait', '대기', '채점할 봉인/개찰이 아직 없습니다.', '봉인이 쌓이고 개찰이 진행되면 자동으로 채점을 시작합니다.'));
+  })();
+  // 3) 학습 데이터 (collect-history, 매일 20:10 KST)
+  (() => {
+    const name = '학습 데이터 수집', sched = 'collect-history · 매일 20:10';
+    if (!hs) return cards.push(card(name, sched, 'err', '확인 불가', '학습 통계(hist-stats) 응답을 받지 못했습니다.', ''));
+    if (hs.status === 'ok') {
+      const recs = Number(hs.records || 0), cellN = Number(hs.cellCount || 0);
+      return cards.push(card(name, sched, 'ok', '수집 중', `과거 개찰 이력 <b>${recs.toLocaleString()}건</b> · 통계 셀 <b>${cellN.toLocaleString()}개</b>`, `갱신 ${rel(hs.builtAt || hs.updatedAt) || '기록 없음'} · 용도×회차×가격대 낙찰가율 통계를 매일 백필·증분합니다.`));
+    }
+    return cards.push(card(name, sched, 'wait', '백필 대기', '학습 데이터가 아직 수집되지 않았습니다.', 'collect-history 백필(최대 1년치)이 진행되면 유사 사례 근거와 챌린저 모델이 활성화됩니다.'));
+  })();
+  // 4) 외부 연동 키
+  (() => {
+    const name = '외부 연동', sched = '온비드·Claude·지도·뉴스·금리·지수';
+    if (!ins || !ins.summary) return cards.push(card(name, sched, 'err', '확인 불가', '연동 상태(integrations-status) 응답을 받지 못했습니다.', ''));
+    const active = ins.summary.activeNow || [], waiting = ins.summary.readyWaiting || [];
+    const labelOf = k => { const it = (ins.integrations || []).find(x => x.key === k); return it ? it.label : k; };
+    const onbidOn = active.indexOf('onbid') >= 0;
+    const st = onbidOn ? 'ok' : (active.length ? 'wait' : 'err');
+    const detail = active.length ? `활성 <b>${active.length}개</b> · ${active.map(labelOf).join(', ')}` : '활성화된 연동이 없습니다.';
+    const sub = waiting.length ? `키 대기 ${waiting.length}개: ${waiting.map(labelOf).join(', ')}` : '모든 준비된 연동이 활성 상태입니다.';
+    return cards.push(card(name, sched, st, onbidOn ? '핵심 연동 활성' : (active.length ? '일부 활성' : '연동 없음'), detail, sub));
+  })();
+
+  grid.innerHTML = cards.join('');
+  const anyOk = grid.querySelector('.es-badge.ok');
+  const allErr = sb === null && hs === null && ins === null;
+  const note = document.getElementById('esNote');
+  if (note) note.innerHTML = allErr
+    ? '⚠️ 진단 API에 연결하지 못했습니다 — 함수가 아직 배포 중이거나 일시적 오류일 수 있습니다. 잠시 후 새로고침해 주세요.'
+    : `이 진단은 공개 장부 API(scoreboard · hist-stats · integrations-status)를 방금 실시간으로 읽은 값입니다 · ${new Date().toLocaleString('ko-KR', { hour12: false })} 기준`;
+
+  function card(name, sched, state, badge, detail, sub) {
+    return `<div class="es-card">
+      <div class="es-top">
+        <div class="es-name">${escHtml(name)}<small>${escHtml(sched)}</small></div>
+        <span class="es-badge ${state}"><span class="es-dot"></span>${escHtml(badge)}</span>
+      </div>
+      <div class="es-detail">${detail}</div>
+      ${sub ? `<div class="es-sub">${escHtml(sub)}</div>` : ''}
+    </div>`;
+  }
+}
+loadEngineStatus();
+
+// ═══════════════════════════════════════
+// 히어로 칸반 실데이터 연결 — 관심 물건/이번 주 임박(라이브 온비드) · AI 예측 분석(라이브)
+// · 개찰 채점 완료(scoreboard.recent 실측). 소스 실패 시 해당 열은 예시 유지(degrade).
+// ═══════════════════════════════════════
+async function loadHeroBoard() {
+  const hWon = man => { man = Number(man) || 0; if (!man) return '미공개'; return man >= 10000 ? (man / 10000).toFixed(1).replace(/\.0$/, '') + '억' : man.toLocaleString() + '만'; };
+  const lsGet = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
+  const fmtOpbd = s => { const t = String(s || '').replace(/[^0-9]/g, ''); return t.length >= 8 ? `${+t.slice(4, 6)}.${+t.slice(6, 8)} 개찰` : ''; };
+  const signal = it => (it.appr > 0 && it.min > it.appr) ? '<span class="chip chip-yellow">🟡 신탁/특수</span>'
+    : ((it.fail || 0) >= 1 ? '<span class="chip chip-green">🟢 기회 신호</span>' : '<span class="chip chip-green">🟢 신건</span>');
+  const liveCard = it => {
+    const hasAppr = it.appr > 0;
+    const pct = hasAppr ? Math.max(1, Math.min(100, Math.round(it.min / it.appr * 100))) : 0;
+    const failTag = (it.fail || 0) > 0 ? `<span class="chip chip-yellow">유찰 ${it.fail}회</span>` : '';
+    const meter = hasAppr
+      ? `<div class="meter"><div class="bar"><i style="width:${pct}%"></i></div><span>${pct}%</span></div>`
+      : `<div class="meter"><span style="font-size:11px;color:var(--mute)">감정가 미공개 — 최저가율 산정 불가</span></div>`;
+    const foot = hasAppr ? `최저가율 기준${(it.fail || 0) > 0 ? ` · 유찰 ${it.fail}회` : ''} · ${escHtml(it.type || '부동산')}`
+      : `${(it.fail || 0) > 0 ? `유찰 ${it.fail}회 · ` : ''}${escHtml(it.type || '부동산')} · 온비드 실시간`;
+    return `<div class="mcard"><div class="tags">${signal(it)}${failTag}</div>
+      <div class="t">${escHtml(it.title || '')}</div>
+      <div class="p">감정가 ${hWon(it.appr)} · 최저가 ${hWon(it.min)}</div>
+      ${meter}
+      <div class="foot"><span>${foot}</span></div></div>`;
+  };
+  const gradedCard = r => {
+    const acc = Math.max(20, Math.min(100, Math.round(100 - Math.abs(r.errPct || 0) * 3)));
+    const sign = (r.errPct > 0 ? '+' : '') + r.errPct;
+    const tag = r.hit ? `<span class="chip chip-green">🟢 적중 · AI 오차 ${sign}%</span>` : `<span class="chip chip-red">⚠ 빗나감 · 오차 ${sign}%</span>`;
+    return `<div class="mcard"><div class="tags">${tag}</div>
+      <div class="t">${escHtml(r.title || '(온비드 물건)')}</div>
+      <div class="p">실제 ${hWon(r.win)} · AI 예측 ${hWon(r.lo)}~${hWon(r.hi)}</div>
+      <div class="meter"><div class="bar"><i class="${r.hit ? '' : 'warn'}" style="width:${acc}%"></i></div><span>${acc}%</span></div>
+      <div class="foot"><span>개찰 채점 완료${r.opbdDt ? ` · ${fmtOpbd(r.opbdDt)}` : ''}</span></div></div>`;
+  };
+  const setCol = (id, label, count, cardsHtml) => {
+    const el = document.getElementById(id); if (!el || !cardsHtml) return false;
+    el.innerHTML = `<div class="mcol-h"><span>${escHtml(label)}</span><span>${count}</span></div>${cardsHtml}`;
+    return true;
+  };
+
+  // 날짜 창(KST): 오늘 ~ +14일 마감 임박
+  const nd = new Date(Date.now() + 9 * 3600000);
+  const ymd = d => `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`;
+  const win = `bidPrdYmdStart=${ymd(nd)}&bidPrdYmdEnd=${ymd(new Date(nd.getTime() + 14 * 86400000))}`;
+
+  const [sbR, obR] = await Promise.allSettled([
+    fetch('/.netlify/functions/scoreboard').then(r => r.ok ? r.json() : Promise.reject()),
+    fetch(`/.netlify/functions/onbid-search?numOfRows=30&${win}`).then(r => r.ok ? r.json() : Promise.reject()),
+  ]);
+  const sb = sbR.status === 'fulfilled' ? sbR.value : null;
+  const ob = obR.status === 'fulfilled' ? obR.value : null;
+
+  let liveOk = false, gradedOk = false;
+  // 라이브 온비드 물건 (마감일 순)
+  const live = (ob && Array.isArray(ob.items))
+    ? ob.items.filter(it => it.min > 0 && it.title).sort((a, b) => String(a.bidEnd || '').localeCompare(String(b.bidEnd || ''))) : [];
+  const winTotal = (ob && Number(ob.totalCount)) || live.length;
+
+  // 관심 물건(사용자 실제 관심) 우선, 없으면 라이브 임박으로 대체
+  const snap = lsGet('bidcast:likesnap', {}) || {};
+  const likes = Object.values(snap).filter(x => x && x.title);
+  let liveOffset = 0;
+  if (likes.length) {
+    liveOk = setCol('mCol1', '관심 물건', likes.length, likes.slice(0, 2).map(liveCard).join('')) || liveOk;
+  } else if (live.length) {
+    liveOk = setCol('mCol1', '이번 주 임박 물건', winTotal, live.slice(0, 2).map(liveCard).join('')) || liveOk;
+    liveOffset = 2;
+  }
+  // AI 예측 분석 = 라이브 임박 물건 (카운트는 창 전체 중복 대신 "오늘 AI 봉인 건수"로 구분)
+  if (live.length) {
+    const slice = live.slice(liveOffset, liveOffset + 2);
+    const sealedToday = (sb && sb.sealDays && Number(sb.sealDays[ymd(nd)])) || 0;
+    const c2count = sealedToday || slice.length;
+    if (slice.length) liveOk = setCol('mCol2', 'AI 예측 분석', c2count, slice.map(liveCard).join('')) || liveOk;
+  }
+  // 개찰 채점 완료 = scoreboard.recent 실측
+  if (sb) {
+    const recent = Array.isArray(sb.recent) ? sb.recent : [];
+    const n = (sb.summary && sb.summary.n) || 0;
+    if (recent.length) {
+      gradedOk = setCol('mCol3', '개찰 채점 완료', n, recent.slice(0, 2).map(gradedCard).join(''));
+    } else {
+      const total = Object.values(sb.sealDays || {}).reduce((s, v) => s + (Number(v) || 0), 0);
+      if (total) gradedOk = setCol('mCol3', '개찰 채점 완료', 0,
+        `<div class="mcard"><div class="tags"><span class="chip chip-yellow">🟡 채점 대기</span></div><div class="t">개찰 결과 누적 중</div><div class="p">누적 봉인 ${total.toLocaleString()}건 · 개찰 후 자동 채점</div><div class="meter"><div class="bar"><i style="width:8%"></i></div><span>—</span></div><div class="foot"><span>봉인은 개찰 전에 완료 · 사후 수정 불가</span></div></div>`);
+    }
+  }
+
+  const chip = document.getElementById('mockChip');
+  if (chip) {
+    if (liveOk && gradedOk) { chip.textContent = '🟢 실시간 온비드 · 봉인 장부'; chip.className = 'chip chip-green'; chip.style.marginLeft = 'auto'; }
+    else if (liveOk || gradedOk) { chip.textContent = '🟢 실시간 일부 연동'; chip.className = 'chip chip-green'; chip.style.marginLeft = 'auto'; }
+    // 둘 다 실패면 예시 데이터 라벨 유지(degrade)
+  }
+}
+loadHeroBoard();
 </script>
 </body>
 </html>

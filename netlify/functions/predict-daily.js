@@ -81,13 +81,15 @@ exports.handler = async (event) => {
     const cellsData = (await store.get('hist/_cells', { type: 'json' })) || null;
 
     // 마감 임박 물건 수집: 부동산 + 동산 + 차량 (입찰기간 검색 창: 오늘~+2일)
+    // 수집 상한(사용자 지정 2026-07-22): 부동산 700(일반 500 + 토지 200 — 토지는 온비드에서
+    // 부동산 목록의 한 유형이라 같은 엔드포인트로 함께 수집) · 동산 50 · 차량 50.
     const start = ymd(kst());
     const end = ymd(new Date(kst().getTime() + 2 * 86400000));
     const q = `bidPrdYmdStart=${start}&bidPrdYmdEnd=${end}`;
     const settled = await Promise.allSettled([
-      fetchJson(`${base}/.netlify/functions/onbid-search?numOfRows=100&${q}`),
-      fetchJson(`${base}/.netlify/functions/onbid-mvast-search?numOfRows=60&${q}`),
-      fetchJson(`${base}/.netlify/functions/onbid-vhcl-search?numOfRows=60&${q}`),
+      fetchJson(`${base}/.netlify/functions/onbid-search?numOfRows=700&${q}`),
+      fetchJson(`${base}/.netlify/functions/onbid-mvast-search?numOfRows=50&${q}`),
+      fetchJson(`${base}/.netlify/functions/onbid-vhcl-search?numOfRows=50&${q}`),
     ]);
     const items = [];
     settled.forEach(s => {
@@ -98,7 +100,7 @@ exports.handler = async (event) => {
     const endLimit = end + '2359';
     const targets = items
       .filter(it => it.min > 0 && it.pbctCdtnNo && (!it.bidEnd || String(it.bidEnd) <= endLimit))
-      .slice(0, 250); // 1회 실행 상한 (쿼터·실행시간 보호)
+      .slice(0, 800); // 1회 실행 상한 = 부동산 700 + 동산 50 + 차량 50 (전수 봉인 보장·실행시간 보호)
 
     for (const it of targets) {
       const key = `pred/${it.id}_${it.pbctCdtnNo}`;
