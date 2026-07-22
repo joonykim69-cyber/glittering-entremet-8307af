@@ -621,7 +621,8 @@ async function loadRealItems() {
       snaps[iid] = { id: rec.realId, title: rec.title, min: rec.min, appr: rec.appr, type: rec.type, court: rec.court, status: rec.status, thumb: rec.thumb, photo: it.photo || '', live: true, cltrMngNo: rec.realId, pbctCdtnNo: rec.cdtn, bidEnd: rec.bidEnd, address: rec.address };
     }
     if (!mapped.length) throw new Error('지오코딩 가능한 물건 없음');
-    ITEMS = mapped; liveSnaps = snaps; liveMode = true;
+    // 지도는 지오코딩 비용이 커서 상한을 둔다(부동산 우선 정렬 순). 너무 많으면 주소 변환이 2분+ 걸려 지도가 마비됨.
+    ITEMS = mapped.slice(0, 40); liveSnaps = snaps; liveMode = true;
     const c2 = document.getElementById('dataSourceChip'); if (c2) c2.textContent = `✅ 실시간 온비드 데이터 ${mapped.length}건`;
   } catch (e) {
     console.info('[map] 실 데이터 연동 실패, 예시 데이터 유지:', e.message);
@@ -789,6 +790,22 @@ function openMarkerPopup(it) {
   else e.marker.openPopup();
 }
 
+// 현재 좌표가 있는 마커들이 다 보이도록 지도 범위 맞춤(엔진 무관)
+function fitMarkers() {
+  if (!map) return;
+  const coords = Object.values(markerMap).filter(e => e.latlng).map(e => e.latlng);
+  if (!coords.length) return;
+  if (USE_KAKAO) {
+    const bb = new kakao.maps.LatLngBounds();
+    coords.forEach(c => bb.extend(new kakao.maps.LatLng(c[0], c[1])));
+    map.setBounds(bb);
+  } else if (coords.length > 1) {
+    map.fitBounds(coords, { padding: [40, 40], maxZoom: 12 });
+  } else {
+    map.setView(coords[0], 13);
+  }
+}
+
 // ═══════════════════════════════════════
 // Nominatim Geocoding (순차, 1초 간격)
 // ═══════════════════════════════════════
@@ -832,6 +849,13 @@ async function geocodeAll() {
     fill.style.width = (done / total * 100) + '%';
     ratio.textContent = `${done}/${total}`;
     text.textContent = `위치 변환 중 (${it.address})`;
+
+    // 진행 중에도 핀을 점진적으로 노출 — 전부 끝날 때까지 지도가 비어 보이지 않게.
+    // 초반엔 새 핀에 맞춰 범위를 잡고, 어느 정도 차면 자동 맞춤을 멈춰 사용자 조작을 방해하지 않는다.
+    if (done % 5 === 0 || done === total) {
+      renderMarkers(computeFiltered());
+      if (done <= 20) fitMarkers();
+    }
 
     // Nominatim 이용 정책: 1초 이상 간격 (카카오 지오코더는 불필요)
     if (!USE_KAKAO && done < total) await new Promise(r => setTimeout(r, 1100));
