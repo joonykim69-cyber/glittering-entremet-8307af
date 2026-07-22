@@ -687,7 +687,7 @@ function initMap() {
       center: new kakao.maps.LatLng(36.5, 127.9),
       level: 13, // 전국 뷰(레벨↑=축소)
     });
-    kakaoInfo = new kakao.maps.InfoWindow({ removable: true, zIndex: 5 });
+    kakaoInfo = new kakao.maps.InfoWindow({ removable: false, zIndex: 5 }); // 닫기는 카드 자체 × 버튼(pop-close)이 담당 — 중복 방지
     kakao.maps.event.addListener(map, 'click', () => { kakaoInfo.close(); deselectAll(); });
     return;
   }
@@ -722,12 +722,14 @@ function makeIcon(it, active) {
 function popDday(bidEnd) {
   const t = String(bidEnd || '').replace(/[^0-9]/g, '');
   if (t.length < 8) return '';
-  const end = new Date(+t.slice(0, 4), +t.slice(4, 6) - 1, +t.slice(6, 8));
+  const yr = +t.slice(0, 4);
+  if (yr >= 2900) return ''; // 온비드 미정/미래 placeholder(2999…) → 배지 생략
+  const end = new Date(yr, +t.slice(4, 6) - 1, +t.slice(6, 8));
   if (isNaN(end.getTime())) return '';
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const d = Math.round((end - today) / 86400000);
   let txt, bg, col;
-  if (d < 0) return '';
+  if (d < 0 || d > 400) return ''; // 지난 건·비정상적으로 먼 값은 배지 생략
   else if (d === 0) { txt = '🔴 오늘 마감'; bg = 'var(--red-soft)'; col = 'var(--red)'; }
   else if (d <= 3) { txt = `🔴 마감 D-${d}`; bg = 'var(--red-soft)'; col = 'var(--red)'; }
   else if (d <= 7) { txt = `⏰ 마감 D-${d}`; bg = '#FDF4D7'; col = '#8A6100'; }
