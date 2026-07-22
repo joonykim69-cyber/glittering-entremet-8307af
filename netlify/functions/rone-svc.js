@@ -80,8 +80,10 @@ exports.handler = async (event) => {
     // 분류 키: 시점/값 외의 *_ID·*_NM 필드 조합(다차원 테이블에서 하나의 시계열을 식별)
     const clsKeyOf = x => Object.keys(x).filter(k => /(_ID|_NM|_FULLNM)$/.test(k) && !/WRTTIME/.test(k) && k !== 'STATBL_ID' && k !== 'DTACYCLE_CD').sort().map(k => `${k}=${x[k]}`).join('|');
     const clsLabelOf = x => Object.keys(x).filter(k => /_NM$/.test(k) && !/WRTTIME/.test(k) && k !== 'UI_NM').map(k => x[k]).filter(Boolean).join(' · ');
+    // 각 시계열을 식별하는 *_ID 필드(GRP_ID/CLS_ID/ITM_ID 등) — multi_series 시 사용자가 바로 env에 넣을 값.
+    const idsOf = x => { const o = {}; Object.keys(x).forEach(k => { if (/_ID$/.test(k) && !/WRTTIME/.test(k) && k !== 'STATBL_ID') o[k] = x[k]; }); return o; };
     const all = rawRows
-      .map(x => ({ time: String(x.WRTTIME_IDTFR_ID || x.WRTTIME_DESC || ''), value: num(x.DTA_VAL), key: clsKeyOf(x), label: clsLabelOf(x), unit: x.UI_NM || '' }))
+      .map(x => ({ time: String(x.WRTTIME_IDTFR_ID || x.WRTTIME_DESC || ''), value: num(x.DTA_VAL), key: clsKeyOf(x), label: clsLabelOf(x), unit: x.UI_NM || '', ids: idsOf(x) }))
       .filter(x => x.time && x.value != null);
 
     if (!all.length) {
@@ -90,15 +92,16 @@ exports.handler = async (event) => {
 
     // 분류(시계열)별 그룹핑
     const groups = new Map();
-    for (const x of all) { if (!groups.has(x.key)) groups.set(x.key, { key: x.key, label: x.label, unit: x.unit, rows: [] }); groups.get(x.key).rows.push(x); }
+    for (const x of all) { if (!groups.has(x.key)) groups.set(x.key, { key: x.key, label: x.label, unit: x.unit, ids: x.ids, rows: [] }); groups.get(x.key).rows.push(x); }
     // 다차원인데 필터가 없어 시계열이 여럿이면 모호 → multi로 반환(사용자/코드가 GRP/CLS/ITM 지정)
     if (groups.size > 1 && !cls && !itm && !grp) {
-      const list = [...groups.values()].map(g => ({ label: g.label, points: g.rows.length })).slice(0, 30);
+      // 각 시계열의 라벨 + 바로 env에 넣을 식별 ID(GRP_ID/CLS_ID/ITM_ID)를 함께 노출 → 자가 설정 가능.
+      const list = [...groups.values()].map(g => ({ label: g.label, points: g.rows.length, ids: g.ids })).slice(0, 40);
       return {
         statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           status: 'multi_series', statbl, cycle,
-          message: `이 통계표는 다차원(지역·용도 등 ${groups.size}개 시계열)입니다. RONE_CLS_ID/RONE_ITM_ID로 하나를 지정하세요("코드조회"에서 코드 확인).`,
+          message: `이 통계표는 다차원(${groups.size}개 시계열)입니다. 원하는 시계열의 ids를 골라 RONE_GRP_ID(지역)/RONE_CLS_ID(용도)/RONE_ITM_ID(지표)에 설정하세요. 예: 전국 아파트 매매가격지수 시계열의 ids를 그대로 env에 넣으면 단일 시계열로 좁혀집니다.`,
           series: list,
           ...(debug ? { url: url.replace(apiKey, '***'), rawFirst: rawRows[0] || null, fieldKeys: rawRows[0] ? Object.keys(rawRows[0]) : [] } : {}),
         }),
