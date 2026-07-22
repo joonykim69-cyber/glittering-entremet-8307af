@@ -175,7 +175,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
     <h1 class="title">궁금한 건 바로<br/>물어보세요, <span style="background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;">예보봇</span></h1>
     <p class="lead">공매 절차, 유찰, 입찰보증금부터 예상 낙찰가 산정 근거까지 — 대화로 쉽게 풀어드립니다.</p>
     <br/>
-    <span class="demo-chip">🤖 자주 묻는 질문은 사전 작성 답변, 자유 입력은 Claude AI가 실시간으로 답변합니다 (연동 전이면 예시 응답으로 자동 전환)</span>
+    <span class="demo-chip" id="aiStatusChip">🤖 자주 묻는 질문은 사전 작성 답변, 자유 입력은 Claude AI가 실시간으로 답변합니다 (연동 상태 확인 중…)</span>
 
     <div class="bot-layout">
       <div>
@@ -508,6 +508,26 @@ async function sendChat() {
 document.getElementById('chatInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
 // 등급별 능력 안내·에이전트 프리셋 렌더 (페이지 로드 시)
 renderBotAbilities(); renderAgentPresets();
+
+// Claude AI 실연동 상태 배지 — integrations-status로 ANTHROPIC_API_KEY 활성 여부 확인.
+// 활성이면 "실시간 답변 중", 미설정/오류면 "예시 응답 모드"로 정직하게 표시.
+(async function checkAiStatus() {
+  const chip = document.getElementById('aiStatusChip'); if (!chip) return;
+  try {
+    const data = await fetch('/.netlify/functions/integrations-status').then(r => r.ok ? r.json() : Promise.reject());
+    const active = data && data.summary && Array.isArray(data.summary.activeNow) && data.summary.activeNow.indexOf('anthropic') >= 0;
+    if (active) {
+      chip.textContent = '🟢 자유 입력은 Claude AI가 실시간으로 답변합니다 (연동 활성 · 프리셋은 즉답)';
+      chip.style.borderStyle = 'solid'; chip.style.borderColor = 'var(--green)'; chip.style.color = 'var(--green-deep)';
+    } else {
+      chip.textContent = '🟡 현재 예시 응답 모드 — Claude AI 미연동(ANTHROPIC_API_KEY 미설정). 프리셋 답변은 정상 동작';
+      chip.style.borderColor = 'var(--yellow, #F5B90F)';
+    }
+  } catch (e) {
+    // integrations-status 미배포/오류 — 문구는 중립 유지(가짜 초록 금지)
+    chip.textContent = '🤖 프리셋은 즉답, 자유 입력은 Claude AI 실시간 답변 (미연동 시 예시 응답으로 자동 전환)';
+  }
+})();
 
 // 간편로그인 (공용 데모 컴포넌트)
 const authOverlay = document.getElementById('authOverlay');
