@@ -96,12 +96,28 @@ exports.handler = async (event) => {
     let graded = 0, noPred = 0, already = 0;
     const today = ymd(kst());
 
-    for (const r of results) {
-      if (!r.id || !r.pbctCdtnNo) continue;
-      const scoredKey = `scored/${r.id}_${r.pbctCdtnNo}`;
-      if (await store.get(scoredKey)) { already++; continue; }
-      const pred = await store.get(`pred/${r.id}_${r.pbctCdtnNo}`, { type: 'json' });
+    // ── Blob 조회 병렬화(타임아웃 방지) ──
+    // 개찰 결과별 scored/pred/predb를 청크 병렬로 선조회한 뒤 채점. 순차 조회(600건×3)는
+    // Netlify 함수 실행시간 제한을 넘겨 502가 났음 — 읽기를 병렬화해 완주하도록 개선.
+    const mapLimit = async (items, limit, fn) => {
+      const out = [];
+      for (let i = 0; i < items.length; i += limit) out.push(...await Promise.all(items.slice(i, i + limit).map(fn)));
+      return out;
+    };
+    const enriched = await mapLimit(results.filter(r => r.id && r.pbctCdtnNo), 40, async r => {
+      const key = `${r.id}_${r.pbctCdtnNo}`;
+      const [scored, pred, predB] = await Promise.all([
+        store.get(`scored/${key}`),
+        store.get(`pred/${key}`, { type: 'json' }),
+        store.get(`predb/${key}`, { type: 'json' }),
+      ]);
+      return { r, key, scored: !!scored, pred, predB };
+    });
+
+    for (const { r, key, scored, pred, predB } of enriched) {
+      if (scored) { already++; continue; }
       if (!pred) { noPred++; continue; }
+      const scoredKey = `scored/${key}`;
 
       if (r.statCd !== '0010' || !(r.winAmt > 0)) {
         // 유찰은 다음 회차가 새 공매조건으로 다시 봉인되므로, 이 조건은 종결 처리
@@ -148,8 +164,7 @@ exports.handler = async (event) => {
         scoredAt: new Date().toISOString(),
       });
 
-      // ── v0.5 챌린저 채점 (있을 때만) — 같은 낙찰가로 구간 적중·오차를 병행 기록 ──
-      const predB = await store.get(`predb/${r.id}_${r.pbctCdtnNo}`, { type: 'json' });
+      // ── v0.5 챌린저 채점 (있을 때만) — 같은 낙찰가로 구간 적중·오차를 병행 기록 (predB는 위에서 병렬 선조회) ──
       let bCmp = null;
       if (predB && predB.lo) {
         const bHit = winMan >= predB.lo && winMan <= predB.hi;
