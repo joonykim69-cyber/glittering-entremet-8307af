@@ -56,10 +56,12 @@ exports.handler = async (event) => {
       store.get('_run/score-daily', { type: 'json' }),
       store.get('_run/collect-history', { type: 'json' }),
     ]);
-    // 과거 백필(1~6월 마스킹 census) 진행 상황 — 배포 후 사용자가 수집 진척을 바로 확인
-    const [bfMeta, runBackfill] = await Promise.all([
+    // 과거 백필(1~6월 마스킹 census) 진행 + walk-forward 백테스트 성장 곡선
+    const [bfMeta, runBackfill, btSummary, runBacktest] = await Promise.all([
       store.get('hist/_bfmeta', { type: 'json' }),
       store.get('_run/collect-backfill', { type: 'json' }),
+      store.get('bt/summary', { type: 'json' }),
+      store.get('_run/backtest', { type: 'json' }),
     ]);
 
     const n = agg?.n || 0;
@@ -101,9 +103,12 @@ exports.handler = async (event) => {
           score: runScore || null,
           collect: runCollect || null,
           backfill: runBackfill || null,
+          backtest: runBacktest || null,
         },
         // 1~6월 마스킹 백필 진행: {records, windows, oldest, newest, done, cursorEnd}. 미시작이면 null.
         backfill: bfMeta || null,
+        // walk-forward 백테스트 성장 곡선: {stages:[{vlabel,testLabel,n,coverage,hitRate,avgAbsErrPct,avgWidthPct}], done}. 미시작이면 null.
+        backtest: btSummary || null,
         modelV: 'v0.1',
         // v0.5 챌린저 비교 성적 (predb 채점분) — 데이터 없으면 n:0
         challenger: (aggB && aggB.n) ? {
