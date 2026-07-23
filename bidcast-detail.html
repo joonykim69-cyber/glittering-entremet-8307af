@@ -1406,8 +1406,10 @@ if(isLive&&liveItem){
         :/토지|임야|잡종지/.test(u)||/(^|\s)(전|답|과수원|목장용지|대)(\s|$)/.test(uu)?'land_trade'
         :/상가|근린|점포|사무|업무/.test(u)?'nrg_trade':/공장|창고/.test(u)?'indu_trade':null;
       if(!svc){console.log('[rtms] 용도 미매핑:',u);return;}
+      // 거래 빈도가 낮은 유형(상가/토지/공장/단독/연립)은 조회 창을 넓혀 표본 0건을 줄인다.
+      const monthN=(svc==='apt_trade_dev'||svc==='offi_trade')?6:12;
       const months=[];const d=new Date(Date.now()+9*3600*1000);
-      for(let i=0;i<3;i++){months.push(`${d.getUTCFullYear()}${String(d.getUTCMonth()+1).padStart(2,'0')}`);d.setUTCMonth(d.getUTCMonth()-1);}
+      for(let i=0;i<monthN;i++){months.push(`${d.getUTCFullYear()}${String(d.getUTCMonth()+1).padStart(2,'0')}`);d.setUTCMonth(d.getUTCMonth()-1);}
       const rs=await Promise.allSettled(months.map(mm=>fetch(`/.netlify/functions/rtms-svc?svc=${svc}&lawdCd=${lawd}&dealYmd=${mm}&numOfRows=200`).then(r=>r.ok?r.json():null)));
       let deals=[];rs.forEach(r=>{if(r.status==='fulfilled'&&r.value&&Array.isArray(r.value.items))deals=deals.concat(r.value.items);});
       const num=v=>parseInt(String(v??'').replace(/[^0-9]/g,''),10)||0;
@@ -1432,7 +1434,16 @@ if(isLive&&liveItem){
       document.getElementById('rtmsCard').innerHTML=
         (med?`<div style="padding:12px 14px;background:var(--green-soft);border-radius:12px;margin-bottom:12px;font-size:13.5px;">${esc(scope)} ${esc(svcName)} ㎡당 중앙값 <b>${Math.round(med).toLocaleString()}만원</b> <span style="color:var(--sub);">(평당 약 ${Math.round(med*3.3058).toLocaleString()}만원 · 면적 확인 표본 ${per.length}건)</span></div>`:'')+
         `<table class="info-table">${use.slice(0,8).map(x=>`<tr><th style="white-space:nowrap;">${x.y}.${String(x.m).padStart(2,'0')}.${String(x.dd).padStart(2,'0')}</th><td>${esc(x.dong)} ${esc(x.name)}${x.area?` · ${x.area}㎡`:''}</td><td style="text-align:right;font-weight:800;white-space:nowrap;">${fmtWon(x.amt*10000)}</td></tr>`).join('')}</table>`;
-      document.getElementById('rtmsNote').textContent=`※ 최근 3개월 ${t[0]} ${sgg} ${svcName} 신고 거래 ${deals.length}건 중 최신순 표시 · 출처: 국토교통부 실거래가 공개시스템 (계약 후 30일 이내 신고분만 반영)`;
+      document.getElementById('rtmsNote').textContent=`※ 최근 ${monthN}개월 ${t[0]} ${sgg} ${svcName} 신고 거래 ${deals.length}건 중 최신순 표시 · 출처: 국토교통부 실거래가 공개시스템 (계약 후 30일 이내 신고분만 반영)`;
+      // 시뮬레이터로 실거래 ㎡당 중앙값 참고치 전달 — 시세 슬라이더의 데이터 앵커(전용면적은 온비드 미제공이라 총 시세는 사용자가 조정).
+      if(med>0){
+        const ref=encodeURIComponent(`${scope} ${svcName} ㎡당 중앙값 ${Math.round(med).toLocaleString()}만원`);
+        document.querySelectorAll('a[href^="bidcast-simulator.html"]').forEach(a=>{
+          let h=a.getAttribute('href'); if(!h||/[?&]mktM2=/.test(h))return;
+          h+=(h.indexOf('?')>=0?'&':'?')+'mktM2='+Math.round(med)+'&mktRef='+ref;
+          a.setAttribute('href',h);
+        });
+      }
       document.getElementById('sec-rtms').style.display='';
     }catch(e){console.log('[rtms] 주변 실거래 로드 실패(섹션 미표시):',e.message);}
   })();
