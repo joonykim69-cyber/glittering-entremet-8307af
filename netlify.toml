@@ -24,9 +24,12 @@
    # 20:10 KST 학습 데이터 수집: 과거 개찰 이력 백필(1년치) 후 신규분 증분 유지
    [functions."collect-history"]
      schedule = "10 11 * * *"
-   # (2026-07-23 완료·제거) 1~6월 마스킹 백필·walk-forward 백테스트 임시 스케줄은
-   # 각각 완료(hist/_bfmeta.done, bt/summary.done) 후 no-op이 되어 제거함.
-   # 함수 파일(collect-backfill.js·backtest.js)은 남겨 두어 필요 시 수동 GET으로 재실행 가능.
+   # (2026-07-23 완료·제거) 1~6월 마스킹 백필 임시 스케줄은 완료(hist/_bfmeta.done) 후
+   # no-op이 되어 제거함. collect-backfill.js는 수동 GET 재실행용으로 유지.
+   # ⚠️ 임시 — 챌린저 v0.6 개선 재검증(BT_VERSION 변경 시 자동 리셋·재실행).
+   # 6분마다 한 페이즈씩, 3단계 완료 후 no-op. v0.5 vs v0.6 비교 완료 후 이 블록 제거 예정.
+   [functions."backtest"]
+     schedule = "*/6 * * * *"
 
    # 루트(/)는 낙찰예보(BidCast) 랜딩으로 안내.
    # force = true: 루트에 파일이 실존하면 Netlify는 기본적으로 리다이렉트보다 파일을 우선하므로 유지.
