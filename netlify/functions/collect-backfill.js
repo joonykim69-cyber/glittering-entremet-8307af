@@ -149,6 +149,13 @@ exports.handler = async (event) => {
     await store.setJSON('hist/_bfmeta', meta);
     await store.setJSON('_run/collect-backfill', { at: new Date().toISOString(), ok: true, done, records: meta.records, windowsThisRun: didWindows.length });
 
+    // 수집이 끝나면(done) hist-stats 셀을 재빌드해 수집한 1~6월 통계를 즉시 반영 —
+    // 라이브 챌린저(predb)가 hist/_cells를 읽으므로 이 rebuild로 "학습 즉시 반영"이 성립.
+    // (완료 run에서 1회만 발화; 이후 스케줄은 상단 no-op으로 빠져 재발화 안 함. best-effort.)
+    if (done) {
+      try { await fetch(`${base}/.netlify/functions/hist-stats?rebuild=1`); } catch (_) { /* 재빌드 실패는 다음 조회 때 자동 재시도 */ }
+    }
+
     return {
       statusCode: 200,
       headers: CORS,
