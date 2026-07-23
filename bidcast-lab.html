@@ -541,25 +541,40 @@ document.addEventListener('keydown', (e) => {
       }
     }
 
-    // ── 과거 학습 백테스트 성장 곡선 (bt/summary, walk-forward 실측) ──
+    // ── 과거 학습 백테스트 성장 곡선 + 모델 비교 (bt/summary, walk-forward 실측) ──
     if (d.backtest && Array.isArray(d.backtest.stages) && d.backtest.stages.length) {
       const bt = d.backtest, e0 = v => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;');
       const th = t => `<th style="text-align:left; padding:10px 8px; font-size:12px; color:var(--mute);">${t}</th>`;
-      const td = (v, b) => `<td style="padding:10px 8px;${b ? ' font-weight:800;' : ' color:var(--sub);'}">${v}</td>`;
-      const rows = bt.stages.map((s, i) =>
-        `<tr style="border-bottom:1px solid var(--line);">` +
-        td(`<b>${i + 1}단계</b><br/><span style="color:var(--sub);font-weight:600;">${e0(s.vlabel)}</span>`, true) +
-        td(e0(s.testLabel) + ' 예측', false) +
-        td((s.n || 0).toLocaleString() + '건', true) +
-        td(s.coverage != null ? s.coverage + '%' : '—', false) +
-        td(s.hitRate != null ? `<b style="color:var(--green-deep)">${s.hitRate}%</b>` : '—', true) +
-        td(s.avgAbsErrPct != null ? s.avgAbsErrPct + '%' : '—', false) +
-        td(s.avgWidthPct != null ? s.avgWidthPct + '%' : '—', false) +
-        `</tr>`).join('');
-      document.getElementById('btTable').innerHTML =
-        `<tr style="border-bottom:2px solid var(--line);">` + th('단계 · 학습량') + th('예측 대상') + th('채점 표본') + th('커버리지') + th('구간 적중률') + th('중앙값 오차') + th('평균 구간폭') + `</tr>` + rows;
-      document.getElementById('btNote').innerHTML =
-        `${bt.done ? '✅ 3단계 완료' : '⏳ 진행 중'} — walk-forward(확장 창) · 낙찰가 마스킹 · 라이브 공식 성적표와 분리된 과거 검증. <b>커버리지</b> = 근거 있는 셀로 예측할 수 있었던 비율(학습이 쌓일수록 증가) · <b>구간 적중률</b> = 실제 낙찰가가 예측 구간 안에 든 비율.`;
+      const td = (v, b, span) => `<td${span ? ` rowspan="${span}"` : ''} style="padding:10px 8px; vertical-align:top;${b ? ' font-weight:800;' : ' color:var(--sub);'}">${v}</td>`;
+      const hasCmp = bt.stages.some(s => s.v05 && s.v06);
+      const metrics = m => td((m.n || 0).toLocaleString() + '건', false) +
+        td(m.coverage != null ? m.coverage + '%' : '—', false) +
+        td(m.hitRate != null ? `<b style="color:var(--green-deep)">${m.hitRate}%</b>` : '—', true) +
+        td(m.avgAbsErrPct != null ? m.avgAbsErrPct + '%' : '—', false) +
+        td(m.avgWidthPct != null ? m.avgWidthPct + '%' : '—', false);
+      let rows;
+      if (hasCmp) {
+        rows = bt.stages.map((s, i) => {
+          const head = td(`<b>${i + 1}단계</b><br/><span style="color:var(--sub);font-weight:600;">${e0(s.vlabel)}</span>`, true, 2) + td(e0(s.testLabel) + ' 예측', false, 2);
+          const r05 = `<tr style="border-top:1px solid var(--line);">` + head + td('v0.5 <span style="color:var(--sub);font-weight:600;">기존(단일)</span>', false) + metrics(s.v05) + `</tr>`;
+          const r06 = `<tr style="border-bottom:2px solid var(--line);">` + td('v0.6 <span style="color:var(--sub);font-weight:600;">개선(두앵커)</span>', true) + metrics(s.v06) + `</tr>`;
+          return r05 + r06;
+        }).join('');
+        document.getElementById('btTable').innerHTML =
+          `<tr style="border-bottom:2px solid var(--line);">` + th('단계 · 학습량') + th('예측 대상') + th('모델') + th('표본') + th('커버리지') + th('구간 적중률') + th('중앙값 오차') + th('평균 구간폭') + `</tr>` + rows;
+        const mv = bt.models || {};
+        document.getElementById('btNote').innerHTML =
+          `${bt.done ? '✅ 3단계 완료' : '⏳ 진행 중'} — walk-forward(확장 창) · 낙찰가 마스킹 · 라이브 공식 성적표와 분리된 과거 검증.<br/><b>v0.5</b> ${e0(mv.v05 || '최저가 단일 앵커')} · <b>v0.6</b> ${e0(mv.v06 || '감정가·최저가 두 앵커')} — 같은 물건을 두 모델로 나란히 채점(적중률↑·오차↓, 폭은 함께 감시).`;
+      } else {
+        rows = bt.stages.map((s, i) =>
+          `<tr style="border-bottom:1px solid var(--line);">` +
+          td(`<b>${i + 1}단계</b><br/><span style="color:var(--sub);font-weight:600;">${e0(s.vlabel)}</span>`, true) +
+          td(e0(s.testLabel) + ' 예측', false) + metrics(s) + `</tr>`).join('');
+        document.getElementById('btTable').innerHTML =
+          `<tr style="border-bottom:2px solid var(--line);">` + th('단계 · 학습량') + th('예측 대상') + th('표본') + th('커버리지') + th('구간 적중률') + th('중앙값 오차') + th('평균 구간폭') + `</tr>` + rows;
+        document.getElementById('btNote').innerHTML =
+          `${bt.done ? '✅ 3단계 완료' : '⏳ 진행 중'} — walk-forward(확장 창) · 낙찰가 마스킹 · 라이브 공식 성적표와 분리된 과거 검증. <b>커버리지</b> = 근거 있는 셀로 예측할 수 있었던 비율 · <b>구간 적중률</b> = 실제 낙찰가가 예측 구간 안에 든 비율.`;
+      }
       document.getElementById('btSec').style.display = '';
     }
 
