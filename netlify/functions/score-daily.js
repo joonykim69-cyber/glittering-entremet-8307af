@@ -95,18 +95,39 @@ exports.handler = async (event) => {
 
     let graded = 0, noPred = 0, already = 0;
     const today = ymd(kst());
+    // scored/* 마커는 루프 중이 아니라 agg 저장과 "같은 마지막 배치"에서 기록한다.
+    // (과거 버그: 루프 중 마커를 쓰고 마지막 agg 저장 전에 함수가 죽으면, 그 물건들은
+    //  다음 실행에서 already 스킵되어 채점이 영구 소실됐다 → n이 0에 고정. 마커 기록을
+    //  최종 배치로 미루면, 중간 실패 시 마커가 하나도 안 남아 다음 실행이 온전히 재처리한다.)
+    const markers = [];
 
-    for (const r of results) {
-      if (!r.id || !r.pbctCdtnNo) continue;
-      const scoredKey = `scored/${r.id}_${r.pbctCdtnNo}`;
-      if (await store.get(scoredKey)) { already++; continue; }
-      const pred = await store.get(`pred/${r.id}_${r.pbctCdtnNo}`, { type: 'json' });
+    // ── Blob 조회 병렬화(타임아웃 방지) ──
+    // 개찰 결과별 scored/pred/predb를 청크 병렬로 선조회한 뒤 채점. 순차 조회(600건×3)는
+    // Netlify 함수 실행시간 제한을 넘겨 502가 났음 — 읽기를 병렬화해 완주하도록 개선.
+    const mapLimit = async (items, limit, fn) => {
+      const out = [];
+      for (let i = 0; i < items.length; i += limit) out.push(...await Promise.all(items.slice(i, i + limit).map(fn)));
+      return out;
+    };
+    const enriched = await mapLimit(results.filter(r => r.id && r.pbctCdtnNo), 40, async r => {
+      const key = `${r.id}_${r.pbctCdtnNo}`;
+      const [scored, pred, predB] = await Promise.all([
+        store.get(`scored/${key}`),
+        store.get(`pred/${key}`, { type: 'json' }),
+        store.get(`predb/${key}`, { type: 'json' }),
+      ]);
+      return { r, key, scored: !!scored, pred, predB };
+    });
+
+    for (const { r, key, scored, pred, predB } of enriched) {
+      if (scored) { already++; continue; }
       if (!pred) { noPred++; continue; }
+      const scoredKey = `scored/${key}`;
 
       if (r.statCd !== '0010' || !(r.winAmt > 0)) {
         // 유찰은 다음 회차가 새 공매조건으로 다시 봉인되므로, 이 조건은 종결 처리
         if (r.statCd === '0011' || r.statCd === '0012') {
-          await store.setJSON(scoredKey, { outcome: r.statCd === '0011' ? 'fail' : 'cancel', at: new Date().toISOString() });
+          markers.push({ key: scoredKey, value: { outcome: r.statCd === '0011' ? 'fail' : 'cancel', at: new Date().toISOString() } });
         }
         continue;
       }
@@ -148,8 +169,7 @@ exports.handler = async (event) => {
         scoredAt: new Date().toISOString(),
       });
 
-      // ── v0.5 챌린저 채점 (있을 때만) — 같은 낙찰가로 구간 적중·오차를 병행 기록 ──
-      const predB = await store.get(`predb/${r.id}_${r.pbctCdtnNo}`, { type: 'json' });
+      // ── v0.5 챌린저 채점 (있을 때만) — 같은 낙찰가로 구간 적중·오차를 병행 기록 (predB는 위에서 병렬 선조회) ──
       let bCmp = null;
       if (predB && predB.lo) {
         const bHit = winMan >= predB.lo && winMan <= predB.hi;
@@ -162,7 +182,7 @@ exports.handler = async (event) => {
         bCmp = { hit: bHit, errPct: bErrPct, modelV: predB.modelV, cellKey: predB.cellKey };
       }
 
-      await store.setJSON(scoredKey, { outcome: 'graded', hit, errPct, ...(bCmp ? { b: bCmp } : {}), at: new Date().toISOString() });
+      markers.push({ key: scoredKey, value: { outcome: 'graded', hit, errPct, ...(bCmp ? { b: bCmp } : {}), at: new Date().toISOString() } });
       graded++;
     }
 
@@ -209,6 +229,8 @@ exports.handler = async (event) => {
     while (chronicle.length > 500) chronicle.splice(1, 1); // genesis(0번)는 보존
 
     aggB.updatedAt = new Date().toISOString();
+    // 집계 6종을 먼저 저장(채점 결과의 실체) → 그 다음 scored/* 마커를 배치로 기록.
+    // 이 순서라야 마커가 남았다는 것이 "그 물건은 이미 agg에 반영됐다"를 보장한다.
     await Promise.all([
       store.setJSON('chronicle', chronicle),
       store.setJSON('agg', agg),
@@ -217,6 +239,7 @@ exports.handler = async (event) => {
       store.setJSON('log', log),
       store.setJSON('recent', recent),
     ]);
+    await mapLimit(markers, 40, m => store.setJSON(m.key, m.value));
 
     const summary = { ok: true, fetched: results.length, graded, already, noPred, totals: { n: agg.n, hit: agg.hit }, challenger: { n: aggB.n, hit: aggB.hit, headToHead: aggB.headToHead } };
     console.log('[score-daily]', JSON.stringify(summary));
