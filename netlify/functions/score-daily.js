@@ -242,10 +242,13 @@ exports.handler = async (event) => {
     await mapLimit(markers, 40, m => store.setJSON(m.key, m.value));
 
     const summary = { ok: true, fetched: results.length, graded, already, noPred, totals: { n: agg.n, hit: agg.hit }, challenger: { n: aggB.n, hit: aggB.hit, headToHead: aggB.headToHead } };
+    // 하트비트 — 매 실행마다 마지막 성공 시각·채점건수 기록(자가진단이 신선도로 죽음 감지)
+    await store.setJSON('_run/score-daily', { at: new Date().toISOString(), ok: true, graded, fetched: results.length, n: agg.n });
     console.log('[score-daily]', JSON.stringify(summary));
     return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify(summary) };
   } catch (e) {
     console.log('[score-daily] 실패:', e.message);
+    try { await store.setJSON('_run/score-daily', { at: new Date().toISOString(), ok: false, error: e.message }); } catch (_) { /* 하트비트 실패는 무시 */ }
     return { statusCode: 500, headers: CORS, body: JSON.stringify({ ok: false, error: e.message }) };
   }
 };

@@ -192,10 +192,13 @@ exports.handler = async (event) => {
     await store.setJSON('meta', meta);
 
     const summary = { ok: true, scanned: items.length, targets: targets.length, sealed, sealedB, skipped, noBasis, statPerd: stats ? stats.perd : null, ...(qs.debug ? { window: { start, end } } : {}) };
+    // 하트비트 — 매 실행마다 마지막 성공 시각·처리건수 기록(자가진단이 신선도로 죽음 감지)
+    await store.setJSON('_run/predict-daily', { at: new Date().toISOString(), ok: true, sealed, sealedB, targets: targets.length, noBasis });
     console.log('[predict-daily]', JSON.stringify(summary));
     return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify(summary) };
   } catch (e) {
     console.log('[predict-daily] 실패:', e.message);
+    try { await store.setJSON('_run/predict-daily', { at: new Date().toISOString(), ok: false, error: e.message }); } catch (_) { /* 하트비트 실패는 무시 */ }
     return { statusCode: 500, headers: CORS, body: JSON.stringify({ ok: false, error: e.message }) };
   }
 };

@@ -1243,37 +1243,54 @@ async function loadEngineStatus() {
   const hs = hsR.status === 'fulfilled' ? hsR.value : null;
   const ins = inR.status === 'fulfilled' ? inR.value : null;
 
+  // 예약 함수 하트비트(_run/*) 기반 건강 판정 — "조용한 죽음"을 직접 잡는 신호.
+  // 오류(ok:false)거나 maxH시간 넘게 실행 기록이 안 갱신되면 죽음/타임아웃으로 본다.
+  // 하트비트가 아예 없으면(배포 직후 등) null → 기존 데이터 기반 판정에 맡긴다.
+  const runs = (sb && sb.runs) || {};
+  const runState = (run, maxH) => {
+    if (!run || !run.at) return null;
+    if (run.ok === false) return { bad: true, badge: '실행 오류', line: `마지막 실행 ${rel(run.at)} · 오류: ${escHtml(String(run.error || '').slice(0, 80))}` };
+    if (freshH(run.at) > maxH) return { bad: true, badge: '실행 멈춤 의심', line: `마지막 정상 실행 ${rel(run.at)} — ${Math.round(maxH)}시간 넘게 조용합니다(스케줄 점검 필요).` };
+    return { bad: false, badge: null, line: `🟢 마지막 정상 실행 ${rel(run.at)}` };
+  };
+
   const cards = [];
   // 1) 예측 봉인 (predict-daily, 매일 07:00 KST)
   (() => {
     const name = '예측 봉인', sched = 'predict-daily · 매일 07:00';
     if (!sb) return cards.push(card(name, sched, 'err', '확인 불가', '장부(scoreboard) 응답을 받지 못했습니다.', ''));
+    const rs = runState(runs.predict, 30);
     const sealDays = sb.sealDays || {};
     const total = Object.values(sealDays).reduce((s, v) => s + (Number(v) || 0), 0);
     const last = sb.lastSealAt || null;
-    if (!total) return cards.push(card(name, sched, 'wait', '봉인 대기', '아직 봉인된 예측이 없습니다.', '초기 단계이거나, 통계 근거(용도별 낙찰가율)가 있는 마감 임박 물건을 기다리는 중입니다.'));
-    if (freshH(last) <= 48) return cards.push(card(name, sched, 'ok', '정상 가동', `누적 <b>${total.toLocaleString()}건</b> 봉인 · 최근 봉인 ${rel(last)}`, '매일 아침 마감 임박 물건을 개찰 전에 봉인하고 있습니다.'));
-    return cards.push(card(name, sched, 'wait', '최근 봉인 없음', `누적 <b>${total.toLocaleString()}건</b> · 마지막 봉인 ${rel(last) || '기록 없음'}`, '최근 48시간 내 신규 봉인이 없습니다 — 마감 임박 물건이 없었거나 스케줄 점검이 필요할 수 있습니다.'));
+    if (rs && rs.bad) return cards.push(card(name, sched, 'err', rs.badge, `누적 <b>${total.toLocaleString()}건</b> 봉인 (신규 봉인 중단됨)`, rs.line));
+    if (!total) return cards.push(card(name, sched, 'wait', '봉인 대기', '아직 봉인된 예측이 없습니다.', rs ? rs.line : '초기 단계이거나, 통계 근거(용도별 낙찰가율)가 있는 마감 임박 물건을 기다리는 중입니다.'));
+    if (freshH(last) <= 48) return cards.push(card(name, sched, 'ok', '정상 가동', `누적 <b>${total.toLocaleString()}건</b> 봉인 · 최근 봉인 ${rel(last)}`, rs ? rs.line : '매일 아침 마감 임박 물건을 개찰 전에 봉인하고 있습니다.'));
+    return cards.push(card(name, sched, 'wait', '최근 봉인 없음', `누적 <b>${total.toLocaleString()}건</b> · 마지막 봉인 ${rel(last) || '기록 없음'}`, rs ? rs.line : '최근 48시간 내 신규 봉인이 없습니다 — 마감 임박 물건이 없었거나 스케줄 점검이 필요할 수 있습니다.'));
   })();
   // 2) 자동 채점 (score-daily, 매일 19:30 KST)
   (() => {
     const name = '자동 채점', sched = 'score-daily · 매일 19:30';
     if (!sb) return cards.push(card(name, sched, 'err', '확인 불가', '장부(scoreboard) 응답을 받지 못했습니다.', ''));
+    const rs = runState(runs.score, 30);
     const n = (sb.summary && sb.summary.n) || 0;
     const total = Object.values(sb.sealDays || {}).reduce((s, v) => s + (Number(v) || 0), 0);
-    if (n) return cards.push(card(name, sched, 'ok', '정상 가동', `채점 <b>${n.toLocaleString()}건</b> · 구간 적중률 <b>${sb.summary.hitRate}%</b> · 갱신 ${rel(sb.updatedAt)}`, '개찰 결과가 나오는 대로 봉인 예측과 전수 대조해 자동 채점합니다.'));
-    if (total) return cards.push(card(name, sched, 'wait', '개찰 대기', '봉인은 됐고, 아직 채점된 건이 없습니다.', '봉인 물건의 개찰이 끝나면(보통 2~3일 내) 저녁 채점에서 자동 반영됩니다.'));
-    return cards.push(card(name, sched, 'wait', '대기', '채점할 봉인/개찰이 아직 없습니다.', '봉인이 쌓이고 개찰이 진행되면 자동으로 채점을 시작합니다.'));
+    if (rs && rs.bad) return cards.push(card(name, sched, 'err', rs.badge, n ? `채점 <b>${n.toLocaleString()}건</b> (채점 중단됨)` : '채점기가 멈춘 것으로 보입니다.', rs.line));
+    if (n) return cards.push(card(name, sched, 'ok', '정상 가동', `채점 <b>${n.toLocaleString()}건</b> · 구간 적중률 <b>${sb.summary.hitRate}%</b> · 갱신 ${rel(sb.updatedAt)}`, rs ? rs.line : '개찰 결과가 나오는 대로 봉인 예측과 전수 대조해 자동 채점합니다.'));
+    if (total) return cards.push(card(name, sched, 'wait', '개찰 대기', '봉인은 됐고, 아직 채점된 건이 없습니다.', rs ? `${rs.line} · 봉인 물건 개찰이 끝나면(보통 2~3일 내) 자동 반영됩니다.` : '봉인 물건의 개찰이 끝나면(보통 2~3일 내) 저녁 채점에서 자동 반영됩니다.'));
+    return cards.push(card(name, sched, 'wait', '대기', '채점할 봉인/개찰이 아직 없습니다.', rs ? rs.line : '봉인이 쌓이고 개찰이 진행되면 자동으로 채점을 시작합니다.'));
   })();
   // 3) 학습 데이터 (collect-history, 매일 20:10 KST)
   (() => {
     const name = '학습 데이터 수집', sched = 'collect-history · 매일 20:10';
-    if (!hs) return cards.push(card(name, sched, 'err', '확인 불가', '학습 통계(hist-stats) 응답을 받지 못했습니다.', ''));
+    const rs = runState(runs.collect, 30);
+    if (rs && rs.bad) return cards.push(card(name, sched, 'err', rs.badge, '학습 데이터 수집기가 멈춘 것으로 보입니다.', rs.line));
+    if (!hs) return cards.push(card(name, sched, 'err', '확인 불가', '학습 통계(hist-stats) 응답을 받지 못했습니다.', rs ? rs.line : ''));
     if (hs.status === 'ok') {
       const recs = Number(hs.records || 0), cellN = Number(hs.cellCount || 0);
-      return cards.push(card(name, sched, 'ok', '수집 중', `과거 개찰 이력 <b>${recs.toLocaleString()}건</b> · 통계 셀 <b>${cellN.toLocaleString()}개</b>`, `갱신 ${rel(hs.builtAt || hs.updatedAt) || '기록 없음'} · 용도×회차×가격대 낙찰가율 통계를 매일 백필·증분합니다.`));
+      return cards.push(card(name, sched, 'ok', '수집 중', `과거 개찰 이력 <b>${recs.toLocaleString()}건</b> · 통계 셀 <b>${cellN.toLocaleString()}개</b>`, rs ? rs.line : `갱신 ${rel(hs.builtAt || hs.updatedAt) || '기록 없음'} · 용도×회차×가격대 낙찰가율 통계를 매일 백필·증분합니다.`));
     }
-    return cards.push(card(name, sched, 'wait', '백필 대기', '학습 데이터가 아직 수집되지 않았습니다.', 'collect-history 백필(최대 1년치)이 진행되면 유사 사례 근거와 챌린저 모델이 활성화됩니다.'));
+    return cards.push(card(name, sched, 'wait', '백필 대기', '학습 데이터가 아직 수집되지 않았습니다.', rs ? rs.line : 'collect-history 백필(최대 1년치)이 진행되면 유사 사례 근거와 챌린저 모델이 활성화됩니다.'));
   })();
   // 4) 외부 연동 키
   (() => {
