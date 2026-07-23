@@ -45,13 +45,16 @@ exports.handler = async (event) => {
       };
     }
     const chronicleStored = await store.get('chronicle', { type: 'json' });
-    const [agg, calib, log, recent, meta, aggB] = await Promise.all([
+    const [agg, calib, log, recent, meta, aggB, runPredict, runScore, runCollect] = await Promise.all([
       store.get('agg', { type: 'json' }),
       store.get('calib', { type: 'json' }),
       store.get('log', { type: 'json' }),
       store.get('recent', { type: 'json' }),
       store.get('meta', { type: 'json' }),
       store.get('aggB', { type: 'json' }),
+      store.get('_run/predict-daily', { type: 'json' }),
+      store.get('_run/score-daily', { type: 'json' }),
+      store.get('_run/collect-history', { type: 'json' }),
     ]);
 
     const n = agg?.n || 0;
@@ -86,6 +89,13 @@ exports.handler = async (event) => {
         sealDays: meta?.sealDays || {},
         lastSealAt: meta?.lastSealAt || null,
         updatedAt: agg?.updatedAt || null,
+        // 예약 함수 하트비트 — 자가진단이 마지막 실행 시각·성공여부로 "조용한 죽음"을 감지.
+        // 값이 null이면 아직 한 번도 실행 기록이 없다는 뜻(배포 직후 등).
+        runs: {
+          predict: runPredict || null,
+          score: runScore || null,
+          collect: runCollect || null,
+        },
         modelV: 'v0.1',
         // v0.5 챌린저 비교 성적 (predb 채점분) — 데이터 없으면 n:0
         challenger: (aggB && aggB.n) ? {

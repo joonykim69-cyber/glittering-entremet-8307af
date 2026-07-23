@@ -144,6 +144,8 @@ exports.handler = async (event) => {
     await store.setJSON('hist/_meta', meta);
 
     const doneBackfill = cursorEnd <= oldestTarget;
+    // 하트비트 — 매 실행마다 마지막 성공 시각·수집건수·커서 기록(자가진단이 신선도로 죽음 감지)
+    await store.setJSON('_run/collect-history', { at: new Date().toISOString(), ok: true, added, windows: runWindows.length, cursorEnd, backfillComplete: doneBackfill });
     return {
       statusCode: 200,
       headers: { ...CORS, 'Content-Type': 'application/json' },
@@ -159,6 +161,7 @@ exports.handler = async (event) => {
       }),
     };
   } catch (e) {
+    try { await store.setJSON('_run/collect-history', { at: new Date().toISOString(), ok: false, error: e.message }); } catch (_) { /* 하트비트 실패는 무시 */ }
     return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: { message: e.message } }) };
   }
 };
