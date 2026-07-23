@@ -24,16 +24,9 @@
    # 20:10 KST 학습 데이터 수집: 과거 개찰 이력 백필(1년치) 후 신규분 증분 유지
    [functions."collect-history"]
      schedule = "10 11 * * *"
-   # ⚠️ 임시 — 2026 1~6월 전수 백필 자가 구동(낙찰가 마스킹 분리 수집).
-   # 5분마다 시간예산(~22s)만큼 수집하고 커서 저장 → 컴퓨터 없이 자율 진행.
-   # 커서가 목표 시작일(20260101)에 도달하면 즉시 no-op(0콜). 백필 완료 후 이 블록 제거 예정.
-   [functions."collect-backfill"]
-     schedule = "*/5 * * * *"
-   # ⚠️ 임시 — 백필 완료 후 1~6월 walk-forward 백테스트(3단계) 자가 구동.
-   # 6분마다 한 페이즈씩 진행(단계당 train/score 2페이즈), backfill 미완이면 no-op,
-   # 3단계 완료 후 no-op. 백테스트 완료 후 이 블록 제거 예정.
-   [functions."backtest"]
-     schedule = "*/6 * * * *"
+   # (2026-07-23 완료·제거) 1~6월 마스킹 백필·walk-forward 백테스트 임시 스케줄은
+   # 각각 완료(hist/_bfmeta.done, bt/summary.done) 후 no-op이 되어 제거함.
+   # 함수 파일(collect-backfill.js·backtest.js)은 남겨 두어 필요 시 수동 GET으로 재실행 가능.
 
    # 루트(/)는 낙찰예보(BidCast) 랜딩으로 안내.
    # force = true: 루트에 파일이 실존하면 Netlify는 기본적으로 리다이렉트보다 파일을 우선하므로 유지.
