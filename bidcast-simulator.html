@@ -246,6 +246,107 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 </header>
 
 <main class="wrap list-pad">
+
+  <!-- ═══ 시뮬레이터 사용 가이드 (초/중/고급) — 안내 전용, 기능 무변경 ═══ -->
+  <style>
+    .guide-panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:22px;overflow:hidden}
+    .guide-head{display:flex;align-items:center;gap:10px;padding:16px 20px;cursor:pointer;user-select:none}
+    .guide-head h3{font-size:16px;font-weight:800;margin:0}
+    .guide-head .gh-sub{font-size:12.5px;color:var(--sub);margin-left:auto}
+    .guide-head .gh-arrow{transition:transform .25s var(--ease);color:var(--mute)}
+    .guide-panel.closed .gh-arrow{transform:rotate(-90deg)}
+    .guide-body{padding:0 20px 20px}
+    .guide-panel.closed .guide-body{display:none}
+    .guide-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+    .guide-tab{border:1.5px solid var(--line);background:var(--bg);border-radius:999px;padding:8px 16px;font-size:13px;font-weight:800;cursor:pointer;color:var(--sub)}
+    .guide-tab .lv{margin-right:5px}
+    .guide-tab.on{color:#fff}
+    .guide-tab[data-lv="1"].on{background:var(--green);border-color:var(--green)}
+    .guide-tab[data-lv="2"].on{background:#EB763C;border-color:#EB763C}
+    .guide-tab[data-lv="3"].on{background:var(--red);border-color:var(--red)}
+    .guide-pane{display:none}
+    .guide-pane.on{display:block}
+    .guide-goal{font-size:14px;font-weight:800;color:var(--green-deep);margin-bottom:12px}
+    .guide-pane[data-lv="2"] .guide-goal{color:#B85C1E}
+    .guide-pane[data-lv="3"] .guide-goal{color:var(--red)}
+    .guide-steps{list-style:none;padding:0;margin:0 0 14px}
+    .guide-steps li{position:relative;padding:9px 0 9px 30px;font-size:13.5px;color:var(--ink);border-bottom:1px solid var(--line)}
+    .guide-steps li:last-child{border-bottom:none}
+    .guide-steps li b{color:var(--green-deep)}
+    .guide-steps .num{position:absolute;left:0;top:9px;width:20px;height:20px;border-radius:50%;background:var(--green-soft);color:var(--green-deep);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center}
+    .guide-mission{background:var(--green-soft);border-radius:12px;padding:12px 14px;font-size:13px;margin-bottom:12px;line-height:1.55}
+    .guide-pane[data-lv="2"] .guide-mission{background:#FDF1E7}
+    .guide-pane[data-lv="3"] .guide-mission{background:var(--red-soft)}
+    .guide-terms .term{display:inline-block;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:2px 9px;margin:2px 4px 2px 0;font-size:12px;color:var(--sub)}
+  </style>
+  <section class="guide-panel" id="guidePanel">
+    <div class="guide-head" id="guideHead" role="button" tabindex="0" aria-expanded="true">
+      <h3>📘 시뮬레이터 사용 가이드</h3>
+      <span class="gh-sub">초급 → 중급 → 고급, 단계별로 따라 해보세요</span>
+      <span class="gh-arrow">▾</span>
+    </div>
+    <div class="guide-body">
+      <div class="guide-tabs" role="tablist">
+        <button type="button" class="guide-tab on" data-lv="1"><span class="lv">🟢</span>초급</button>
+        <button type="button" class="guide-tab" data-lv="2"><span class="lv">🟡</span>중급</button>
+        <button type="button" class="guide-tab" data-lv="3"><span class="lv">🔴</span>고급</button>
+      </div>
+
+      <div class="guide-pane on" data-lv="1">
+        <div class="guide-goal">이 단계를 끝내면 — "얼마를 부르면 실제로 얼마가 드는지" 알게 됩니다.</div>
+        <ol class="guide-steps">
+          <li><span class="num">1</span><b>감정가</b>는 이 물건의 감정평가액이에요. 슬라이더로 대상 물건 금액에 맞춰보세요.</li>
+          <li><span class="num">2</span><b>입찰가율</b>은 "감정가의 몇 %를 부를까"예요. 82%면 감정가의 82%를 부르는 것 → 위 <b>나의 입찰가</b>가 곧 낙찰가입니다.</li>
+          <li><span class="num">3</span>여기에 <b>취득세·경비</b>가 더해진 게 실제 드는 돈이에요. <b>안전마진</b>(시세 − 취득원가)이 +면 남는 장사, −면 손해입니다.</li>
+        </ol>
+        <div class="guide-mission">🎯 <b>실습</b>: 입찰가율 슬라이더를 <b>82% → 75%</b>로 내려보세요. "나의 입찰가"가 얼마나 줄었나요? 낮게 부를수록 싸게 사지만, 남에게 뺏길 확률은 커집니다.</div>
+        <div class="guide-terms"><span class="term">감정가</span><span class="term">입찰가율</span><span class="term">나의 입찰가(=낙찰가)</span><span class="term">안전마진</span></div>
+      </div>
+
+      <div class="guide-pane" data-lv="2">
+        <div class="guide-goal">이 단계를 끝내면 — "대출을 끼면 수익률과 위험이 어떻게 바뀌는지" 알게 됩니다.</div>
+        <ol class="guide-steps">
+          <li><span class="num">1</span><b>LTV(경락잔금대출)</b>는 낙찰가의 몇 %를 대출로 충당할지예요. 올릴수록 <b>실투자금</b>(내 돈)이 줄어듭니다.</li>
+          <li><span class="num">2</span>실투자금이 줄면 <b>ROI(자기자본 수익률)</b>가 오릅니다 — 이게 레버리지(지렛대) 효과예요.</li>
+          <li><span class="num">3</span>대신 대출엔 <b>월이자</b>가 붙고 <b>금리</b>가 오르면 부담이 커집니다. 수익률과 위험을 항상 함께 보세요.</li>
+        </ol>
+        <div class="guide-mission">🎯 <b>실습</b>: LTV를 <b>0% → 70%</b>로 올려 실투자금·ROI 변화를 보고, 이어서 금리를 <b>4.5% → 7%</b>로 올려 월이자가 얼마나 느는지 확인하세요. 안전마진이 <b>마이너스</b>로 뜨면 그 조건으론 입찰하지 않는 게 안전합니다.</div>
+        <div class="guide-terms"><span class="term">LTV·경락잔금대출</span><span class="term">실투자금</span><span class="term">ROI(자기자본 수익률)</span><span class="term">월이자·금리</span></div>
+      </div>
+
+      <div class="guide-pane" data-lv="3">
+        <div class="guide-goal">이 단계를 끝내면 — "여러 시나리오를 비교하고 경쟁·복기 전략을 세울" 수 있습니다.</div>
+        <ol class="guide-steps">
+          <li><span class="num">1</span><b>시나리오 저장</b>으로 보수(안전)·기준·공격(고가) 3안을 만들어 실투자금·ROI·안전마진을 나란히 비교하세요.</li>
+          <li><span class="num">2</span><b>⚔️ 모의 경매 대전</b>으로 가상 경쟁자와 겨뤄 "얼마쯤 써야 이기는지" 감을 잡으세요 (무작위 게임 — 확률 예측이 아니라 감각 연습).</li>
+          <li><span class="num">3</span>상세 페이지 <b>주변 실거래</b>에서 넘어온 시세 참고치로 시세 슬라이더 근거를 강화하고, 실물건을 연결하면 <b>개찰 후 나 vs AI 채점</b>으로 복기할 수 있어요 (예언자 등급 연동).</li>
+        </ol>
+        <div class="guide-mission">🎯 <b>실습</b>: 같은 물건으로 <b>보수/기준/공격</b> 시나리오 3개를 저장해 비교한 뒤, 모의 경매 대전을 5번 돌려 승률을 보고 "안전마진을 지키면서도 이길 수 있는 입찰가율"을 찾아보세요.</div>
+        <div class="guide-terms"><span class="term">시나리오 비교</span><span class="term">손익분기</span><span class="term">모의 경매 대전</span><span class="term">개찰 채점(나 vs AI)</span></div>
+      </div>
+
+      <p style="font-size:11px;color:var(--mute);margin-top:14px">※ 본 계산은 규칙 기반 참고용이며 투자 자문이 아닙니다. 취득세·명도비 등 가정값은 예시이며 실제와 다를 수 있습니다.</p>
+    </div>
+  </section>
+  <script>
+  (function(){
+    var panel=document.getElementById('guidePanel'), head=document.getElementById('guideHead');
+    if(!panel) return;
+    if(head){
+      var toggle=function(){ panel.classList.toggle('closed'); head.setAttribute('aria-expanded', panel.classList.contains('closed')?'false':'true'); };
+      head.addEventListener('click',toggle);
+      head.addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggle(); } });
+    }
+    panel.querySelectorAll('.guide-tab').forEach(function(t){
+      t.addEventListener('click',function(){
+        var lv=t.getAttribute('data-lv');
+        panel.querySelectorAll('.guide-tab').forEach(function(x){ x.classList.toggle('on', x===t); });
+        panel.querySelectorAll('.guide-pane').forEach(function(p){ p.classList.toggle('on', p.getAttribute('data-lv')===lv); });
+      });
+    });
+  })();
+  </script>
+
   <div class="sim-grid">
 
     <section class="card" aria-labelledby="ctlTitle">
