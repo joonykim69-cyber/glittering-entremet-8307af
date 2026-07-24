@@ -56,24 +56,32 @@ function normalizeRegion(sdnm) {
   return REGION_ALIASES[sdnm] || sdnm || '';
 }
 
-// 이 API는 부동산만 다루므로 응답의 cltrUsgSclsCtgrNm(용도소분류명, 예: 아파트/
-// 연립주택/임야/전/답/대지/근린생활시설 등)을 프론트엔드 6개 버킷 중 부동산 관련
-// 3개(아파트/토지/상가)로 키워드 매칭한다. 차량/기계장비/유가증권은 이 API로는
-// 절대 나오지 않으므로 항상 '기타'로 떨어짐 — 다른 온비드 API 연동 전까지는 정상.
-const TYPE_KEYWORDS = [
-  ['아파트', ['아파트', '연립주택', '다세대']],
-  ['토지', ['토지', '임야', '전', '답', '대지', '잡종지', '과수원', '목장용지']],
-  ['상가', ['상가', '점포', '근린', '건물', '주택', '오피스텔', '공장', '창고']],
-];
-function normalizeType(sclsCtgrNm) {
-  const s = sclsCtgrNm || '';
-  for (const [bucket, keywords] of TYPE_KEYWORDS) {
-    if (keywords.some(k => s.includes(k))) return bucket;
-  }
-  return '기타';
+// 응답의 cltrUsgSclsCtgrNm(용도소분류명, 예: 아파트/연립주택/오피스텔/단독주택/임야/
+// 전/답/대지/근린생활시설 등)을 프론트엔드 부동산 필터 칩과 동일한 세부 버킷으로 분류한다.
+// 버킷명은 bidcast-list.html의 칩 data-type 값과 일치시켜 필터가 그대로 걸리게 한다
+// (아파트/오피스텔/단독주택/연립다세대/토지/상가/사무실/공장창고/농지임야/기타부동산).
+// 용도 코드가 애매(빈 값·기타)하면 물건명(onbidCltrNm)으로 폴백 판별해 오분류를 줄인다.
+// 순서 주의: 더 구체적인 유형을 먼저(연립주택이 '주택' 키워드로 단독주택에 빨려가지 않게).
+function bucketOf(s) {
+  if (!s) return null;
+  if (/아파트/.test(s)) return '아파트';
+  if (/오피스텔/.test(s)) return '오피스텔';
+  if (/연립|다세대|빌라/.test(s)) return '연립다세대';
+  if (/단독|다가구|주택/.test(s)) return '단독주택';
+  if (/사무/.test(s)) return '사무실';
+  if (/상가|점포|근린|판매/.test(s)) return '상가';
+  if (/공장|창고|제조/.test(s)) return '공장창고';
+  if (/임야|과수원|목장용지|농지/.test(s)) return '농지임야';
+  if (/토지|대지|나대지|잡종지/.test(s)) return '토지';
+  return null;
+}
+function normalizeType(sclsCtgrNm, title) {
+  const u = String(sclsCtgrNm || '').trim();
+  if (/^(전|답)$/.test(u)) return '농지임야'; // 밭/논: 용도 코드 정확 일치에 한해(제목 폴백 오탐 방지)
+  return bucketOf(u) || bucketOf(title || '') || '기타부동산';
 }
 
-const TYPE_ICONS = { 아파트: '🏢', 토지: '🏞️', 상가: '🏬', 차량: '🚗', 기계장비: '🏭', 유가증권: '📈', 기타: '📦' };
+const TYPE_ICONS = { 아파트: '🏢', 오피스텔: '🏢', 연립다세대: '🏘️', 단독주택: '🏠', 토지: '🏞️', 농지임야: '🌾', 상가: '🏬', 사무실: '🏢', 공장창고: '🏭', 기타부동산: '📦', 차량: '🚗', 기계장비: '🏭', 유가증권: '📈', 기타: '📦' };
 
 // pbctStatCd(입찰결과구분코드): 0001 입찰준비중, 0002 입찰진행중, 0003 입찰마감,
 // 0006 개찰중, 0009 수의계약가능, 0010 낙찰, 0011 유찰, 0012 취소.
@@ -85,7 +93,7 @@ function mapOnbidItem(raw, idx) {
   const minWon = Number.isFinite(minWonParsed) && minWonParsed > 0 ? minWonParsed : apprWon;
   const failCount = Number(raw.usbdNft ?? 0) || 0;
 
-  const type = normalizeType(raw.cltrUsgSclsCtgrNm || raw.cltrUsgMclsCtgrNm);
+  const type = normalizeType(raw.cltrUsgSclsCtgrNm || raw.cltrUsgMclsCtgrNm, raw.onbidCltrNm);
   const address = [raw.lctnSdnm, raw.lctnSggnm, raw.lctnEmdNm].filter(Boolean).join(' ');
   // thnlImgUrlAdr(물건 썸네일 이미지 URL) — http(s) URL일 때만 통과 (HTML 삽입 안전장치)
   // downloadImageKind=THNL_NM(저해상도 썸네일) → IMGE_NM(원본 고해상도)으로 교체 시도.
