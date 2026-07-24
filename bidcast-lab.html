@@ -599,6 +599,13 @@ document.addEventListener('keydown', (e) => {
       if (c.kind === 'daily') {
         return `오늘 ${x.gradedToday}건 채점 → 누적 <b>${x.cumN}건</b> 중 적중 ${x.cumHit}건 (<b>${x.cumHitRate}%</b>) · 누적 평균 오차 <b>${x.cumAvgAbsErrPct}%</b>${x.challenger ? `<br/>챌린저 v0.5: 누적 ${x.challenger.cumN}건 적중률 ${x.challenger.cumHitRate}% · 상대전적 ${x.challenger.headToHead.bWins}/${x.challenger.headToHead.n}` : ''}`;
       }
+      if (c.kind === 'audit') {
+        const o = x.overall || {}, sug = Array.isArray(x.suggestions) ? x.suggestions : [];
+        return `<b>감사역 주간 점검</b> — 전체 적중률 <b>${o.hitRate}%</b>(${(o.n || 0).toLocaleString()}건) · 중앙값 오차 ${o.avgAbsErrPct != null ? o.avgAbsErrPct + '%' : '—'} · 평균 폭 ${o.avgWidthPct != null ? o.avgWidthPct + '%' : '—'} (목표 ${esc(o.target || '95~98%')})
+          ${x.challenger ? `<br/>챌린저: ${x.challenger.hitRate}% / ${x.challenger.n}건 — ${esc(x.challenger.reason || '')}` : ''}
+          ${sug.length ? `<div class="chron-kv">${sug.map(s => `<span>${esc(s)}</span>`).join('')}</div>` : ''}
+          <br/><span style="color:var(--sub);font-size:12px;">규칙 기반 관찰·제안 — 모델 변경(승격 등)은 사람이 결정해 별도 기록합니다.</span>`;
+      }
       return '';
     };
     document.getElementById('chronLine').innerHTML = list.map(c => `

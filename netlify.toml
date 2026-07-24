@@ -24,6 +24,10 @@
    # 20:10 KST 학습 데이터 수집: 과거 개찰 이력 백필(1년치) 후 신규분 증분 유지
    [functions."collect-history"]
      schedule = "10 11 * * *"
+   # 일요일 21:00 KST 주간 감사(감사역 에이전트 ⑧): 채점 성적을 규칙 기반으로 감사해
+   # chronicle에 개선 제안 기록(채택은 사람). 채점 표본 부족하면 no-op.
+   [functions."audit-weekly"]
+     schedule = "0 12 * * 0"
    # (2026-07-23 완료·제거) 1~6월 마스킹 백필 임시 스케줄은 완료(hist/_bfmeta.done) 후
    # no-op이 되어 제거함. collect-backfill.js는 수동 GET 재실행용으로 유지.
    # ⚠️ 임시 — 챌린저 v0.6 개선 재검증(BT_VERSION 변경 시 자동 리셋·재실행).
