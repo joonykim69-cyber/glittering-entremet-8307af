@@ -128,7 +128,7 @@ A 15-page static prototype (`bidcast*.html`) for an Onbid auction winning-bid pr
 
 **③ 외부 키 — 6종 전부 활성 확인(2026-07-24 `integrations-status`: `activeNow:[anthropic,onbid,naverNews,kakaoMap,ecos,rone]`, `readyWaiting:[]`)**:
 - **ECOS**(거시·금리 워처 ⑦), **네이버 뉴스**(뉴스 에이전트 ④), **KAKAO_MAP_KEY**(실지도), **ANTHROPIC**, **ONBID** — 키 설정 완료·활성. ECOS CD·국고채 시리즈 코드, 카카오 배포 도메인 등록은 라이브 `?debug=1`/F12로 최종 검증만 남음(키 자체는 있음).
-- **RONE**(부동산원 지수) — `RONE_API_KEY` 설정됨. **단 `RONE_STATBL_ID`(통계표 ID) 미설정 시 `status:no_table`** → 지역 전문가 가격지수 미출력. 마무리: `rone-svc?list=아파트`로 통계표 후보 조회 → 전국 아파트 매매가격지수의 STATBL_ID(+필요시 multi_series `ids`의 GRP/CLS/ITM)를 `RONE_STATBL_ID` 등 env에 설정. (추후 확장: 6개월~3년 시나리오 밴드 = 시세 축 — 여전히 보류)
+- **RONE**(부동산원 지수) — **완전 활성(2026-07-24)**: `RONE_STATBL_ID=A_2024_00178`("(월) 지역별 매매지수_아파트") 실호출 확정, `status:ok` 단일 시계열(전국 아파트 매매지수 최신 130.32/2026-05, 변동 3m +0.6%·6m +2.1%·12m +4.8%). CLS=전국·ITM=지수로 자동 해석, 지역 에이전트가 `?region=<시도>`로 소재지별 지수 동적 선택. (추후 확장: 6개월~3년 시나리오 밴드 = 시세 축 — 여전히 보류)
 - (보류·상용) 중고차 시세 DB(엔카 등) ← 차량 시세 근거. 공공 대안 검토 선행
 
 **④ 확보 완료, 기능 보류 중**: RTMS 실거래가 10종 (전부 _health ok) ← 시세 축 재개 시 "보류 중인 작업" 참조
