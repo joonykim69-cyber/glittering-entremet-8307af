@@ -1093,6 +1093,38 @@ document.getElementById('evalList').innerHTML=evalItems.map((e,i)=>`
     <div><div class="eval-lbl">${e.lbl}</div><div class="eval-desc">${e.desc}</div></div>
   </div>`).join('');
 
+// ─── 라이브 물건 실데이터화 ───
+// 온비드 공매엔 없는 법원경매 섹션(당사자/기일/등기변동/문건접수)은 라이브에선 빈 예시라
+// 숨기고(데모 1~9는 실 데이터가 있어 유지), 경쟁평가의 '낙찰가 추세'를 온비드 과거 개찰
+// 실측 통계(hist-stats, 112k 수집분)로 교체한다. 셀 없으면 자산군 전체로 백오프, 실패 시 예시 유지.
+if(isLive){
+  ['sec-parties','sec-docs'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  (async()=>{
+    try{
+      const typeCd=(it.assetClass==='동산'||it.type==='동산')?'0003':(it.assetClass==='자동차'||it.type==='차량'||it.type==='자동차')?'0002':'0001';
+      const usage=encodeURIComponent((liveItem&&liveItem.usage)||it.type||'기타');
+      const round=Number(it.round)||((Number(it.fail)||0)+1);
+      const r=await fetch(`/.netlify/functions/hist-stats?type=${typeCd}&usage=${usage}&round=${round}&lowMan=${it.min||0}`);
+      if(!r.ok)return;
+      const d=await r.json();
+      if(d.status!=='ok'||!d.wr)return;
+      const desc=`온비드 과거 개찰 <b>실측 ${Number(d.n).toLocaleString()}건</b> — 감정가 대비 낙찰가율 중앙값 <b>약 ${Math.round(d.wr.p50)}%</b> (범위 ${Math.round(d.wr.p10)}~${Math.round(d.wr.p90)}%) <span style="color:var(--green-deep);font-weight:800;">🟢 실측</span>`;
+      let patched=false;
+      document.querySelectorAll('#evalList .eval-item').forEach(el=>{
+        const lbl=el.querySelector('.eval-lbl');
+        if(lbl&&lbl.textContent.includes('낙찰가 추세')){el.querySelector('.eval-desc').innerHTML=desc;patched=true;}
+      });
+      if(!patched){
+        const list=document.getElementById('evalList');
+        const n=list.querySelectorAll('.eval-item').length;
+        list.insertAdjacentHTML('beforeend',`<div class="eval-item"><div class="eval-num">${n+1}</div><div><div class="eval-lbl">낙찰가 추세</div><div class="eval-desc">${desc}</div></div></div>`);
+      }
+      const note=document.querySelector('#sec-eval p');
+      if(note)note.innerHTML='※ <b>낙찰가 추세</b>는 온비드 과거 개찰 실측 통계(유사 용도·회차·가격대, 없으면 자산군 전체) 기준입니다. 나머지 항목은 규칙 기반 참고용이며 투자 자문이 아닙니다.';
+    }catch(e){/* degrade — 예시 유지 */}
+  })();
+}
+
 document.getElementById('locBadge').textContent=`${it.type} · ${fmt(it.min)}`;
 document.getElementById('mapAddrBar').textContent=it.address||'—';
 
