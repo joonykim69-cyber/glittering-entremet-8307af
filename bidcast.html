@@ -464,7 +464,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 
 <section class="metrics"><div class="wrap">
 <div class="metric"><b>92조+</b><span>온비드 누적 낙찰금액 (2021 기준)</span></div>
-<div class="metric"><b>1,799건</b><span>한 회차 압류재산 물건 수 (관측 예시)</span></div>
+<div class="metric"><b id="mLiveCount">1,799건</b><span id="mLiveLabel">한 회차 압류재산 물건 수 (관측 예시)</span></div>
 <div class="metric"><b>전 자산군</b><span>부동산 외 동산·유가증권까지</span></div>
 <div class="metric"><b>95~98%</b><span>구간 적중률 목표 (실측 공개)</span></div>
 </div></section>
@@ -594,7 +594,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 <div class="faq-item"><div class="faq-q">부동산 말고 다른 자산도 되나요?<span class="ar">▼</span></div><p class="faq-a">네. 차량·동산·기계장비·유가증권까지 온비드 공매 전 자산군을 다룹니다. 동산·유가증권은 유사 사례 통계로 경향을 제시합니다.</p></div>
 <div class="faq-item"><div class="faq-q">예측이 틀리면 어떻게 되나요?<span class="ar">▼</span></div><p class="faq-a">매 개찰일마다 전체 예측을 실제 낙찰가와 전수 대조해 오차 분포를 공개합니다. 적중 사례만 골라 보여주지 않으며, 예측은 개찰 전에 봉인되어 사후 수정이 불가능합니다.</p></div>
 <div class="faq-item"><div class="faq-q">예측만 믿고 입찰해도 되나요?<span class="ar">▼</span></div><p class="faq-a">아니요. 예측 정보는 통계적 참고자료이며 법률적 판단이 아닙니다. 입찰 여부와 입찰가에 대한 최종 판단과 책임은 이용자 본인에게 있으며, 권리분석 등은 전문가와 상담하세요.</p></div>
-<div class="faq-item"><div class="faq-q">언제 정식 오픈하나요?<span class="ar">▼</span></div><p class="faq-a">현재 예시 데이터로 동작하는 사전 공개 단계입니다. 사전 알림을 신청하시면 오픈 시 얼리버드 혜택과 함께 가장 먼저 알려드립니다.</p></div>
+<div class="faq-item"><div class="faq-q">언제 정식 오픈하나요?<span class="ar">▼</span></div><p class="faq-a">물건 정보·캘린더·지도는 이미 <b>실시간 온비드 데이터</b>로 동작하며, AI 예측 <b>적중률은 개찰 결과가 쌓이는 대로 실측으로 공개</b>하는 사전 공개 단계입니다. 사전 알림을 신청하시면 오픈 시 얼리버드 혜택과 함께 가장 먼저 알려드립니다.</p></div>
 </div>
 </div></section>
 
@@ -1139,6 +1139,13 @@ async function loadLiveListings() {
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     if (!Array.isArray(data.items) || data.items.length === 0) throw new Error('빈 응답');
+    // 실시간 진행 중 물건 수 지표 교체 (관측 예시 → 실측 totalCount)
+    const liveTotal = Number(data.totalCount) || 0;
+    if (liveTotal > 0) {
+      const cEl = document.getElementById('mLiveCount'), lEl = document.getElementById('mLiveLabel');
+      if (cEl) cEl.textContent = liveTotal.toLocaleString() + '건';
+      if (lEl) lEl.textContent = '현재 진행 중 부동산 공매 물건 (실시간 온비드)';
+    }
     // 같은 건물의 다른 호수는 하나만 골라 다양성 확보
     const buildingKey = it => (it.title || '').replace(/\s*\d+\s*호(?:\s|$).*$/, '').replace(/\s*제?\d+층.*$/, '').trim() || String(it.id);
     const seenBld = new Set();
