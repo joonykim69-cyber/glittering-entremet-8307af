@@ -1227,12 +1227,21 @@ async function loadSimilarLive(){
   const escS=s=>String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
   const EM={'아파트':'🏢','오피스텔':'🏢','단독주택':'🏠','연립다세대':'🏘️','토지':'🏞️','상가':'🏬','공장창고':'🏭','농지임야':'🌲','차량':'🚗','기계장비':'⚙️','유가증권':'📈'};
   try{
-    const data=await fetch('/.netlify/functions/onbid-search?page=1&numOfRows=60').then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); });
+    // 현재 물건의 자산군에 맞는 목록 API 선택 — 동산/차량을 부동산 목록에서 찾던 오분류 수정.
+    const DONGSAN=['기계장비','유가증권','선박항공','기타동산','동산'];
+    const CHALYANG=['차량','자동차'];
+    const ac=(it.assetClass==='동산'||DONGSAN.includes(it.type))?'동산'
+      :(it.assetClass==='자동차'||it.assetClass==='차량'||CHALYANG.includes(it.type))?'자동차':'부동산';
+    const fn=ac==='동산'?'onbid-mvast-search':ac==='자동차'?'onbid-vhcl-search':'onbid-search';
+    const data=await fetch(`/.netlify/functions/${fn}?page=1&numOfRows=60`).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); });
     if(!data||!Array.isArray(data.items)||!data.items.length) return;
     const curId=String(liveItem.id);
+    // 같은 자산군 풀에서 같은 유형 우선, 부족하면 같은 자산군으로 보충(교차 자산군 금지). 최저가 근접순.
     const pool=data.items.filter(x=>String(x.id)!==curId && x.min>0 && x.title);
-    const same=pool.filter(x=>(x.type||'')===(it.type||''));
-    const chosen=(same.length>=3?same:same.concat(pool.filter(x=>same.indexOf(x)<0))).slice(0,3);
+    const byPrice=(a,b)=>Math.abs((a.min||0)-(it.min||0))-Math.abs((b.min||0)-(it.min||0));
+    const same=pool.filter(x=>(x.type||'')===(it.type||'')).sort(byPrice);
+    const rest=pool.filter(x=>(x.type||'')!==(it.type||'')).sort(byPrice);
+    const chosen=same.concat(rest).slice(0,3);
     if(!chosen.length) return;
     window.__simSnaps={};
     grid.innerHTML=chosen.map(x=>{
