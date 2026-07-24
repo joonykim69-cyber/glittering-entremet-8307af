@@ -126,11 +126,9 @@ A 15-page static prototype (`bidcast*.html`) for an Onbid auction winning-bid pr
 - ✅ 완료(2026-07-20): 상세 페이지 입찰이력·보증금 실측화(cltr_dtl_bidinf), 예측 엔진 회차 pbctNsq 실측 연결(목록 매핑 `round` → predict-daily 챌린저).
 - 남은 매핑 대상: 차량 상세 전용 프록시+필드 매핑, 동산 상세 필드 매핑, 공고 계열(pbanc_dtl Base URL 재확정 후 권리분석·매각조건 텍스트 피처).
 
-**③ 외부 키/신청 필요** (사용자 발급 절차):
-- **한국은행 ECOS API 키**(무료) ← 거시·금리 워처 에이전트(⑦) — **에이전트·프록시 구현 완료(2026-07-21)**, `ECOS_API_KEY` 환경변수만 대기(설정 즉시 활성, 미설정 시 degrade). 기준금리(722Y001/0101000/M) 확정, CD·국고채 시리즈 코드는 첫 실호출 `?debug=1`로 검증 필요.
-- **네이버 뉴스 검색 API 키**(무료) ← 뉴스 에이전트(④) — **에이전트·프록시 구현 완료(2026-07-20)**, `NAVER_CLIENT_ID`/`NAVER_CLIENT_SECRET` 환경변수만 대기(설정 즉시 활성, 미설정 시 degrade)
-- **한국부동산원 R-ONE 가격지수** ← 지역 전문가 에이전트의 주택가격지수 추세 — **프록시(rone-svc)·에이전트 연동 구현 완료(2026-07-21)**, `RONE_API_KEY` + `RONE_STATBL_ID`(통계표 ID) 대기(미설정 시 degrade). 지역 전문가 분석에 3/6/12개월 가격지수 변동 표시. (추후 확장: 6개월~3년 보수/기준/낙관 시나리오 밴드 = 시세 축 4단계 — 여전히 보류)
-- **카카오맵 키(KAKAO_MAP_KEY) ← 실지도 (2026-07-20 사용자가 카카오맵 채택)**: 상세 페이지(`bidcast-detail`)·전용 지도 페이지(`bidcast-map`) **둘 다 카카오맵 연동 코드 배포 완료**(`map-config` + SDK 동적 로드 + 지오코딩, 키 없으면 상세=목업 / 지도=Leaflet+OSM 폴백). **대기: 사용자가 카카오 개발자 콘솔에서 JavaScript 키 발급 → Netlify 환경변수 `KAKAO_MAP_KEY` 설정 + 플랫폼 Web 사이트 도메인에 배포 도메인(sucessbid.netlify.app 등) 등록**. ⚠️ **반드시 JavaScript 키**(REST/네이티브 키 아님). 설정 즉시 실지도 전환. **onbid.co.kr 등 타사 카카오 키 도용 절대 금지.**
+**③ 외부 키 — 6종 전부 활성 확인(2026-07-24 `integrations-status`: `activeNow:[anthropic,onbid,naverNews,kakaoMap,ecos,rone]`, `readyWaiting:[]`)**:
+- **ECOS**(거시·금리 워처 ⑦), **네이버 뉴스**(뉴스 에이전트 ④), **KAKAO_MAP_KEY**(실지도), **ANTHROPIC**, **ONBID** — 키 설정 완료·활성. ECOS CD·국고채 시리즈 코드, 카카오 배포 도메인 등록은 라이브 `?debug=1`/F12로 최종 검증만 남음(키 자체는 있음).
+- **RONE**(부동산원 지수) — `RONE_API_KEY` 설정됨. **단 `RONE_STATBL_ID`(통계표 ID) 미설정 시 `status:no_table`** → 지역 전문가 가격지수 미출력. 마무리: `rone-svc?list=아파트`로 통계표 후보 조회 → 전국 아파트 매매가격지수의 STATBL_ID(+필요시 multi_series `ids`의 GRP/CLS/ITM)를 `RONE_STATBL_ID` 등 env에 설정. (추후 확장: 6개월~3년 시나리오 밴드 = 시세 축 — 여전히 보류)
 - (보류·상용) 중고차 시세 DB(엔카 등) ← 차량 시세 근거. 공공 대안 검토 선행
 
 **④ 확보 완료, 기능 보류 중**: RTMS 실거래가 10종 (전부 _health ok) ← 시세 축 재개 시 "보류 중인 작업" 참조
