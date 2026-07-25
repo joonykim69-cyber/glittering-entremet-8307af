@@ -1100,10 +1100,16 @@ function liveCard(it) {
   const st = statFor(it);
   let lo, hi, chip, predLabel, predBase;
   if (st && Number(st.scfbAmtRto1) > 0 && it.appr > 0) {
+    // 감정가 대비 낙찰가율(헤드라인 통계)로 중앙을 추정하고, 낙찰가는 최저입찰가 이상이므로
+    // 최저가로 바닥 처리한 뒤 ±15% 밴드로 좁힌다. (기존 [감정가앵커, 최저가앵커]의 min~max는
+    // 신건처럼 최저가가 높을 때 최저가 앵커가 과대평가돼 범위가 비현실적으로 넓어졌다 — 예 1.2억~4.3억.)
     const a1 = Math.round(it.appr * Number(st.scfbAmtRto1) / 100);
-    const a2 = Number(st.scfbAmtRto2) > 0 ? Math.round(it.min * Number(st.scfbAmtRto2) / 100) : a1;
-    lo = Math.min(a1, a2); hi = Math.max(a1, a2);
-    if (hi <= lo) hi = Math.round(lo * 1.06);
+    const floor = it.min > 0 ? it.min : 0;
+    const est = Math.max(a1, floor);
+    const w = 0.15;
+    lo = Math.max(floor, Math.round(est * (1 - w)));
+    hi = Math.round(est * (1 + w));
+    if (hi <= lo) hi = Math.round(lo * 1.12);
     chip = `<span class="chip chip-green">🟢 통계 신호</span>`;
     predLabel = `통계 기반 예상 범위 (${escHtml(USG_STATS_YEAR)} 압류재산 낙찰가율)`;
     predBase = `근거: ${escHtml(String(st.clsCdNm).trim())} 낙찰 ${Number(st.mtSumCnt).toLocaleString()}건 · 평균 낙찰가율 ${escHtml(String(st.scfbAmtRto1))}% — 캠코 공식 통계`;
