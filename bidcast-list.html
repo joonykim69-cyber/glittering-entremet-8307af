@@ -765,6 +765,19 @@ document.querySelectorAll('#statusTags button').forEach(btn => {
 // ═══════════════════════════════════════
 // 타입 칩
 // ═══════════════════════════════════════
+// 라이브 모드에서 단일 유형 선택 시 서버 재조회 — 첫 200건 조각에도 안 걸리는 희소 유형
+// (아파트 등)을 전 재고에서 제목 키워드로 끌어온다. 온비드 API에 확정된 용도 코드 필터가
+// 없어(스웨거 조사 결과) 키워드(onbidCltrNm)가 서버 측 유형 필터의 최선. 사용자가 검색어를
+// 직접 입력한 상태(qTerm)면 그 검색이 우선이라 재조회하지 않는다.
+const TYPE_KEYWORD = { '아파트':'아파트', '오피스텔':'오피스텔', '연립다세대':'다세대', '단독주택':'단독', '상가':'상가', '사무실':'사무', '공장창고':'공장', '농지임야':'임야' };
+let typeKeywordActive = '';
+function liveTypeRequery() {
+  if (!liveMode || qTerm) return;
+  const kw = (activeTypes.size === 1) ? (TYPE_KEYWORD[[...activeTypes][0]] || '') : '';
+  if (kw === typeKeywordActive) return;
+  loadRealItems({ region: F.region, keyword: kw, _typeKw: kw });
+}
+
 function initTypeChips() {
   document.querySelectorAll('#typeChipsRe button, #typeChipsMv button').forEach(btn => {
     if (activeTypes.has(btn.dataset.type)) btn.classList.add('on');
@@ -773,6 +786,7 @@ function initTypeChips() {
       if (activeTypes.has(t)) { activeTypes.delete(t); btn.classList.remove('on'); }
       else { activeTypes.add(t); btn.classList.add('on'); }
       applyFilters();
+      liveTypeRequery();
     });
   });
 }
@@ -786,6 +800,7 @@ function setAllTypes(on) {
     document.querySelectorAll('#typeChipsRe button, #typeChipsMv button').forEach(b => b.classList.remove('on'));
   }
   applyFilters();
+  liveTypeRequery();
 }
 
 // ═══════════════════════════════════════
@@ -1578,9 +1593,13 @@ async function loadRealItems(opts = {}) {
   const chip = document.getElementById('dataSourceChip');
   const initial = !liveMode;
   const seq = ++liveFetchSeq;
+  // 유형 키워드 재조회 상태 동기화 — 검색창 등 다른 경로의 재조회가 오면 유형 키워드는 해제된 것
+  typeKeywordActive = opts._typeKw || '';
   try {
-    // 같은 건물 대표 1건만 남기는 축약 후에도 목록이 충분하도록 넉넉히 요청
-    const p = new URLSearchParams({ page:'1', numOfRows:'60' });
+    // 같은 건물 대표 1건만 남기는 축약 후에도 목록이 충분하도록 넉넉히 요청.
+    // 60→200 확대(2026-07-26): 온비드 재고 수천 건 중 첫 60건 조각에는 희소 유형(아파트 등)이
+    // 아예 안 걸리는 문제(실측: 재고 내 아파트 2,422건인데 목록 표시 0건) 완화.
+    const p = new URLSearchParams({ page:'1', numOfRows:'200' });
     if (opts.region) p.set('region', opts.region);
     if (opts.keyword) p.set('keyword', opts.keyword);
     // 부동산 + 동산 + 차량을 병렬 요청 — 동산/차량 프록시는 미연동·경로오류 시
@@ -1630,6 +1649,8 @@ async function loadRealItems(opts = {}) {
   rebuildCourtDropdown();
   applyFilters();
   updateTabsFade();
+  // 딥링크(?type=아파트 등)로 단일 유형이 선택된 채 첫 로드가 끝나면 유형 키워드 재조회 1회
+  if (initial && liveMode) liveTypeRequery();
 }
 
 // ═══════════════════════════════════════
