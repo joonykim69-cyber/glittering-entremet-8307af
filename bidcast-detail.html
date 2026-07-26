@@ -72,7 +72,8 @@ a{color:inherit;text-decoration:none;}
 .rp-hero-addr{font-size:13.5px;color:rgba(255,255,255,.72);margin-top:8px;}
 .rp-hero-casebadge{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:7px 16px;margin-top:14px;font-size:13px;font-weight:800;cursor:default;}
 .rp-hero-casebadge .ico{font-size:14px;}
-.rp-demo-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:rgba(255,255,255,.4);border:1px dashed rgba(255,255,255,.18);padding:4px 11px;border-radius:999px;margin-top:12px;}
+/* 흰 카드 제목줄에 놓이므로 라이트 배경용으로 조정(과거 다크 히어로용 흰 글씨 → 안 보임) */
+.rp-demo-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--mute);border:1px dashed var(--line);padding:4px 11px;border-radius:999px;background:var(--bg);}
 
 /* ═══ 정보 바 ═══ */
 .rp-info-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:11px 22px;background:var(--surface);border-bottom:1px solid var(--line);}
@@ -118,6 +119,22 @@ a{color:inherit;text-decoration:none;}
 /* 지도 옵션 — 필요할 때만 로드 */
 .map-toggle-btn{display:inline-flex;align-items:center;gap:7px;font:inherit;font-size:13px;font-weight:800;color:var(--green-deep);background:var(--green-soft);border:1px solid var(--green);border-radius:11px;padding:10px 16px;cursor:pointer;}
 #mapLazyWrap{margin-top:12px;}
+/* 온비드式 물건 상세 카드 (얇은 제목줄 + 사진 좌 / 정보 우 2단) */
+.ob-detail-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin-bottom:10px;}
+.ob-titlebar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:11px;margin-bottom:14px;border-bottom:2px solid var(--ink,#1c2b23);flex-wrap:wrap;}
+.ob-title-h{font-size:18px;font-weight:900;}
+.ob-detail-body{display:grid;grid-template-columns:320px 1fr;gap:18px;align-items:start;}
+@media(max-width:760px){.ob-detail-body{grid-template-columns:1fr;}}
+.ob-photo .gallery-panel{height:250px;border-radius:12px;}
+.ob-info{min-width:0;}
+.ob-chiprow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:11px;}
+.ob-actions{margin-left:auto;display:flex;gap:6px;}
+.ob-abtn{font:inherit;font-size:11.5px;font-weight:800;color:var(--sub);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 10px;cursor:pointer;text-decoration:none;white-space:nowrap;}
+.ob-abtn:hover{border-color:var(--green);color:var(--green-deep);}
+.ob-eyebrow{font-size:11px;color:var(--mute);font-weight:700;margin-bottom:4px;}
+.ob-casebadge{font-size:12px;color:var(--sub);font-weight:800;margin-bottom:7px;display:flex;align-items:center;gap:5px;font-variant-numeric:tabular-nums;}
+.ob-detail-title{font-size:18px;font-weight:900;line-height:1.35;margin-bottom:4px;}
+.ob-detail-addr{font-size:13px;color:var(--sub);margin-bottom:13px;}
 
 /* ═══ 사진 갤러리 ═══ */
 .sec-gallery{background:#111;position:relative;overflow:hidden;}
@@ -455,7 +472,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
   <!-- 사이드바 -->
   <aside class="rp-sidebar" aria-label="섹션 이동">
     <button class="sb-btn" type="button" title="요약" onclick="sbGo('rp-hero')">🏠</button>
-    <button class="sb-btn" type="button" title="경매정보" onclick="sbGo('sec-detail-grid')">📊</button>
+    <button class="sb-btn" type="button" title="물건정보" onclick="sbGo('rp-hero')">📊</button>
     <button class="sb-btn" type="button" title="사진" onclick="sbGo('sec-gallery')">📷</button>
     <div class="sb-sep"></div>
     <button class="sb-btn" type="button" title="기본정보" onclick="sbGo('sec-info')">📋</button>
@@ -471,98 +488,78 @@ h1,h2,h3,h4{font-family:var(--font-head)}
   <!-- 메인 콘텐츠 -->
   <main id="rpMain">
 
-    <!-- 1. 히어로 -->
-    <section class="rp-hero" id="rp-hero">
-      <p class="rp-hero-eyebrow" id="heroEyebrow">신호등옥션 경매 리포트</p>
-      <h1 class="rp-hero-title" id="dTitle">물건 상세</h1>
-      <p class="rp-hero-addr" id="dAddr">—</p>
-      <div class="rp-hero-casebadge">
-        <span class="ico">💡</span>
-        <span id="heroCaseNo">사건번호 로딩중…</span>
+    <!-- 1. 온비드式 물건 상세 카드 — 얇은 제목줄 + 사진(좌)·정보(우) 2단. 온비드 상세와 동일 골격. -->
+    <section class="ob-detail-card" id="rp-hero">
+      <div class="ob-titlebar">
+        <h2 class="ob-title-h">물건 상세</h2>
+        <span class="rp-demo-chip" id="demoChip">🔧 아래 정보는 예시 데이터입니다</span>
       </div>
-      <br/>
-      <span class="rp-demo-chip" id="demoChip">🔧 아래 정보는 예시 데이터입니다</span>
-    </section>
+      <div class="ob-detail-body">
+        <!-- 사진 (좌) -->
+        <div class="ob-photo" id="sec-gallery">
+          <div class="gallery-panel">
+            <div class="gal-inner" id="galInner">
+              <span id="galleryThumb">🏢</span>
+              <div class="gal-dim"></div>
+            </div>
+            <button class="gal-nav gal-prev" type="button" id="galPrev" onclick="galNav(-1)" style="display:none" aria-label="이전 사진">‹</button>
+            <button class="gal-nav gal-next" type="button" id="galNext" onclick="galNav(1)" style="display:none" aria-label="다음 사진">›</button>
+            <span class="gal-count" id="galCount" style="display:none">1/1</span>
+          </div>
+        </div>
+        <!-- 정보 (우) -->
+        <div class="ob-info">
+          <div class="ob-chiprow">
+            <span class="court-badge" id="courtBadge">—</span>
+            <span class="info-chip date" id="chipDate">매각기일 —</span>
+            <span class="info-chip dday-chip" id="chipDday">—</span>
+            <span class="info-chip fail-chip" id="chipFail" style="display:none">유찰</span>
+            <span class="ob-actions">
+              <button type="button" class="ob-abtn" id="mapToggleBtn" onclick="openLocMap()">📍 지도 보기</button>
+              <a class="ob-abtn" id="obPbancLinkTop" href="https://www.onbid.co.kr" target="_blank" rel="noopener">📄 공고보기</a>
+            </span>
+          </div>
+          <p class="ob-eyebrow" id="heroEyebrow">신호등옥션 물건 리포트</p>
+          <div class="ob-casebadge"><span class="ico">💡</span><span id="heroCaseNo">물건관리번호 로딩중…</span></div>
+          <h1 class="ob-detail-title" id="dTitle">물건 상세</h1>
+          <p class="ob-detail-addr" id="dAddr">—</p>
+          <!-- 온비드式 2×4 물건정보 그리드 -->
+          <div class="ob-grid">
+            <div class="ob-cell"><div class="ob-k">재산유형</div><div class="ob-v" id="obPrpt">—</div></div>
+            <div class="ob-cell"><div class="ob-k">면적 <button type="button" id="obAreaToggle" class="ob-toggle" onclick="toggleAreaUnit()">평</button></div><div class="ob-v ob-area" id="obArea">—</div></div>
+            <div class="ob-cell"><div class="ob-k">입찰방식</div><div class="ob-v" id="obBidWay">일반경쟁(최고가방식)</div></div>
+            <div class="ob-cell"><div class="ob-k">감정평가금액(원)</div><div class="ob-v" id="dAppr">—</div></div>
+            <div class="ob-cell"><div class="ob-k">처분방식</div><div class="ob-v" id="obDispose">매각</div></div>
+            <div class="ob-cell"><div class="ob-k">입찰기간 <span id="obPeriodStat" class="ob-stat" style="display:none;"></span></div><div class="ob-v ob-period" id="obPeriod">—</div></div>
+            <div class="ob-cell"><div class="ob-k">회차 / 유찰횟수</div><div class="ob-v" id="obRoundFail">—</div></div>
+            <div class="ob-cell ob-hl"><div class="ob-k">최저입찰가격(원)</div><div class="ob-v" id="dMin">—</div></div>
+          </div>
+          <div class="ob-sub">
+            <span>보증금 <b id="dDeposit">—</b></span>
+            <span>매각(개찰)일 <b id="dSaleDate">—</b></span>
+          </div>
+        </div>
+      </div>
 
-    <!-- 2. 정보 바 -->
-    <div class="rp-info-bar">
-      <div class="info-bar-l">
-        <span class="court-badge" id="courtBadge">—</span>
-        <span class="info-case-no" id="infoCase">—</span>
-        <span class="info-addr" id="infoAddr">—</span>
-      </div>
-      <div class="info-bar-r">
-        <span class="info-chip date" id="chipDate">매각기일 —</span>
-        <span class="info-chip dday-chip" id="chipDday">—</span>
-        <span class="info-chip fail-chip" id="chipFail" style="display:none">유찰</span>
-      </div>
-    </div>
-
-    <!-- 3. 온비드式 물건정보 요약 그리드 (온비드 상세 표시와 동일 레이아웃) -->
-    <section class="sec-detail" id="sec-detail-grid" style="background:transparent;border:none;overflow:visible;">
-      <div class="ob-grid">
-        <div class="ob-cell"><div class="ob-k">재산유형</div><div class="ob-v" id="obPrpt">—</div></div>
-        <div class="ob-cell"><div class="ob-k">면적 <button type="button" id="obAreaToggle" class="ob-toggle" onclick="toggleAreaUnit()">평</button></div><div class="ob-v ob-area" id="obArea">—</div></div>
-        <div class="ob-cell"><div class="ob-k">입찰방식</div><div class="ob-v" id="obBidWay">일반경쟁(최고가방식)</div></div>
-        <div class="ob-cell"><div class="ob-k">감정평가금액(원)</div><div class="ob-v" id="dAppr">—</div></div>
-        <div class="ob-cell"><div class="ob-k">처분방식</div><div class="ob-v" id="obDispose">매각</div></div>
-        <div class="ob-cell"><div class="ob-k">입찰기간 <span id="obPeriodStat" class="ob-stat" style="display:none;"></span></div><div class="ob-v ob-period" id="obPeriod">—</div></div>
-        <div class="ob-cell"><div class="ob-k">회차 / 유찰횟수</div><div class="ob-v" id="obRoundFail">—</div></div>
-        <div class="ob-cell ob-hl"><div class="ob-k">최저입찰가격(원)</div><div class="ob-v" id="dMin">—</div></div>
-      </div>
-      <div class="ob-sub">
-        <span>보증금 <b id="dDeposit">—</b></span>
-        <span>매각(개찰)일 <b id="dSaleDate">—</b></span>
-      </div>
-      <!-- 공고 정보 (온비드 공고상세 pbanc_dtl — 라이브에서 비동기 채움. 미확보 필드는 숨김=degrade) -->
+      <!-- 공고 정보 (전체폭) — 온비드 공고상세 pbanc_dtl 비동기 채움. 미확보 필드는 숨김=degrade -->
       <div class="ob-notice" id="obNotice">
         <div class="ob-nrow"><span class="nk">공고기관</span><span class="nv" id="obOrg">—</span></div>
         <div class="ob-nrow" id="obKindRow" style="display:none;"><span class="nk">공고유형</span><span class="ob-chip kind" id="obKind"></span><span class="nk" style="margin-left:10px;">공고일</span><span class="nv" id="obDate">—</span></div>
         <div class="ob-nrow" id="obFeeRow" style="display:none;"><span class="nk">참가수수료</span><span class="nv" id="obFee">—</span></div>
         <div class="ob-nrow"><a id="obPbancLink" href="https://www.onbid.co.kr" target="_blank" rel="noopener" style="font-weight:800;color:var(--green-deep);">📄 온비드 공고 원문 보기 →</a></div>
       </div>
-    </section>
-
-    <!-- 4. 사진 갤러리 (지도는 아래 '지도 보기' 버튼으로 필요할 때만 로드 — 온비드式 옵션) -->
-    <section class="gallery-map-row" id="sec-gallery" style="grid-template-columns:1fr;">
-      <div class="gallery-panel">
-        <div class="gal-inner" id="galInner">
-          <span id="galleryThumb">🏢</span>
-          <div class="gal-dim"></div>
-        </div>
-        <button class="gal-nav gal-prev" type="button" id="galPrev" onclick="galNav(-1)" style="display:none" aria-label="이전 사진">‹</button>
-        <button class="gal-nav gal-next" type="button" id="galNext" onclick="galNav(1)" style="display:none" aria-label="다음 사진">›</button>
-        <span class="gal-count" id="galCount" style="display:none">1/1</span>
-      </div>
-    </section>
-    <!-- 지도 (옵션) — 클릭 시에만 카카오/OSM 로드. 기본은 접힘. -->
-    <div style="margin-top:12px;">
-      <button type="button" class="map-toggle-btn" id="mapToggleBtn" onclick="openLocMap()">📍 지도 보기</button>
+      <!-- 신탁/특수 매각 안내: 최저가 > 감정가 (신탁사가 최저가를 감정가보다 높게 설정 — 할인 아님) -->
+      <div id="trustSaleBadge" style="display:none;margin-top:10px;font-size:12.5px;font-weight:700;color:#8A6100;background:var(--yellow-soft,#FDF4D7);border:1px solid #F5E3B3;border-radius:12px;padding:10px 14px;line-height:1.55;">🔔 <b>최저입찰가가 감정가보다 높습니다.</b> 신탁·특수 매각에서 신탁사가 최저가를 감정가보다 높게 설정한 경우로, <b>감정가 대비 할인이 아닙니다</b>. 입찰 전 온비드 공고 원문과 매각조건을 반드시 확인하세요.</div>
+      <!-- 지도 (옵션) — '지도 보기' 클릭 시에만 카카오/OSM 로드. 기본 접힘. -->
       <div id="mapLazyWrap" style="display:none;">
-        <div class="map-panel" style="height:360px;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:10px;">
+        <div class="map-panel" style="height:340px;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:10px;">
           <div class="loc-map" id="locMap" style="height:100%;border-radius:0;border:none;">
             <div class="loc-pin" id="locPinMock"><span class="b" id="locBadge">—</span><span class="s"></span></div>
           </div>
           <div class="map-addr-bar" id="mapAddrBar">—</div>
         </div>
       </div>
-    </div>
-
-    <!-- 5. 가격 바 -->
-    <div class="price-bar">
-      <div class="pb-cell appr">
-        <div class="pb-lbl">감정가 <span id="pbApprTag" style="font-size:10px;opacity:.55;margin-left:3px;">예시 데이터</span></div>
-        <div class="pb-val" id="pbAppr">—</div>
-        <div class="pb-note">감정평가기관 기준</div>
-      </div>
-      <div class="pb-cell minp">
-        <div class="pb-lbl">최저입찰가 <span id="pbMinPct" style="font-size:10px;color:#C85000;margin-left:3px;font-weight:800;"></span></div>
-        <div class="pb-val orange" id="pbMin">—</div>
-        <div class="pb-note" id="pbMinNote">—</div>
-      </div>
-    </div>
-    <!-- 신탁/특수 매각 안내: 최저가 > 감정가인 정상 케이스(신탁사가 최저가를 감정가보다 높게 설정) -->
-    <div id="trustSaleBadge" style="display:none;margin-top:10px;font-size:12.5px;font-weight:700;color:#8A6100;background:var(--yellow-soft,#FDF4D7);border:1px solid #F5E3B3;border-radius:12px;padding:10px 14px;line-height:1.55;">🔔 <b>최저입찰가가 감정가보다 높습니다.</b> 신탁·특수 매각에서 신탁사가 최저가를 감정가보다 높게 설정한 경우로, <b>감정가 대비 할인이 아닙니다</b>. 입찰 전 온비드 공고 원문과 매각조건을 반드시 확인하세요.</div>
+    </section>
 
     <!-- ══════════════════════════════════════════════════════════════ -->
     <!-- 블록 A — 온비드 물건정보 (사실). 온비드 상세 페이지와 동일 계열·순서.       -->
@@ -902,7 +899,7 @@ document.getElementById('rpCaseBadge').textContent=dispCaseNo;
 document.getElementById('dTitle').textContent=it.title;
 document.getElementById('dAddr').textContent=it.address;
 document.getElementById('heroCaseNo').textContent=`${caseNoLabel} ${dispCaseNo}`;
-document.getElementById('heroEyebrow').textContent=`신호등옥션 ${it.type} 경매 리포트`;
+document.getElementById('heroEyebrow').textContent=isLive?`실시간 온비드 물건 · ${it.type}`:`예시 물건 · ${it.type}`;
 
 // 예시/실데이터 칩
 if(isLive){
@@ -913,10 +910,8 @@ if(isLive){
   if(chip){chip.textContent='⚠️ 실시간 정보를 불러올 수 없어 예시 물건을 대신 표시 중입니다';chip.style.borderColor='rgba(229,72,77,.35)';chip.style.color='rgba(229,72,77,.75)';}
 }
 
-// 정보 바
+// 칩 줄 — 공고기관 배지 (물건번호·주소는 카드의 heroCaseNo/dAddr로 일원화)
 document.getElementById('courtBadge').textContent=it.court;
-document.getElementById('infoCase').textContent=dispCaseNo;
-document.getElementById('infoAddr').textContent=it.address;
 
 const ddResult=calcDday(it.saleDate,it.status);
 const saleDateShort=it.saleDate&&it.saleDate!=='—'?it.saleDate.replace(/^(\d{4})\./,'').replace(/(\d{2})\.(\d{2})$/,'$1/$2'):'—';
@@ -1187,14 +1182,9 @@ document.getElementById('mapAddrBar').textContent=it.address||'—';
   };
 })();
 
-// 가격 바
-document.getElementById('pbAppr').textContent=fmtMwon(it.appr);
-document.getElementById('pbMin').textContent=fmtMwon(it.min);
-if(isLive)document.getElementById('pbApprTag').textContent='실데이터 (온비드)';
-document.getElementById('pbMinPct').textContent=minPct>0?`(감정가의 ${minPct}%)`:'';
-// 최저가 > 감정가면 신탁/특수 매각 안내 배지 표시(실데이터 특성 — 오해 방지)
+// 가격은 온비드式 그리드(감정가·최저가)로 통합 — 중복 가격바 제거.
+// 최저가 > 감정가면 신탁/특수 매각 안내 배지만 표시(실데이터 특성 — 오해 방지)
 if(it.appr>0&&it.min>it.appr){const tb=document.getElementById('trustSaleBadge');if(tb)tb.style.display='';}
-document.getElementById('pbMinNote').textContent=it.fail>0?`${it.fail}회 유찰 후 최저가`:'1회차 최저가';
 
 // CTA 링크
 const simIds=Object.keys(DETAILS).map(Number).filter(k=>DETAILS[k]!==it);
