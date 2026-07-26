@@ -497,6 +497,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
         <div class="cd-panel cd-panel align-right">
           <div class="cd-list">
             <button class="cd-opt on" data-v="latest">최신순</button>
+            <button class="cd-opt" data-v="notable">주목순 (할인·유찰·임박)</button>
             <button class="cd-opt" data-v="views">조회수 높은순</button>
             <button class="cd-opt" data-v="discount">할인율 높은순</button>
             <button class="cd-opt" data-v="fail-desc">유찰 많은순</button>
@@ -864,7 +865,8 @@ function computeFilteredList() {
   }
 
   const s = F.sort;
-  if (s === 'views') list = [...list].sort((a,b) => b.views - a.views);
+  if (s === 'notable') list = [...list].sort((a,b) => notableScore(b) - notableScore(a));
+  else if (s === 'views') list = [...list].sort((a,b) => b.views - a.views);
   else if (s === 'discount') list = [...list].sort((a,b) => (a.min/a.appr) - (b.min/b.appr));
   else if (s === 'fail-desc') list = [...list].sort((a,b) => b.fail - a.fail);
   else if (s === 'price-asc') list = [...list].sort((a,b) => a.appr - b.appr);
@@ -872,6 +874,24 @@ function computeFilteredList() {
   else if (!usingRank) list = [...list].sort((a,b) => b.id - a.id); // 순위 기반일 땐 관심순 유지
 
   return list;
+}
+
+// 주목순 경량 점수 — 리스트 카드에 보이는 팩트(할인폭·유찰·개찰 임박)만 쓰는 정렬 heuristic.
+// 랜딩 "오늘의 주목 물건"의 서버 엔진(lib/curation.js: 봉인 예측·유사 사례 통계까지 반영,
+// curated/latest)과 별개인 "빠른 정렬용"이라 라벨도 "주목순(할인·유찰·임박)"으로 구분한다.
+function notableScore(it) {
+  let s = 0;
+  const disc = (it.appr > 0 && it.min > 0) ? it.min / it.appr : null;
+  if (disc != null && disc < 1.0) s += disc <= 0.64 ? 34 : disc <= 0.80 ? 22 : disc <= 0.95 ? 10 : 0;
+  s += Math.min(Number(it.fail) || 0, 3) * 6;
+  const be = String(it.bidEnd || '').replace(/[^0-9]/g, '');
+  if (be.length >= 8) {
+    const end = Date.UTC(+be.slice(0, 4), +be.slice(4, 6) - 1, +be.slice(6, 8));
+    const n = new Date(Date.now() + 9 * 3600000);
+    const dd = Math.round((end - Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate())) / 86400000);
+    if (dd >= 0 && dd <= 3) s += 6;
+  }
+  return s;
 }
 
 // 데모 ITEMS의 type 값을 ALL_TYPES 키로 정규화

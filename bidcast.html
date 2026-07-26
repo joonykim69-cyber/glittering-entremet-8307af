@@ -400,7 +400,20 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
     <span class="chip chip-demo" id="curatedChip">불러오는 중…</span>
   </div>
   <h2 style="margin:0 0 6px">오늘의 주목 물건</h2>
-  <p style="color:var(--sub);margin:0 0 20px;max-width:640px">수만 건을 일일이 보지 않아도 됩니다. 엔진이 <b>할인 폭·유찰·유사 사례 통계·개찰 임박</b>을 종합해 분석해 볼 만한 물건을 추립니다 — <b>투자 추천이 아니라</b> 왜 볼 만한지 근거를 함께 보여드립니다.</p>
+  <p style="color:var(--sub);margin:0 0 16px;max-width:640px">수만 건을 일일이 보지 않아도 됩니다. 엔진이 <b>할인 폭·유찰·유사 사례 통계·개찰 임박</b>을 종합해 분석해 볼 만한 물건을 추립니다 — <b>투자 추천이 아니라</b> 왜 볼 만한지 근거를 함께 보여드립니다.</p>
+  <!-- 관심 설정(온보딩) — 내 관심 기준으로 큐레이션을 좁힌다. localStorage bidcast:profile -->
+  <div id="curatedPrefs" style="display:none;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:18px">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <b style="font-size:14px">🎯 내 관심 기준</b>
+      <span style="color:var(--mute);font-size:12px">고르면 관심에 맞는 물건을 먼저 보여드립니다 (기기에만 저장 · 로그인 불필요)</span>
+      <button id="prefReset" style="margin-left:auto;font-size:12px;color:var(--sub);background:none;border:1px solid var(--line);border-radius:8px;padding:4px 10px;cursor:pointer">전체 보기</button>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px" id="prefTypes"></div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+      <label style="font-size:13px;color:var(--sub)">지역 <select id="prefRegion" style="margin-left:4px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface)"></select></label>
+      <label style="font-size:13px;color:var(--sub)">예산(최저가) <select id="prefBudget" style="margin-left:4px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface)"></select></label>
+    </div>
+  </div>
   <div id="curatedGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px"></div>
   <p style="color:var(--mute);font-size:12px;margin:16px 0 0" id="curatedFoot"></p>
 </div></section>
@@ -1465,7 +1478,13 @@ async function loadHeroBoard() {
 }
 loadHeroBoard();
 
-// ═══ 오늘의 주목 물건 (큐레이션) — curated/latest 실데이터 렌더 ═══
+// ═══ 오늘의 주목 물건 (큐레이션) — curated/latest 실데이터 + 관심 프로필 개인화 ═══
+const CURATE_TYPES = ['아파트', '오피스텔', '단독주택', '연립다세대', '토지', '상가', '사무실', '공장창고', '농지임야', '차량'];
+const CURATE_REGIONS = ['서울', '경기', '인천', '강원', '충북', '충남', '대전', '세종', '전북', '전남', '광주', '경북', '경남', '대구', '부산', '울산', '제주'];
+const CURATE_BUDGETS = [['', '제한 없음'], ['10000', '1억 이하'], ['30000', '3억 이하'], ['50000', '5억 이하'], ['100000', '10억 이하']];
+function getProfile() { try { const v = JSON.parse(localStorage.getItem('bidcast:profile')); return v && typeof v === 'object' ? v : {}; } catch (e) { return {}; } }
+function setProfile(p) { try { localStorage.setItem('bidcast:profile', JSON.stringify(p)); } catch (e) {} }
+
 async function loadCurated() {
   const sec = document.getElementById('curated'); if (!sec) return;
   const hWon = man => { man = Number(man) || 0; if (!man) return '미공개'; return man >= 10000 ? (man / 10000).toFixed(1).replace(/\.0$/, '') + '억' : man.toLocaleString() + '만'; };
@@ -1473,12 +1492,6 @@ async function loadCurated() {
   try { d = await fetch('/.netlify/functions/curated').then(r => r.ok ? r.json() : Promise.reject()); }
   catch (e) { return; } // 함수 미배포/오류 → 섹션 숨김 유지(degrade, 가짜 데이터 금지)
   if (!d || d.status !== 'ok' || !Array.isArray(d.items) || !d.items.length) return;
-
-  // 개인화(축 B, 경량): 관심·최근 본 물건에서 선호 유형을 추출해 매칭 물건을 살짝 우선.
-  const lsGet = (k, def) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? def : v; } catch (e) { return def; } };
-  const prefTypes = new Set();
-  Object.values(lsGet('bidcast:likesnap', {}) || {}).forEach(x => { if (x && x.type) prefTypes.add(x.type); });
-  const items = d.items.slice().sort((a, b) => (prefTypes.has(b.type) - prefTypes.has(a.type)) || (b.score - a.score));
 
   const ddayBadge = bidEnd => {
     const s = String(bidEnd || '').replace(/[^0-9]/g, ''); if (s.length < 8) return '';
@@ -1489,7 +1502,6 @@ async function loadCurated() {
     const cls = dd <= 3 ? 'chip-red' : dd <= 7 ? 'chip-yellow' : 'chip-green';
     return `<span class="chip ${cls}">${dd === 0 ? '오늘 개찰' : 'D-' + dd}</span>`;
   };
-
   const snaps = {};
   const card = it => {
     // 상세 페이지 스냅샷은 온비드 필드명으로 변환(리스트/히어로와 동일 규약)
@@ -1514,22 +1526,63 @@ async function loadCurated() {
     </div>`;
   };
 
-  document.getElementById('curatedGrid').innerHTML = items.map(card).join('');
-  // 카드 클릭 → 상세 (스냅샷 주입 후 이동)
-  document.querySelectorAll('#curatedGrid .mcard-live[data-id]').forEach(el => {
-    const id = el.getAttribute('data-id'); if (!id) return;
-    const go = () => { const s = snaps[id]; if (s) { try { sessionStorage.setItem('bidcast:detail', JSON.stringify(s)); } catch (e) {} } location.href = 'bidcast-detail.html?id=' + encodeURIComponent(id); };
-    el.addEventListener('click', go);
-    el.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
-  });
+  // 프로필 필터 — 유형/지역/예산. 매칭 0건이면 전체로 폴백(빈 화면 금지).
+  function applyProfile(p) {
+    const types = Array.isArray(p.types) ? p.types : [];
+    const region = p.region || '';
+    const budget = Number(p.budgetMax) || 0;
+    const match = it => (!types.length || types.includes(it.type))
+      && (!region || String(it.region || '').indexOf(region) >= 0)
+      && (!budget || (it.low > 0 && it.low <= budget));
+    const hit = d.items.filter(match);
+    const used = hit.length ? hit : d.items;
+    const sorted = used.slice().sort((a, b) => b.score - a.score);
+    document.getElementById('curatedGrid').innerHTML = sorted.map(card).join('');
+    document.querySelectorAll('#curatedGrid .mcard-live[data-id]').forEach(el => {
+      const id = el.getAttribute('data-id'); if (!id) return;
+      const go = () => { const s = snaps[id]; if (s) { try { sessionStorage.setItem('bidcast:detail', JSON.stringify(s)); } catch (e) {} } location.href = 'bidcast-detail.html?id=' + encodeURIComponent(id); };
+      el.addEventListener('click', go);
+      el.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+    });
+    const foot = document.getElementById('curatedFoot');
+    if (foot) {
+      const at = d.at ? new Date(d.at) : null;
+      const filtered = (types.length || region || budget);
+      const head = filtered
+        ? (hit.length ? `내 관심 기준으로 <b>${hit.length}건</b>을 추렸습니다. ` : `관심 기준에 맞는 물건이 없어 전체를 보여드립니다. `)
+        : `엔진이 마감 임박 ${(d.scanned || 0).toLocaleString()}건을 분석해 ${(d.scored || 0).toLocaleString()}건에서 주목 신호를 찾고 상위 ${d.count}건을 추렸습니다. `;
+      foot.innerHTML = `${head}점수는 분석 주목도이며 <b>투자 권유가 아닙니다</b>.${at ? ' · ' + at.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' 갱신' : ''}`;
+    }
+  }
+
+  // 관심 설정 UI 렌더 + 이벤트
+  function renderPrefs() {
+    const p = getProfile();
+    const wrap = document.getElementById('curatedPrefs'); if (!wrap) return;
+    const tset = new Set(Array.isArray(p.types) ? p.types : []);
+    document.getElementById('prefTypes').innerHTML = CURATE_TYPES.map(t =>
+      `<button class="chip ${tset.has(t) ? 'chip-green' : 'chip-demo'}" data-t="${t}" style="cursor:pointer;border:none">${t}</button>`).join('');
+    const rsel = document.getElementById('prefRegion');
+    rsel.innerHTML = `<option value="">전체</option>` + CURATE_REGIONS.map(r => `<option value="${r}"${p.region === r ? ' selected' : ''}>${r}</option>`).join('');
+    const bsel = document.getElementById('prefBudget');
+    bsel.innerHTML = CURATE_BUDGETS.map(([v, l]) => `<option value="${v}"${String(p.budgetMax || '') === v ? ' selected' : ''}>${l}</option>`).join('');
+    wrap.style.display = '';
+
+    document.querySelectorAll('#prefTypes [data-t]').forEach(b => b.onclick = () => {
+      const cur = getProfile(); const s = new Set(Array.isArray(cur.types) ? cur.types : []);
+      const t = b.getAttribute('data-t'); s.has(t) ? s.delete(t) : s.add(t);
+      cur.types = [...s]; setProfile(cur); renderPrefs(); applyProfile(cur);
+    });
+    rsel.onchange = () => { const cur = getProfile(); cur.region = rsel.value; setProfile(cur); applyProfile(cur); };
+    bsel.onchange = () => { const cur = getProfile(); cur.budgetMax = bsel.value; setProfile(cur); applyProfile(cur); };
+    document.getElementById('prefReset').onclick = () => { setProfile({}); renderPrefs(); applyProfile({}); };
+  }
+
+  renderPrefs();
+  applyProfile(getProfile());
 
   const chip = document.getElementById('curatedChip');
   if (chip) { chip.textContent = '🟢 실시간 온비드 · 봉인 장부 기반'; chip.className = 'chip chip-green'; }
-  const foot = document.getElementById('curatedFoot');
-  if (foot) {
-    const at = d.at ? new Date(d.at) : null;
-    foot.innerHTML = `엔진이 마감 임박 ${(d.scanned || 0).toLocaleString()}건을 분석해 ${(d.scored || 0).toLocaleString()}건에서 주목 신호를 찾고 상위 ${d.count}건을 추렸습니다. 점수는 분석 주목도이며 <b>투자 권유가 아닙니다</b>.${at ? ' · ' + at.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' 갱신' : ''}`;
-  }
   sec.style.display = '';
 }
 loadCurated();
