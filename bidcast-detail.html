@@ -839,10 +839,13 @@ const fmtMwon = n => n >= 10000 ? (n/10000).toFixed(n%10000===0?0:1)+'억원' : 
 function sbGo(id){const el=document.getElementById(id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}
 
 // 네이버 부동산 링크 정밀화 — 상세 API의 번지 주소가 도착하면 저장하고, 이미 렌더된 링크가 있으면 즉시 갱신.
-// 호·층(예 "201호", "지하1층")은 네이버 검색이 못 받으므로 제거(지도 지오코딩과 동일 규칙).
+// 지번 주소는 "읍면동/리 + 번지"까지만 추출(아파트명·제N동·층·호가 붙으면 네이버 검색이 못 잡음).
+// 예: "경기도 안성시 중리동 616 동광아파트 제109동 제1층 제101호" → "경기도 안성시 중리동 616"
 function setNaverAddr(addr){
   if(!addr)return;
-  const clean=String(addr).replace(/\s*(지하)?\s*\d+\s*(층|호)(?!\S).*$/,'').trim();
+  const s=String(addr).trim();
+  const m=s.match(/^(.*?[가-힣](?:동|리|가|읍|면)\s+(?:산\s*)?\d+(?:-\d+)?)(?=\s|$)/);
+  const clean=(m?m[1]:s.replace(/\s*(지하)?\s*제?\s*\d+\s*(동|층|호)(?=\s|$|,)/g,'').replace(/,?\s*\([^)]*\)\s*$/,'')).replace(/[\s,]+$/,'').trim();
   if(!clean)return;
   window.__naverAddr=clean;
   const a=document.getElementById('naverLandLink');
