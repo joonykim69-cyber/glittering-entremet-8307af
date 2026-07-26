@@ -1542,6 +1542,17 @@ if(isLive&&liveItem){
     }catch(e){console.log('[detail] 상세 API 오류:',e.message);}
   })();
   document.getElementById('sec-agents').style.display='';
+  // 자산군별 에이전트 버튼 구성(2026-07-26 창업자 승인): 동산·차량은 부동산 전용 에이전트
+  // (지역·권리분석·뉴스·거시)를 숨기고 전문가 라벨을 자산군에 맞게 교체 — 서버(agents.js)가
+  // 같은 assetClass로 동산/차량 페르소나 프롬프트(품목 카테고리·시세 확인 채널 포함)로 분기한다.
+  {
+    const ac=liveItem.assetClass==='동산'?'동산':(liveItem.assetClass==='자동차'||it.type==='차량'||it.type==='자동차')?'차량':'부동산';
+    if(ac!=='부동산'){
+      const eb=document.querySelector('.agent-btn[data-agent="expert"]');
+      if(eb)eb.textContent=ac==='동산'?'💎 동산 전문가':'🚗 차량 전문가';
+      ['region','rights','news','macro'].forEach(a=>{const b=document.querySelector('.agent-btn[data-agent="'+a+'"]');if(b)b.style.display='none';});
+    }
+  }
   // 인근 매각통계 — 캠코 지역별 공식 통계(stat_rgn, 압류재산). 지역 미매칭·API 실패 시 섹션 숨김 유지.
   (async()=>{
     try{
