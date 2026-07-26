@@ -559,6 +559,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
         <div class="ob-nrow"><span class="nk">공고기관</span><span class="nv" id="obOrg">—</span></div>
         <div class="ob-nrow" id="obKindRow" style="display:none;"><span class="nk">공고유형</span><span class="ob-chip kind" id="obKind"></span><span class="nk" style="margin-left:10px;">공고일</span><span class="nv" id="obDate">—</span></div>
         <div class="ob-nrow" id="obFeeRow" style="display:none;"><span class="nk">참가수수료</span><span class="nv" id="obFee">—</span></div>
+        <div class="ob-nrow" id="obFileRow" style="display:none;"><span class="nk">첨부파일</span><span class="nv" id="obFile" style="display:flex;flex-wrap:wrap;gap:4px 12px;"></span></div>
         <div class="ob-nrow"><a id="obPbancLink" href="https://www.onbid.co.kr" target="_blank" rel="noopener" style="font-weight:800;color:var(--green-deep);">📄 온비드 공고 원문 보기 →</a></div>
       </div>
       <!-- 신탁/특수 매각 안내: 최저가 > 감정가 (신탁사가 최저가를 감정가보다 높게 설정 — 할인 아님) -->
@@ -836,6 +837,16 @@ const fmtMwon = n => n >= 10000 ? (n/10000).toFixed(n%10000===0?0:1)+'억원' : 
 
 // ─── 섹션 이동 (탭 제거 — 온비드式 단일 스크롤. 옛 switchTab/tabGo 호출부는 스크롤로 매핑) ───
 function sbGo(id){const el=document.getElementById(id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}
+
+// 온비드 리스트 아이템을 안전 요약(필드명 미확정이라 값만 · 로 join) — 원시 JSON 노출 절대 금지(leasInf 버그 교훈).
+// 문자열/숫자 값만, null·빈값·객체는 제외. 결과 없으면 빈 문자열.
+function fmtObjVals(o){
+  if(!o||typeof o!=='object')return '';
+  return Object.values(o)
+    .filter(v=>(typeof v==='string'||typeof v==='number')&&v!==''&&v!=='null'&&v!=null)
+    .map(v=>String(v).replace(/</g,'&lt;'))
+    .join(' · ');
+}
 
 // ─── 이전 입찰내역 접힘/펼침 (회차가 많으면 최근 HIST_SHOW개만 남기고 접기) ───
 const HIST_SHOW=6;
@@ -1363,6 +1374,18 @@ if(isLive&&liveItem){
               const pdate=p0.pbancPstgDt||p0.pbancDt||p0.rgstDt||'';
               if(pdate){const t=String(pdate).replace(/[^0-9]/g,'');document.getElementById('obDate').textContent=t.length>=8?`${t.slice(0,4)}-${t.slice(4,6)}-${t.slice(6,8)}`:String(pdate);document.getElementById('obKindRow').style.display='';}
               if(p0.ptctCmsn)showRow('obFeeRow','obFee',p0.ptctCmsn);
+              // 첨부파일(공고문·감정평가서·명세서 등) — urlAdr이 http로 시작할 때만 링크(상대경로·미확인은 이름만 표기, 날조 금지)
+              const files=Array.isArray(p0.atchFileList)?p0.atchFileList:[];
+              if(files.length){
+                const html=files.map((f,i)=>{
+                  const nm=String(f.fileNm||f.atchFileNm||f.orgnlFileNm||('첨부파일 '+(i+1))).replace(/</g,'&lt;');
+                  const u=f.urlAdr||f.fileDwldUrl||'';
+                  return /^https?:\/\//.test(u)
+                    ? `<a href="${String(u).replace(/"/g,'&quot;')}" target="_blank" rel="noopener" style="color:var(--green-deep);font-weight:700;">📎 ${nm}</a>`
+                    : `<span style="color:var(--sub);">📎 ${nm}</span>`;
+                }).join('');
+                if(html){document.getElementById('obFile').innerHTML=html;document.getElementById('obFileRow').style.display='';}
+              }
             }
           }
         }catch(e){/* degrade — 공고 카드는 공고기관만 유지 */}
@@ -1433,6 +1456,17 @@ if(isLive&&liveItem){
           el.innerHTML='<span class="ico">📋</span><div><div class="rt">감정평가액</div><div class="rm">'+fmtWon(det.apslEvlAmt)+' (온비드 상세 API 기준)</div></div>';
           rl.prepend(el);
         }
+        // 등기 사항 / 점유 관계 (onbid-detail 실측 리스트). 필드명 미확정이라 fmtObjVals로 값만 안전 요약(JSON 노출 금지).
+        const addList=(arr,ico,title)=>{
+          if(!Array.isArray(arr))return;
+          arr.forEach(o=>{const t=fmtObjVals(o);if(!t)return;
+            const el=document.createElement('div');el.className='right-item';
+            el.innerHTML='<span class="ico">'+ico+'</span><div><div class="rt">'+title+'</div><div class="rm">'+t+'</div></div>';
+            rl.appendChild(el);
+          });
+        };
+        addList(det.rgstPrmrInfList,'🏛️','등기 사항');
+        addList(det.ocpyRelList,'🚪','점유 관계');
       }
 
       const chip=document.getElementById('demoChip');
