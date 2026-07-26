@@ -1383,8 +1383,10 @@ async function loadHeroBoard() {
       : `<div class="meter"><span style="font-size:11px;color:var(--mute)">감정가 미공개 — 최저가율 산정 불가</span></div>`;
     const foot = hasAppr ? `최저가율 기준${(it.fail || 0) > 0 ? ` · 유찰 ${it.fail}회` : ''} · ${escHtml(it.type || '부동산')}`
       : `${(it.fail || 0) > 0 ? `유찰 ${it.fail}회 · ` : ''}${escHtml(it.type || '부동산')} · 온비드 실시간`;
+    // 실사진 썸네일(온비드) — 있으면 카드 상단 슬림 배치. 리퍼러 거부 대비 no-referrer, 실패 시 조용히 제거.
+    const ph = /^https?:\/\//.test(it.photo || '') ? `<div style="height:64px;border-radius:8px;overflow:hidden;margin-bottom:8px;background:var(--bg)"><img src="${escHtml(it.photo)}" alt="" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentNode.remove()"></div>` : '';
     return `<div class="mcard mcard-live" data-id="${escHtml(String(it.id == null ? '' : it.id))}" role="link" tabindex="0" style="cursor:pointer">
-      <div class="tags">${signal(it)}${failTag}</div>
+      ${ph}<div class="tags">${signal(it)}${failTag}</div>
       <div class="t">${escHtml(it.title || '')}</div>
       <div class="p">감정가 ${hWon(it.appr)} · 최저가 ${hWon(it.min)}</div>
       ${meter}
@@ -1512,8 +1514,10 @@ async function loadCurated() {
     const reasons = (it.reasons || []).slice(0, 3).map(r => `<li>${escHtml(r.tag)}</li>`).join('');
     const flags = (it.flags || []).map(fl => `<div class="chip chip-yellow" style="margin-top:4px">⚠ ${escHtml(fl)}</div>`).join('');
     const predLine = it.pred ? `<div style="font-size:12px;color:var(--sub);margin-top:6px">AI 예상 구간 ${hWon(it.pred.lo)}~${hWon(it.pred.hi)}</div>` : '';
+    // 실사진(온비드 썸네일) — 있으면 카드 상단에. 온비드 이미지 서버 리퍼러 거부 대비 no-referrer, 실패 시 조용히 제거(이모지 대체 불필요 — 카드 정보로 충분)
+    const ph = /^https?:\/\//.test(it.photo || '') ? `<div style="height:120px;border-radius:10px;overflow:hidden;margin-bottom:10px;background:var(--bg)"><img src="${escHtml(it.photo)}" alt="" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentNode.remove()"></div>` : '';
     return `<div class="mcard mcard-live" data-id="${escHtml(String(it.id))}" role="link" tabindex="0" style="cursor:pointer;display:flex;flex-direction:column">
-      <div class="tags" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      ${ph}<div class="tags" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
         <span class="chip chip-green">🟢 주목 ${it.score}</span>${ddayBadge(it.bidEnd)}
         <span class="chip chip-demo">${escHtml(it.type || '부동산')}</span>
       </div>
@@ -1537,21 +1541,23 @@ async function loadCurated() {
     const used = hit.length ? hit : d.items;
     const sorted = used.slice().sort((a, b) => b.score - a.score);
 
-    // 자산군별로 묶어 각 3개만 미리보기 + "더 보기"로 그 분야 전체 펼침(한 번에 압도 방지).
+    // 자산군별로 묶어 3개 미리보기 + "더 보기"로 3개 추가(그룹당 최대 6개 — 2026-07-26 창업자 지시,
+    // 전부 펼치면 압도되므로 상한. 전체 목록은 물건검색 페이지가 담당).
     const GRID = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px';
-    const ORDER = ['부동산', '자동차', '동산'], PREVIEW = 3;
+    const ORDER = ['부동산', '자동차', '동산'], PREVIEW = 3, CAP = 6;
     const groups = {};
     sorted.forEach(it => { const k = it.assetClass || '기타'; (groups[k] = groups[k] || []).push(it); });
     const keys = [...ORDER.filter(k => groups[k]), ...Object.keys(groups).filter(k => !ORDER.includes(k))];
     let html = '';
     keys.forEach((k, gi) => {
       const arr = groups[k];
+      const shown = Math.min(arr.length, CAP);
       html += `<div style="display:flex;align-items:center;gap:8px;margin:${gi ? '24px' : '4px'} 0 12px">`
-        + `<b style="font-size:15px">${escHtml(k)}</b><span class="chip chip-demo">${arr.length}건</span></div>`;
+        + `<b style="font-size:15px">${escHtml(k)}</b><span class="chip chip-demo">${arr.length}건${arr.length > CAP ? ` · 주목도 상위 ${CAP}건 표시` : ''}</span></div>`;
       html += `<div style="${GRID}">${arr.slice(0, PREVIEW).map(card).join('')}</div>`;
-      if (arr.length > PREVIEW) {
-        html += `<div class="cur-more" data-g="${gi}" style="${GRID};display:none;margin-top:14px">${arr.slice(PREVIEW).map(card).join('')}</div>`
-          + `<button class="cur-morebtn" data-g="${gi}" style="margin-top:12px;font-size:13px;font-weight:700;color:var(--green-deep);background:var(--green-soft);border:none;border-radius:10px;padding:9px 16px;cursor:pointer">${escHtml(k)} ${arr.length - PREVIEW}건 더 보기 ▾</button>`;
+      if (shown > PREVIEW) {
+        html += `<div class="cur-more" data-g="${gi}" style="${GRID};display:none;margin-top:14px">${arr.slice(PREVIEW, CAP).map(card).join('')}</div>`
+          + `<button class="cur-morebtn" data-g="${gi}" style="margin-top:12px;font-size:13px;font-weight:700;color:var(--green-deep);background:var(--green-soft);border:none;border-radius:10px;padding:9px 16px;cursor:pointer">${escHtml(k)} ${shown - PREVIEW}건 더 보기 ▾</button>`;
       }
     });
     document.getElementById('curatedGrid').innerHTML = html;
