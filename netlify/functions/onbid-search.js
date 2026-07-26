@@ -243,6 +243,12 @@ exports.handler = async (event) => {
       prptDivCd, pvctTrgtYn: params.get('pvctTrgtYn'),
       dspsMthodCd: params.get('dspsMthodCd'), bidDivCd: params.get('bidDivCd'),
       upstreamUrl,
+      // 첫 물건의 전체 필드명 — 면적 등 미매핑 필드 존재 여부를 800자 잘림 없이 확정하기 위한 진단.
+      fieldKeys: (list[0] && typeof list[0] === 'object') ? Object.keys(list[0]) : [],
+      // 면적 후보 필드만 추려 값과 함께 표시 (Ar/면적/scl/Scl 포함 키)
+      areaCandidates: (list[0] && typeof list[0] === 'object')
+        ? Object.fromEntries(Object.entries(list[0]).filter(([k]) => /ar$|Ar|scl|Scl|면적|Area|Nnwarea/i.test(k)))
+        : {},
       rawSnippet: bodyText.slice(0, 800),
     } : undefined;
 
