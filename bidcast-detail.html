@@ -34,7 +34,7 @@ a{color:inherit;text-decoration:none;}
 }
 .logo-mark{width:27px;height:27px;border-radius:8px;background:var(--grad);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:900;flex:none;box-shadow:0 0 10px rgba(0,200,127,.35);}
 .rp-case-badge{font-size:11.5px;font-weight:800;color:var(--sub);background:var(--bg);border:1px solid var(--line);padding:3px 10px;border-radius:999px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;flex:none;}
-.rp-tabs{display:flex;flex:1;justify-content:center;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--bg);max-width:450px;}
+.rp-tabs{display:flex;flex:1;justify-content:center;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--bg);max-width:720px;}
 .rp-tab{flex:1;background:none;border:none;font:inherit;font-size:12.5px;font-weight:700;color:var(--sub);padding:8px 4px;cursor:pointer;transition:all .15s;white-space:nowrap;}
 .rp-tab.active{background:var(--green);color:#fff;}
 .rp-tab:hover:not(.active){background:var(--green-soft);color:var(--green-deep);}
@@ -50,8 +50,7 @@ a{color:inherit;text-decoration:none;}
 @media(max-width:660px){.rp-tabs,.rp-case-badge{display:none;}}
 
 /* ═══ 레이아웃 ═══ */
-.rp-layout{display:grid;grid-template-columns:56px 1fr;min-height:calc(100vh - 52px);}
-@media(max-width:660px){.rp-layout{grid-template-columns:1fr;}.rp-sidebar{display:none;}}
+.rp-layout{display:grid;grid-template-columns:1fr;min-height:calc(100vh - 52px);} /* 좌측 사이드바 제거(2026-07-26 창업자 지시) — 섹션 이동은 상단 nav로 일원화 */
 /* 초광폭 화면에서 본문이 무한정 늘어나 표·사진이 기형적으로 보이는 문제 방지:
    리포트 본문은 최대 1200px로 제한하고 중앙 정렬, 남는 영역은 배경색으로 둔다. */
 #rpMain{max-width:1200px;width:100%;margin:0 auto;background:var(--bg);box-shadow:0 0 0 1px var(--line);}
@@ -424,9 +423,12 @@ h1,h2,h3,h4{font-family:var(--font-head)}
   <a href="bidcast.html" aria-label="신호등옥션 홈"><span class="logo-mark"><i class="tl r"></i><i class="tl y"></i><i class="tl g"></i></span></a>
   <span class="rp-case-badge" id="rpCaseBadge">로딩중…</span>
   <nav class="rp-tabs" id="rpTabs" aria-label="섹션 이동">
-    <button class="rp-tab" type="button" onclick="sbGo('sec-info')">물건정보</button>
+    <button class="rp-tab" type="button" onclick="sbGo('rp-hero')">물건정보</button>
+    <button class="rp-tab" type="button" onclick="sbGo('sec-tenancy')">임대차·권리</button>
     <button class="rp-tab" type="button" onclick="sbGo('sec-hist')">입찰이력</button>
-    <button class="rp-tab" type="button" onclick="sbGo('sec-analysis')">🚦 분석</button>
+    <button class="rp-tab" type="button" onclick="sbGo('sec-ai')">🚦 AI예측</button>
+    <button class="rp-tab" type="button" onclick="sbGo('sec-rtms')">시세·마진</button>
+    <button class="rp-tab" type="button" onclick="sbGo('sec-agents')">전문가</button>
     <button class="rp-tab" type="button" onclick="sbGo('sec-sim')">유사물건</button>
   </nav>
   <div class="rp-hr" id="rpNavRight">
@@ -482,21 +484,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 <!-- ══ 전체 레이아웃 ══ -->
 <div class="rp-layout">
 
-  <!-- 사이드바 -->
-  <aside class="rp-sidebar" aria-label="섹션 이동">
-    <button class="sb-btn" type="button" title="요약" onclick="sbGo('rp-hero')">🏠</button>
-    <button class="sb-btn" type="button" title="물건정보" onclick="sbGo('rp-hero')">📊</button>
-    <button class="sb-btn" type="button" title="사진" onclick="sbGo('sec-gallery')">📷</button>
-    <div class="sb-sep"></div>
-    <button class="sb-btn" type="button" title="기본정보" onclick="sbGo('sec-info')">📋</button>
-    <button class="sb-btn" type="button" title="입찰이력" onclick="sbGo('sec-hist')">📅</button>
-    <button class="sb-btn" type="button" title="🚦 신호등옥션 분석" onclick="sbGo('sec-analysis')">🚦</button>
-    <button class="sb-btn" type="button" title="AI 예상 낙찰가" onclick="sbGo('sec-ai')">🤖</button>
-    <button class="sb-btn" type="button" title="AI 전문가 분석" onclick="sbGo('sec-agents')">⚖️</button>
-    <div class="sb-sep"></div>
-    <button class="sb-btn" type="button" title="위치·사진" onclick="sbGo('sec-gallery')">📍</button>
-    <button class="sb-btn" type="button" title="유사 물건" onclick="sbGo('sec-sim')">🔍</button>
-  </aside>
+  <!-- (좌측 사이드바 제거 — 2026-07-26 창업자 지시. 섹션 이동은 상단 nav 앵커로 일원화) -->
 
   <!-- 메인 콘텐츠 -->
   <main id="rpMain">
@@ -861,13 +849,12 @@ function setNaverAddr(addr){
   // 이미 단지명 쿼리를 확보했다면, 나중에 온 지번(단지명 없는 lotAddr)이 격하시키지 않게 유지
   if(!b&&window.__naverAddr&&/(아파트|오피스텔|빌라|맨션|타운)/.test(window.__naverAddr))return;
   window.__naverAddr=q;
-  const a=document.getElementById('naverLandLink');
-  if(a)a.href=naverLandUrl(q);
 }
-// 네이버 연결 — new.land ?query=(딥링크 미지원)·m.land /search/result/(소규모 단지·"경기도" 풀행정명에서
-// "검색결과 없음" 실사례 2건) 모두 실클릭 실패 → 항상 결과가 나오는 네이버 통합검색으로 최종 전환.
-// 통합검색은 단지·주소 쿼리에 부동산 카드(시세·매물 → 네이버부동산 진입)를 띄워 호가 확인 동선이 이어짐.
-function naverLandUrl(q){return 'https://search.naver.com/search.naver?query='+encodeURIComponent(q+' 부동산');}
+// 네이버 연결 — 딥링크 실클릭 3회 실패(new.land ?query= 미지원, m.land 검색결과 없음 2건) 후 창업자 결정:
+// 온비드 공고보기와 동일 패턴으로 "네이버 부동산 홈만 열고 검색어(주소·단지명) 자동 복사" — 붙여넣기만 하면 됨.
+function copyNaverQ(){
+  try{const q=window.__naverAddr;if(q&&navigator.clipboard)navigator.clipboard.writeText(q).catch(()=>{});}catch(e){}
+}
 // 온비드 공고 원문은 물건별 딥링크(GET URL)를 제공하지 않음(세션/POST 기반) — 클릭 시 물건관리번호를
 // 자동 복사해 온비드 검색창에 바로 붙여넣을 수 있게 하는 반자동 연결(정직한 차선책).
 function copyCltrNo(){
@@ -1649,9 +1636,9 @@ if(isLive&&liveItem){
       // 네이버 부동산 아웃바운드 링크 — 사용자가 호가와 직접 교차 검증(스크래핑 금지 원칙상 링크만).
       // 상세 API의 번지 주소(lotAddr)가 이미 도착했으면 그 지점으로 바로 이동, 아니면 동 단위 폴백.
       // (호·층은 네이버 검색이 못 받으므로 제거 — 지도 지오코딩과 동일한 정제 규칙.)
-      // 폴백도 시도 제거("경기도 안성시 중리동"은 m.land 검색결과 없음 — 실사례) → "안성시 중리동"
-      const naverQ=(window.__naverAddr||[sgg,emd].filter(Boolean).join(' '));
-      const naverLink=`<a id="naverLandLink" href="${naverLandUrl(naverQ)}" target="_blank" rel="noopener" style="font-size:12px;font-weight:700;color:var(--green-deep);">네이버 부동산에서 호가 확인 ↗</a>`;
+      // 검색어 폴백(시도 제거 "안성시 중리동") 확보 — 클릭 시 네이버 부동산 열기 + 검색어 자동 복사(온비드 공고보기와 동일 패턴)
+      if(!window.__naverAddr)window.__naverAddr=[sgg,emd].filter(Boolean).join(' ');
+      const naverLink=`<a id="naverLandLink" href="https://new.land.naver.com" target="_blank" rel="noopener" onclick="copyNaverQ()" title="클릭 시 검색어(주소·단지명)가 복사됩니다 — 네이버 부동산 검색창에 붙여넣으세요" style="font-size:12px;font-weight:700;color:var(--green-deep);">네이버 부동산에서 호가 확인 ↗ <span style="font-weight:600;font-size:11px;color:var(--sub);">(검색어 자동 복사)</span></a>`;
 
       const KIND={apt_trade_dev:'apt',offi_trade:'offi',rh_trade:'rh',sh_trade:'sh'}[svc];
       if(KIND){
