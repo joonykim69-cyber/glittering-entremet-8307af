@@ -547,7 +547,8 @@ h1,h2,h3,h4{font-family:var(--font-head)}
         <div class="ob-nrow"><span class="nk">공고기관</span><span class="nv" id="obOrg">—</span></div>
         <div class="ob-nrow" id="obKindRow" style="display:none;"><span class="nk">공고유형</span><span class="ob-chip kind" id="obKind"></span><span id="obDateWrap" style="display:none;"><span class="nk" style="margin-left:10px;">공고일</span> <span class="nv" id="obDate"></span></span></div>
         <div class="ob-nrow" id="obFeeRow" style="display:none;"><span class="nk">참가수수료</span><span class="nv" id="obFee">—</span></div>
-        <div class="ob-nrow" id="obFileRow" style="display:none;"><span class="nk">관련문서</span><span class="nv" id="obFile" style="display:flex;flex-wrap:wrap;gap:4px 12px;"></span></div>
+        <div class="ob-nrow" id="obFileRow" style="display:none;"><span class="nk">관련문서</span><span class="nv" id="obFile" style="display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;"></span></div>
+        <div class="ob-nrow" id="docSumRow" style="display:none;flex-direction:column;align-items:stretch;gap:6px;"><div id="docSumBox" style="font-size:12.5px;line-height:1.7;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 14px;white-space:pre-wrap;word-break:break-word;"></div></div>
         <div class="ob-nrow" style="flex-direction:column;align-items:flex-start;gap:3px;">
           <a id="obPbancLink" href="https://www.onbid.co.kr" target="_blank" rel="noopener" onclick="copyCltrNo()" style="font-weight:800;color:var(--green-deep);">📄 온비드에서 공고 원문 조회 → <span style="font-weight:600;font-size:11px;color:var(--sub);">(클릭 시 물건관리번호 자동 복사)</span></a>
           <span style="font-size:11px;color:var(--mute);">온비드는 물건별 바로가기 주소를 제공하지 않아, 복사된 물건관리번호를 온비드 검색창에 붙여넣으면 바로 조회됩니다.</span>
@@ -875,6 +876,32 @@ function deepFiles(o,out,depth){
   Object.values(o).forEach(v=>{if(v&&typeof v==='object')deepFiles(v,out,depth+1);});
   return out;
 }
+// 관련문서 AI 정리 — 온비드 PDF만 대상(doc-extract 프록시가 호스트를 재검증). 문서당 1회 캐시.
+// 스캔본·HWP는 정직하게 "원문 열람" 안내(추측 요약 금지).
+function docAiBtn(url){
+  if(!/\.pdf([?#]|$)/i.test(String(url)))return '';
+  return ` <button type="button" onclick="docSummary('${String(url).replace(/'/g,'%27').replace(/"/g,'&quot;')}',this)" style="font:inherit;font-size:10.5px;font-weight:800;color:var(--green-deep);background:var(--green-soft);border:1px solid var(--green);border-radius:999px;padding:2px 9px;cursor:pointer;">📖 AI 정리</button>`;
+}
+async function docSummary(url,btn){
+  const row=document.getElementById('docSumRow'),box=document.getElementById('docSumBox');
+  if(!row||!box)return;
+  row.style.display='flex';
+  box.textContent='문서를 읽고 있습니다… (첫 요청은 20~30초 걸릴 수 있어요)';
+  if(btn)btn.disabled=true;
+  try{
+    const r=await fetch(`/.netlify/functions/doc-extract?summarize=1&url=${encodeURIComponent(url)}`);
+    const d=await r.json();
+    if(d&&d.status==='ok'&&d.summary){
+      box.textContent=`📖 문서 AI 정리 (${d.pages||'?'}쪽 · 기재 사실만)\n\n${d.summary}\n\n※ ${d.disclaimer||'원문 열람을 대체하지 않으며 법률 자문이 아닙니다.'}`;
+    }else if(d&&(d.status==='scan'||d.status==='unsupported')){
+      box.textContent=`ℹ️ ${d.message||'이 문서는 자동 정리를 지원하지 않습니다 — 온비드에서 원문을 열람하세요.'}`;
+    }else{
+      box.textContent='⚠️ 문서 정리에 실패했습니다 — 링크에서 원문을 직접 열람하세요.'+(d&&d.error?` (${String(d.error.message||'').slice(0,80)})`:'');
+    }
+  }catch(e){box.textContent='⚠️ 문서 정리에 실패했습니다 — 링크에서 원문을 직접 열람하세요.';}
+  finally{if(btn)btn.disabled=false;}
+}
+
 // 임대차/등기/점유 그룹 카드 — 카테고리당 카드 1장: 첫 항목만 보이고 "전체 보기"로 나머지 펼침.
 let __grpSeq=0;
 function groupCard(rl,ico,title,items,cls){
@@ -1445,7 +1472,7 @@ if(isLive&&liveItem){
                   const nm=String(f.fileNm||f.atchFileNm||f.orgnlFileNm||('첨부파일 '+(i+1))).replace(/</g,'&lt;');
                   const u=f.urlAdr||f.fileDwldUrl||'';
                   return /^https?:\/\//.test(u)
-                    ? `<a href="${String(u).replace(/"/g,'&quot;')}" target="_blank" rel="noopener" style="color:var(--green-deep);font-weight:700;">📎 ${nm}</a>`
+                    ? `<span style="display:inline-flex;align-items:center;gap:4px;"><a href="${String(u).replace(/"/g,'&quot;')}" target="_blank" rel="noopener" style="color:var(--green-deep);font-weight:700;">📎 ${nm}</a>${docAiBtn(u)}</span>`
                     : `<span style="color:var(--sub);">📎 ${nm}</span>`;
                 }).join('');
                 if(html){document.getElementById('obFile').innerHTML=html;document.getElementById('obFileRow').style.display='';}
@@ -1478,7 +1505,7 @@ if(isLive&&liveItem){
         if(docs.length){
           const seen=new Set();
           const html=docs.filter(d=>{if(seen.has(d.url))return false;seen.add(d.url);return true;}).slice(0,6)
-            .map(d=>`<a href="${String(d.url).replace(/"/g,'&quot;')}" target="_blank" rel="noopener" style="color:var(--green-deep);font-weight:700;">📎 ${String(d.name).replace(/</g,'&lt;')}</a>`).join('');
+            .map(d=>`<span style="display:inline-flex;align-items:center;gap:4px;"><a href="${String(d.url).replace(/"/g,'&quot;')}" target="_blank" rel="noopener" style="color:var(--green-deep);font-weight:700;">📎 ${String(d.name).replace(/</g,'&lt;')}</a>${docAiBtn(d.url)}</span>`).join('');
           const fe=document.getElementById('obFile');
           if(html&&fe){fe.insertAdjacentHTML('beforeend',html);document.getElementById('obFileRow').style.display='';}
         }
