@@ -877,7 +877,10 @@ function buildLiveDetail(s) {
     type:s.type||'기타',region:s.region||'',court:s.court||'',title:s.title,
     address:s.address||'',appr:s.appr,min:s.min,fail:s.fail||0,status:s.status||'진행',
     thumb:s.thumb||'📦',caseNo:s.caseNo||String(s.id),photo:s.photo||'',
-    period:'물건상세 API 연동 후 제공',landArea:'공고 원문 확인',bldArea:'공고 원문 확인',
+    period:'물건상세 API 연동 후 제공',
+    // 면적은 온비드 목록 실측(landAr 토지·bldgAr 건물, ㎡). 없으면 공고 원문 확인 안내.
+    landArea:Number(s.landAr)>0?`${s.landAr}㎡`:'공고 원문 확인',
+    bldArea:Number(s.bldgAr)>0?`${s.bldgAr}㎡`:'공고 원문 확인',
     usage:s.type||'—',floor:'—',built:'—',
     bidType:'공매(온비드)',deposit:Math.round(s.min*0.1),claim:0,
     startDate:'—',apprDate:'—',divDate:'—',saleDate:'—',
@@ -1494,12 +1497,13 @@ if(isLive&&liveItem){
           // 신뢰도 '참고 수준'이거나 AI 예상 구간이 없으면 마진은 만들지 않는다(찍지 않기).
           const canMargin=(ai.lo>0&&ai.hi>0&&(me.confidence==='높음'||me.confidence==='보통'));
           window.__mkt={p25:me.perM2.p25,p50:me.perM2.p50,p75:me.perM2.p75};
+          const bldgAr=Number(liveItem.bldgAr)||0; // 온비드 목록 실측 건물면적(㎡) — 있으면 자동 채움
           const marginBox=canMargin?`
             <div style="margin-top:12px;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:12px;">
               <div style="font-size:13px;font-weight:800;margin-bottom:8px;">💰 예상 마진 여력 <span style="color:var(--mute);font-weight:600;">= 추정 시세 − 예상 낙찰가 − 취득비용</span></div>
               <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;">
-                전용면적 <input id="mgnArea" type="number" inputmode="decimal" placeholder="㎡ 입력" style="width:110px;font:inherit;font-size:13px;padding:6px 10px;border:1.5px solid var(--line);border-radius:8px;"> ㎡
-                <span style="color:var(--mute);font-size:11.5px;">온비드가 면적을 제공하지 않아 직접 입력해야 합니다(공고문·감정평가서 확인)</span>
+                면적 <input id="mgnArea" type="number" inputmode="decimal" placeholder="㎡ 입력"${bldgAr>0?` value="${bldgAr}"`:''} style="width:110px;font:inherit;font-size:13px;padding:6px 10px;border:1.5px solid var(--line);border-radius:8px;"> ㎡
+                <span style="color:var(--mute);font-size:11.5px;">${bldgAr>0?'온비드 건물면적 자동 입력 — 전용면적이 다르면 수정하세요':'공고문·감정평가서의 전용면적을 입력하세요'}</span>
               </div>
               <div id="mgnOut" style="margin-top:10px;"></div>
               <div style="font-size:11px;color:var(--mute);margin-top:8px;">※ 취득비용 가정 = 낙찰가 × 1.5% + 300만원(취득세·경비). 시세·낙찰가 모두 추정 <b>범위</b>이며 실제와 다를 수 있습니다 — <b>수익 보장이 아닙니다.</b></div>

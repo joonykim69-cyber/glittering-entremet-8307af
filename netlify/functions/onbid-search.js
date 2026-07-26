@@ -124,6 +124,10 @@ function mapOnbidItem(raw, idx) {
     // 입찰 기간 (Swagger 확인 필드, yyyyMMddHHmm 문자열) — 캘린더 집계·마감임박 표시용
     bidStart: raw.cltrBidBgngDt || '',
     bidEnd: raw.cltrBidEndDt || '',
+    // 면적 (㎡) — 목록 API 실측 필드(landSqms 토지·bldSqms 건물). fieldKeys 진단으로 2026-07-26 확인.
+    // 상세 페이지 면적 표시 + 마진 위젯 자동 채움 + market-est 총액 시세 산출에 사용.
+    landAr: Number(raw.landSqms) || 0,
+    bldgAr: Number(raw.bldSqms) || 0,
   };
 }
 
