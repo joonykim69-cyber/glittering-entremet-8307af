@@ -105,11 +105,19 @@ exports.handler = async (event) => {
       if (t.amt > 0 && t.area > 0) { t.ym = mr.ym; all.push(t); }
     }
 
-    // ② 매칭 정밀화 — 단지명 부분일치 · 면적 ±20%
+    // ② 매칭 정밀화 — 단지명 부분일치 · 면적 적응형 밴드
+    // 은마 교차 검증(2026-07-26 네이버 호가 대조)에서 ±20% 밴드가 인접 평형(76.79㎡)을
+    // 섞어 84㎡ 총액 상단을 ~3% 부풀리는 편향 확인 → 동일 평형(±5%) 표본이 5건 이상이면
+    // 그것만 쓰고, 부족할 때만 ±20%로 넓힌다(표본 부족 시 통계 포기보다 넓은 밴드가 정직).
     let matched = all;
     const nameMatched = !!nameQ;
     if (nameQ) matched = matched.filter(t => t.name && t.name.indexOf(nameQ) >= 0);
-    if (areaQ > 0) matched = matched.filter(t => t.area >= areaQ * 0.8 && t.area <= areaQ * 1.2);
+    let areaMode = null;
+    if (areaQ > 0) {
+      const tight = matched.filter(t => Math.abs(t.area - areaQ) <= areaQ * 0.05);
+      if (tight.length >= 5) { matched = tight; areaMode = 'tight'; }
+      else { matched = matched.filter(t => t.area >= areaQ * 0.8 && t.area <= areaQ * 1.2); areaMode = 'wide'; }
+    }
 
     // ③ 시점 보정 — 부동산원 지수 12개월 변동에서 월복리율 도출(가능할 때만)
     let adjust = { applied: false };
@@ -146,7 +154,11 @@ exports.handler = async (event) => {
     const common = {
       status: 'ok', kind: kindKey, kindLabel: kind.label, lawd,
       window: { from: mm[mm.length - 1], to: mm[0], months },
-      filter: { name: nameQ || null, areaBand: areaQ > 0 ? `${(areaQ * 0.8).toFixed(1)}~${(areaQ * 1.2).toFixed(1)}㎡` : null },
+      filter: {
+        name: nameQ || null,
+        areaBand: areaQ > 0 ? (areaMode === 'tight' ? `동일 평형 ±5% (${(areaQ * 0.95).toFixed(1)}~${(areaQ * 1.05).toFixed(1)}㎡)` : `±20% (${(areaQ * 0.8).toFixed(1)}~${(areaQ * 1.2).toFixed(1)}㎡ — 동일 평형 표본 부족)`) : null,
+        areaMode,
+      },
       sample: { n: matched.length, rawN: all.length, monthsWithData: monthResults.filter(m => m.items.length).length },
       adjust,
       notice: '참고용 시세 추정입니다 — 투자 자문이 아니며, 최근 1~2개월 실거래는 신고 지연으로 일부 누락될 수 있습니다.',
