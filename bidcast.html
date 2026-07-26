@@ -233,6 +233,18 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 /* ═══ 엔진 자가진단 섹션 ═══ */
 .es-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:26px}
 @media (max-width:760px){.es-grid{grid-template-columns:1fr}}
+/* ═══ 살아있는 성적표 다크 밴드 (2026-07-26 랜딩 다이어트 2단계) — 페이지 유일의 다크 앵커.
+   흰 카드(labcard·es-card)는 다크 배경 위에서 그대로 대비를 만들고, 텍스트만 라이트로 반전. ═══ */
+#lab{background:linear-gradient(150deg,#0E2A1F 0%,#0C3524 60%,#0E2A1F 100%);border-top:1px solid #173B2C;border-bottom:1px solid #173B2C}
+#lab .kicker{color:#5CC98D}
+#lab .h2{color:#fff}
+#lab .sub{color:rgba(255,255,255,.74)}
+#lab .pointrow b{color:#5CC98D}
+#lab .pointrow span{color:rgba(255,255,255,.62)}
+#lab .metric b{color:#7BDCA8}
+#lab .metric span{color:rgba(255,255,255,.58)}
+#lab .metric{border-left-color:rgba(255,255,255,.12)}
+#lab .es-note{color:rgba(255,255,255,.55)}
 .es-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;gap:8px}
 .es-card .es-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .es-card .es-name{font-size:14px;font-weight:800;color:var(--ink)}
@@ -366,6 +378,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 <h1>지금 들어가도 될까?<br>AI가 신호로 알려드립니다</h1>
 <p class="sub" style="max-width:600px;font-size:17px">부동산만이 아닙니다. 차량·동산·기계장비·유가증권까지 — 온비드 공매 전 자산군의 과거 낙찰 데이터를 학습한 예측 엔진이 예상 낙찰가 범위와 입찰 신호를 보여드립니다.</p>
 <div style="display:flex;gap:12px"><button class="btn btn-cta" type="button" onclick="openAuth('signup')">사전 알림 신청하기</button><a class="btn btn-ghost" href="bidcast-list.html">예측 검색 해보기</a></div>
+<div id="heroTicker" style="display:none;font-size:13px;font-weight:700;color:var(--green-deep);background:var(--green-soft);border:1px solid #C4EBD8;border-radius:999px;padding:8px 18px;max-width:640px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;transition:opacity .25s"></div>
 <p class="disclaimer">※ 예측 정보는 과거 낙찰 데이터 기반의 통계적 참고자료이며, 입찰 결과를 보장하지 않습니다.</p>
 <div class="mock" aria-hidden="true">
 <div class="mock-top">
@@ -487,7 +500,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 </div></section>
 
 <!-- ═══ 살아있는 성적표 — 성적(랩)·핵심 지표·엔진 자가진단 통합 밴드 (2026-07-26 랜딩 다이어트) ═══ -->
-<section class="section" id="lab" style="background:var(--surface);border-top:1px solid var(--line);border-bottom:1px solid var(--line)"><div class="wrap split">
+<section class="section" id="lab"><div class="wrap split">
 <div class="txt">
 <span class="kicker">LIVE SCOREBOARD</span>
 <h2 class="h2">예측 성적표를 그대로 공개합니다</h2>
@@ -1442,6 +1455,43 @@ async function loadHeroBoard() {
   }
 }
 loadHeroBoard();
+
+// ═══ 히어로 라이브 티커 (2026-07-26 랜딩 다이어트 3단계) — 봉인·채점·주목 물건 실데이터 문장 롤링.
+// 실데이터가 하나도 없으면 표시하지 않는다(가짜 티커 금지 — 정직성).
+(async function heroTicker() {
+  const el = document.getElementById('heroTicker'); if (!el) return;
+  const msgs = [];
+  try {
+    const [sb, cu] = await Promise.allSettled([
+      fetch('/.netlify/functions/scoreboard').then(r => r.ok ? r.json() : null),
+      fetch('/.netlify/functions/curated').then(r => r.ok ? r.json() : null),
+    ]);
+    const s = sb.status === 'fulfilled' ? sb.value : null, c = cu.status === 'fulfilled' ? cu.value : null;
+    if (s && s.runs && s.runs.predict && s.runs.predict.ok && Number(s.runs.predict.sealed) > 0) {
+      msgs.push(`🔒 오늘 AI가 낙찰가 예측 ${Number(s.runs.predict.sealed).toLocaleString()}건을 개찰 전에 봉인했습니다`);
+    }
+    if (s && s.summary && Number(s.summary.n) > 0) {
+      msgs.push(`📊 개찰 결과 ${Number(s.summary.n).toLocaleString()}건 전수 채점 — 구간 적중률 ${s.summary.hitRate}% 실측 공개 중`);
+    }
+    if (c && Array.isArray(c.items) && c.items.length) {
+      const kst = new Date(Date.now() + 9 * 3600000);
+      const todayN = c.items.filter(x => {
+        const t = String(x.bidEnd || '');
+        return t.length >= 8 && +t.slice(0, 4) === kst.getUTCFullYear() && +t.slice(4, 6) === kst.getUTCMonth() + 1 && +t.slice(6, 8) === kst.getUTCDate();
+      }).length;
+      if (todayN > 0) msgs.push(`⏰ 오늘 개찰 마감 주목 물건 ${todayN}건 — 아래에서 바로 확인하세요`);
+      else msgs.push(`🚦 엔진이 마감 임박 물건을 분석해 오늘의 주목 물건 ${c.count || c.items.length}건을 추렸습니다`);
+    }
+  } catch (e) { /* degrade — 티커 미표시 */ }
+  if (!msgs.length) return;
+  let ti = 0;
+  el.textContent = msgs[0]; el.style.display = '';
+  if (msgs.length > 1) setInterval(() => {
+    ti = (ti + 1) % msgs.length;
+    el.style.opacity = '0';
+    setTimeout(() => { el.textContent = msgs[ti]; el.style.opacity = '1'; }, 250);
+  }, 4500);
+})();
 
 // ═══ 오늘의 주목 물건 (큐레이션) — curated/latest 실데이터 + 관심 프로필 개인화 ═══
 const CURATE_TYPES = ['아파트', '오피스텔', '단독주택', '연립다세대', '토지', '상가', '사무실', '공장창고', '농지임야', '차량'];
