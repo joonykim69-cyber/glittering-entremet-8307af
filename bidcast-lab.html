@@ -268,6 +268,17 @@ h1,h2,h3,h4{font-family:var(--font-head)}
   </div>
 </section>
 
+<!-- 큐레이션 성적 — "오늘의 주목 물건"이 개찰 후 실제로 어땠나 (curatedScore, 실데이터 있을 때만) -->
+<section class="section" id="curatedScoreSec" style="padding-top:0; display:none;">
+  <div class="wrap">
+    <span class="eyebrow">Curation Scorecard</span>
+    <h2 class="title">주목 물건은 개찰 후 어땠나</h2>
+    <p class="lead">랜딩 "오늘의 주목 물건"으로 우리가 뽑은 물건들이 개찰 후 실제로 어떻게 됐는지 추적합니다. <b>추천이나 수익 주장이 아니라</b>, 우리 선별 신호(할인·유찰·저평가 여력)가 사후 결과와 얼마나 부합했는지의 정직한 기록입니다 — 남들은 추천만 하고 끝나지만 우리는 그 추천의 사후 성적까지 공개합니다.</p>
+    <div class="asset-acc-grid" id="curatedScoreGrid" style="grid-template-columns:repeat(4,1fr);"></div>
+    <p class="foot-note" id="curatedScoreFoot"></p>
+  </div>
+</section>
+
 <!-- 기각된 모델 기록 — 실패도 숨기지 않는다는 원칙의 실물 증거(정적 사실 기록, 2026-07-26) -->
 <section class="section" style="padding-top:0;">
   <div class="wrap">
@@ -531,6 +542,20 @@ document.addEventListener('keydown', (e) => {
 
     // ── 적중률 추이 실측화 (scoreboard.daily) ──
     if (d.daily) renderTrend(d.daily);
+
+    // ── 큐레이션 성적 실측화 (curatedScore, 표본 있을 때만 노출) ──
+    if (d.curatedScore && d.curatedScore.n > 0) {
+      const cs = d.curatedScore, grid = document.getElementById('curatedScoreGrid');
+      const cell = (lbl, val, note) => `<div class="asset-acc"><h4>${lbl}</h4><div class="pct">${val}</div><div class="note">${note}</div></div>`;
+      grid.innerHTML =
+        cell('추적 물건', cs.n.toLocaleString() + '건', '개찰 종결된 주목 물건') +
+        cell('낙찰률', cs.soldRate + '%', `낙찰 ${cs.sold} · 유찰 ${cs.failed} · 취소 ${cs.canceled}`) +
+        cell('평균 낙찰가율', cs.avgWinRate != null ? cs.avgWinRate + '%' : '—', '낙찰가 ÷ 감정가 (저평가 신호 검증)') +
+        cell('AI 구간 적중', cs.bandHitRate != null ? cs.bandHitRate + '%' : '—', '낙찰가가 예상 구간 안에 든 비율');
+      document.getElementById('curatedScoreFoot').innerHTML =
+        '✅ 실측 — 개찰 전 뽑은 주목 물건을 사후 추적(봉인 채점과 같은 파이프라인·1회 집계). 낙찰가율이 낮을수록 "할인·저평가" 신호가 실제로 들어맞은 것입니다. 분석 주목도의 사후 부합도이며 투자 수익 주장이 아닙니다.';
+      document.getElementById('curatedScoreSec').style.display = '';
+    }
 
     // ── 오차 범위별 예측 비율 실측화 (표본 있을 때만 예시→실측 교체) ──
     if (d.errDist && d.errDist.n > 0) {
