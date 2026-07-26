@@ -414,7 +414,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
       <label style="font-size:13px;color:var(--sub)">예산(최저가) <select id="prefBudget" style="margin-left:4px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface)"></select></label>
     </div>
   </div>
-  <div id="curatedGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px"></div>
+  <div id="curatedGrid"></div>
   <p style="color:var(--mute);font-size:12px;margin:16px 0 0" id="curatedFoot"></p>
 </div></section>
 
@@ -1537,12 +1537,35 @@ async function loadCurated() {
     const hit = d.items.filter(match);
     const used = hit.length ? hit : d.items;
     const sorted = used.slice().sort((a, b) => b.score - a.score);
-    document.getElementById('curatedGrid').innerHTML = sorted.map(card).join('');
+
+    // 자산군별로 묶어 각 3개만 미리보기 + "더 보기"로 그 분야 전체 펼침(한 번에 압도 방지).
+    const GRID = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px';
+    const ORDER = ['부동산', '자동차', '동산'], PREVIEW = 3;
+    const groups = {};
+    sorted.forEach(it => { const k = it.assetClass || '기타'; (groups[k] = groups[k] || []).push(it); });
+    const keys = [...ORDER.filter(k => groups[k]), ...Object.keys(groups).filter(k => !ORDER.includes(k))];
+    let html = '';
+    keys.forEach((k, gi) => {
+      const arr = groups[k];
+      html += `<div style="display:flex;align-items:center;gap:8px;margin:${gi ? '24px' : '4px'} 0 12px">`
+        + `<b style="font-size:15px">${escHtml(k)}</b><span class="chip chip-demo">${arr.length}건</span></div>`;
+      html += `<div style="${GRID}">${arr.slice(0, PREVIEW).map(card).join('')}</div>`;
+      if (arr.length > PREVIEW) {
+        html += `<div class="cur-more" data-g="${gi}" style="${GRID};display:none;margin-top:14px">${arr.slice(PREVIEW).map(card).join('')}</div>`
+          + `<button class="cur-morebtn" data-g="${gi}" style="margin-top:12px;font-size:13px;font-weight:700;color:var(--green-deep);background:var(--green-soft);border:none;border-radius:10px;padding:9px 16px;cursor:pointer">${escHtml(k)} ${arr.length - PREVIEW}건 더 보기 ▾</button>`;
+      }
+    });
+    document.getElementById('curatedGrid').innerHTML = html;
     document.querySelectorAll('#curatedGrid .mcard-live[data-id]').forEach(el => {
       const id = el.getAttribute('data-id'); if (!id) return;
       const go = () => { const s = snaps[id]; if (s) { try { sessionStorage.setItem('bidcast:detail', JSON.stringify(s)); } catch (e) {} } location.href = 'bidcast-detail.html?id=' + encodeURIComponent(id); };
       el.addEventListener('click', go);
       el.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+    });
+    document.querySelectorAll('#curatedGrid .cur-morebtn').forEach(btn => btn.onclick = () => {
+      const g = btn.getAttribute('data-g');
+      const more = document.querySelector(`#curatedGrid .cur-more[data-g="${g}"]`);
+      if (more) { more.style.display = 'grid'; btn.style.display = 'none'; }
     });
     const foot = document.getElementById('curatedFoot');
     if (foot) {
