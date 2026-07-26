@@ -44,6 +44,7 @@ function mapTrade(x) {
     y: num(x.dealYear), m: num(x.dealMonth), dd: num(x.dealDay),
     floor: num(x.floor) || null,
     dong: x.umdNm || '',
+    built: num(x.buildYear) || null,
   };
 }
 
@@ -140,7 +141,7 @@ exports.handler = async (event) => {
     const trades = matched
       .sort((a, b) => (b.y * 100 + b.m) - (a.y * 100 + a.m))
       .slice(0, 40)
-      .map(t => ({ ym: `${t.y}.${String(t.m).padStart(2, '0')}`, name: t.name, dong: t.dong, area: t.area, floor: t.floor, amt: t.amt, perM2: t.perM2, ...(t.perM2Adj ? { perM2Adj: t.perM2Adj } : {}) }));
+      .map(t => ({ ym: `${t.y}.${String(t.m).padStart(2, '0')}`, name: t.name, dong: t.dong, area: t.area, floor: t.floor, built: t.built, amt: t.amt, perM2: t.perM2, ...(t.perM2Adj ? { perM2Adj: t.perM2Adj } : {}) }));
 
     const common = {
       status: 'ok', kind: kindKey, kindLabel: kind.label, lawd,

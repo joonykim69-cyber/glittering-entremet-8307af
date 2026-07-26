@@ -66,8 +66,12 @@ function xmlItems(xml) {
   const out = [];
   const blocks = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
   for (const b of blocks) {
+    // ⚠️ 반드시 <item> 래퍼를 벗기고 필드 매칭할 것 — 래퍼째로 매칭하면 필드 정규식이
+    // <item>…</item> 전체를 "item"이라는 단일 필드로 삼켜 {item:"<원시XML>"}이 된다.
+    // (2026-07-26 market-est 프로브에서 발견 — 상세 페이지 주변 실거래 미표시의 근본 원인)
+    const inner = b.replace(/^<item>/, '').replace(/<\/item>$/, '');
     const obj = {};
-    const fields = b.match(/<([A-Za-z_][\w]*)>([\s\S]*?)<\/\1>/g) || [];
+    const fields = inner.match(/<([A-Za-z_][\w]*)>([\s\S]*?)<\/\1>/g) || [];
     for (const f of fields) {
       const m = f.match(/<([A-Za-z_][\w]*)>([\s\S]*?)<\/\1>/);
       if (m) obj[m[1]] = xmlText(m[2]);
