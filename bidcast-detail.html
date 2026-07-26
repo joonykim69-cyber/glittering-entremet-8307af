@@ -559,7 +559,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
         <div class="ob-nrow"><span class="nk">공고기관</span><span class="nv" id="obOrg">—</span></div>
         <div class="ob-nrow" id="obKindRow" style="display:none;"><span class="nk">공고유형</span><span class="ob-chip kind" id="obKind"></span><span id="obDateWrap" style="display:none;"><span class="nk" style="margin-left:10px;">공고일</span> <span class="nv" id="obDate"></span></span></div>
         <div class="ob-nrow" id="obFeeRow" style="display:none;"><span class="nk">참가수수료</span><span class="nv" id="obFee">—</span></div>
-        <div class="ob-nrow" id="obFileRow" style="display:none;"><span class="nk">첨부파일</span><span class="nv" id="obFile" style="display:flex;flex-wrap:wrap;gap:4px 12px;"></span></div>
+        <div class="ob-nrow" id="obFileRow" style="display:none;"><span class="nk">관련문서</span><span class="nv" id="obFile" style="display:flex;flex-wrap:wrap;gap:4px 12px;"></span></div>
         <div class="ob-nrow" style="flex-direction:column;align-items:flex-start;gap:3px;">
           <a id="obPbancLink" href="https://www.onbid.co.kr" target="_blank" rel="noopener" onclick="copyCltrNo()" style="font-weight:800;color:var(--green-deep);">📄 온비드에서 공고 원문 조회 → <span style="font-weight:600;font-size:11px;color:var(--sub);">(클릭 시 물건관리번호 자동 복사)</span></a>
           <span style="font-size:11px;color:var(--mute);">온비드는 물건별 바로가기 주소를 제공하지 않아, 복사된 물건관리번호를 온비드 검색창에 붙여넣으면 바로 조회됩니다.</span>
@@ -864,13 +864,29 @@ function setNaverAddr(addr){
   const a=document.getElementById('naverLandLink');
   if(a)a.href=naverLandUrl(q);
 }
-// 네이버 부동산 키워드 딥링크 — new.land.naver.com은 ?query= 딥링크를 안 받아(지도 기본 화면만 열림)
-// 검색 결과로 바로 이동하는 m.land 검색 경로 사용(데스크톱에서도 동작).
-function naverLandUrl(q){return 'https://m.land.naver.com/search/result/'+encodeURIComponent(q);}
+// 네이버 연결 — new.land ?query=(딥링크 미지원)·m.land /search/result/(소규모 단지·"경기도" 풀행정명에서
+// "검색결과 없음" 실사례 2건) 모두 실클릭 실패 → 항상 결과가 나오는 네이버 통합검색으로 최종 전환.
+// 통합검색은 단지·주소 쿼리에 부동산 카드(시세·매물 → 네이버부동산 진입)를 띄워 호가 확인 동선이 이어짐.
+function naverLandUrl(q){return 'https://search.naver.com/search.naver?query='+encodeURIComponent(q+' 부동산');}
 // 온비드 공고 원문은 물건별 딥링크(GET URL)를 제공하지 않음(세션/POST 기반) — 클릭 시 물건관리번호를
 // 자동 복사해 온비드 검색창에 바로 붙여넣을 수 있게 하는 반자동 연결(정직한 차선책).
 function copyCltrNo(){
   try{const no=window.__ai&&window.__ai.cltrMngNo;if(no&&navigator.clipboard)navigator.clipboard.writeText(no).catch(()=>{});}catch(e){}
+}
+// 관련문서 탐색 — 온비드 상세 응답 전체(raw)에서 문서 파일(pdf/hwp/doc)을 안전 탐색.
+// 필드명이 미확정이라 구조 무관 딥스캔: 같은 객체 안의 http URL + 문서명 짝만 수집(http만 링크 — 날조 금지).
+function deepFiles(o,out,depth){
+  out=out||[];depth=depth||0;
+  if(!o||typeof o!=='object'||depth>6)return out;
+  if(Array.isArray(o)){o.forEach(x=>deepFiles(x,out,depth+1));return out;}
+  const vals=Object.values(o).filter(v=>typeof v==='string');
+  const url=vals.find(v=>/^https?:\/\//.test(v));
+  const nonUrl=vals.filter(v=>!/^https?:\/\//.test(v)); // URL 자신이 이름 후보로 잡히는 것 방지
+  const name=nonUrl.find(v=>/\.(pdf|hwpx?|docx?)$/i.test(v))||nonUrl.find(v=>/(감정평가서|재산명세서|공매재산|공고문)/.test(v)&&v.length<80);
+  if(name&&url)out.push({name:name,url:url});
+  else if(url&&/\.(pdf|hwpx?)([?#]|$)/i.test(url))out.push({name:decodeURIComponent((url.split('/').pop()||'문서').split('?')[0]),url:url});
+  Object.values(o).forEach(v=>{if(v&&typeof v==='object')deepFiles(v,out,depth+1);});
+  return out;
 }
 // 임대차/등기/점유 그룹 카드 — 카테고리당 카드 1장: 첫 항목만 보이고 "전체 보기"로 나머지 펼침.
 let __grpSeq=0;
@@ -1468,6 +1484,18 @@ if(isLive&&liveItem){
       const fullAddr=det.lotAddr||det.roadAddr||it.address;
       if((det.lotAddr||det.roadAddr)&&window.__setMapAddr) window.__setMapAddr(det.lotAddr||det.roadAddr);
       if(det.lotAddr||det.roadAddr) setNaverAddr(det.lotAddr||det.roadAddr);
+
+      // 관련문서(감정평가서 등) — 상세 응답 전체에서 pdf/hwp 문서 딥스캔 → 공고 카드 '관련문서'로 열람 연결
+      try{
+        const docs=deepFiles(det.raw||det);
+        if(docs.length){
+          const seen=new Set();
+          const html=docs.filter(d=>{if(seen.has(d.url))return false;seen.add(d.url);return true;}).slice(0,6)
+            .map(d=>`<a href="${String(d.url).replace(/"/g,'&quot;')}" target="_blank" rel="noopener" style="color:var(--green-deep);font-weight:700;">📎 ${String(d.name).replace(/</g,'&lt;')}</a>`).join('');
+          const fe=document.getElementById('obFile');
+          if(html&&fe){fe.insertAdjacentHTML('beforeend',html);document.getElementById('obFileRow').style.display='';}
+        }
+      }catch(e){/* degrade — 관련문서 없으면 행 숨김 유지 */}
 
       // 유찰 진단 보강 — 재산구분(압류/신탁 등). (기본정보 표는 그리드와 중복이라 제거됨)
       fdSet({prptDiv:det.prptDivNm||''});
