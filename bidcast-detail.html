@@ -1545,8 +1545,9 @@ if(isLive&&liveItem){
 // 원인 후보를 좁히고 입찰 전 확인 항목을 구체화하는 것("네가 찾아봐라" → "이 순서로 확인해라").
 // 데이터가 비동기로 도착하므로(회차 이력·상세·시세 밴드) fdSet()이 올 때마다 재렌더(멱등).
 // FD-ENGINE-START (검증 테스트가 이 마커로 블록을 추출한다)
-window.__fd={};
-function fdSet(patch){Object.assign(window.__fd,patch);try{renderFailDiag();}catch(e){console.log('[failDiag]',e.message);}}
+// ⚠️ fdSet은 자가 초기화 필수 — 라이브 렌더 블록(위쪽 if(isLive))이 이 지점보다 먼저 실행되므로
+// 별도 초기화 문장에 의존하면 첫 호출이 TypeError로 죽고 뒤따르는 렌더까지 끊긴다(2026-07-26 실배포에서 확인).
+function fdSet(patch){window.__fd=Object.assign(window.__fd||{},patch);try{renderFailDiag();}catch(e){console.log('[failDiag]',e.message);}}
 function renderFailDiag(){
   const f=window.__fd;
   if(!f.live||!(Number(f.fail)>=3))return; // 라이브 + 유찰 3회 이상만
