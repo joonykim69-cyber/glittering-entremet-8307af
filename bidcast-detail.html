@@ -557,7 +557,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
       <!-- 공고 정보 (전체폭) — 온비드 공고상세 pbanc_dtl 비동기 채움. 미확보 필드는 숨김=degrade -->
       <div class="ob-notice" id="obNotice">
         <div class="ob-nrow"><span class="nk">공고기관</span><span class="nv" id="obOrg">—</span></div>
-        <div class="ob-nrow" id="obKindRow" style="display:none;"><span class="nk">공고유형</span><span class="ob-chip kind" id="obKind"></span><span class="nk" style="margin-left:10px;">공고일</span><span class="nv" id="obDate">—</span></div>
+        <div class="ob-nrow" id="obKindRow" style="display:none;"><span class="nk">공고유형</span><span class="ob-chip kind" id="obKind"></span><span id="obDateWrap" style="display:none;"><span class="nk" style="margin-left:10px;">공고일</span> <span class="nv" id="obDate"></span></span></div>
         <div class="ob-nrow" id="obFeeRow" style="display:none;"><span class="nk">참가수수료</span><span class="nv" id="obFee">—</span></div>
         <div class="ob-nrow" id="obFileRow" style="display:none;"><span class="nk">첨부파일</span><span class="nv" id="obFile" style="display:flex;flex-wrap:wrap;gap:4px 12px;"></span></div>
         <div class="ob-nrow"><a id="obPbancLink" href="https://www.onbid.co.kr" target="_blank" rel="noopener" style="font-weight:800;color:var(--green-deep);">📄 온비드 공고 원문 보기 →</a></div>
@@ -849,8 +849,11 @@ function setNaverAddr(addr){
   if(!clean)return;
   window.__naverAddr=clean;
   const a=document.getElementById('naverLandLink');
-  if(a)a.href='https://new.land.naver.com/search?query='+encodeURIComponent(clean);
+  if(a)a.href=naverLandUrl(clean);
 }
+// 네이버 부동산 키워드 딥링크 — new.land.naver.com은 ?query= 딥링크를 안 받아(지도 기본 화면만 열림)
+// 검색 결과로 바로 이동하는 m.land 검색 경로 사용(데스크톱에서도 동작).
+function naverLandUrl(q){return 'https://m.land.naver.com/search/result/'+encodeURIComponent(q);}
 
 // 온비드 리스트 아이템을 안전 요약(필드명 미확정이라 값만 · 로 join) — 원시 JSON 노출 절대 금지(leasInf 버그 교훈).
 // 문자열/숫자 값만, null·빈값·객체는 제외. 결과 없으면 빈 문자열.
@@ -969,6 +972,11 @@ if(isLive){
 // 칩 줄 — 공고기관 배지 (물건번호·주소는 카드의 heroCaseNo/dAddr로 일원화)
 document.getElementById('courtBadge').textContent=it.court;
 
+// 라이브 물건은 매각기일을 스냅샷 bidEnd(yyyyMMddHHmm)로 채움 — "매각기일 —"·D-day "—" 공백 방지(2026-07-26).
+if(isLive&&(!it.saleDate||it.saleDate==='—')){
+  const be=String((liveItem&&liveItem.bidEnd)||'');
+  if(be.length>=8&&Number(be.slice(0,4))<=2099)it.saleDate=`${be.slice(0,4)}.${be.slice(4,6)}.${be.slice(6,8)}`;
+}
 const ddResult=calcDday(it.saleDate,it.status);
 const saleDateShort=it.saleDate&&it.saleDate!=='—'?it.saleDate.replace(/^(\d{4})\./,'').replace(/(\d{2})\.(\d{2})$/,'$1/$2'):'—';
 document.getElementById('chipDate').textContent=`매각기일 ${saleDateShort}`;
@@ -1065,7 +1073,8 @@ function galNav(dir){
 const lo=Math.round(it.min*1.02),hi=Math.round(it.min*1.13),rec=Math.round(it.min*1.07);
 // "내 예측 봉인"이 물건 정보·AI 구간을 자동으로 채우도록 전역에 노출(만원 단위)
 // 라이브 물건은 온비드 물건 id(cltrMngNo+pbctCdtnNo)도 실어, 향후 개찰 결과 자동 채점의 매칭 키로 봉인 레코드에 저장한다.
-window.__ai={lo,hi,min:it.min,appr:it.appr,title:it.title,
+// mid(중심값)는 마진 위젯의 중심 시나리오 계산에 필요 — 누락 시 NaN으로 "중심 시나리오 —" 버그(2026-07-26 수정).
+window.__ai={lo,hi,mid:rec,min:it.min,appr:it.appr,title:it.title,
   cltrMngNo:isLive?String(liveItem.id):null,
   pbctCdtnNo:(isLive&&liveItem.pbctCdtnNo)?String(liveItem.pbctCdtnNo):null,
   bidEnd:isLive?((liveItem&&liveItem.bidEnd)||it.bidEnd||''):'',
@@ -1386,10 +1395,11 @@ if(isLive&&liveItem){
               if(p0.pbancOrgNm)document.getElementById('obOrg').textContent=p0.pbancOrgNm;
               if(p0.pbancKindNm){document.getElementById('obKind').textContent=p0.pbancKindNm;document.getElementById('obKindRow').style.display='';}
               const pdate=p0.pbancPstgDt||p0.pbancDt||p0.rgstDt||'';
-              if(pdate){const t=String(pdate).replace(/[^0-9]/g,'');document.getElementById('obDate').textContent=t.length>=8?`${t.slice(0,4)}-${t.slice(4,6)}-${t.slice(6,8)}`:String(pdate);document.getElementById('obKindRow').style.display='';}
+              if(pdate){const t=String(pdate).replace(/[^0-9]/g,'');document.getElementById('obDate').textContent=t.length>=8?`${t.slice(0,4)}-${t.slice(4,6)}-${t.slice(6,8)}`:String(pdate);document.getElementById('obDateWrap').style.display='';document.getElementById('obKindRow').style.display='';}
               if(p0.ptctCmsn)showRow('obFeeRow','obFee',p0.ptctCmsn);
               // 첨부파일(공고문·감정평가서·명세서 등) — urlAdr이 http로 시작할 때만 링크(상대경로·미확인은 이름만 표기, 날조 금지)
-              const files=Array.isArray(p0.atchFileList)?p0.atchFileList:[];
+              // 항목 1개면 배열이 아니라 객체로 오는 data.go.kr 관례 커버
+              const files=Array.isArray(p0.atchFileList)?p0.atchFileList:(p0.atchFileList&&typeof p0.atchFileList==='object'?[p0.atchFileList]:[]);
               if(files.length){
                 const html=files.map((f,i)=>{
                   const nm=String(f.fileNm||f.atchFileNm||f.orgnlFileNm||('첨부파일 '+(i+1))).replace(/</g,'&lt;');
@@ -1584,7 +1594,7 @@ if(isLive&&liveItem){
       // 상세 API의 번지 주소(lotAddr)가 이미 도착했으면 그 지점으로 바로 이동, 아니면 동 단위 폴백.
       // (호·층은 네이버 검색이 못 받으므로 제거 — 지도 지오코딩과 동일한 정제 규칙.)
       const naverQ=(window.__naverAddr||[t[0],sgg,emd].filter(Boolean).join(' '));
-      const naverLink=`<a id="naverLandLink" href="https://new.land.naver.com/search?query=${encodeURIComponent(naverQ)}" target="_blank" rel="noopener" style="font-size:12px;font-weight:700;color:var(--green-deep);">네이버 부동산에서 호가 확인 ↗</a>`;
+      const naverLink=`<a id="naverLandLink" href="${naverLandUrl(naverQ)}" target="_blank" rel="noopener" style="font-size:12px;font-weight:700;color:var(--green-deep);">네이버 부동산에서 호가 확인 ↗</a>`;
 
       const KIND={apt_trade_dev:'apt',offi_trade:'offi',rh_trade:'rh',sh_trade:'sh'}[svc];
       if(KIND){
