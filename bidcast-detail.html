@@ -135,6 +135,19 @@ a{color:inherit;text-decoration:none;}
 .ob-casebadge{font-size:12px;color:var(--sub);font-weight:800;margin-bottom:7px;display:flex;align-items:center;gap:5px;font-variant-numeric:tabular-nums;}
 .ob-detail-title{font-size:18px;font-weight:900;line-height:1.35;margin-bottom:4px;}
 .ob-detail-addr{font-size:13px;color:var(--sub);margin-bottom:13px;}
+/* 이전 입찰내역 — 온비드式 요약 카드 3개 + 접힘/펼침 */
+.hist-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;}
+@media(max-width:660px){.hist-summary{grid-template-columns:1fr;}}
+.hs-card{border:1px solid var(--line);border-radius:12px;padding:13px 15px;background:var(--surface);display:flex;align-items:center;gap:11px;}
+.hs-ico{font-size:19px;opacity:.7;flex:none;}
+.hs-body{min-width:0;}
+.hs-k{font-size:11px;color:var(--sub);font-weight:700;margin-bottom:3px;}
+.hs-v{font-size:15px;font-weight:900;font-variant-numeric:tabular-nums;}
+.hs-v.fail{color:var(--red);}
+.hist-more{display:block;width:100%;margin-top:10px;font:inherit;font-size:12.5px;font-weight:800;color:var(--sub);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px;cursor:pointer;}
+.hist-more:hover{border-color:var(--green);color:var(--green-deep);}
+.history .h-row.h-hidden{display:none;}
+.h-tag.cancel{background:var(--sub);color:#fff;}
 
 /* ═══ 사진 갤러리 ═══ */
 .sec-gallery{background:#111;position:relative;overflow:hidden;}
@@ -571,23 +584,21 @@ h1,h2,h3,h4{font-family:var(--font-head)}
       <span style="font-size:11.5px;color:var(--mute);">공공데이터 온비드 공식 API · 실데이터</span>
     </div>
 
-    <section class="rp-section" id="sec-info">
-      <h2>기본정보</h2>
-      <div class="card table-scroll">
-        <table class="info-table" id="infoTable"></table>
-      </div>
-    </section>
+    <!-- 기본정보 표는 위 온비드式 그리드와 중복이라 제거(2026-07-26) -->
 
-    <section class="rp-section" id="sec-hist">
-      <h2>회차별 입찰 이력</h2>
-      <div class="card history" id="histList"></div>
-    </section>
-
-    <!-- 임대차·권리 정보 (온비드 상세 API 실측 리스트 — 라이브는 leasInfList가 여기 렌더됨) -->
+    <!-- 임대차·권리 정보 (온비드 상세 실측 — 상위 배치) -->
     <section class="rp-section" id="sec-tenancy">
       <h2>임대차·권리 정보 <span class="sec-tag" id="tenancyTag">온비드 상세 · 참고</span></h2>
       <div class="rights" id="rightsList"></div>
       <p style="font-size:11.5px;color:var(--mute);margin-top:12px;">※ 온비드가 제공하는 임대차·점유 정보 기준입니다. 등기부 미말소 권리·인수조건은 입찰 전 등기부등본·공매재산명세서로 직접 확인해야 하며(아래 🚦분석의 <b>권리분석 도우미</b> 참고), 법률 자문이 아닙니다.</p>
+    </section>
+
+    <!-- 이전 입찰내역 (온비드 '이전 입찰내역' 형식 — 요약 카드 3개 + 회차 타임라인, 접힘/펼침) -->
+    <section class="rp-section" id="sec-hist">
+      <h2>이전 입찰내역</h2>
+      <div class="hist-summary" id="histSummary"></div>
+      <div class="card history" id="histList"></div>
+      <button type="button" class="hist-more" id="histMore" style="display:none;" onclick="toggleHistMore()">더보기 ▾</button>
     </section>
 
     <!-- ══════════════════════════════════════════════════════════════ -->
@@ -825,6 +836,26 @@ const fmtMwon = n => n >= 10000 ? (n/10000).toFixed(n%10000===0?0:1)+'억원' : 
 
 // ─── 섹션 이동 (탭 제거 — 온비드式 단일 스크롤. 옛 switchTab/tabGo 호출부는 스크롤로 매핑) ───
 function sbGo(id){const el=document.getElementById(id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}
+
+// ─── 이전 입찰내역 접힘/펼침 (회차가 많으면 최근 HIST_SHOW개만 남기고 접기) ───
+const HIST_SHOW=6;
+function applyHistCollapse(){
+  const rows=[...document.querySelectorAll('#histList .h-row')];
+  const mb=document.getElementById('histMore'); if(!mb)return;
+  window.__histExpanded=false;
+  if(rows.length>HIST_SHOW){
+    const hide=rows.length-HIST_SHOW;
+    rows.slice(0,hide).forEach(el=>el.classList.add('h-hidden'));
+    mb.style.display=''; mb.textContent=`이전 회차 ${hide}개 더보기 ▾`;
+  }else{ mb.style.display='none'; }
+}
+function toggleHistMore(){
+  const rows=[...document.querySelectorAll('#histList .h-row')];
+  const mb=document.getElementById('histMore'); if(!mb)return;
+  window.__histExpanded=!window.__histExpanded;
+  if(window.__histExpanded){ rows.forEach(el=>el.classList.remove('h-hidden')); mb.textContent='접기 ▴'; }
+  else{ const hide=Math.max(0,rows.length-HIST_SHOW); rows.slice(0,hide).forEach(el=>el.classList.add('h-hidden')); mb.textContent=`이전 회차 ${hide}개 더보기 ▾`; }
+}
 // 하위호환: 예전 탭 이름을 실제 섹션으로 매핑 (남아있는 외부 호출부가 있어도 안전하게 동작)
 function switchTab(name){
   const map={basic:'sec-info',analysis:'sec-ai',rights:'sec-tenancy',price:'sec-ai'};
@@ -1020,13 +1051,9 @@ document.getElementById('aiConf').textContent=it.fail>=2?'중간':'높음';
 
 // (적정가 그리드 제거 — 적정가 분석은 'AI 예상 낙찰가' 섹션 + 주변 실거래·시세 밴드로 통합됨)
 
-// 기본정보 테이블
-document.getElementById('infoTable').innerHTML=[
-  ['소재지',it.address],['용도',it.usage],['토지면적',it.landArea],['건물면적',it.bldArea],
-  ['층수',it.floor],['건축년도/연식',it.built],['처분방식','매각'],['입찰방식','일반경쟁 · 최고가방식'],
-].map(([k,v])=>`<tr><th>${k}</th><td>${v}</td></tr>`).join('');
+// (기본정보 표 제거 — 위 온비드式 그리드와 중복)
 
-// 입찰이력
+// 입찰이력 (데모 기본 렌더. 라이브는 아래 cltr_dtl_bidinf가 요약카드+타임라인으로 교체)
 document.getElementById('histList').innerHTML=it.hist.map(h=>`
   <div class="h-row">
     <span class="h-round">${h.r}</span>
@@ -1274,17 +1301,36 @@ if(isLive&&liveItem){
         document.getElementById('dDeposit').textContent=`${String(bi.pbctTdpsCont).replace(/</g,'&lt;')} · 온비드 공고`;
       }
 
-      // ② 회차별 입찰 이력 — cseqBidInfClgList(전체 회차 최저가) + prcnBidClgList(진행된 회차 결과) 병합
+      // ② 이전 입찰내역 — 온비드 '이전 입찰내역' 형식(요약 카드 3개 + 회차 타임라인, 접힘/펼침).
+      //    cseqBidInfClgList(전체 회차 최저가) + prcnBidClgList(진행된 회차 결과) 병합.
       const sched=asArr(bi.cseqBidInfClgList),past=asArr(bi.prcnBidClgList);
       if(sched.length||past.length){
         const pastMap={};past.forEach(p=>{if(p&&p.pbctNsq!=null)pastMap[String(p.pbctNsq)]=p;});
+        const schedMap={};sched.forEach(s=>{if(s&&s.pbctNsq!=null)schedMap[String(s.pbctNsq)]=s;});
         const curNsq=String(bi.pbctNsq||'');
         const apprWonLive=(liveItem.appr||0)*10000;
+        const wonFull=n=>Number(n)>0?Number(n).toLocaleString()+'원':'—';
+
+        // ─ 요약 카드 3개 (이전 입찰 결과 / 이전 최저입찰가격 / 전체 유찰·취소) ─
+        const donePast=past.filter(p=>p&&p.pbctStatNm);
+        const failCnt=donePast.filter(p=>/유찰/.test(String(p.pbctStatNm))).length;
+        const cancelCnt=donePast.filter(p=>/취소/.test(String(p.pbctStatNm))).length;
+        const lastPast=donePast.slice().sort((a,b)=>Number(b.pbctNsq||0)-Number(a.pbctNsq||0))[0];
+        if(lastPast){
+          const lr=String(lastPast.pbctStatNm||'—');
+          const lowRaw=Number(lastPast.lowstBidPrcIndctCont)||Number((schedMap[String(lastPast.pbctNsq)]||{}).lowstBidPrcIndctCont)||0;
+          document.getElementById('histSummary').innerHTML=`
+            <div class="hs-card"><span class="hs-ico">🔨</span><div class="hs-body"><div class="hs-k">이전 입찰 결과</div><div class="hs-v ${/낙찰/.test(lr)?'':'fail'}">${lr.replace(/</g,'&lt;')}</div></div></div>
+            <div class="hs-card"><span class="hs-ico">💰</span><div class="hs-body"><div class="hs-k">이전 최저입찰가격</div><div class="hs-v">${wonFull(lowRaw)}</div></div></div>
+            <div class="hs-card"><span class="hs-ico">📊</span><div class="hs-body"><div class="hs-k">전체 입찰내역</div><div class="hs-v">유찰 ${failCnt}회 / 취소 ${cancelCnt}회</div></div></div>`;
+        }
+
+        // ─ 회차 타임라인 (오름차순) ─
         const rows=(sched.length?sched:past).slice().sort((a,b)=>Number(a.pbctNsq||0)-Number(b.pbctNsq||0));
         document.getElementById('histList').innerHTML=rows.map(s=>{
           const nsq=String(s.pbctNsq||''),low=Number(s.lowstBidPrcIndctCont)||0,p=pastMap[nsq];
           let tag,cls;
-          if(p){tag=p.pbctStatNm||'종료';cls=/낙찰/.test(tag)?'done':'fail';}
+          if(p){tag=p.pbctStatNm||'종료';cls=/낙찰/.test(tag)?'done':/취소/.test(tag)?'cancel':'fail';}
           else if(nsq===curNsq){tag='진행중';cls='live';}
           else{tag='예정';cls='';}
           const winAmt=p?Number(p.scfbAmt)||0:0;
@@ -1298,8 +1344,9 @@ if(isLive&&liveItem){
             <span class="h-tag ${cls}">${tag}</span>
           </div>`;
         }).join('')+'<p style="font-size:11px;color:var(--mute);margin-top:10px;">✅ 실시간 온비드 회차별 입찰정보 (물건상세 입찰정보)</p>';
+        applyHistCollapse(); // 회차 많으면 최근분만 남기고 접기(더보기)
         // 유찰 진단 보강 — 진행된 회차 중 취소 횟수 실측(취소 반복 = 절차·권리 변수 신호)
-        fdSet({cancels:past.filter(p=>/취소/.test(String(p&&p.pbctStatNm||''))).length});
+        fdSet({cancels:cancelCnt});
       }
       // ③ 공고 정보 카드 — bi.pbancMngNo로 공고상세(pbanc_dtl) 조회. 확보 필드만 표기(없으면 행 숨김=degrade, 날조 금지).
       const pbancMngNo=bi.pbancMngNo||'';
@@ -1337,15 +1384,8 @@ if(isLive&&liveItem){
       const fullAddr=det.lotAddr||det.roadAddr||it.address;
       if((det.lotAddr||det.roadAddr)&&window.__setMapAddr) window.__setMapAddr(det.lotAddr||det.roadAddr);
 
-      // 기본정보 테이블 업데이트
-      fdSet({prptDiv:det.prptDivNm||''}); // 유찰 진단 보강 — 재산구분(압류/신탁 등)
-      const rows=[['소재지',fullAddr],['재산구분',det.prptDivNm||'—'],['용도(대)',det.usageLcls||'—'],['용도(중)',det.usageMcls||'—'],['용도(소)',det.usageScls||'—']];
-      if(det.apslEvlAmt)rows.push(['감정평가액',fmtWon(det.apslEvlAmt)]);
-      rows.push(['처분방식',det.disposeMethod||'매각']);
-      rows.push(['입찰방식',[det.bidDiv,det.competeMethod,det.bidMethod].filter(Boolean).join(' · ')||'—']);
-      if(det.period)rows.push(['입찰기간',det.period]);
-      if(det.ltnoPnu)rows.push(['지번PNU',det.ltnoPnu]);
-      document.getElementById('infoTable').innerHTML=rows.map(([k,v])=>`<tr><th>${k}</th><td>${String(v).replace(/</g,'&lt;')}</td></tr>`).join('');
+      // 유찰 진단 보강 — 재산구분(압류/신탁 등). (기본정보 표는 그리드와 중복이라 제거됨)
+      fdSet({prptDiv:det.prptDivNm||''});
 
       // 온비드式 요약 그리드 정밀화 (온비드 상세 실데이터로 갱신)
       const wonHint2=won=>`<span style="font-size:11px;color:var(--mute);font-weight:600;"> (${fmtMwon(Math.round(won/10000))})</span>`;
@@ -1364,8 +1404,21 @@ if(isLive&&liveItem){
         rl.innerHTML=''; // 온비드 상세가 도착했으니 "확인 중" 플레이스홀더를 실데이터로 교체
         if(Array.isArray(det.leasInfList))LEAS_SUMMARY=det.leasInfList.length>0?`임대차 ${det.leasInfList.length}건 존재 (보증금·임차인은 상세 페이지 표시분 기준)`:'온비드 API 기준 임대차 정보 없음';
         if(det.leasInfList&&det.leasInfList.length>0){
+          // 실 응답 필드명 매핑(2026-07-26 확인): irstDivNm 구분·cltrInprNm 성명·bidGrteeAmt 보증금·
+          // mthrAmt 월세(차임)·convGrteeAmt 환산보증금·cfmtnYmd 확정일자·mvinYmd 전입일. null은 생략(JSON 노출 금지).
+          const hasVal=v=>v!=null&&v!==''&&v!=='null';
+          const won=v=>hasVal(v)?fmtWon(Number(v)):null;
           det.leasInfList.forEach(l=>{
-            const desc=[l.lsrNm&&'임차인: '+l.lsrNm,l.lsDpstAmt&&'보증금: '+fmtWon(Number(l.lsDpstAmt)),l.lsRentAmt&&'월세: '+fmtWon(Number(l.lsRentAmt))].filter(Boolean).join(' / ')||JSON.stringify(l);
+            const parts=[
+              hasVal(l.irstDivNm)&&('구분: '+l.irstDivNm),
+              hasVal(l.cltrInprNm)&&('성명: '+l.cltrInprNm),
+              won(l.bidGrteeAmt)&&('보증금: '+won(l.bidGrteeAmt)),
+              won(l.mthrAmt)&&('월세: '+won(l.mthrAmt)),
+              won(l.convGrteeAmt)&&('환산보증금: '+won(l.convGrteeAmt)),
+              hasVal(l.cfmtnYmd)&&('확정일자: '+l.cfmtnYmd),
+              hasVal(l.mvinYmd)&&('전입일: '+l.mvinYmd),
+            ].filter(Boolean);
+            const desc=parts.length?parts.join(' · '):'세부 항목은 공매재산명세서(공고 원문) 확인';
             const el=document.createElement('div');el.className='right-item warn';
             el.innerHTML='<span class="ico">📄</span><div><div class="rt">임대차 정보</div><div class="rm">'+desc.replace(/</g,'&lt;')+'</div></div>';
             rl.prepend(el);
