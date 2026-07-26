@@ -208,6 +208,13 @@ exports.handler = async (event) => {
       scanned: targets.length, scored: curated.length, count: curatedTop.length,
       items: curatedTop,
     });
+    // 큐레이션 사후 채점(3단계)용 개별 픽 마커 — curated/latest는 매일 덮어써지므로,
+    // "이 물건을 주목 물건으로 뽑았다"는 사실을 물건별로 보존해야 개찰 후 score-daily가
+    // 조인해 채점할 수 있다. 같은 물건이 다음 날 재큐레이션되면 갱신(멱등). 추가 온비드 호출 0.
+    await Promise.all(curatedTop.map(c => store.setJSON(`curated/pick/${c.id}_${c.cdtn}`, {
+      score: c.score, assetClass: c.assetClass, type: c.type, region: c.region,
+      apsl: c.apsl, low: c.low, reasons: (c.reasons || []).map(x => x.tag), at: new Date().toISOString(),
+    })));
 
     // 챌린저 봉인이 처음 시작된 날을 모델 연혁(chronicle)에 1회 기록
     if (sealedB > 0) {

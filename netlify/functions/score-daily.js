@@ -109,28 +109,54 @@ exports.handler = async (event) => {
       for (let i = 0; i < items.length; i += limit) out.push(...await Promise.all(items.slice(i, i + limit).map(fn)));
       return out;
     };
+    // 큐레이션 사후 채점(3단계): predict-daily가 남긴 curated/pick/* 를 같은 배치에서 조인해,
+    // "주목 물건으로 뽑은 것이 개찰 후 어땠나"를 봉인 채점과 같은 멱등 마커(scored/*)로 1회 집계.
+    const curatedAgg = (await store.get('curatedAgg', { type: 'json' })) || {
+      n: 0, sold: 0, failed: 0, canceled: 0, sumWinRate: 0, bandHit: 0, byAsset: {},
+    };
     const enriched = await mapLimit(results.filter(r => r.id && r.pbctCdtnNo), 40, async r => {
       const key = `${r.id}_${r.pbctCdtnNo}`;
-      const [scored, pred, predB] = await Promise.all([
+      const [scored, pred, predB, pick] = await Promise.all([
         store.get(`scored/${key}`),
         store.get(`pred/${key}`, { type: 'json' }),
         store.get(`predb/${key}`, { type: 'json' }),
+        store.get(`curated/pick/${key}`, { type: 'json' }),
       ]);
-      return { r, key, scored: !!scored, pred, predB };
+      return { r, key, scored: !!scored, pred, predB, pick };
     });
 
-    for (const { r, key, scored, pred, predB } of enriched) {
+    // 큐레이션 픽의 개찰 결과를 1회 집계 (pred 유무와 무관하게 pick이 있으면 추적).
+    // 봉인 채점과 같은 !scored 블록에서만 호출되므로 정확히 1회만 반영된다.
+    const tallyCurated = (pick, r, bandHit) => {
+      if (!pick) return;
+      const asset = pick.assetClass || '부동산';
+      curatedAgg.byAsset[asset] = curatedAgg.byAsset[asset] || { n: 0, sold: 0, sumWinRate: 0 };
+      curatedAgg.n++; curatedAgg.byAsset[asset].n++;
+      if (r.statCd === '0010' && r.winAmt > 0) {
+        curatedAgg.sold++; curatedAgg.byAsset[asset].sold++;
+        const apsl = Number(pick.apsl) || 0; // 만원
+        if (apsl > 0) {
+          const wr = (r.winAmt / 10000) / apsl; // 낙찰가율(낙찰가/감정가)
+          curatedAgg.sumWinRate += wr; curatedAgg.byAsset[asset].sumWinRate += wr;
+        }
+        if (bandHit) curatedAgg.bandHit++;
+      } else if (r.statCd === '0011') curatedAgg.failed++;
+      else if (r.statCd === '0012') curatedAgg.canceled++;
+    };
+
+    for (const { r, key, scored, pred, predB, pick } of enriched) {
       if (scored) { already++; continue; }
-      if (!pred) { noPred++; continue; }
       const scoredKey = `scored/${key}`;
 
       if (r.statCd !== '0010' || !(r.winAmt > 0)) {
         // 유찰은 다음 회차가 새 공매조건으로 다시 봉인되므로, 이 조건은 종결 처리
         if (r.statCd === '0011' || r.statCd === '0012') {
+          tallyCurated(pick, r, false); // 주목 물건이 유찰/취소로 종결된 경우도 집계
           markers.push({ key: scoredKey, value: { outcome: r.statCd === '0011' ? 'fail' : 'cancel', at: new Date().toISOString() } });
         }
         continue;
       }
+      if (!pred) { noPred++; continue; }
 
       const winMan = Math.round(r.winAmt / 10000); // 원 → 만원 (pred와 단위 통일)
       const hit = winMan >= pred.lo && winMan <= pred.hi;
@@ -182,6 +208,7 @@ exports.handler = async (event) => {
         bCmp = { hit: bHit, errPct: bErrPct, modelV: predB.modelV, cellKey: predB.cellKey };
       }
 
+      tallyCurated(pick, r, hit); // 주목 물건이 낙찰로 종결 — 낙찰/낙찰가율/구간 적중 집계
       markers.push({ key: scoredKey, value: { outcome: 'graded', hit, errPct, ...(bCmp ? { b: bCmp } : {}), at: new Date().toISOString() } });
       graded++;
     }
@@ -229,8 +256,10 @@ exports.handler = async (event) => {
     while (chronicle.length > 500) chronicle.splice(1, 1); // genesis(0번)는 보존
 
     aggB.updatedAt = new Date().toISOString();
-    // 집계 6종을 먼저 저장(채점 결과의 실체) → 그 다음 scored/* 마커를 배치로 기록.
+    curatedAgg.updatedAt = new Date().toISOString();
+    // 집계를 먼저 저장(채점 결과의 실체) → 그 다음 scored/* 마커를 배치로 기록.
     // 이 순서라야 마커가 남았다는 것이 "그 물건은 이미 agg에 반영됐다"를 보장한다.
+    // curatedAgg도 같은 배치에 포함 — 큐레이션 집계와 봉인 채점이 원자적으로 함께 커밋된다.
     await Promise.all([
       store.setJSON('chronicle', chronicle),
       store.setJSON('agg', agg),
@@ -238,6 +267,7 @@ exports.handler = async (event) => {
       store.setJSON('calib', calib),
       store.setJSON('log', log),
       store.setJSON('recent', recent),
+      store.setJSON('curatedAgg', curatedAgg),
     ]);
     await mapLimit(markers, 40, m => store.setJSON(m.key, m.value));
 

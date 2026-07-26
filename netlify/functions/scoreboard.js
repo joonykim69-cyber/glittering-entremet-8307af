@@ -57,11 +57,12 @@ exports.handler = async (event) => {
       store.get('_run/collect-history', { type: 'json' }),
     ]);
     // 과거 백필(1~6월 마스킹 census) 진행 + walk-forward 백테스트 성장 곡선
-    const [bfMeta, runBackfill, btSummary, runBacktest] = await Promise.all([
+    const [bfMeta, runBackfill, btSummary, runBacktest, curatedAgg] = await Promise.all([
       store.get('hist/_bfmeta', { type: 'json' }),
       store.get('_run/collect-backfill', { type: 'json' }),
       store.get('bt/summary', { type: 'json' }),
       store.get('_run/backtest', { type: 'json' }),
+      store.get('curatedAgg', { type: 'json' }),
     ]);
 
     const n = agg?.n || 0;
@@ -73,6 +74,19 @@ exports.handler = async (event) => {
       avgWidthPct: agg.sumWidthPct ? Math.round(agg.sumWidthPct / n * 10) / 10 : null, // 평균 구간 폭 % (낙찰가 대비)
     } : { n: 0 };
 
+    // 큐레이션 사후 성적(3단계) — "주목 물건으로 뽑은 것이 개찰 후 어땠나"의 실측.
+    // 투자 수익 주장이 아니라 선별 신호의 사후 부합도: 낙찰률·평균 낙찰가율(저평가 신호 검증)·
+    // AI 예상 구간 적중. 표본 없으면 null → 랩/랜딩은 섹션 숨김(degrade).
+    const cn = curatedAgg?.n || 0;
+    const curatedScore = cn ? {
+      n: cn, sold: curatedAgg.sold || 0, failed: curatedAgg.failed || 0, canceled: curatedAgg.canceled || 0,
+      soldRate: Math.round((curatedAgg.sold || 0) / cn * 1000) / 10,                          // 개찰 종결 중 낙찰 비율
+      avgWinRate: curatedAgg.sold ? Math.round(curatedAgg.sumWinRate / curatedAgg.sold * 1000) / 10 : null, // 낙찰 물건 평균 낙찰가율(낙찰가/감정가) %
+      bandHitRate: curatedAgg.sold ? Math.round((curatedAgg.bandHit || 0) / curatedAgg.sold * 1000) / 10 : null, // 낙찰 물건 중 AI 예상 구간 적중 %
+      byAsset: curatedAgg.byAsset || {},
+      updatedAt: curatedAgg.updatedAt || null,
+    } : { n: 0 };
+
     return {
       statusCode: 200,
       headers: { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300' },
@@ -81,6 +95,7 @@ exports.handler = async (event) => {
         byTier: agg?.byTier || {},
         byUsage: agg?.byUsage || {},
         byAsset: agg?.byAsset || {},           // 자산군별(부동산/차량/동산 등) 적중률 — 랩 실측화
+        curatedScore,                          // 큐레이션 사후 성적(3단계) — 랩 "큐레이션 성적" 섹션
         // 오차 범위별 누적 비율(중앙값 오차 기준) — 랩 오차분포 실측화. 표본 없으면 null.
         errDist: (n && agg?.errBuckets) ? {
           n,
