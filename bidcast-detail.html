@@ -34,7 +34,7 @@ a{color:inherit;text-decoration:none;}
 }
 .logo-mark{width:27px;height:27px;border-radius:8px;background:var(--grad);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:900;flex:none;box-shadow:0 0 10px rgba(0,200,127,.35);}
 .rp-case-badge{font-size:11.5px;font-weight:800;color:var(--sub);background:var(--bg);border:1px solid var(--line);padding:3px 10px;border-radius:999px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;flex:none;}
-.rp-tabs{display:flex;flex:1;justify-content:center;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--bg);max-width:450px;}
+.rp-tabs{display:flex;flex:1;justify-content:center;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--bg);max-width:720px;}
 .rp-tab{flex:1;background:none;border:none;font:inherit;font-size:12.5px;font-weight:700;color:var(--sub);padding:8px 4px;cursor:pointer;transition:all .15s;white-space:nowrap;}
 .rp-tab.active{background:var(--green);color:#fff;}
 .rp-tab:hover:not(.active){background:var(--green-soft);color:var(--green-deep);}
@@ -50,8 +50,7 @@ a{color:inherit;text-decoration:none;}
 @media(max-width:660px){.rp-tabs,.rp-case-badge{display:none;}}
 
 /* ═══ 레이아웃 ═══ */
-.rp-layout{display:grid;grid-template-columns:56px 1fr;min-height:calc(100vh - 52px);}
-@media(max-width:660px){.rp-layout{grid-template-columns:1fr;}.rp-sidebar{display:none;}}
+.rp-layout{display:grid;grid-template-columns:1fr;min-height:calc(100vh - 52px);} /* 좌측 사이드바 제거(2026-07-26 창업자 지시) — 섹션 이동은 상단 nav로 일원화 */
 /* 초광폭 화면에서 본문이 무한정 늘어나 표·사진이 기형적으로 보이는 문제 방지:
    리포트 본문은 최대 1200px로 제한하고 중앙 정렬, 남는 영역은 배경색으로 둔다. */
 #rpMain{max-width:1200px;width:100%;margin:0 auto;background:var(--bg);box-shadow:0 0 0 1px var(--line);}
@@ -424,9 +423,12 @@ h1,h2,h3,h4{font-family:var(--font-head)}
   <a href="bidcast.html" aria-label="신호등옥션 홈"><span class="logo-mark"><i class="tl r"></i><i class="tl y"></i><i class="tl g"></i></span></a>
   <span class="rp-case-badge" id="rpCaseBadge">로딩중…</span>
   <nav class="rp-tabs" id="rpTabs" aria-label="섹션 이동">
-    <button class="rp-tab" type="button" onclick="sbGo('sec-info')">물건정보</button>
+    <button class="rp-tab" type="button" onclick="sbGo('rp-hero')">물건정보</button>
+    <button class="rp-tab" type="button" onclick="sbGo('sec-tenancy')">임대차·권리</button>
     <button class="rp-tab" type="button" onclick="sbGo('sec-hist')">입찰이력</button>
-    <button class="rp-tab" type="button" onclick="sbGo('sec-analysis')">🚦 분석</button>
+    <button class="rp-tab" type="button" onclick="sbGo('sec-ai')">🚦 AI예측</button>
+    <button class="rp-tab" type="button" onclick="sbGo('sec-rtms')">시세·마진</button>
+    <button class="rp-tab" type="button" onclick="sbGo('sec-agents')">전문가</button>
     <button class="rp-tab" type="button" onclick="sbGo('sec-sim')">유사물건</button>
   </nav>
   <div class="rp-hr" id="rpNavRight">
@@ -482,21 +484,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 <!-- ══ 전체 레이아웃 ══ -->
 <div class="rp-layout">
 
-  <!-- 사이드바 -->
-  <aside class="rp-sidebar" aria-label="섹션 이동">
-    <button class="sb-btn" type="button" title="요약" onclick="sbGo('rp-hero')">🏠</button>
-    <button class="sb-btn" type="button" title="물건정보" onclick="sbGo('rp-hero')">📊</button>
-    <button class="sb-btn" type="button" title="사진" onclick="sbGo('sec-gallery')">📷</button>
-    <div class="sb-sep"></div>
-    <button class="sb-btn" type="button" title="기본정보" onclick="sbGo('sec-info')">📋</button>
-    <button class="sb-btn" type="button" title="입찰이력" onclick="sbGo('sec-hist')">📅</button>
-    <button class="sb-btn" type="button" title="🚦 신호등옥션 분석" onclick="sbGo('sec-analysis')">🚦</button>
-    <button class="sb-btn" type="button" title="AI 예상 낙찰가" onclick="sbGo('sec-ai')">🤖</button>
-    <button class="sb-btn" type="button" title="AI 전문가 분석" onclick="sbGo('sec-agents')">⚖️</button>
-    <div class="sb-sep"></div>
-    <button class="sb-btn" type="button" title="위치·사진" onclick="sbGo('sec-gallery')">📍</button>
-    <button class="sb-btn" type="button" title="유사 물건" onclick="sbGo('sec-sim')">🔍</button>
-  </aside>
+  <!-- (좌측 사이드바 제거 — 2026-07-26 창업자 지시. 섹션 이동은 상단 nav 앵커로 일원화) -->
 
   <!-- 메인 콘텐츠 -->
   <main id="rpMain">
@@ -529,7 +517,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
             <span class="info-chip fail-chip" id="chipFail" style="display:none">유찰</span>
             <span class="ob-actions">
               <button type="button" class="ob-abtn" id="mapToggleBtn" onclick="openLocMap()">📍 지도 보기</button>
-              <a class="ob-abtn" id="obPbancLinkTop" href="https://www.onbid.co.kr" target="_blank" rel="noopener">📄 공고보기</a>
+              <a class="ob-abtn" id="obPbancLinkTop" href="https://www.onbid.co.kr" target="_blank" rel="noopener" onclick="copyCltrNo()" title="클릭 시 물건관리번호가 복사됩니다 — 온비드 검색창에 붙여넣으세요">📄 공고보기</a>
             </span>
           </div>
           <p class="ob-eyebrow" id="heroEyebrow">신호등옥션 물건 리포트</p>
@@ -557,10 +545,13 @@ h1,h2,h3,h4{font-family:var(--font-head)}
       <!-- 공고 정보 (전체폭) — 온비드 공고상세 pbanc_dtl 비동기 채움. 미확보 필드는 숨김=degrade -->
       <div class="ob-notice" id="obNotice">
         <div class="ob-nrow"><span class="nk">공고기관</span><span class="nv" id="obOrg">—</span></div>
-        <div class="ob-nrow" id="obKindRow" style="display:none;"><span class="nk">공고유형</span><span class="ob-chip kind" id="obKind"></span><span class="nk" style="margin-left:10px;">공고일</span><span class="nv" id="obDate">—</span></div>
+        <div class="ob-nrow" id="obKindRow" style="display:none;"><span class="nk">공고유형</span><span class="ob-chip kind" id="obKind"></span><span id="obDateWrap" style="display:none;"><span class="nk" style="margin-left:10px;">공고일</span> <span class="nv" id="obDate"></span></span></div>
         <div class="ob-nrow" id="obFeeRow" style="display:none;"><span class="nk">참가수수료</span><span class="nv" id="obFee">—</span></div>
-        <div class="ob-nrow" id="obFileRow" style="display:none;"><span class="nk">첨부파일</span><span class="nv" id="obFile" style="display:flex;flex-wrap:wrap;gap:4px 12px;"></span></div>
-        <div class="ob-nrow"><a id="obPbancLink" href="https://www.onbid.co.kr" target="_blank" rel="noopener" style="font-weight:800;color:var(--green-deep);">📄 온비드 공고 원문 보기 →</a></div>
+        <div class="ob-nrow" id="obFileRow" style="display:none;"><span class="nk">관련문서</span><span class="nv" id="obFile" style="display:flex;flex-wrap:wrap;gap:4px 12px;"></span></div>
+        <div class="ob-nrow" style="flex-direction:column;align-items:flex-start;gap:3px;">
+          <a id="obPbancLink" href="https://www.onbid.co.kr" target="_blank" rel="noopener" onclick="copyCltrNo()" style="font-weight:800;color:var(--green-deep);">📄 온비드에서 공고 원문 조회 → <span style="font-weight:600;font-size:11px;color:var(--sub);">(클릭 시 물건관리번호 자동 복사)</span></a>
+          <span style="font-size:11px;color:var(--mute);">온비드는 물건별 바로가기 주소를 제공하지 않아, 복사된 물건관리번호를 온비드 검색창에 붙여넣으면 바로 조회됩니다.</span>
+        </div>
       </div>
       <!-- 신탁/특수 매각 안내: 최저가 > 감정가 (신탁사가 최저가를 감정가보다 높게 설정 — 할인 아님) -->
       <div id="trustSaleBadge" style="display:none;margin-top:10px;font-size:12.5px;font-weight:700;color:#8A6100;background:var(--yellow-soft,#FDF4D7);border:1px solid #F5E3B3;border-radius:12px;padding:10px 14px;line-height:1.55;">🔔 <b>최저입찰가가 감정가보다 높습니다.</b> 신탁·특수 매각에서 신탁사가 최저가를 감정가보다 높게 설정한 경우로, <b>감정가 대비 할인이 아닙니다</b>. 입찰 전 온비드 공고 원문과 매각조건을 반드시 확인하세요.</div>
@@ -845,11 +836,60 @@ function setNaverAddr(addr){
   if(!addr)return;
   const s=String(addr).trim();
   const m=s.match(/^(.*?[가-힣](?:동|리|가|읍|면)\s+(?:산\s*)?\d+(?:-\d+)?)(?=\s|$)/);
+  if(!m&&!/(로|길)\s*\d/.test(s))return; // 주소 패턴이 아니면 무시(제목 폴백용 안전 가드)
   const clean=(m?m[1]:s.replace(/\s*(지하)?\s*제?\s*\d+\s*(동|층|호)(?=\s|$|,)/g,'').replace(/,?\s*\([^)]*\)\s*$/,'')).replace(/[\s,]+$/,'').trim();
   if(!clean)return;
-  window.__naverAddr=clean;
-  const a=document.getElementById('naverLandLink');
-  if(a)a.href='https://new.land.naver.com/search?query='+encodeURIComponent(clean);
+  // 단지명(…아파트/오피스텔 등)이 뒤에 붙어 있으면 "읍면동 + 단지명"이 호가 확인에 가장 정확(매물은 단지 단위).
+  const after=m?s.slice(m[1].length):'';
+  const b=after.match(/([가-힣A-Za-z0-9]+(?:아파트|오피스텔|빌라|맨션|타운))/);
+  const emdTok=(clean.match(/[가-힣]+(?:동|리|읍|면|가)(?=\s|$)/g)||[]).pop()||'';
+  // 시도(경기도 등) 제거 — m.land 검색이 풀 행정명("경기도 안성시 중리동")을 못 받는 실사례(2026-07-26 스크린샷 확인).
+  const jibun=clean.replace(/^\s*[가-힣]+(?:특별자치도|특별자치시|특별시|광역시|도)\s+/,'');
+  const q=(b&&emdTok)?`${emdTok} ${b[1]}`:jibun;
+  // 이미 단지명 쿼리를 확보했다면, 나중에 온 지번(단지명 없는 lotAddr)이 격하시키지 않게 유지
+  if(!b&&window.__naverAddr&&/(아파트|오피스텔|빌라|맨션|타운)/.test(window.__naverAddr))return;
+  window.__naverAddr=q;
+}
+// 네이버 연결 — 딥링크 실클릭 3회 실패(new.land ?query= 미지원, m.land 검색결과 없음 2건) 후 창업자 결정:
+// 온비드 공고보기와 동일 패턴으로 "네이버 부동산 홈만 열고 검색어(주소·단지명) 자동 복사" — 붙여넣기만 하면 됨.
+function copyNaverQ(){
+  try{const q=window.__naverAddr;if(q&&navigator.clipboard)navigator.clipboard.writeText(q).catch(()=>{});}catch(e){}
+}
+// 온비드 공고 원문은 물건별 딥링크(GET URL)를 제공하지 않음(세션/POST 기반) — 클릭 시 물건관리번호를
+// 자동 복사해 온비드 검색창에 바로 붙여넣을 수 있게 하는 반자동 연결(정직한 차선책).
+function copyCltrNo(){
+  try{const no=window.__ai&&window.__ai.cltrMngNo;if(no&&navigator.clipboard)navigator.clipboard.writeText(no).catch(()=>{});}catch(e){}
+}
+// 관련문서 탐색 — 온비드 상세 응답 전체(raw)에서 문서 파일(pdf/hwp/doc)을 안전 탐색.
+// 필드명이 미확정이라 구조 무관 딥스캔: 같은 객체 안의 http URL + 문서명 짝만 수집(http만 링크 — 날조 금지).
+function deepFiles(o,out,depth){
+  out=out||[];depth=depth||0;
+  if(!o||typeof o!=='object'||depth>6)return out;
+  if(Array.isArray(o)){o.forEach(x=>deepFiles(x,out,depth+1));return out;}
+  const vals=Object.values(o).filter(v=>typeof v==='string');
+  const url=vals.find(v=>/^https?:\/\//.test(v));
+  const nonUrl=vals.filter(v=>!/^https?:\/\//.test(v)); // URL 자신이 이름 후보로 잡히는 것 방지
+  const name=nonUrl.find(v=>/\.(pdf|hwpx?|docx?)$/i.test(v))||nonUrl.find(v=>/(감정평가서|재산명세서|공매재산|공고문)/.test(v)&&v.length<80);
+  if(name&&url)out.push({name:name,url:url});
+  else if(url&&/\.(pdf|hwpx?)([?#]|$)/i.test(url))out.push({name:decodeURIComponent((url.split('/').pop()||'문서').split('?')[0]),url:url});
+  Object.values(o).forEach(v=>{if(v&&typeof v==='object')deepFiles(v,out,depth+1);});
+  return out;
+}
+// 임대차/등기/점유 그룹 카드 — 카테고리당 카드 1장: 첫 항목만 보이고 "전체 보기"로 나머지 펼침.
+let __grpSeq=0;
+function groupCard(rl,ico,title,items,cls){
+  if(!items.length)return;
+  const id='grpx'+(++__grpSeq);
+  const extra=items.slice(1);
+  const el=document.createElement('div');el.className='right-item '+(cls||'');
+  el.innerHTML='<span class="ico">'+ico+'</span><div style="min-width:0;flex:1;">'
+    +'<div class="rt">'+title+(items.length>1?' <span style="font-weight:700;color:var(--sub);">('+items.length+'건)</span>':'')+'</div>'
+    +'<div class="rm">'+items[0]+'</div>'
+    +(extra.length?'<div id="'+id+'" style="display:none;">'+extra.map(x=>'<div class="rm" style="margin-top:6px;border-top:1px dashed var(--line);padding-top:6px;">'+x+'</div>').join('')+'</div>'
+      +'<button type="button" style="margin-top:8px;font:inherit;font-size:11.5px;font-weight:800;color:var(--green-deep);background:none;border:none;cursor:pointer;padding:0;" '
+      +'onclick="var x=document.getElementById(\''+id+'\');var o=x.style.display===\'none\';x.style.display=o?\'\':\'none\';this.textContent=o?\'접기 ▴\':\'전체 보기 (+'+extra.length+'건) ▾\';">전체 보기 (+'+extra.length+'건) ▾</button>':'')
+    +'</div>';
+  rl.appendChild(el);
 }
 
 // 온비드 리스트 아이템을 안전 요약(필드명 미확정이라 값만 · 로 join) — 원시 JSON 노출 절대 금지(leasInf 버그 교훈).
@@ -862,8 +902,8 @@ function fmtObjVals(o){
     .join(' · ');
 }
 
-// ─── 이전 입찰내역 접힘/펼침 (회차가 많으면 최근 HIST_SHOW개만 남기고 접기) ───
-const HIST_SHOW=6;
+// ─── 이전 입찰내역 접힘/펼침 (회차가 많으면 최근 HIST_SHOW개만 남기고 접기 — 진행중 포함 최근 3개) ───
+const HIST_SHOW=3;
 function applyHistCollapse(){
   const rows=[...document.querySelectorAll('#histList .h-row')];
   const mb=document.getElementById('histMore'); if(!mb)return;
@@ -969,6 +1009,11 @@ if(isLive){
 // 칩 줄 — 공고기관 배지 (물건번호·주소는 카드의 heroCaseNo/dAddr로 일원화)
 document.getElementById('courtBadge').textContent=it.court;
 
+// 라이브 물건은 매각기일을 스냅샷 bidEnd(yyyyMMddHHmm)로 채움 — "매각기일 —"·D-day "—" 공백 방지(2026-07-26).
+if(isLive&&(!it.saleDate||it.saleDate==='—')){
+  const be=String((liveItem&&liveItem.bidEnd)||'');
+  if(be.length>=8&&Number(be.slice(0,4))<=2099)it.saleDate=`${be.slice(0,4)}.${be.slice(4,6)}.${be.slice(6,8)}`;
+}
 const ddResult=calcDday(it.saleDate,it.status);
 const saleDateShort=it.saleDate&&it.saleDate!=='—'?it.saleDate.replace(/^(\d{4})\./,'').replace(/(\d{2})\.(\d{2})$/,'$1/$2'):'—';
 document.getElementById('chipDate').textContent=`매각기일 ${saleDateShort}`;
@@ -1065,11 +1110,15 @@ function galNav(dir){
 const lo=Math.round(it.min*1.02),hi=Math.round(it.min*1.13),rec=Math.round(it.min*1.07);
 // "내 예측 봉인"이 물건 정보·AI 구간을 자동으로 채우도록 전역에 노출(만원 단위)
 // 라이브 물건은 온비드 물건 id(cltrMngNo+pbctCdtnNo)도 실어, 향후 개찰 결과 자동 채점의 매칭 키로 봉인 레코드에 저장한다.
-window.__ai={lo,hi,min:it.min,appr:it.appr,title:it.title,
+// mid(중심값)는 마진 위젯의 중심 시나리오 계산에 필요 — 누락 시 NaN으로 "중심 시나리오 —" 버그(2026-07-26 수정).
+window.__ai={lo,hi,mid:rec,min:it.min,appr:it.appr,title:it.title,
   cltrMngNo:isLive?String(liveItem.id):null,
   pbctCdtnNo:(isLive&&liveItem.pbctCdtnNo)?String(liveItem.pbctCdtnNo):null,
   bidEnd:isLive?((liveItem&&liveItem.bidEnd)||it.bidEnd||''):'',
   live:isLive};
+// 네이버 링크 초기 정밀화 — 온비드 물건명이 지번 주소로 시작하는 관례("경기도 안성시 중리동 616 동광아파트 …")를
+// 활용해 상세 API 도착 전에도 번지·단지명 쿼리를 확보(주소 패턴 아니면 setNaverAddr 가드가 무시).
+if(isLive)setNaverAddr(it.title||'');
 document.getElementById('aiRange').textContent=`${fmt(lo)} ~ ${fmt(hi)}`;
 document.getElementById('aiRec').textContent=fmt(rec)+'원';
 document.getElementById('aiConf').textContent=it.fail>=2?'중간':'높음';
@@ -1386,10 +1435,11 @@ if(isLive&&liveItem){
               if(p0.pbancOrgNm)document.getElementById('obOrg').textContent=p0.pbancOrgNm;
               if(p0.pbancKindNm){document.getElementById('obKind').textContent=p0.pbancKindNm;document.getElementById('obKindRow').style.display='';}
               const pdate=p0.pbancPstgDt||p0.pbancDt||p0.rgstDt||'';
-              if(pdate){const t=String(pdate).replace(/[^0-9]/g,'');document.getElementById('obDate').textContent=t.length>=8?`${t.slice(0,4)}-${t.slice(4,6)}-${t.slice(6,8)}`:String(pdate);document.getElementById('obKindRow').style.display='';}
+              if(pdate){const t=String(pdate).replace(/[^0-9]/g,'');document.getElementById('obDate').textContent=t.length>=8?`${t.slice(0,4)}-${t.slice(4,6)}-${t.slice(6,8)}`:String(pdate);document.getElementById('obDateWrap').style.display='';document.getElementById('obKindRow').style.display='';}
               if(p0.ptctCmsn)showRow('obFeeRow','obFee',p0.ptctCmsn);
               // 첨부파일(공고문·감정평가서·명세서 등) — urlAdr이 http로 시작할 때만 링크(상대경로·미확인은 이름만 표기, 날조 금지)
-              const files=Array.isArray(p0.atchFileList)?p0.atchFileList:[];
+              // 항목 1개면 배열이 아니라 객체로 오는 data.go.kr 관례 커버
+              const files=Array.isArray(p0.atchFileList)?p0.atchFileList:(p0.atchFileList&&typeof p0.atchFileList==='object'?[p0.atchFileList]:[]);
               if(files.length){
                 const html=files.map((f,i)=>{
                   const nm=String(f.fileNm||f.atchFileNm||f.orgnlFileNm||('첨부파일 '+(i+1))).replace(/</g,'&lt;');
@@ -1422,6 +1472,18 @@ if(isLive&&liveItem){
       if((det.lotAddr||det.roadAddr)&&window.__setMapAddr) window.__setMapAddr(det.lotAddr||det.roadAddr);
       if(det.lotAddr||det.roadAddr) setNaverAddr(det.lotAddr||det.roadAddr);
 
+      // 관련문서(감정평가서 등) — 상세 응답 전체에서 pdf/hwp 문서 딥스캔 → 공고 카드 '관련문서'로 열람 연결
+      try{
+        const docs=deepFiles(det.raw||det);
+        if(docs.length){
+          const seen=new Set();
+          const html=docs.filter(d=>{if(seen.has(d.url))return false;seen.add(d.url);return true;}).slice(0,6)
+            .map(d=>`<a href="${String(d.url).replace(/"/g,'&quot;')}" target="_blank" rel="noopener" style="color:var(--green-deep);font-weight:700;">📎 ${String(d.name).replace(/</g,'&lt;')}</a>`).join('');
+          const fe=document.getElementById('obFile');
+          if(html&&fe){fe.insertAdjacentHTML('beforeend',html);document.getElementById('obFileRow').style.display='';}
+        }
+      }catch(e){/* degrade — 관련문서 없으면 행 숨김 유지 */}
+
       // 유찰 진단 보강 — 재산구분(압류/신탁 등). (기본정보 표는 그리드와 중복이라 제거됨)
       fdSet({prptDiv:det.prptDivNm||''});
 
@@ -1441,47 +1503,38 @@ if(isLive&&liveItem){
       if(rl){
         rl.innerHTML=''; // 온비드 상세가 도착했으니 "확인 중" 플레이스홀더를 실데이터로 교체
         if(Array.isArray(det.leasInfList))LEAS_SUMMARY=det.leasInfList.length>0?`임대차 ${det.leasInfList.length}건 존재 (보증금·임차인은 상세 페이지 표시분 기준)`:'온비드 API 기준 임대차 정보 없음';
-        if(det.leasInfList&&det.leasInfList.length>0){
-          // 실 응답 필드명 매핑(2026-07-26 확인): irstDivNm 구분·cltrInprNm 성명·bidGrteeAmt 보증금·
-          // mthrAmt 월세(차임)·convGrteeAmt 환산보증금·cfmtnYmd 확정일자·mvinYmd 전입일. null은 생략(JSON 노출 금지).
-          const hasVal=v=>v!=null&&v!==''&&v!=='null';
-          const won=v=>hasVal(v)?fmtWon(Number(v)):null;
-          det.leasInfList.forEach(l=>{
-            const parts=[
-              hasVal(l.irstDivNm)&&('구분: '+l.irstDivNm),
-              hasVal(l.cltrInprNm)&&('성명: '+l.cltrInprNm),
-              won(l.bidGrteeAmt)&&('보증금: '+won(l.bidGrteeAmt)),
-              won(l.mthrAmt)&&('월세: '+won(l.mthrAmt)),
-              won(l.convGrteeAmt)&&('환산보증금: '+won(l.convGrteeAmt)),
-              hasVal(l.cfmtnYmd)&&('확정일자: '+l.cfmtnYmd),
-              hasVal(l.mvinYmd)&&('전입일: '+l.mvinYmd),
-            ].filter(Boolean);
-            const desc=parts.length?parts.join(' · '):'세부 항목은 공매재산명세서(공고 원문) 확인';
-            const el=document.createElement('div');el.className='right-item warn';
-            el.innerHTML='<span class="ico">📄</span><div><div class="rt">임대차 정보</div><div class="rm">'+desc.replace(/</g,'&lt;')+'</div></div>';
-            rl.prepend(el);
-          });
-        }else if(Array.isArray(det.leasInfList)){
-          const el=document.createElement('div');el.className='right-item ok';
-          el.innerHTML='<span class="ico">✅</span><div><div class="rt">임대차 정보 없음</div><div class="rm">온비드 API 기준 임대차 정보가 없습니다.</div></div>';
-          rl.prepend(el);
-        }
+        // 감정평가액 카드
         if(det.apslEvlAmt){
           const el=document.createElement('div');el.className='right-item ok';
           el.innerHTML='<span class="ico">📋</span><div><div class="rt">감정평가액</div><div class="rm">'+fmtWon(det.apslEvlAmt)+' (온비드 상세 API 기준)</div></div>';
-          rl.prepend(el);
+          rl.appendChild(el);
         }
-        // 등기 사항 / 점유 관계 (onbid-detail 실측 리스트). 필드명 미확정이라 fmtObjVals로 값만 안전 요약(JSON 노출 금지).
-        const addList=(arr,ico,title)=>{
-          if(!Array.isArray(arr))return;
-          arr.forEach(o=>{const t=fmtObjVals(o);if(!t)return;
-            const el=document.createElement('div');el.className='right-item';
-            el.innerHTML='<span class="ico">'+ico+'</span><div><div class="rt">'+title+'</div><div class="rm">'+t+'</div></div>';
-            rl.appendChild(el);
-          });
-        };
-        addList(det.rgstPrmrInfList,'🏛️','등기 사항');
-        addList(det.ocpyRelList,'🚪','점유 관계');
+        // 임대차 — 실 응답 필드명 매핑(2026-07-26 확인): irstDivNm 구분·cltrInprNm 성명·bidGrteeAmt 보증금·
+        // mthrAmt 월세·convGrteeAmt 환산보증금·cfmtnYmd 확정일자·mvinYmd 전입일. null 생략(JSON 노출 금지).
+        // 카테고리당 카드 1장: 첫 항목 + "전체 보기" 펼침(창업자 요청 2026-07-26).
+        const hasVal=v=>v!=null&&v!==''&&v!=='null';
+        const won=v=>hasVal(v)?fmtWon(Number(v)):null;
+        const leasItems=(Array.isArray(det.leasInfList)?det.leasInfList:[]).map(l=>{
+          const parts=[
+            hasVal(l.irstDivNm)&&('구분: '+l.irstDivNm),
+            hasVal(l.cltrInprNm)&&('성명: '+l.cltrInprNm),
+            won(l.bidGrteeAmt)&&('보증금: '+won(l.bidGrteeAmt)),
+            won(l.mthrAmt)&&('월세: '+won(l.mthrAmt)),
+            won(l.convGrteeAmt)&&('환산보증금: '+won(l.convGrteeAmt)),
+            hasVal(l.cfmtnYmd)&&('확정일자: '+l.cfmtnYmd),
+            hasVal(l.mvinYmd)&&('전입일: '+l.mvinYmd),
+          ].filter(Boolean);
+          return (parts.length?parts.join(' · '):'세부 항목은 공매재산명세서(공고 원문) 확인').replace(/</g,'&lt;');
+        });
+        if(leasItems.length){ groupCard(rl,'📄','임대차 정보',leasItems,'warn'); }
+        else if(Array.isArray(det.leasInfList)){
+          const el=document.createElement('div');el.className='right-item ok';
+          el.innerHTML='<span class="ico">✅</span><div><div class="rt">임대차 정보 없음</div><div class="rm">온비드 API 기준 임대차 정보가 없습니다.</div></div>';
+          rl.appendChild(el);
+        }
+        // 등기 사항 / 점유 관계 — 필드명 미확정이라 fmtObjVals로 값만 안전 요약(JSON 노출 금지), 그룹 카드 1장씩.
+        groupCard(rl,'🏛️','등기 사항',(Array.isArray(det.rgstPrmrInfList)?det.rgstPrmrInfList:[]).map(fmtObjVals).filter(Boolean),'');
+        groupCard(rl,'🚪','점유 관계',(Array.isArray(det.ocpyRelList)?det.ocpyRelList:[]).map(fmtObjVals).filter(Boolean),'');
       }
 
       const chip=document.getElementById('demoChip');
@@ -1489,6 +1542,17 @@ if(isLive&&liveItem){
     }catch(e){console.log('[detail] 상세 API 오류:',e.message);}
   })();
   document.getElementById('sec-agents').style.display='';
+  // 자산군별 에이전트 버튼 구성(2026-07-26 창업자 승인): 동산·차량은 부동산 전용 에이전트
+  // (지역·권리분석·뉴스·거시)를 숨기고 전문가 라벨을 자산군에 맞게 교체 — 서버(agents.js)가
+  // 같은 assetClass로 동산/차량 페르소나 프롬프트(품목 카테고리·시세 확인 채널 포함)로 분기한다.
+  {
+    const ac=liveItem.assetClass==='동산'?'동산':(liveItem.assetClass==='자동차'||it.type==='차량'||it.type==='자동차')?'차량':'부동산';
+    if(ac!=='부동산'){
+      const eb=document.querySelector('.agent-btn[data-agent="expert"]');
+      if(eb)eb.textContent=ac==='동산'?'💎 동산 전문가':'🚗 차량 전문가';
+      ['region','rights','news','macro'].forEach(a=>{const b=document.querySelector('.agent-btn[data-agent="'+a+'"]');if(b)b.style.display='none';});
+    }
+  }
   // 인근 매각통계 — 캠코 지역별 공식 통계(stat_rgn, 압류재산). 지역 미매칭·API 실패 시 섹션 숨김 유지.
   (async()=>{
     try{
@@ -1583,8 +1647,9 @@ if(isLive&&liveItem){
       // 네이버 부동산 아웃바운드 링크 — 사용자가 호가와 직접 교차 검증(스크래핑 금지 원칙상 링크만).
       // 상세 API의 번지 주소(lotAddr)가 이미 도착했으면 그 지점으로 바로 이동, 아니면 동 단위 폴백.
       // (호·층은 네이버 검색이 못 받으므로 제거 — 지도 지오코딩과 동일한 정제 규칙.)
-      const naverQ=(window.__naverAddr||[t[0],sgg,emd].filter(Boolean).join(' '));
-      const naverLink=`<a id="naverLandLink" href="https://new.land.naver.com/search?query=${encodeURIComponent(naverQ)}" target="_blank" rel="noopener" style="font-size:12px;font-weight:700;color:var(--green-deep);">네이버 부동산에서 호가 확인 ↗</a>`;
+      // 검색어 폴백(시도 제거 "안성시 중리동") 확보 — 클릭 시 네이버 부동산 열기 + 검색어 자동 복사(온비드 공고보기와 동일 패턴)
+      if(!window.__naverAddr)window.__naverAddr=[sgg,emd].filter(Boolean).join(' ');
+      const naverLink=`<a id="naverLandLink" href="https://new.land.naver.com" target="_blank" rel="noopener" onclick="copyNaverQ()" title="클릭 시 검색어(주소·단지명)가 복사됩니다 — 네이버 부동산 검색창에 붙여넣으세요" style="font-size:12px;font-weight:700;color:var(--green-deep);">네이버 부동산에서 호가 확인 ↗ <span style="font-weight:600;font-size:11px;color:var(--sub);">(검색어 자동 복사)</span></a>`;
 
       const KIND={apt_trade_dev:'apt',offi_trade:'offi',rh_trade:'rh',sh_trade:'sh'}[svc];
       if(KIND){
