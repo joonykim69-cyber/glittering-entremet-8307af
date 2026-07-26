@@ -268,18 +268,42 @@ const NEWS_QUERY = { '전체':'온비드 공매', '부동산소식':'부동산 �
 const realNews = {}; // cat -> items[]
 function esc(s){ return String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])); }
 function fmtNewsDate(d){ const t=new Date(d); return isNaN(t)?'':`${t.getFullYear()}.${t.getMonth()+1}.${t.getDate()}`; }
+// 같은 보도자료(예: 캠코 압류재산 공매 공고)가 여러 매체에 거의 동일하게 재게재되는 경우가
+// 많아, 노출 슬롯이 같은 내용으로 도배되는 문제(2026-07-26 창업자 지적)를 완화한다.
+// 판정 근거: 제목+요약에서 3자리 이상 숫자+단위(억원/억/만원/건) 토큰을 뽑아 "핵심 수치 서명"으로
+// 삼는다 — 보도자료 재게재는 문구가 달라도 핵심 수치(예 "7541억원", "1796건")는 그대로 반복되고,
+// 반대로 진짜 다른 사건은 우연히 같은 수치를 공유할 가능성이 낮다(단어 겹침만 보는 방식보다 안정적).
+function newsNumberSig(title, desc){
+  const text = `${title||''} ${desc||''}`;
+  const nums = (text.match(/[\d][\d,]*\s*(?:억원|억|만원|건)/g) || [])
+    .map(s => s.replace(/[,\s]/g, ''))
+    .filter(s => parseInt(s, 10) >= 100); // 100 미만은 우연히 겹칠 노이즈로 보고 서명에서 제외
+  return new Set(nums);
+}
+function dedupeNews(items){
+  const kept = [], keptSigs = [];
+  for (const it of items) {
+    const sig = newsNumberSig(it.title, it.desc);
+    const isDup = sig.size > 0 && keptSigs.some(ks => [...sig].some(n => ks.has(n)));
+    if (!isDup) { kept.push(it); keptSigs.push(sig); }
+  }
+  return kept;
+}
+
 async function loadNews(cat){
   cat = cat || '전체';
   if (realNews[cat]) { renderArticles(); return; } // 캐시 재사용
   try {
     const q = NEWS_QUERY[cat] || '온비드 공매';
-    const data = await fetch(`/.netlify/functions/naver-news?query=${encodeURIComponent(q)}&display=9&sort=date`)
+    // 중복 제거 후에도 9건을 채울 수 있도록 넉넉히(24건) 받아온 뒤 걸러낸다.
+    const data = await fetch(`/.netlify/functions/naver-news?query=${encodeURIComponent(q)}&display=24&sort=date`)
       .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
     if (data && Array.isArray(data.items) && data.items.length) {
-      realNews[cat] = data.items.map(x => ({ title:x.title, desc:x.desc, link:x.link, date:x.date, cat: (cat==='전체'?'부동산소식':cat) }));
+      const mapped = data.items.map(x => ({ title:x.title, desc:x.desc, link:x.link, date:x.date, cat: (cat==='전체'?'부동산소식':cat) }));
+      realNews[cat] = dedupeNews(mapped).slice(0, 9);
       if (activeKind === 'news' && activeCat === cat) renderArticles();
       const chip = document.querySelector('.demo-chip');
-      if (chip) chip.textContent = '✅ 부동산소식은 네이버 실시간 뉴스 · 전문가 컬럼은 예시';
+      if (chip) chip.textContent = '✅ 부동산소식은 네이버 실시간 뉴스(중복 보도 제거) · 전문가 컬럼은 예시';
     }
   } catch(e){ console.info('[insight] 뉴스 연동 실패, 예시 유지:', e.message); }
 }

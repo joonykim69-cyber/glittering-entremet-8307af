@@ -44,7 +44,7 @@ exports.handler = async (event) => {
   if (!query) {
     return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: { message: 'query 파라미터가 필요합니다.' } }) };
   }
-  const display = Math.min(Math.max(Number(qs.display) || 5, 1), 10);
+  const display = Math.min(Math.max(Number(qs.display) || 5, 1), 30); // 30 상한 — 보도자료 재게재 중복 제거 후에도 표시분을 채우기 위한 여유분(bidcast-insight.html)
   const sort = qs.sort === 'sim' ? 'sim' : 'date'; // 기본 최신순
 
   try {
