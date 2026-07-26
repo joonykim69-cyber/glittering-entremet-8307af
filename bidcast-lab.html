@@ -4,8 +4,8 @@
 <meta charset="UTF-8"/>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>신호등옥션 랩 — 예측 정확도 공개</title>
-<meta name="description" content="신호등옥션 AI 예측의 오차 범위, 자산군별 정확도, 3개 모델 교차검증 방식을 있는 그대로 공개합니다."/>
+<title>신호등옥션 랩 — 봉인 장부, 있는 그대로 공개</title>
+<meta name="description" content="신호등옥션은 개찰 전에 예측을 봉인하고 수정하지 않습니다. 오차 범위, 자산군별 정확도, 챔피언·챌린저 공개 대결, 기각된 모델까지 그대로 공개합니다."/>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"/>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -219,48 +219,103 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 <header class="lab-hero">
   <div class="wrap">
     <span class="eyebrow">Accuracy Lab</span>
-    <h1>잘 맞은 것만<br/><span class="grad">골라 보여주지 않습니다</span></h1>
-    <p class="lead">개찰 결과가 나올 때마다 AI 예측과 실제 낙찰가를 전수 대조합니다. 오차가 큰 사례도, 예측이 틀린 자산군도 숨기지 않고 그대로 공개하는 것이 신호등옥션 랩의 원칙입니다.</p>
+    <h1>봉인한 뒤엔<br/><span class="grad">고치지 않습니다</span></h1>
+    <p class="lead">모든 예측은 개찰 <b>전에</b> 기록되고 잠깁니다. 개찰 후 실제 낙찰가와 전수 대조하고, 오차가 큰 사례도 예측이 틀린 자산군도 숨기지 않습니다. 새 모델조차 성적이 미리 정한 기준을 넘어야만 교체됩니다 — 아래는 그 전 과정의 기록입니다.</p>
     <div class="stat-row">
-      <div class="stat"><div class="num">±10%</div><div class="lbl">1차 목표 오차 범위 (낙찰가율 기준)</div></div>
+      <div class="stat"><div class="num">봉인 불변</div><div class="lbl">개찰 전 기록, 사후 수정 불가</div></div>
       <div class="stat"><div class="num">전수 공개</div><div class="lbl">적중 사례만이 아닌 전체 결과 대조</div></div>
       <div class="stat"><div class="num">매 개찰일</div><div class="lbl">결과 발표 즉시 자동 채점·갱신</div></div>
-      <div class="stat"><div class="num">3개 모델</div><div class="lbl">독립 분석 후 교차검증하여 합의 도출</div></div>
+      <div class="stat"><div class="num">고정 기준 승격</div><div class="lbl">100·300건 체크포인트 통과해야 모델 교체</div></div>
     </div>
   </div>
 </header>
 
 <section class="section">
   <div class="wrap">
+    <span class="eyebrow">How This Ledger Works</span>
+    <h2 class="title">이 랩이 지키는 3가지 규율</h2>
+    <div class="steps-row">
+      <div class="step-card"><span class="n">1</span><h4>개찰 전 봉인</h4><p>마감 임박 물건의 예상 구간을 <b>개찰 전에</b> 기록하고 잠급니다. 봉인된 예측은 그 어떤 이유로도 수정하지 않습니다 — 이후 나올 통계·연혁은 전부 이 봉인 위에서만 계산됩니다.</p></div>
+      <div class="step-card"><span class="n">2</span><h4>전수 채점</h4><p>개찰 결과가 나오면 봉인된 예측과 실제 낙찰가를 예외 없이 대조합니다. 적중 사례만 골라 보여주지 않고, 오차가 큰 사례·자산군도 그대로 집계합니다.</p></div>
+      <div class="step-card"><span class="n">3</span><h4>고정 기준 승격</h4><p>새 모델(챌린저)은 챔피언과 <b>같은 물건</b>을 병행 봉인해 같은 낙찰가로 채점됩니다. 승격·기각은 미리 정한 체크포인트(100·300건 시점)로만 판정합니다 — 그때그때 유리한 기준으로 재지 않습니다.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 과거 학습 백테스트 성장 곡선 (bt/summary 실데이터 — 데이터 있을 때만 표시) ═══ -->
+<section class="section" id="btSec" style="padding-top:0; display:none;">
+  <div class="wrap">
+    <span class="eyebrow">Backtest · Learning Curve</span>
+    <h2 class="title">과거로 되짚은 학습 곡선 — 훔쳐보기 없이</h2>
+    <p class="lead">2026년 1~6월 실제 개찰 결과로, <b>낙찰가를 가린 채</b> 예측하고 그 뒤에만 채점했습니다. 학습 데이터를 <b>1 → 3 → 5개월</b>로 늘리며 미래 구간을 예측한 walk-forward 검증입니다 — 자기·미래 낙찰가를 볼 수 없는 정직한 시험입니다. <b style="color:var(--green-deep)">이것은 아래 공식 성적표(개찰 전 봉인·전수·불변)와 다른, 과거 재현·검증용 곡선</b>입니다.</p>
+    <div class="acc-card" style="margin-top:24px; overflow-x:auto;">
+      <table style="width:100%; border-collapse:collapse; font-size:13.5px;" id="btTable"></table>
+    </div>
+    <p class="foot-note" id="btNote"></p>
+  </div>
+</section>
+
+<!-- 챔피언 vs 챌린저 — 동일 물건 병행 봉인·채점 공개 비교 (challenger.n>0일 때만 표시) -->
+<section class="section" id="vsSec" style="padding-top:0; display:none;">
+  <div class="wrap">
+    <span class="eyebrow">Champion vs Challenger</span>
+    <h2 class="title">신 모델 vs 구 모델 — 같은 물건, 공개 대결</h2>
+    <p class="lead">새 모델은 말이 아니라 성적으로 승격됩니다. 두 모델이 <b>같은 물건</b>을 개찰 전에 나란히 봉인하고, 같은 낙찰가로 채점한 결과입니다. 승격 기준: 100건 시점 승률 62%+(조기) 또는 300건 시점 55%+(표준), 200건 시점 50% 이하면 탈락.</p>
+    <div class="acc-card" style="margin-top:24px; overflow-x:auto;">
+      <table style="width:100%; border-collapse:collapse; font-size:13.5px;" id="vsTable"></table>
+    </div>
+    <p class="foot-note" id="vsNote"></p>
+  </div>
+</section>
+
+<!-- 기각된 모델 기록 — 실패도 숨기지 않는다는 원칙의 실물 증거(정적 사실 기록, 2026-07-26) -->
+<section class="section" style="padding-top:0;">
+  <div class="wrap">
+    <span class="eyebrow">Rejected Challengers</span>
+    <h2 class="title">기각된 실험들 — 통과 못 한 모델도 남깁니다</h2>
+    <p class="lead">더 나아 보이는 모델도 고정 기준을 못 넘으면 채택하지 않습니다. 아래는 실제로 검토했다가 기각한 두 후보의 기록입니다 — 성공만 골라 보여주지 않는다는 원칙을 코드가 아니라 실제 이력으로 증명합니다.</p>
+    <div class="chron-line" style="margin-top:24px;">
+      <div class="chron-item model">
+        <div class="chron-when">2026.07.23 KST</div>
+        <div class="chron-title">챌린저 v0.6 기각 — 두 앵커 + 넓힌 밴드</div>
+        <div class="chron-body">감정가·최저가 두 앵커로 중심을 잡고 구간(p05~p95)을 넓힌 안. 백테스트에서 적중률은 올랐지만, 그 상승이 <b>구간을 약 1.7배 넓힌 결과</b>였고 중앙값 오차는 오히려 악화됐습니다.
+          <div class="chron-kv"><span>판정: 기각</span><span>사유: 밴드 확대로 얻은 적중률 불인정</span><span>원칙: 넓혀서 맞히는 것은 실력이 아니다</span></div>
+        </div>
+      </div>
+      <div class="chron-item model">
+        <div class="chron-when">2026.07.26 KST</div>
+        <div class="chron-title">챌린저 v0.7 기각 — 저가율 조건 셀 세분화</div>
+        <div class="chron-body">v0.5와 구간 폭은 동일하게 두고, 최저가/감정가 비율로 셀을 한 단계 더 쪼갠 안(폭을 넓히지 않아 원칙상 유력한 후보였습니다). 그런데 3단계 백테스트 전부에서 v0.5보다 적중률이 낮았습니다(53.5%→52.8%, 56.4%→55.1%, 62.8%→62.2%).
+          <div class="chron-kv"><span>판정: 기각</span><span>사유: 저가율이 이미 회차·가격대와 상관돼 표본만 희석(과분할)</span><span>교훈: 다음 후보는 직교하는 신호를 찾을 것</span></div>
+        </div>
+      </div>
+    </div>
+    <p class="foot-note">✅ 실제 백테스트 결과에 기반한 기록(값은 실행 시점 고정) — 라이브 챌린저는 두 실험 모두 기각 후에도 v0.5를 그대로 유지 중입니다.</p>
+  </div>
+</section>
+
+<!-- 모델 연혁 — 초기값부터 모든 변경·결과의 순차 공개 기록 (scoreboard chronicle, 실데이터) -->
+<section class="section" id="chronicleSec" style="padding-top:0; display:none;">
+  <div class="wrap">
+    <span class="eyebrow">Model Chronicle</span>
+    <h2 class="title">모델 연혁 — 처음 값부터, 모든 변경과 그 결과까지</h2>
+    <p class="lead">어떤 값으로 시작했는지, 언제 무엇을 왜 바꿨는지, 바꾼 뒤 성적이 어땠는지를 순서대로 기록합니다. 이 연혁은 봉인 장부처럼 <b>추가만 가능하고 수정할 수 없습니다</b>.</p>
+    <div class="chron-line" id="chronLine"></div>
+    <p class="foot-note">✅ 실데이터 — 예측 장부(chronicle)에서 자동 생성 · 보정은 매일 저녁 채점 후 규칙에 따라 기록되고, 감사역이 매주 스스로 감사한 결과도 함께 쌓입니다.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
     <span class="eyebrow">Error Distribution</span>
     <h2 class="title">오차 범위별 예측 비율</h2>
-    <p class="lead">낙찰가율(낙찰가 ÷ 감정가) 기준, AI 예측이 실제 결과와 얼마나 가까웠는지의 누적 분포입니다.</p>
+    <p class="lead">낙찰가율(낙찰가 ÷ 감정가) 기준, AI 예측이 실제 결과와 얼마나 가까웠는지의 누적 분포입니다. "평균 오차 8%" 한 숫자는 90건이 오차 2%였고 10건이 60%+였던 경우와, 모든 건이 고르게 8%였던 경우를 구분하지 못합니다 — 그래서 평균이 아니라 분포로 공개합니다.</p>
     <div class="acc-card" style="margin-top:24px;" id="errDistCard">
       <div class="acc-bar"><div class="lbl"><span>±5% 이내</span><b>38%</b></div><div class="track"><i style="width:38%;"></i></div></div>
       <div class="acc-bar"><div class="lbl"><span>±10% 이내</span><b>64%</b></div><div class="track"><i style="width:64%;"></i></div></div>
       <div class="acc-bar"><div class="lbl"><span>±15% 이내</span><b>81%</b></div><div class="track"><i style="width:81%;"></i></div></div>
       <div class="acc-bar"><div class="lbl"><span>±20% 이내</span><b>91%</b></div><div class="track"><i style="width:91%;"></i></div></div>
       <p class="foot-note" id="errDistFoot">🔧 위 수치는 서비스 오픈 전 <b>목표치 예시</b>입니다. 오픈 후 실제 개찰 결과로 매일 갱신됩니다. 평균절대오차(MAE) · 표준편차 · 고평가/저평가 비율은 오픈 시 함께 공개합니다.</p>
-    </div>
-  </div>
-</section>
-
-<section class="section" style="padding-top:0;">
-  <div class="wrap">
-    <span class="eyebrow">Why Not Just The Average</span>
-    <h2 class="title">왜 평균만 봐선 안 되는가</h2>
-    <p class="lead">"평균 오차 8%"라는 숫자 하나는 실제로는 전혀 다른 두 서비스를 가릴 수 있습니다.</p>
-    <div class="avg-warn">
-      <div class="avg-card bad">
-        <h4>❌ 평균만 공개하는 경우 (예시)</h4>
-        <p>물건 100건 중 90건은 오차 2% 이내로 정확했지만, 10건은 오차 60% 이상으로 완전히 빗나갔다면 — 평균은 8%로 "훌륭해" 보입니다. 하지만 그 10건에 걸린 사용자는 큰 손실을 볼 수 있습니다.</p>
-        <div class="example">평균 오차 = 8%  (숨겨진 리스크 안 보임)</div>
-      </div>
-      <div class="avg-card">
-        <h4>✅ 분포로 공개하는 경우 (신호등옥션)</h4>
-        <p>같은 상황을 "±10% 이내 90%, 나머지 10%는 오차 60%+"로 분포를 그대로 보여주면, 어떤 자산군·조건에서 예측이 불안정한지 사용자가 스스로 판단할 수 있습니다.</p>
-        <div class="example">±10% 이내 90% · 예외 10건 별도 표기</div>
-      </div>
     </div>
   </div>
 </section>
@@ -281,43 +336,6 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 </section>
 
 <!-- ═══ 캠코 공식 시장 통계 (실 데이터 — 로드 성공 시에만 표시) ═══ -->
-<!-- 챔피언 vs 챌린저 — 동일 물건 병행 봉인·채점 공개 비교 (challenger.n>0일 때만 표시) -->
-<section class="section" id="vsSec" style="padding-top:0; display:none;">
-  <div class="wrap">
-    <span class="eyebrow">Champion vs Challenger</span>
-    <h2 class="title">신 모델 vs 구 모델 — 같은 물건, 공개 대결</h2>
-    <p class="lead">새 모델은 말이 아니라 성적으로 승격됩니다. 두 모델이 <b>같은 물건</b>을 개찰 전에 나란히 봉인하고, 같은 낙찰가로 채점한 결과입니다. 승격 기준: 100건 시점 승률 62%+(조기) 또는 300건 시점 55%+(표준), 200건 시점 50% 이하면 탈락.</p>
-    <div class="acc-card" style="margin-top:24px; overflow-x:auto;">
-      <table style="width:100%; border-collapse:collapse; font-size:13.5px;" id="vsTable"></table>
-    </div>
-    <p class="foot-note" id="vsNote"></p>
-  </div>
-</section>
-
-<!-- ═══ 과거 학습 백테스트 성장 곡선 (bt/summary 실데이터 — 데이터 있을 때만 표시) ═══ -->
-<section class="section" id="btSec" style="padding-top:0; display:none;">
-  <div class="wrap">
-    <span class="eyebrow">Backtest · Learning Curve</span>
-    <h2 class="title">과거로 되짚은 학습 곡선 — 훔쳐보기 없이</h2>
-    <p class="lead">2026년 1~6월 실제 개찰 결과로, <b>낙찰가를 가린 채</b> 예측하고 그 뒤에만 채점했습니다. 학습 데이터를 <b>1 → 3 → 5개월</b>로 늘리며 미래 구간을 예측한 walk-forward 검증입니다 — 자기·미래 낙찰가를 볼 수 없는 정직한 시험입니다. <b style="color:var(--green-deep)">이것은 위 공식 성적표(개찰 전 봉인·전수·불변)와 다른, 과거 재현·검증용 곡선</b>입니다.</p>
-    <div class="acc-card" style="margin-top:24px; overflow-x:auto;">
-      <table style="width:100%; border-collapse:collapse; font-size:13.5px;" id="btTable"></table>
-    </div>
-    <p class="foot-note" id="btNote"></p>
-  </div>
-</section>
-
-<!-- 모델 연혁 — 초기값부터 모든 변경·결과의 순차 공개 기록 (scoreboard chronicle, 실데이터) -->
-<section class="section" id="chronicleSec" style="padding-top:0; display:none;">
-  <div class="wrap">
-    <span class="eyebrow">Model Chronicle</span>
-    <h2 class="title">모델 연혁 — 처음 값부터, 모든 변경과 그 결과까지</h2>
-    <p class="lead">어떤 값으로 시작했는지, 언제 무엇을 왜 바꿨는지, 바꾼 뒤 성적이 어땠는지를 순서대로 기록합니다. 이 연혁은 봉인 장부처럼 <b>추가만 가능하고 수정할 수 없습니다</b>.</p>
-    <div class="chron-line" id="chronLine"></div>
-    <p class="foot-note">✅ 실데이터 — 예측 장부(chronicle)에서 자동 생성 · 보정은 매일 저녁 채점 후 규칙에 따라 기록됩니다.</p>
-  </div>
-</section>
-
 <section class="section" id="kamcoStatsSec" style="padding-top:0; display:none;">
   <div class="wrap">
     <span class="eyebrow">Official Market Stats</span>
@@ -339,21 +357,9 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 
 <section class="section" style="padding-top:0;">
   <div class="wrap">
-    <span class="eyebrow">How It Works</span>
-    <h2 class="title">작동 방식 — 3단계</h2>
-    <div class="steps-row">
-      <div class="step-card"><span class="n">1</span><h4>독립 분석</h4><p>3개의 서로 다른 AI 모델이 같은 물건 데이터를 각자 독립적으로 분석해 예상 낙찰가를 산출합니다. 서로의 결과를 참고하지 않습니다.</p></div>
-      <div class="step-card"><span class="n">2</span><h4>상호 검증</h4><p>세 모델의 결과를 비교해 크게 엇갈리는 지점을 찾아냅니다. 의견이 갈리면 "표본이 적다" 등 불확실성 자체를 신호로 표시합니다.</p></div>
-      <div class="step-card"><span class="n">3</span><h4>합의 도출</h4><p>세 모델이 수렴한 값을 중심으로 예상 범위를 제시하고, 개찰 후 실제 낙찰가와 비교해 세 모델 모두를 다시 채점합니다.</p></div>
-    </div>
-  </div>
-</section>
-
-<section class="section" style="padding-top:0;">
-  <div class="wrap">
     <span class="eyebrow">Trend</span>
-    <h2 class="title">정확도 추이</h2>
-    <p class="lead">월별 ±10% 이내 적중률 목표 추이 (예시 — 실측 데이터는 오픈 후 매월 갱신)</p>
+    <h2 class="title">적중률 추이</h2>
+    <p class="lead" id="trendLead">최근 채점된 일자별 구간 적중률 (실측 — 표본이 쌓이는 대로 매일 갱신)</p>
     <div class="trend-card">
       <div class="trend-bars" id="trendBars"></div>
     </div>
@@ -403,11 +409,24 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 </footer>
 
 <script>
-// 월별 정확도 추이 (예시) — 목표치를 향해 개선되는 흐름을 정직하게 표기
-const TREND = [
-  { m:'1월(목표)', v:52 }, { m:'2월', v:58 }, { m:'3월', v:63 },
-  { m:'4월', v:67 }, { m:'5월', v:71 }, { m:'6월', v:74 },
-];
+// 적중률 추이 — scoreboard.daily(실측)로 렌더한다. 데이터 없으면 "누적 중" 안내로 degrade
+// (예시 하드코딩 금지 — 가짜 초록 방지). 아래 scoreboard fetch 핸들러에서 채운다.
+function renderTrend(daily) {
+  const el = document.getElementById('trendBars'); if (!el) return;
+  const lead = document.getElementById('trendLead');
+  const days = Object.keys(daily || {}).filter(d => daily[d] && daily[d].n > 0).sort().slice(-8);
+  if (!days.length) {
+    el.innerHTML = '<div style="color:var(--mute);font-size:13px;padding:30px 4px;">개찰 채점이 누적되면 일자별 구간 적중률이 여기 표시됩니다 — 아직 표본을 모으는 중입니다.</div>';
+    if (lead) lead.textContent = '최근 채점된 일자별 구간 적중률 (실측 — 개찰 결과 누적 후 표시)';
+    return;
+  }
+  el.innerHTML = days.map(d => {
+    const s = daily[d], v = Math.round(s.hit / s.n * 100);
+    const md = d.length === 8 ? `${+d.slice(4, 6)}.${+d.slice(6, 8)}` : d;
+    return `<div class="col"><div class="v">${v}%</div><div class="b" style="height:${Math.max(4, Math.round(v / 100 * 130))}px;"></div><div class="m">${md}<br/><span style="opacity:.7">${s.n}건</span></div></div>`;
+  }).join('');
+  if (lead) lead.textContent = `최근 ${days.length}개 채점일의 일자별 구간 적중률 (실측 — 개찰 결과 발표 즉시 갱신)`;
+}
 // ═══════════════════════════════════════
 // 캠코 공식 낙찰 통계 (실 데이터) — 성공 시에만 섹션 표시
 // stat_usg(용도별)·stat_rgn(지역별): clsCdNm(분류), mtSumCnt(낙찰건수),
@@ -460,12 +479,7 @@ const TREND = [
   }
 })();
 
-document.getElementById('trendBars').innerHTML = TREND.map(t => `
-  <div class="col">
-    <div class="v">${t.v}%</div>
-    <div class="b" style="height:${Math.round(t.v / 100 * 130)}px;"></div>
-    <div class="m">${t.m}</div>
-  </div>`).join('');
+renderTrend(null); // 초기: 안내 문구. scoreboard 로드 시 실측으로 교체.
 
 // 간편로그인 (공용 데모 컴포넌트)
 const authOverlay = document.getElementById('authOverlay');
@@ -514,6 +528,9 @@ document.addEventListener('keydown', (e) => {
     const r = await fetch('/.netlify/functions/scoreboard');
     if (!r.ok) return;
     const d = await r.json();
+
+    // ── 적중률 추이 실측화 (scoreboard.daily) ──
+    if (d.daily) renderTrend(d.daily);
 
     // ── 오차 범위별 예측 비율 실측화 (표본 있을 때만 예시→실측 교체) ──
     if (d.errDist && d.errDist.n > 0) {
