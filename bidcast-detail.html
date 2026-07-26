@@ -548,6 +548,12 @@ h1,h2,h3,h4{font-family:var(--font-head)}
         <h2>입찰 이력</h2>
         <div class="card history" id="histList"></div>
       </section>
+      <!-- 유찰 진단 — 규칙 기반 신호 정리 (라이브 물건 + 유찰 3회 이상일 때만 표시. LLM 미사용) -->
+      <section class="rp-section" id="sec-failDiag" style="display:none;">
+        <h2>유찰 진단 <span class="sec-tag" style="background:var(--green-soft);color:var(--green-deep);">규칙 기반 신호 정리 · 실데이터</span></h2>
+        <div class="card" id="failDiagCard"></div>
+        <p style="font-size:11px;color:var(--mute);margin-top:10px;" id="failDiagNote"></p>
+      </section>
       <!-- 주변 실거래 — 국토부 실거래가 (실데이터, 라이브 물건 + 시군구 식별 성공 시에만 표시) -->
       <!-- AI 전문가 분석 — agents.js (실데이터 주입 생성, 물건당 1회 캐시). 라이브 물건에서만 표시 -->
       <section class="rp-section" id="sec-agents" style="display:none;">
@@ -1309,6 +1315,8 @@ if(isLive&&liveItem){
             <span class="h-tag ${cls}">${tag}</span>
           </div>`;
         }).join('')+'<p style="font-size:11px;color:var(--mute);margin-top:10px;">✅ 실시간 온비드 회차별 입찰정보 (물건상세 입찰정보)</p>';
+        // 유찰 진단 보강 — 진행된 회차 중 취소 횟수 실측(취소 반복 = 절차·권리 변수 신호)
+        fdSet({cancels:past.filter(p=>/취소/.test(String(p&&p.pbctStatNm||''))).length});
       }
     }catch(e){console.log('[detail] 입찰정보(cltr_dtl_bidinf) 연동 실패(스냅샷 유지):',e.message);}
   })();
@@ -1328,6 +1336,7 @@ if(isLive&&liveItem){
       if((det.lotAddr||det.roadAddr)&&window.__setMapAddr) window.__setMapAddr(det.lotAddr||det.roadAddr);
 
       // 기본정보 테이블 업데이트
+      fdSet({prptDiv:det.prptDivNm||''}); // 유찰 진단 보강 — 재산구분(압류/신탁 등)
       const rows=[['소재지',fullAddr],['재산구분',det.prptDivNm||'—'],['용도(대)',det.usageLcls||'—'],['용도(중)',det.usageMcls||'—'],['용도(소)',det.usageScls||'—']];
       if(det.apslEvlAmt)rows.push(['감정평가액',fmtWon(det.apslEvlAmt)]);
       rows.push(['처분방식',det.disposeMethod||'매각']);
@@ -1401,6 +1410,10 @@ if(isLive&&liveItem){
       }
     }catch(e){console.log('[detail] 지역 통계 로드 실패(숨김):',e.message);}
   })();
+  // 유찰 진단 기초 팩트 시드 — 이후 회차 이력·상세·시세 밴드가 도착하면 fdSet으로 보강
+  fdSet({live:true,fail:Number(liveItem.fail!=null?liveItem.fail:it.fail)||0,round:Number(liveItem.round)||0,
+    appr:Number(liveItem.appr!=null?liveItem.appr:it.appr)||0,min:Number(liveItem.min!=null?liveItem.min:it.min)||0});
+
   // 주변 실거래 — 국토부 실거래가(rtms-svc). 시군구 코드 미등록·용도 미매핑·표본 0이면 섹션 숨김 유지.
   (async()=>{
     try{
@@ -1483,6 +1496,7 @@ if(isLive&&liveItem){
             ${confChip}${me.adjust&&me.adjust.applied?`<div style="font-size:11.5px;color:var(--sub);margin-top:4px;">시점 보정: ${esc(me.adjust.basis||'부동산원 지수')}</div>`:''}
             ${aiLine}</div>`;
           passSim(me.perM2.p50,`${scope} ${svcName} 추정 ㎡당 중앙값 ${Math.round(me.perM2.p50).toLocaleString()}만원 (신뢰도 ${me.confidence})`);
+          fdSet({mkt:{scope,kind:svcName}}); // 유찰 진단 보강 — 시세 밴드 존재(감정가 적정성 대조 가능)
         }else{
           band=`<div style="padding:12px 14px;background:var(--line);border-radius:12px;margin-bottom:12px;font-size:13px;color:var(--sub);">표본이 적어 시세 범위를 제시하지 않습니다(정직성 원칙) — 아래 최근 거래만 참고하세요.</div>`;
         }
@@ -1525,6 +1539,54 @@ if(isLive&&liveItem){
     }catch(e){console.log('[rtms] 주변 실거래 로드 실패(섹션 미표시):',e.message);}
   })();
 }
+
+// ═══ 유찰 진단 — 규칙 기반 신호 정리 (LLM 미사용) ═══
+// "왜 이렇게 유찰이 반복되나"를 데이터에 있는 팩트만으로 분해한다. 원인 "확정"이 아니라
+// 원인 후보를 좁히고 입찰 전 확인 항목을 구체화하는 것("네가 찾아봐라" → "이 순서로 확인해라").
+// 데이터가 비동기로 도착하므로(회차 이력·상세·시세 밴드) fdSet()이 올 때마다 재렌더(멱등).
+// FD-ENGINE-START (검증 테스트가 이 마커로 블록을 추출한다)
+// ⚠️ fdSet은 자가 초기화 필수 — 라이브 렌더 블록(위쪽 if(isLive))이 이 지점보다 먼저 실행되므로
+// 별도 초기화 문장에 의존하면 첫 호출이 TypeError로 죽고 뒤따르는 렌더까지 끊긴다(2026-07-26 실배포에서 확인).
+function fdSet(patch){window.__fd=Object.assign(window.__fd||{},patch);try{renderFailDiag();}catch(e){console.log('[failDiag]',e.message);}}
+function renderFailDiag(){
+  const f=window.__fd;
+  if(!f.live||!(Number(f.fail)>=3))return; // 라이브 + 유찰 3회 이상만
+  const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const disc=(f.appr>0&&f.min>0)?f.min/f.appr:null;
+  const sig=[],chk=[];
+  // ① 가격 요인 판정 — 깊이 깎였는데도 유찰이면 가격 외 요인 의심(핵심 추론)
+  if(disc!=null&&disc<1){
+    const pct=Math.round(disc*100);
+    if(disc<=0.5&&Number(f.fail)>=5)sig.push({k:'strong',t:`최저가가 감정가의 <b>${pct}%</b>까지 하락했는데도 유찰이 계속됩니다 — <b>가격 매력 부족이 원인일 가능성은 낮습니다.</b> 권리·점유·물건 상태 요인을 의심해야 합니다.`});
+    else sig.push({k:'info',t:`최저가 = 감정가의 ${pct}% (유찰 ${f.fail}회 누적)`});
+  }else if(disc!=null){
+    sig.push({k:'warn',t:'최저입찰가 ≥ 감정가 — 신탁/특수 매각 구조입니다. 유찰이 가격이 아니라 <b>매각 조건·구조</b> 때문일 수 있습니다.'});
+  }else{
+    sig.push({k:'info',t:'감정가 미공개 — 가격 요인은 판단할 수 없습니다.'});
+  }
+  if(f.mkt)sig.push({k:'info',t:`주변 ${esc(f.mkt.scope||'')} ${esc(f.mkt.kind||'')} 실거래 시세 밴드가 있습니다(위 주변 실거래 섹션) — 감정가가 시세 대비 온당한지 직접 대조해 보세요.`});
+  // ② 취소·변경 반복 — 절차·권리 변수 신호 (회차 이력 실측)
+  if(Number(f.cancels)>=1){
+    sig.push({k:'warn',t:`진행 중 <b>취소가 ${f.cancels}회</b> 있었습니다 — 공고 변경·절차상 변수가 반복된 신호입니다.`});
+    chk.push('취소된 회차의 공고 취소·변경 사유 (온비드 공고 이력)');
+  }
+  // ③ 재산구분 — 압류/신탁은 인수 부담 구조가 다름
+  if(/압류/.test(f.prptDiv||''))sig.push({k:'warn',t:'<b>압류재산 공매</b> — 임차인 대항력·배분요구 여부가 인수 부담을 좌우합니다.'});
+  else if(/신탁|수탁/.test(f.prptDiv||''))sig.push({k:'warn',t:'<b>신탁재산</b> — 매각조건·특약이 일반 공매와 다를 수 있습니다.'});
+  // 공통 확인 체크리스트 (우선순위 순)
+  chk.unshift('공매재산명세서(온비드 공고 첨부 원문)의 임차인 현황·배분요구·인수 조건');
+  chk.unshift('등기부등본의 말소되지 않는 권리 — 선순위 근저당·가압류·가처분');
+  chk.push('현장 점유 상태(거주·영업 여부) 확인');
+  const KC={strong:'background:#FDECEC;color:#B3261E;',warn:'background:#FFF6DE;color:#8A6D00;',info:'background:var(--green-soft);color:var(--green-deep);'};
+  document.getElementById('failDiagCard').innerHTML=
+    `<div style="font-size:13px;font-weight:800;margin-bottom:10px;">유찰 ${f.fail}회${f.round?` · ${f.round}회차 진행 중`:''} — 신호 분해</div>`+
+    sig.map(s=>`<div style="padding:10px 12px;border-radius:10px;margin-bottom:8px;font-size:13px;line-height:1.55;${KC[s.k]||KC.info}">${s.t}</div>`).join('')+
+    `<div style="font-size:13px;font-weight:800;margin:14px 0 8px;">입찰 전 확인 체크리스트</div>`+
+    `<ol style="margin:0;padding-left:20px;font-size:13px;line-height:1.8;color:var(--ink);">${chk.map(c=>`<li>${esc(c)}</li>`).join('')}</ol>`;
+  document.getElementById('failDiagNote').textContent='※ 규칙 기반 신호 정리 — 원인 확정이 아니라 확인 우선순위 제안입니다. 등기부·명세서·현장은 데이터 밖 영역이라 직접 확인이 필요하며, 법률 자문이 아닙니다.';
+  document.getElementById('sec-failDiag').style.display='';
+}
+// FD-ENGINE-END
 
 // ═══ AI 전문가 분석 (agents.js) — 라이브 물건 전용, 서버 캐시로 물건당 1회 생성 ═══
 const AGENT_LABEL={expert:'🏢 부동산 전문가',region:'📍 지역 전문가',competition:'🥊 경쟁 강도 분석',rights:'⚖️ 권리분석 도우미',sale_risk:'📋 매각조건 리스크',news:'📰 뉴스·정보'};
