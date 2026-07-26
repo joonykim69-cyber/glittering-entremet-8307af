@@ -546,7 +546,11 @@ document.addEventListener('keydown', (e) => {
       const bt = d.backtest, e0 = v => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;');
       const th = t => `<th style="text-align:left; padding:10px 8px; font-size:12px; color:var(--mute);">${t}</th>`;
       const td = (v, b, span) => `<td${span ? ` rowspan="${span}"` : ''} style="padding:10px 8px; vertical-align:top;${b ? ' font-weight:800;' : ' color:var(--sub);'}">${v}</td>`;
-      const hasCmp = bt.stages.some(s => s.v05 && s.v06);
+      // 모델 목록: 신형(s.models 맵 — 레지스트리 일반화) 우선, 구형(s.v05/s.v06 고정 필드) 폴백
+      const modelKeys = s => s.models ? Object.keys(s.models) : (s.v05 && s.v06 ? ['v05', 'v06'] : null);
+      const modelOf = (s, k) => s.models ? s.models[k] : s[k];
+      const mkLabel = k => 'v' + String(k).replace(/^v/, '').replace(/^0*(\d)(\d)$/, '$1.$2');
+      const hasCmp = bt.stages.some(s => modelKeys(s));
       const metrics = m => td((m.n || 0).toLocaleString() + '건', false) +
         td(m.coverage != null ? m.coverage + '%' : '—', false) +
         td(m.hitRate != null ? `<b style="color:var(--green-deep)">${m.hitRate}%</b>` : '—', true) +
@@ -555,16 +559,20 @@ document.addEventListener('keydown', (e) => {
       let rows;
       if (hasCmp) {
         rows = bt.stages.map((s, i) => {
-          const head = td(`<b>${i + 1}단계</b><br/><span style="color:var(--sub);font-weight:600;">${e0(s.vlabel)}</span>`, true, 2) + td(e0(s.testLabel) + ' 예측', false, 2);
-          const r05 = `<tr style="border-top:1px solid var(--line);">` + head + td('v0.5 <span style="color:var(--sub);font-weight:600;">기존(단일)</span>', false) + metrics(s.v05) + `</tr>`;
-          const r06 = `<tr style="border-bottom:2px solid var(--line);">` + td('v0.6 <span style="color:var(--sub);font-weight:600;">개선(두앵커)</span>', true) + metrics(s.v06) + `</tr>`;
-          return r05 + r06;
+          const keys = modelKeys(s) || [];
+          const head = td(`<b>${i + 1}단계</b><br/><span style="color:var(--sub);font-weight:600;">${e0(s.vlabel)}</span>`, true, keys.length) + td(e0(s.testLabel) + ' 예측', false, keys.length);
+          return keys.map((k, j) => {
+            const style = j === 0 ? ' style="border-top:1px solid var(--line);"' : (j === keys.length - 1 ? ' style="border-bottom:2px solid var(--line);"' : '');
+            const tag = j === 0 ? '기준선' : '후보';
+            return `<tr${style}>` + (j === 0 ? head : '') + td(`${mkLabel(k)} <span style="color:var(--sub);font-weight:600;">${tag}</span>`, j > 0) + metrics(modelOf(s, k) || {}) + `</tr>`;
+          }).join('');
         }).join('');
         document.getElementById('btTable').innerHTML =
           `<tr style="border-bottom:2px solid var(--line);">` + th('단계 · 학습량') + th('예측 대상') + th('모델') + th('표본') + th('커버리지') + th('구간 적중률') + th('중앙값 오차') + th('평균 구간폭') + `</tr>` + rows;
         const mv = bt.models || {};
+        const legend = Object.keys(mv).map(k => `<b>${mkLabel(k)}</b> ${e0(mv[k])}`).join(' · ');
         document.getElementById('btNote').innerHTML =
-          `${bt.done ? '✅ 3단계 완료' : '⏳ 진행 중'} — walk-forward(확장 창) · 낙찰가 마스킹 · 라이브 공식 성적표와 분리된 과거 검증.<br/><b>v0.5</b> ${e0(mv.v05 || '최저가 단일 앵커')} · <b>v0.6</b> ${e0(mv.v06 || '감정가·최저가 두 앵커')} — 같은 물건을 두 모델로 나란히 채점(적중률↑·오차↓, 폭은 함께 감시).`;
+          `${bt.done ? '✅ 3단계 완료' : '⏳ 진행 중'} — walk-forward(확장 창) · 낙찰가 마스킹 · 라이브 공식 성적표와 분리된 과거 검증.<br/>${legend || ''} — 같은 물건을 모든 후보 모델로 나란히 채점(적중률↑·오차↓, 폭은 함께 감시).`;
       } else {
         rows = bt.stages.map((s, i) =>
           `<tr style="border-bottom:1px solid var(--line);">` +
