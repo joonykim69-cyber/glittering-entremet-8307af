@@ -124,6 +124,10 @@ function mapOnbidItem(raw, idx) {
     // 입찰 기간 (Swagger 확인 필드, yyyyMMddHHmm 문자열) — 캘린더 집계·마감임박 표시용
     bidStart: raw.cltrBidBgngDt || '',
     bidEnd: raw.cltrBidEndDt || '',
+    // 면적 (㎡) — 목록 API 실측 필드(landSqms 토지·bldSqms 건물). fieldKeys 진단으로 2026-07-26 확인.
+    // 상세 페이지 면적 표시 + 마진 위젯 자동 채움 + market-est 총액 시세 산출에 사용.
+    landAr: Number(raw.landSqms) || 0,
+    bldgAr: Number(raw.bldSqms) || 0,
   };
 }
 
@@ -243,6 +247,12 @@ exports.handler = async (event) => {
       prptDivCd, pvctTrgtYn: params.get('pvctTrgtYn'),
       dspsMthodCd: params.get('dspsMthodCd'), bidDivCd: params.get('bidDivCd'),
       upstreamUrl,
+      // 첫 물건의 전체 필드명 — 면적 등 미매핑 필드 존재 여부를 800자 잘림 없이 확정하기 위한 진단.
+      fieldKeys: (list[0] && typeof list[0] === 'object') ? Object.keys(list[0]) : [],
+      // 면적 후보 필드만 추려 값과 함께 표시 (Ar/면적/scl/Scl 포함 키)
+      areaCandidates: (list[0] && typeof list[0] === 'object')
+        ? Object.fromEntries(Object.entries(list[0]).filter(([k]) => /ar$|Ar|scl|Scl|면적|Area|Nnwarea/i.test(k)))
+        : {},
       rawSnippet: bodyText.slice(0, 800),
     } : undefined;
 

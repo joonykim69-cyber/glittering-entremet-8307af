@@ -126,8 +126,15 @@ exports.handler = async (event) => {
     }
 
     const detail = mapDetail(env?.body ?? env);
+    const di = env?.body?.items?.item;
+    const d0 = Array.isArray(di) ? di[0] : di;
     const debug = qs.debug ? {
       upstreamUrl,
+      // 첫 물건 전체 필드명 + 면적 후보 — 상세 API에 면적이 있는지(있으면 어느 키인지) 확정용 진단.
+      fieldKeys: (d0 && typeof d0 === 'object') ? Object.keys(d0) : [],
+      areaCandidates: (d0 && typeof d0 === 'object')
+        ? Object.fromEntries(Object.entries(d0).filter(([k]) => /ar$|Ar|scl|Scl|면적|Area/i.test(k)))
+        : {},
       rawSnippet: bodyText.slice(0, 2000),
     } : undefined;
 

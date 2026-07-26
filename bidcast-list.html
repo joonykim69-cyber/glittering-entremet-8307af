@@ -971,7 +971,7 @@ function renderCard(it) {
   <div class="item-body">
     <span class="item-kind">${it.court} · ${statusBadge(it)}</span>
     <div class="item-title"><a href="bidcast-detail.html?id=${encodeURIComponent(it.id)}" onclick="stashDetail('${String(it.id).replace(/[^0-9A-Za-z\-_.]/g,'')}')">${it.title}</a></div>
-    <div class="item-meta">${it.caseNo} · ${it.address}</div>
+    <div class="item-meta">${it.pbctCdtnNo?String(it.id):it.caseNo} · ${it.address}</div>
     <div class="item-tags">${it.tags.map(t=>`<span>${t}</span>`).join('')}</div>
     <div class="item-prices">
       <div class="item-price-cell">감정가<b>${fmtWon(it.appr)}</b></div>
@@ -1001,7 +1001,7 @@ function renderRow(it) {
     <div class="item-row-info">
       <div class="item-row-kind">${it.court} ${statusBadge(it)}</div>
       <div class="item-row-title"><a href="bidcast-detail.html?id=${encodeURIComponent(it.id)}" onclick="stashDetail('${String(it.id).replace(/[^0-9A-Za-z\-_.]/g,'')}')">${it.title}</a></div>
-      <div class="item-row-meta">${it.caseNo} · ${it.address}</div>
+      <div class="item-row-meta">${it.pbctCdtnNo?String(it.id):it.caseNo} · ${it.address}</div>
       <div class="item-row-tags">${it.tags.map(t=>`<span>${t}</span>`).join('')}</div>
     </div>
     <div class="item-row-price">
@@ -1161,8 +1161,10 @@ function fmtDt12(v) { const t=String(v||''); return t.length>=8?`${t.slice(0,4)}
 
 function renderReport(it) {
   const live = !!it.pbctCdtnNo; // 실물건은 공매조건번호 보유, 데모(1~9)는 없음
+  // 라이브는 온비드 공식 번호인 물건관리번호(id=cltrMngNo)만 표시 — 조건번호(pbctCdtnNo)는 API 호출 전용이라 화면 번호에 붙이지 않음(온비드 표기 일치).
+  const dispCaseNo = live ? String(it.id) : it.caseNo;
   const g = grade(it);
-  document.getElementById('rpTag').textContent = live ? `AI 리포트 · 실물건 · ${it.caseNo}` : `AI 리포트 · 예시 · ${it.caseNo}`;
+  document.getElementById('rpTag').textContent = live ? `AI 리포트 · 실물건 · ${dispCaseNo}` : `AI 리포트 · 예시 · ${dispCaseNo}`;
   document.getElementById('rpTitle').textContent = it.title;
   document.getElementById('rpFootNote').textContent = live
     ? '물건 정보는 실시간 온비드 데이터, 분석·예측은 통계적 참고자료입니다. 법률적 판단이나 투자 권유가 아니며 최종 판단과 책임은 이용자 본인에게 있습니다.'
@@ -1173,7 +1175,7 @@ function renderReport(it) {
   // ── 기본정보 (요이땅 팩트 테이블 대응 — 실물건은 전부 실데이터) ──
   document.getElementById('rpBasic').innerHTML = `
     <div class="rp-grid2">
-      <div class="rp-tile"><div class="k">${live?'물건관리번호':'사건번호'}</div><div class="v">${rEsc(it.caseNo)}</div></div>
+      <div class="rp-tile"><div class="k">${live?'물건관리번호':'사건번호'}</div><div class="v">${rEsc(dispCaseNo)}</div></div>
       <div class="rp-tile"><div class="k">${live?'공고기관':'담당 기관'}</div><div class="v">${rEsc(it.court)||'—'}</div></div>
       <div class="rp-tile"><div class="k">소재지</div><div class="v">${rEsc(it.address)||'—'}</div></div>
       <div class="rp-tile"><div class="k">용도</div><div class="v">${rEsc(it.usage||it.type)}</div></div>
