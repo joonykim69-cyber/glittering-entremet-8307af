@@ -8,11 +8,14 @@
 //     3단계: 1~5월 학습 → 6월 예측·채점
 //   각 단계는 미래 블록을 예측하므로 자기/미래 낙찰가 누수 0.
 //
-// 모델 비교(2026-07-23): 같은 물건을 두 모델로 나란히 채점한다.
-//   v0.5 = 최저가 × 낙찰가율 분위수(p10~p90) — 단일 앵커(기존).
-//   v0.6 = 감정가·최저가 두 앵커 중심 + 밴드 p05~p95(넓힘). 챔피언식 두 축 결합으로
-//          중심을 안정화하고, 목표 커버리지(95~98%)에 가깝게 밴드를 넓힌 개선안.
-//   어느 쪽이 더 정확한지(적중률↑·오차↓, 폭은 함께 감시)를 백테스트로 판정 → 승격 근거.
+// 모델 비교 — 레지스트리 구조(2026-07-26, AIOS 모듈 원칙): 아래 MODELS 배열에 후보를
+//   등록하면 같은 물건을 모든 모델로 나란히 채점한다. 새 모델 추가 = 등록 한 줄 + BT_VERSION 범프.
+//   v0.5 = 최저가 × 낙찰가율 분위수(p10~p90) — 단일 앵커(기존 챌린저, 기준선).
+//   v0.6 = 두 앵커 중심 + 밴드 p05~p95(넓힘) — **기각(2026-07-23)**: 적중률 상승이 밴드
+//          1.7배 확대의 결과였고 오차 악화("넓혀서 맞히기" 금지 위반). 레지스트리에서 제외.
+//   v0.7 = v0.5와 같은 공식(폭 확대 없음)에 **저가율(최저가/감정가) 조건 셀(L4)** 을 최상위에
+//          추가 — 같은 회차라도 유찰 깎임 깊이·신탁(최저가≥감정가) 여부로 낙찰가율 분포가
+//          달라지는 것을 셀 세분화로 흡수해 중심 정밀화. 판정: 적중률↑·오차↓, 폭은 함께 감시.
 //
 // 마스킹 보장: 예측은 **train 범위 셀(과거)** 과 물건의 **개찰 전 값(최저가·감정가)** 만
 //   사용. 테스트 물건의 낙찰가는 채점 시점에만 hist/win에서 꺼내며, 예측 함수 입력에
@@ -26,7 +29,7 @@
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' };
 const MIN_N = 20;              // 챌린저 셀 자격 최소 표본 (라이브와 동일)
-const BT_VERSION = 'v2-twoanchor'; // 모델/방식 변경 시 올려 자동 재실행
+const BT_VERSION = 'v3-discband'; // 모델/방식 변경 시 올려 자동 재실행
 
 const STAGES = [
   { key: 's1', vlabel: '1개월 학습 (1월)', testLabel: '2·3월', train: ['20260101', '20260131'], test: ['20260201', '20260331'] },
@@ -60,8 +63,22 @@ function tierOf(lowWon) {
   return 'gte10';
 }
 function roundBucket(n) { return (Number(n) || 1) >= 4 ? '4+' : String(Math.max(1, Number(n) || 1)); }
+// 저가율 밴드(개찰 전 값만: 최저가/감정가) — 유찰 깎임 깊이·신탁(최저가≥감정가) 구분.
+// 온비드 체감 단계(100%/80%/64%/…)에 맞춘 경계. 감정가 미공개(0)는 'na'로 별도 셀.
+function discBand(low, apsl) {
+  if (!(apsl > 0) || !(low > 0)) return 'na';
+  const r = low / apsl;
+  if (r >= 0.95) return 'd100'; // 신건 또는 신탁(최저가≥감정가 포함)
+  if (r >= 0.75) return 'd80';
+  if (r >= 0.55) return 'd64';
+  return 'dlt55';
+}
 function keysFor(type, usage, rb, tier) {
   return [`L3|${type}|${usage}|${rb}|${tier}`, `L2|${type}|${usage}|${rb}`, `L1|${type}|${usage}`, `L0|${type}`];
+}
+// v0.7 체인: 저가율 조건 셀(L4)을 최상위에 추가 — 미달 시 v0.5 체인으로 백오프.
+function keysForV07(type, usage, rb, tier, disc) {
+  return [`L4|${type}|${usage}|${rb}|${disc}`, ...keysFor(type, usage, rb, tier)];
 }
 function quantiles(sorted) {
   const q = p => { const idx = (sorted.length - 1) * p, lo = Math.floor(idx), hi = Math.ceil(idx); return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo); };
@@ -105,11 +122,12 @@ async function loadRange(store, featKeys, start, end) {
 }
 
 // train 레코드 → 셀. lr(최저가 대비 낙찰가율)과 wr(감정가 대비 낙찰가율) 분위수 둘 다. 낙찰(0010)만.
+// L4(저가율 조건) 셀도 같은 패스에서 함께 집계 — v0.5는 L3~L0만, v0.7은 L4부터 조회.
 function buildCells(records) {
   const acc = {};
   for (const r of records) {
     if (r.st !== '0010' || !(r.win > 0)) continue;
-    for (const k of keysFor(r.type, r.usage, roundBucket(r.round), tierOf(r.low))) {
+    for (const k of keysForV07(r.type, r.usage, roundBucket(r.round), tierOf(r.low), discBand(r.low, r.apsl))) {
       const c = acc[k] || (acc[k] = { lr: [], wr: [] });
       if (r.lr > 0) c.lr.push(r.lr);
       if (r.wr > 0) c.wr.push(r.wr);
@@ -124,17 +142,18 @@ function buildCells(records) {
   return cells;
 }
 
-function findCell(cells, item) {
-  for (const k of keysFor(item.type, item.usage, roundBucket(item.round), tierOf(item.low))) {
+function findCellByKeys(cells, keys) {
+  for (const k of keys) {
     const c = cells[k];
     if (c && c.n >= MIN_N && c.lr) return c;
   }
   return null;
 }
 
-// v0.5 — 단일 앵커: [최저가×lr.p10, 최저가×lr.p90], 중심 최저가×lr.p50. 입력에 win 없음.
-function predictV05(cells, item) {
-  const c = findCell(cells, item);
+// 공통 예측 공식(폭 확대 없음): [최저가×lr.p10, 최저가×lr.p90], 중심 최저가×lr.p50.
+// 모델 차이는 "어느 셀을 먼저 찾느냐"(키 체인)뿐 — 밴드를 넓혀 적중률을 사는 길을 구조로 막는다.
+function predictFromChain(cells, item, keys) {
+  const c = findCellByKeys(cells, keys);
   if (!c) return null;
   const lo = Math.round(item.low * c.lr.p10 / 100);
   const mid = Math.round(item.low * c.lr.p50 / 100);
@@ -143,22 +162,19 @@ function predictV05(cells, item) {
   return { lo, mid, hi };
 }
 
-// v0.6 — 두 앵커 중심(감정가·최저가) + 밴드 p05~p95(넓힘). 밴드 모양은 최저가 분위수에서,
-// 중심은 두 앵커 평균에서. 낙찰가 ≥ 최저가 제약으로 하한을 최저가로 바닥 처리. 입력에 win 없음.
-function predictV06(cells, item) {
-  const c = findCell(cells, item);
-  if (!c) return null;
-  const a1 = item.low * c.lr.p50 / 100;                            // 최저가 앵커
-  const a2 = (item.apsl > 0 && c.wr && c.wr.p50 > 0) ? item.apsl * c.wr.p50 / 100 : null; // 감정가 앵커
-  const mid = a2 ? (a1 + a2) / 2 : a1;
-  // 밴드: 최저가 분위수 p05~p95의 상대 형상을 두 앵커 중심에 재적용(비대칭 보존)
-  const relLo = c.lr.p50 > 0 ? c.lr.p05 / c.lr.p50 : 0.85;
-  const relHi = c.lr.p50 > 0 ? c.lr.p95 / c.lr.p50 : 1.25;
-  let lo = Math.round(Math.max(item.low, mid * relLo));            // 낙찰 ≥ 최저 제약
-  let hi = Math.round(mid * relHi);
-  if (hi <= lo) hi = Math.round(lo * 1.05);
-  return { lo, mid: Math.round(mid), hi };
-}
+// ═══ 모델 레지스트리 — 새 후보는 여기 등록 한 줄 + BT_VERSION 범프 ═══
+// predict(cells, item)의 item엔 개찰 전 값만 들어온다(win 없음 — 마스킹 구조 보장).
+// (v0.6 두앵커+광폭 밴드는 2026-07-23 기각 — Golden Rule "넓혀서 맞히기 금지" 위반으로 제외.)
+const MODELS = [
+  {
+    key: 'v05', label: '최저가 × 낙찰가율 분위수(p10~p90) — 기준선',
+    predict: (cells, it) => predictFromChain(cells, it, keysFor(it.type, it.usage, roundBucket(it.round), tierOf(it.low))),
+  },
+  {
+    key: 'v07', label: 'v0.5 + 저가율(최저가/감정가) 조건 셀 L4 — 폭 불변·중심 정밀화',
+    predict: (cells, it) => predictFromChain(cells, it, keysForV07(it.type, it.usage, roundBucket(it.round), tierOf(it.low), discBand(it.low, it.apsl))),
+  },
+];
 
 function newAcc() { return { n: 0, hit: 0, sumErr: 0, sumWidth: 0 }; }
 function grade(pred, win, acc) {
@@ -217,31 +233,33 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true, stage: stage.key, phase: 'trained', trainRecords: trainRecs.length, cellCount: Object.keys(cells).length, note: '다음 실행에서 테스트 블록을 채점합니다.' }) };
     }
 
-    // score — 두 모델 병행 채점 (예측 입력엔 개찰 전 값만)
+    // score — 레지스트리의 모든 모델 병행 채점 (예측 입력엔 개찰 전 값만)
     const tc = (await store.get(`bt/_traincells_${stage.key}`, { type: 'json' })) || { cells: {} };
     const cells = tc.cells || {};
     const testRecs = await loadRange(store, featKeys, stage.test[0], stage.test[1]);
     const sold = testRecs.filter(r => r.st === '0010' && r.win > 0);
 
-    const a05 = newAcc(), a06 = newAcc();
+    const accs = {};
+    for (const m of MODELS) accs[m.key] = newAcc();
     for (const item of sold) {
       const feat = { type: item.type, usage: item.usage, round: item.round, low: item.low, apsl: item.apsl }; // win 없음
-      grade(predictV05(cells, feat), item.win, a05);
-      grade(predictV06(cells, feat), item.win, a06);
+      for (const m of MODELS) grade(m.predict(cells, feat), item.win, accs[m.key]);
     }
+    const perModel = {};
+    for (const m of MODELS) perModel[m.key] = finalize(accs[m.key], sold.length);
 
+    const base = accs[MODELS[0].key]; // 기준선(첫 모델) — 하위호환 최상위 필드용
     const result = {
       key: stage.key, vlabel: stage.vlabel, testLabel: stage.testLabel,
       trainRange: stage.train.join('~'), testRange: stage.test.join('~'),
       trainRecords: tc.trainN || 0, trainCells: tc.cellCount || Object.keys(cells).length,
       testSold: sold.length,
-      v05: finalize(a05, sold.length),
-      v06: finalize(a06, sold.length),
-      // 하위호환: 기존 랩이 읽던 최상위 필드는 v0.5 값으로 유지
-      n: a05.n, coverage: sold.length ? Math.round(a05.n / sold.length * 1000) / 10 : 0,
-      hitRate: a05.n ? Math.round(a05.hit / a05.n * 1000) / 10 : null,
-      avgAbsErrPct: a05.n ? Math.round(a05.sumErr / a05.n * 10) / 10 : null,
-      avgWidthPct: a05.n ? Math.round(a05.sumWidth / a05.n * 10) / 10 : null,
+      models: perModel,
+      // 하위호환: 기존 랩이 읽던 최상위 필드는 기준선(v0.5) 값으로 유지
+      n: base.n, coverage: sold.length ? Math.round(base.n / sold.length * 1000) / 10 : 0,
+      hitRate: base.n ? Math.round(base.hit / base.n * 1000) / 10 : null,
+      avgAbsErrPct: base.n ? Math.round(base.sumErr / base.n * 10) / 10 : null,
+      avgWidthPct: base.n ? Math.round(base.sumWidth / base.n * 10) / 10 : null,
       builtAt: new Date().toISOString(),
     };
     await store.setJSON(`bt/${stage.key}`, result);
@@ -252,13 +270,15 @@ exports.handler = async (event) => {
     summary.stages.sort((a, b) => a.key.localeCompare(b.key));
     summary.version = BT_VERSION;
     summary.method = 'walk-forward (확장 창) · 낙찰가 마스킹 · bt/* 격리';
-    summary.models = { v05: '최저가 × 낙찰가율 분위수(p10~p90)', v06: '감정가·최저가 두 앵커 중심 + 밴드 p05~p95' };
+    summary.models = Object.fromEntries(MODELS.map(m => [m.key, m.label]));
     const nextIdx = state.stageIdx + 1;
     summary.done = nextIdx >= STAGES.length;
     summary.updatedAt = new Date().toISOString();
     await store.setJSON('bt/summary', summary);
     await store.setJSON('bt/_state', { stageIdx: nextIdx, phase: 'train', version: BT_VERSION });
-    await store.setJSON('_run/backtest', { at: new Date().toISOString(), ok: true, stage: stage.key, phase: 'scored', v05: result.v05.hitRate, v06: result.v06.hitRate, done: summary.done });
+    const hb = { at: new Date().toISOString(), ok: true, stage: stage.key, phase: 'scored', done: summary.done };
+    for (const m of MODELS) hb[m.key] = perModel[m.key].hitRate;
+    await store.setJSON('_run/backtest', hb);
 
     return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true, stage: stage.key, phase: 'scored', result, allDone: summary.done }) };
   } catch (e) {
