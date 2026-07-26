@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A static site deployed on Netlify for **신호등옥션 (구 낙찰예보/BidCast, 2026-07-19 리브랜딩)** — an Onbid public-auction price-prediction service. There is a minimal root package.json **only for Netlify Functions dependencies** (`@netlify/blobs` — the prediction-ledger store); the site itself has no build step, no test suite, and no linter. Each page is a single self-contained HTML file with all CSS and JavaScript inlined — keep it that way when editing; do not introduce bundlers, frameworks, or external JS files. (The repo previously also hosted the K-Map Linker/K-Buddy travel apps; those files were removed 2026-07-17.)
 
+**프로젝트 헌장**: `000_PROJECT_MANIFESTO.md`(2026-07-25) — 존재 이유·미션·데이터/AI/엔지니어링 철학·Golden Rules 10조·고정 결정 대장·ADR-000을 담은 최상위 문서. 여기 적힌 원칙(봉인 불변, 낙찰가 마스킹, 두 트랙 분리, 넓혀서 맞히기 금지 등)과 충돌하는 변경은 사람(창업자)의 헌장 개정 없이 금지. 원칙 변경 시 이 파일의 Appendix C(고정 결정 대장)에도 기록할 것.
+
 ## Files
 
 ### Serverless functions
