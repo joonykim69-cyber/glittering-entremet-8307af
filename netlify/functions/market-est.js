@@ -86,6 +86,7 @@ exports.handler = async (event) => {
   const nameQ = String(qs.name || '').trim();
   const areaQ = parseFloat(qs.area || '') || 0;
   const region = String(qs.region || '').trim();
+  const dongQ = String(qs.dong || '').trim(); // 읍면동 — 적응형(표본 5건 이상일 때만 좁힘)
 
   try {
     // ① 월별 실거래 수집 (rtms-svc 경유 — 청크 병렬)
@@ -112,6 +113,13 @@ exports.handler = async (event) => {
     let matched = all;
     const nameMatched = !!nameQ;
     if (nameQ) matched = matched.filter(t => t.name && t.name.indexOf(nameQ) >= 0);
+    // 읍면동 좁힘도 적응형 — 동 매칭 표본 5건 이상일 때만 좁힌다(부족하면 시군구 전체 유지).
+    let dongMode = null;
+    if (dongQ) {
+      const local = matched.filter(t => t.dong === dongQ);
+      if (local.length >= 5) { matched = local; dongMode = 'local'; }
+      else dongMode = 'sgg';
+    }
     let areaMode = null;
     if (areaQ > 0) {
       const tight = matched.filter(t => Math.abs(t.area - areaQ) <= areaQ * 0.05);
@@ -158,6 +166,7 @@ exports.handler = async (event) => {
         name: nameQ || null,
         areaBand: areaQ > 0 ? (areaMode === 'tight' ? `동일 평형 ±5% (${(areaQ * 0.95).toFixed(1)}~${(areaQ * 1.05).toFixed(1)}㎡)` : `±20% (${(areaQ * 0.8).toFixed(1)}~${(areaQ * 1.2).toFixed(1)}㎡ — 동일 평형 표본 부족)`) : null,
         areaMode,
+        dong: dongQ || null, dongMode,
       },
       sample: { n: matched.length, rawN: all.length, monthsWithData: monthResults.filter(m => m.items.length).length },
       adjust,
