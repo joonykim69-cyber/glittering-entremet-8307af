@@ -190,6 +190,8 @@ Every `bidcast-*.html` page repeats the same self-contained auth modal (`#authOv
 
 ## Conventions
 
+- **이중 검증 원칙 (2026-07-26 창업자 지시)**: 모든 구현 작업은 완료 선언 전에 **서로 다른 각도의 검증 2회**를 거치고 결과를 명시적으로 보고한다. ① 1차 = 개발 중 스모크/단위 테스트. ② 2차 = **1차와 독립적인 방법**의 추가 검증 — 우선순위: (a) 실호출/실데이터(`?debug=1`, 프로덕션 GET — egress 차단 시 사용자에게 확인 URL 제공) > (b) **실제 응답 구조 그대로 재현한 fixture** 회귀 테스트(목킹을 내 가정대로 만들지 말 것 — rtms-svc 파서 버그가 이렇게 새어나감: 스모크는 통과했지만 목킹이 가정대로 생겨서 실응답 구조 불일치를 못 잡음) > (c) 정적 검사(문법·디프 재독). ③ 검증 결과는 PR 본문과 사용자 보고에 "검증 결과" 항목으로 남기고, **라이브 미검증 항목은 정직하게 '미검증'으로 표기**한다(스크린샷 확정 ≠ 작동 확정 원칙의 확장).
+
 - Comments and UI copy are in Korean; preserve that.
 - Section banners in the big HTML files use box-drawing/`═` comment dividers — follow that style when adding sections.
 - Styling is plain CSS with custom properties defined in `:root` per file; reuse the existing variables rather than hardcoding colors.
