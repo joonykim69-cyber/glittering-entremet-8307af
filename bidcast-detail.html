@@ -1490,11 +1490,25 @@ if(isLive&&liveItem){
           const confChip=me.confidence==='높음'?'<span class="sec-tag" style="background:var(--green-soft);color:var(--green-deep);">신뢰도 높음</span>'
             :me.confidence==='보통'?'<span class="sec-tag" style="background:#FFF6DE;color:#8A6D00;">신뢰도 보통</span>'
             :'<span class="sec-tag" style="background:var(--line);color:var(--sub);">참고 수준</span>';
+          // 마진 여력 위젯 — 온비드가 전용면적을 안 주므로(정직성 제약) 사용자 입력 시에만 계산.
+          // 신뢰도 '참고 수준'이거나 AI 예상 구간이 없으면 마진은 만들지 않는다(찍지 않기).
+          const canMargin=(ai.lo>0&&ai.hi>0&&(me.confidence==='높음'||me.confidence==='보통'));
+          window.__mkt={p25:me.perM2.p25,p50:me.perM2.p50,p75:me.perM2.p75};
+          const marginBox=canMargin?`
+            <div style="margin-top:12px;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:12px;">
+              <div style="font-size:13px;font-weight:800;margin-bottom:8px;">💰 예상 마진 여력 <span style="color:var(--mute);font-weight:600;">= 추정 시세 − 예상 낙찰가 − 취득비용</span></div>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;">
+                전용면적 <input id="mgnArea" type="number" inputmode="decimal" placeholder="㎡ 입력" style="width:110px;font:inherit;font-size:13px;padding:6px 10px;border:1.5px solid var(--line);border-radius:8px;"> ㎡
+                <span style="color:var(--mute);font-size:11.5px;">온비드가 면적을 제공하지 않아 직접 입력해야 합니다(공고문·감정평가서 확인)</span>
+              </div>
+              <div id="mgnOut" style="margin-top:10px;"></div>
+              <div style="font-size:11px;color:var(--mute);margin-top:8px;">※ 취득비용 가정 = 낙찰가 × 1.5% + 300만원(취득세·경비). 시세·낙찰가 모두 추정 <b>범위</b>이며 실제와 다를 수 있습니다 — <b>수익 보장이 아닙니다.</b></div>
+            </div>`:'';
           band=`<div style="padding:12px 14px;background:var(--green-soft);border-radius:12px;margin-bottom:12px;font-size:13.5px;">
             ${esc(scope)} ${esc(svcName)} 추정 시세(㎡당) <b>${me.perM2.p25.toLocaleString()} ~ ${me.perM2.p75.toLocaleString()}만원</b>
             <span style="color:var(--sub);">(중앙 ${me.perM2.p50.toLocaleString()}만원 · 평당 약 ${Math.round(me.perM2.p50*3.3058).toLocaleString()}만원 · 표본 ${me.sample.n}건)</span>
             ${confChip}${me.adjust&&me.adjust.applied?`<div style="font-size:11.5px;color:var(--sub);margin-top:4px;">시점 보정: ${esc(me.adjust.basis||'부동산원 지수')}</div>`:''}
-            ${aiLine}</div>`;
+            ${aiLine}${marginBox}</div>`;
           passSim(me.perM2.p50,`${scope} ${svcName} 추정 ㎡당 중앙값 ${Math.round(me.perM2.p50).toLocaleString()}만원 (신뢰도 ${me.confidence})`);
           fdSet({mkt:{scope,kind:svcName}}); // 유찰 진단 보강 — 시세 밴드 존재(감정가 적정성 대조 가능)
         }else{
@@ -1505,6 +1519,28 @@ if(isLive&&liveItem){
           <div style="margin-top:10px;text-align:right;">${naverLink}</div>`;
         document.getElementById('rtmsNote').textContent=`※ 최근 ${monthN}개월 ${t[0]} ${sgg} ${svcName} 실거래 기반 추정 — 범위는 참고용이며 투자 자문이 아닙니다 · 출처: 국토교통부 실거래가 (신고 지연으로 최근 1~2개월 일부 누락 가능)`;
         document.getElementById('sec-rtms').style.display='';
+        // 마진 여력 계산 — 전용면적 입력 시. 시세(㎡당)×면적 − AI 예상 낙찰 − 취득비용, 보수~낙관 범위.
+        const mgnInput=document.getElementById('mgnArea');
+        if(mgnInput){
+          const cost=w=>w*0.015+300; // 만원 (시뮬레이터와 동일 가정)
+          const calcMargin=()=>{
+            const A=parseFloat(mgnInput.value)||0, out=document.getElementById('mgnOut');
+            const m=window.__mkt,a=window.__ai;
+            if(!out||!m||!a)return;
+            if(!(A>0)){out.innerHTML='<span style="color:var(--mute);font-size:12.5px;">전용면적을 입력하면 예상 마진 여력 범위가 계산됩니다.</span>';return;}
+            const sLo=m.p25*A,sMid=m.p50*A,sHi=m.p75*A;        // 추정 시세 총액(만원)
+            const consv=Math.round(sLo-a.hi-cost(a.hi));        // 보수: 낮은 시세·높은 낙찰
+            const mid=Math.round(sMid-a.mid-cost(a.mid));       // 중심
+            const opt=Math.round(sHi-a.lo-cost(a.lo));          // 낙관: 높은 시세·낮은 낙찰
+            const col=v=>v>=0?'var(--green-deep)':'var(--red)';
+            out.innerHTML=
+              `<div style="font-size:13px;">추정 시세 총액 <b>${fmtWon(sLo*10000)} ~ ${fmtWon(sHi*10000)}</b> (중앙 ${fmtWon(sMid*10000)})</div>`+
+              `<div style="margin-top:6px;font-size:14px;font-weight:800;">예상 마진 여력 <span style="color:${col(consv)}">${consv>=0?'+':''}${fmtWon(consv*10000)}</span> ~ <span style="color:${col(opt)}">${opt>=0?'+':''}${fmtWon(opt*10000)}</span></div>`+
+              `<div style="font-size:12px;color:var(--sub);margin-top:2px;">중심 시나리오 ${mid>=0?'+':''}${fmtWon(mid*10000)} · ${consv<0?'<b style="color:var(--red)">보수 시나리오에선 손실 구간</b> — 신중히 검토하세요':'보수 시나리오에서도 여력 존재'}</div>`;
+          };
+          mgnInput.addEventListener('input',calcMargin);
+          calcMargin();
+        }
         return;
       }
 
