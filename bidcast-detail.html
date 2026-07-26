@@ -838,6 +838,17 @@ const fmtMwon = n => n >= 10000 ? (n/10000).toFixed(n%10000===0?0:1)+'억원' : 
 // ─── 섹션 이동 (탭 제거 — 온비드式 단일 스크롤. 옛 switchTab/tabGo 호출부는 스크롤로 매핑) ───
 function sbGo(id){const el=document.getElementById(id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}
 
+// 네이버 부동산 링크 정밀화 — 상세 API의 번지 주소가 도착하면 저장하고, 이미 렌더된 링크가 있으면 즉시 갱신.
+// 호·층(예 "201호", "지하1층")은 네이버 검색이 못 받으므로 제거(지도 지오코딩과 동일 규칙).
+function setNaverAddr(addr){
+  if(!addr)return;
+  const clean=String(addr).replace(/\s*(지하)?\s*\d+\s*(층|호)(?!\S).*$/,'').trim();
+  if(!clean)return;
+  window.__naverAddr=clean;
+  const a=document.getElementById('naverLandLink');
+  if(a)a.href='https://new.land.naver.com/search?query='+encodeURIComponent(clean);
+}
+
 // 온비드 리스트 아이템을 안전 요약(필드명 미확정이라 값만 · 로 join) — 원시 JSON 노출 절대 금지(leasInf 버그 교훈).
 // 문자열/숫자 값만, null·빈값·객체는 제외. 결과 없으면 빈 문자열.
 function fmtObjVals(o){
@@ -1403,9 +1414,10 @@ if(isLive&&liveItem){
       const data=await r.json();const det=data?.detail;
       if(!det||(det.raw&&!det.title))return;
 
-      // 정확한 번지 주소 확보 시 지도 재센터(카카오맵) + 소재지 갱신
+      // 정확한 번지 주소 확보 시 지도 재센터(카카오맵) + 네이버 부동산 링크 정밀화 + 소재지 갱신
       const fullAddr=det.lotAddr||det.roadAddr||it.address;
       if((det.lotAddr||det.roadAddr)&&window.__setMapAddr) window.__setMapAddr(det.lotAddr||det.roadAddr);
+      if(det.lotAddr||det.roadAddr) setNaverAddr(det.lotAddr||det.roadAddr);
 
       // 유찰 진단 보강 — 재산구분(압류/신탁 등). (기본정보 표는 그리드와 중복이라 제거됨)
       fdSet({prptDiv:det.prptDivNm||''});
@@ -1566,7 +1578,10 @@ if(isLive&&liveItem){
         });
       };
       // 네이버 부동산 아웃바운드 링크 — 사용자가 호가와 직접 교차 검증(스크래핑 금지 원칙상 링크만).
-      const naverLink=`<a href="https://new.land.naver.com/search?query=${encodeURIComponent([t[0],sgg,emd].filter(Boolean).join(' '))}" target="_blank" rel="noopener" style="font-size:12px;font-weight:700;color:var(--green-deep);">네이버 부동산에서 호가 확인 ↗</a>`;
+      // 상세 API의 번지 주소(lotAddr)가 이미 도착했으면 그 지점으로 바로 이동, 아니면 동 단위 폴백.
+      // (호·층은 네이버 검색이 못 받으므로 제거 — 지도 지오코딩과 동일한 정제 규칙.)
+      const naverQ=(window.__naverAddr||[t[0],sgg,emd].filter(Boolean).join(' '));
+      const naverLink=`<a id="naverLandLink" href="https://new.land.naver.com/search?query=${encodeURIComponent(naverQ)}" target="_blank" rel="noopener" style="font-size:12px;font-weight:700;color:var(--green-deep);">네이버 부동산에서 호가 확인 ↗</a>`;
 
       const KIND={apt_trade_dev:'apt',offi_trade:'offi',rh_trade:'rh',sh_trade:'sh'}[svc];
       if(KIND){
@@ -1590,13 +1605,13 @@ if(isLive&&liveItem){
           const bldgAr=Number(liveItem.bldgAr)||0; // 온비드 목록 실측 건물면적(㎡) — 있으면 자동 채움
           const marginBox=canMargin?`
             <div style="margin-top:12px;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:12px;">
-              <div style="font-size:13px;font-weight:800;margin-bottom:8px;">💰 예상 마진 여력 <span style="color:var(--mute);font-weight:600;">= 추정 시세 − 예상 낙찰가 − 취득비용</span></div>
+              <div style="font-size:13px;font-weight:800;margin-bottom:8px;">💰 예상 마진 여력(명목) <span style="color:var(--mute);font-weight:600;">= 추정 시세 − 예상 낙찰가 − 취득비용 · 임차보증금 인수·명도 등 인수 부담 미반영</span></div>
               <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;">
                 면적 <input id="mgnArea" type="number" inputmode="decimal" placeholder="㎡ 입력"${bldgAr>0?` value="${bldgAr}"`:''} style="width:110px;font:inherit;font-size:13px;padding:6px 10px;border:1.5px solid var(--line);border-radius:8px;"> ㎡
                 <span style="color:var(--mute);font-size:11.5px;">${bldgAr>0?'온비드 건물면적 자동 입력 — 전용면적이 다르면 수정하세요':'공고문·감정평가서의 전용면적을 입력하세요'}</span>
               </div>
               <div id="mgnOut" style="margin-top:10px;"></div>
-              <div style="font-size:11px;color:var(--mute);margin-top:8px;">※ 취득비용 가정 = 낙찰가 × 1.5% + 300만원(취득세·경비). 시세·낙찰가 모두 추정 <b>범위</b>이며 실제와 다를 수 있습니다 — <b>수익 보장이 아닙니다.</b></div>
+              <div style="font-size:11px;color:var(--mute);margin-top:8px;">※ 취득비용 가정 = 낙찰가 × 1.5% + 300만원(취득세·경비). <b>임차보증금 인수·명도비·미납관리비·권리 하자 등 인수 부담은 반영되지 않은 명목값</b>입니다. 시세·낙찰가 모두 추정 <b>범위</b>이며 실제와 다를 수 있습니다 — <b>수익 보장이 아닙니다.</b></div>
             </div>`:'';
           band=`<div style="padding:12px 14px;background:var(--green-soft);border-radius:12px;margin-bottom:12px;font-size:13.5px;">
             ${esc(scope)} ${esc(svcName)} 추정 시세(㎡당) <b>${me.perM2.p25.toLocaleString()} ~ ${me.perM2.p75.toLocaleString()}만원</b>
@@ -1627,10 +1642,21 @@ if(isLive&&liveItem){
             const mid=Math.round(sMid-a.mid-cost(a.mid));       // 중심
             const opt=Math.round(sHi-a.lo-cost(a.lo));          // 낙관: 높은 시세·낮은 낙찰
             const col=v=>v>=0?'var(--green-deep)':'var(--red)';
+            // ── 현실 정합성 가드: 이 마진은 임차보증금 인수·명도·미납관리비·권리 하자 등
+            //    "인수 부담"을 빼기 전 명목값이다. 유찰이 누적됐거나 명목 마진이 시세의 절반을
+            //    넘으면(=이만큼 싼데도 아무도 안 샀다는 뜻) 자축 대신 경고를 띄운다 —
+            //    "큰 명목 마진 + 반복 유찰"은 매력이 아니라 숨은 부담의 시장 신호. ──
+            const failN=Number(it.fail)||0;
+            const suspicious=failN>=3||(sMid>0&&consv>=sMid*0.5);
+            const warn=suspicious?`
+              <div style="margin-top:8px;padding:9px 12px;background:var(--red-soft,#FDEBEC);border:1px solid rgba(229,72,77,.3);border-radius:10px;font-size:12px;line-height:1.6;color:#8A2A2E;">
+                ⚠️ <b>이 마진을 실질 수익으로 보지 마세요.</b> ${failN>=3?`<b>유찰 ${failN}회</b> — 이만한 명목 마진에도 낙찰되지 않았다는 것 자체가 임차보증금 인수·명도·미납관리비·권리 하자 등 <b>숨은 인수 부담</b>이 있을 가능성이 높다는 시장 신호입니다.`:`명목 마진이 시세의 절반을 넘습니다 — 이런 물건은 통상 숨은 인수 부담이 가격에 반영된 경우가 많습니다.`}
+                위 마진은 그 부담을 <b>빼기 전 명목값</b>입니다. ${failN>=3?`<a href="#sec-failDiag" onclick="sbGo('sec-failDiag');return false;" style="color:#8A2A2E;font-weight:800;text-decoration:underline;">유찰 진단</a>과 `:''}공매재산명세서·등기부를 확인하기 전에는 입찰 판단의 근거로 쓰지 마세요.
+              </div>`:'';
             out.innerHTML=
               `<div style="font-size:13px;">추정 시세 총액 <b>${fmtWon(sLo*10000)} ~ ${fmtWon(sHi*10000)}</b> (중앙 ${fmtWon(sMid*10000)})</div>`+
-              `<div style="margin-top:6px;font-size:14px;font-weight:800;">예상 마진 여력 <span style="color:${col(consv)}">${consv>=0?'+':''}${fmtWon(consv*10000)}</span> ~ <span style="color:${col(opt)}">${opt>=0?'+':''}${fmtWon(opt*10000)}</span></div>`+
-              `<div style="font-size:12px;color:var(--sub);margin-top:2px;">중심 시나리오 ${mid>=0?'+':''}${fmtWon(mid*10000)} · ${consv<0?'<b style="color:var(--red)">보수 시나리오에선 손실 구간</b> — 신중히 검토하세요':'보수 시나리오에서도 여력 존재'}</div>`;
+              `<div style="margin-top:6px;font-size:14px;font-weight:800;">명목 마진 <span style="font-size:11px;color:var(--mute);font-weight:600;">(인수 부담 차감 전)</span> <span style="color:${col(consv)}">${consv>=0?'+':''}${fmtWon(consv*10000)}</span> ~ <span style="color:${col(opt)}">${opt>=0?'+':''}${fmtWon(opt*10000)}</span></div>`+
+              `<div style="font-size:12px;color:var(--sub);margin-top:2px;">중심 시나리오 ${mid>=0?'+':''}${fmtWon(mid*10000)}${consv<0?' · <b style="color:var(--red)">보수 시나리오에선 손실 구간</b> — 신중히 검토하세요':''}</div>`+warn;
           };
           mgnInput.addEventListener('input',calcMargin);
           calcMargin();
