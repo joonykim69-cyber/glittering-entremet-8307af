@@ -914,10 +914,15 @@ const RECENT_KEY='bidcast:recent';
 document.title=`${it.title} — 신호등옥션`;
 
 // 헤더·히어로
-document.getElementById('rpCaseBadge').textContent=it.caseNo;
+// 라이브(온비드 공매) 물건은 사용자가 온비드에서 검색·대조하는 공식 번호인 물건관리번호(cltrMngNo)만 표시한다.
+// 공매조건번호(pbctCdtnNo)는 상세 API 호출에만 필요하고 별도 필드로 보관되므로 화면 번호에 붙이지 않는다(온비드 표기와 일치·혼란 방지).
+// "사건번호"는 법원경매 용어라 공매엔 부정확 → 라이브는 "물건관리번호"로 표기. 데모(1~9)는 가상 법원경매 예시라 사건번호 유지.
+const dispCaseNo=isLive?String(liveItem.id):it.caseNo;
+const caseNoLabel=isLive?'물건관리번호':'사건번호';
+document.getElementById('rpCaseBadge').textContent=dispCaseNo;
 document.getElementById('dTitle').textContent=it.title;
 document.getElementById('dAddr').textContent=it.address;
-document.getElementById('heroCaseNo').textContent=`사건번호 ${it.caseNo}`;
+document.getElementById('heroCaseNo').textContent=`${caseNoLabel} ${dispCaseNo}`;
 document.getElementById('heroEyebrow').textContent=`신호등옥션 ${it.type} 경매 리포트`;
 
 // 예시/실데이터 칩
@@ -931,7 +936,7 @@ if(isLive){
 
 // 정보 바
 document.getElementById('courtBadge').textContent=it.court;
-document.getElementById('infoCase').textContent=it.caseNo;
+document.getElementById('infoCase').textContent=dispCaseNo;
 document.getElementById('infoAddr').textContent=it.address;
 
 const ddResult=calcDday(it.saleDate,it.status);
