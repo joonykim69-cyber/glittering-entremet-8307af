@@ -14,9 +14,27 @@
 //
 // 수동 실행: GET /.netlify/functions/predict-daily (테스트·백필용, 동작 동일)
 
+const { fromOnbid, scoreOpportunity } = require('./lib/curation');
+
 const CORS = { 'Access-Control-Allow-Origin': '*' };
 const MODEL_V = 'v0.1';
 const DEFAULT_W = 0.18;
+const CURATED_MAX = 24; // "오늘의 주목 물건" 저장 상한
+
+// 공통 팩트(온비드) → 실측 이력 셀 백오프 조회 (L3→L0, 표본 20+). 큐레이션 컨텍스트용.
+// 셀 키는 온비드 이력 기준 typeCd라 온비드 소스 전용 — 새 소스는 자기 셀 네임스페이스를 쓴다.
+function cellFor(cellsData, f) {
+  if (!cellsData || !cellsData.cells) return null;
+  const typeCd = f.assetClass === '동산' ? '0003' : f.assetClass === '자동차' ? '0002' : '0001';
+  const rbN = f.round > 0 ? f.round : (f.failCount + 1);
+  const rb = rbN >= 4 ? '4+' : String(rbN);
+  const tier = f.low < 10000 ? 'lt1' : f.low < 50000 ? 't1to5' : f.low < 100000 ? 't5to10' : 'gte10';
+  for (const ck of [`L3|${typeCd}|${f.usage}|${rb}|${tier}`, `L2|${typeCd}|${f.usage}|${rb}`, `L1|${typeCd}|${f.usage}`, `L0|${typeCd}`]) {
+    const cell = cellsData.cells[ck];
+    if (cell && cell.n >= 20 && cell.lr) return cell;
+  }
+  return null;
+}
 
 // 물건 type → 캠코 통계 용도 분류(clsCdNm) — bidcast.html의 STAT_BUCKET과 동일 체계
 const STAT_BUCKET = {
@@ -97,6 +115,7 @@ exports.handler = async (event) => {
     });
 
     let sealed = 0, skipped = 0, noBasis = 0, sealedB = 0;
+    const predMap = {}; // key → {lo,mid,hi} : 이번 실행에서 봉인한 챔피언 예측(큐레이션 저평가 여력 판단용)
     const endLimit = end + '2359';
     const targets = items
       .filter(it => it.min > 0 && it.pbctCdtnNo && (!it.bidEnd || String(it.bidEnd) <= endLimit))
@@ -132,6 +151,7 @@ exports.handler = async (event) => {
         bidEnd: it.bidEnd || '', modelV: MODEL_V,
         sealedAt: new Date().toISOString(),
       });
+      predMap[key] = { lo, mid, hi };
       sealed++;
 
       // ── v0.5 챌린저 봉인 (predb/*) — 같은 물건을 실측 이력 분위수로 병행 예측 ──
@@ -165,6 +185,30 @@ exports.handler = async (event) => {
       }
     }
 
+    // ── 큐레이션 패스 — "오늘의 주목 물건" (봉인 로직과 분리·소스 중립 엔진) ──
+    // 같은 마감 임박 물건을 소스 중립 공통 팩트로 바꿔 기회 점수를 매기고 상위 N건을 저장한다.
+    // 추가 온비드 호출 0(이미 가져온 items 재사용). 봉인 예측(predMap)·실측 셀(cellFor)을 근거로.
+    const curated = [];
+    for (const it of targets) {
+      const f = fromOnbid(it);
+      const res = scoreOpportunity(f, { pred: predMap[`pred/${it.id}_${it.pbctCdtnNo}`] || null, cell: cellFor(cellsData, f), nowKst: kst() });
+      if (!res) continue;
+      const p = predMap[`pred/${it.id}_${it.pbctCdtnNo}`] || null;
+      curated.push({
+        id: f.id, cdtn: f.cdtn, title: it.title, type: f.type, assetClass: f.assetClass,
+        region: f.region, apsl: f.apsl, low: f.low, failCount: f.failCount, round: f.round, bidEnd: f.bidEnd,
+        photo: it.photo || '', score: res.score, reasons: res.reasons, flags: res.flags,
+        pred: p, // {lo,mid,hi} 만원 (없으면 null)
+      });
+    }
+    curated.sort((a, b) => b.score - a.score);
+    const curatedTop = curated.slice(0, CURATED_MAX);
+    await store.setJSON('curated/latest', {
+      at: new Date().toISOString(), window: { start, end },
+      scanned: targets.length, scored: curated.length, count: curatedTop.length,
+      items: curatedTop,
+    });
+
     // 챌린저 봉인이 처음 시작된 날을 모델 연혁(chronicle)에 1회 기록
     if (sealedB > 0) {
       const chronicle = (await store.get('chronicle', { type: 'json' })) || [];
@@ -191,9 +235,9 @@ exports.handler = async (event) => {
     meta.lastSealAt = new Date().toISOString();
     await store.setJSON('meta', meta);
 
-    const summary = { ok: true, scanned: items.length, targets: targets.length, sealed, sealedB, skipped, noBasis, statPerd: stats ? stats.perd : null, ...(qs.debug ? { window: { start, end } } : {}) };
+    const summary = { ok: true, scanned: items.length, targets: targets.length, sealed, sealedB, skipped, noBasis, curated: curatedTop.length, statPerd: stats ? stats.perd : null, ...(qs.debug ? { window: { start, end } } : {}) };
     // 하트비트 — 매 실행마다 마지막 성공 시각·처리건수 기록(자가진단이 신선도로 죽음 감지)
-    await store.setJSON('_run/predict-daily', { at: new Date().toISOString(), ok: true, sealed, sealedB, targets: targets.length, noBasis });
+    await store.setJSON('_run/predict-daily', { at: new Date().toISOString(), ok: true, sealed, sealedB, curated: curatedTop.length, targets: targets.length, noBasis });
     console.log('[predict-daily]', JSON.stringify(summary));
     return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify(summary) };
   } catch (e) {
