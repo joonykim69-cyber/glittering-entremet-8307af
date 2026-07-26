@@ -1447,8 +1447,55 @@ if(isLive&&liveItem){
         :/토지|임야|잡종지/.test(u)||/(^|\s)(전|답|과수원|목장용지|대)(\s|$)/.test(uu)?'land_trade'
         :/상가|근린|점포|사무|업무/.test(u)?'nrg_trade':/공장|창고/.test(u)?'indu_trade':null;
       if(!svc){console.log('[rtms] 용도 미매핑:',u);return;}
-      // 거래 빈도가 낮은 유형(상가/토지/공장/단독/연립)은 조회 창을 넓혀 표본 0건을 줄인다.
-      const monthN=(svc==='apt_trade_dev'||svc==='offi_trade')?6:12;
+      const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+      const svcName={apt_trade_dev:'아파트 매매',offi_trade:'오피스텔 매매',rh_trade:'연립다세대 매매',sh_trade:'단독/다가구 매매',land_trade:'토지 매매',nrg_trade:'상업업무용 매매',indu_trade:'공장·창고 매매'}[svc];
+      const emd=t.slice(1).find(w=>/(동|리|가|읍|면)$/.test(w)&&!/(구|시|군)$/.test(w))||'';
+      // 시뮬레이터 ㎡당 참고치 전달(공용) — 전용면적은 온비드 미제공이라 총 시세는 사용자가 조정.
+      const passSim=(m2,label)=>{ if(!(m2>0))return;
+        const ref=encodeURIComponent(label);
+        document.querySelectorAll('a[href^="bidcast-simulator.html"]').forEach(a=>{
+          let h=a.getAttribute('href'); if(!h||/[?&]mktM2=/.test(h))return;
+          h+=(h.indexOf('?')>=0?'&':'?')+'mktM2='+Math.round(m2)+'&mktRef='+ref;
+          a.setAttribute('href',h);
+        });
+      };
+      // 네이버 부동산 아웃바운드 링크 — 사용자가 호가와 직접 교차 검증(스크래핑 금지 원칙상 링크만).
+      const naverLink=`<a href="https://new.land.naver.com/search?query=${encodeURIComponent([t[0],sgg,emd].filter(Boolean).join(' '))}" target="_blank" rel="noopener" style="font-size:12px;font-weight:700;color:var(--green-deep);">네이버 부동산에서 호가 확인 ↗</a>`;
+
+      const KIND={apt_trade_dev:'apt',offi_trade:'offi',rh_trade:'rh',sh_trade:'sh'}[svc];
+      if(KIND){
+        // ── 주거 4종: market-est 시세 밴드 (실거래 매칭 + 지수 시점 보정 + 범위·신뢰도 — 은마 교차 검증 통과 파이프라인) ──
+        const monthN=(KIND==='apt'||KIND==='offi')?6:12;
+        const q=`kind=${KIND}&lawd=${lawd}&months=${monthN}&region=${encodeURIComponent(t[0])}`+(emd?`&dong=${encodeURIComponent(emd)}`:'');
+        const me=await fetch(`/.netlify/functions/market-est?${q}`).then(r=>r.ok?r.json():null);
+        if(!me||!Array.isArray(me.trades)||!me.trades.length){console.log('[rtms] market-est 표본 0/응답 없음');return;}
+        const scope=(me.filter&&me.filter.dongMode==='local')?emd:`${sgg} 전체`;
+        const ai=window.__ai||{};
+        const aiLine=(ai.lo>0&&ai.hi>0)?`<div style="margin-top:8px;font-size:12.5px;color:var(--sub);">이 물건 AI 예상 낙찰 구간: <b style="color:var(--ink)">${fmtWon(ai.lo*10000)} ~ ${fmtWon(ai.hi*10000)}</b> — 주변 시세 대비 위치를 직접 비교해 보세요.</div>`:'';
+        let band='';
+        if(me.status==='ok'&&me.perM2){
+          const confChip=me.confidence==='높음'?'<span class="sec-tag" style="background:var(--green-soft);color:var(--green-deep);">신뢰도 높음</span>'
+            :me.confidence==='보통'?'<span class="sec-tag" style="background:#FFF6DE;color:#8A6D00;">신뢰도 보통</span>'
+            :'<span class="sec-tag" style="background:var(--line);color:var(--sub);">참고 수준</span>';
+          band=`<div style="padding:12px 14px;background:var(--green-soft);border-radius:12px;margin-bottom:12px;font-size:13.5px;">
+            ${esc(scope)} ${esc(svcName)} 추정 시세(㎡당) <b>${me.perM2.p25.toLocaleString()} ~ ${me.perM2.p75.toLocaleString()}만원</b>
+            <span style="color:var(--sub);">(중앙 ${me.perM2.p50.toLocaleString()}만원 · 평당 약 ${Math.round(me.perM2.p50*3.3058).toLocaleString()}만원 · 표본 ${me.sample.n}건)</span>
+            ${confChip}${me.adjust&&me.adjust.applied?`<div style="font-size:11.5px;color:var(--sub);margin-top:4px;">시점 보정: ${esc(me.adjust.basis||'부동산원 지수')}</div>`:''}
+            ${aiLine}</div>`;
+          passSim(me.perM2.p50,`${scope} ${svcName} 추정 ㎡당 중앙값 ${Math.round(me.perM2.p50).toLocaleString()}만원 (신뢰도 ${me.confidence})`);
+        }else{
+          band=`<div style="padding:12px 14px;background:var(--line);border-radius:12px;margin-bottom:12px;font-size:13px;color:var(--sub);">표본이 적어 시세 범위를 제시하지 않습니다(정직성 원칙) — 아래 최근 거래만 참고하세요.</div>`;
+        }
+        document.getElementById('rtmsCard').innerHTML=band+
+          `<table class="info-table">${me.trades.slice(0,8).map(x=>`<tr><th style="white-space:nowrap;">${esc(x.ym)}</th><td>${esc(x.dong||'')} ${esc(x.name||'')}${x.area?` · ${x.area}㎡`:''}${x.floor?` · ${x.floor}층`:''}</td><td style="text-align:right;font-weight:800;white-space:nowrap;">${fmtWon(x.amt*10000)}</td></tr>`).join('')}</table>
+          <div style="margin-top:10px;text-align:right;">${naverLink}</div>`;
+        document.getElementById('rtmsNote').textContent=`※ 최근 ${monthN}개월 ${t[0]} ${sgg} ${svcName} 실거래 기반 추정 — 범위는 참고용이며 투자 자문이 아닙니다 · 출처: 국토교통부 실거래가 (신고 지연으로 최근 1~2개월 일부 누락 가능)`;
+        document.getElementById('sec-rtms').style.display='';
+        return;
+      }
+
+      // ── 비주거(토지·상가·공장): 기존 단순 표시 유지 (시세 밴드는 개별성 커서 미제공 — 정직성) ──
+      const monthN=12;
       const months=[];const d=new Date(Date.now()+9*3600*1000);
       for(let i=0;i<monthN;i++){months.push(`${d.getUTCFullYear()}${String(d.getUTCMonth()+1).padStart(2,'0')}`);d.setUTCMonth(d.getUTCMonth()-1);}
       const rs=await Promise.allSettled(months.map(mm=>fetch(`/.netlify/functions/rtms-svc?svc=${svc}&lawdCd=${lawd}&dealYmd=${mm}&numOfRows=200`).then(r=>r.ok?r.json():null)));
@@ -1463,28 +1510,17 @@ if(isLive&&liveItem){
       })).filter(x=>x.amt>0&&!x.canceled);
       if(!deals.length){console.log('[rtms] 표본 0건:',svc,lawd);return;}
       deals.sort((a,b)=>(b.y*10000+b.m*100+b.dd)-(a.y*10000+a.m*100+a.dd));
-      // 같은 읍면동 거래가 3건 이상이면 동 단위로 좁혀서 표시
-      const emd=t.slice(1).find(w=>/(동|리|가|읍|면)$/.test(w)&&!/(구|시|군)$/.test(w))||'';
       const local=emd?deals.filter(x=>x.dong===emd):[];
       const use=local.length>=3?local:deals;
       const scope=local.length>=3?emd:`${sgg} 전체`;
       const per=use.filter(x=>x.area>0).map(x=>x.amt/x.area).sort((a,b)=>a-b);
       const med=per.length>=3?per[Math.floor(per.length/2)]:0;
-      const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
-      const svcName={apt_trade_dev:'아파트 매매',offi_trade:'오피스텔 매매',rh_trade:'연립다세대 매매',sh_trade:'단독/다가구 매매',land_trade:'토지 매매',nrg_trade:'상업업무용 매매',indu_trade:'공장·창고 매매'}[svc];
       document.getElementById('rtmsCard').innerHTML=
         (med?`<div style="padding:12px 14px;background:var(--green-soft);border-radius:12px;margin-bottom:12px;font-size:13.5px;">${esc(scope)} ${esc(svcName)} ㎡당 중앙값 <b>${Math.round(med).toLocaleString()}만원</b> <span style="color:var(--sub);">(평당 약 ${Math.round(med*3.3058).toLocaleString()}만원 · 면적 확인 표본 ${per.length}건)</span></div>`:'')+
-        `<table class="info-table">${use.slice(0,8).map(x=>`<tr><th style="white-space:nowrap;">${x.y}.${String(x.m).padStart(2,'0')}.${String(x.dd).padStart(2,'0')}</th><td>${esc(x.dong)} ${esc(x.name)}${x.area?` · ${x.area}㎡`:''}</td><td style="text-align:right;font-weight:800;white-space:nowrap;">${fmtWon(x.amt*10000)}</td></tr>`).join('')}</table>`;
+        `<table class="info-table">${use.slice(0,8).map(x=>`<tr><th style="white-space:nowrap;">${x.y}.${String(x.m).padStart(2,'0')}.${String(x.dd).padStart(2,'0')}</th><td>${esc(x.dong)} ${esc(x.name)}${x.area?` · ${x.area}㎡`:''}</td><td style="text-align:right;font-weight:800;white-space:nowrap;">${fmtWon(x.amt*10000)}</td></tr>`).join('')}</table>
+        <div style="margin-top:10px;text-align:right;">${naverLink}</div>`;
       document.getElementById('rtmsNote').textContent=`※ 최근 ${monthN}개월 ${t[0]} ${sgg} ${svcName} 신고 거래 ${deals.length}건 중 최신순 표시 · 출처: 국토교통부 실거래가 공개시스템 (계약 후 30일 이내 신고분만 반영)`;
-      // 시뮬레이터로 실거래 ㎡당 중앙값 참고치 전달 — 시세 슬라이더의 데이터 앵커(전용면적은 온비드 미제공이라 총 시세는 사용자가 조정).
-      if(med>0){
-        const ref=encodeURIComponent(`${scope} ${svcName} ㎡당 중앙값 ${Math.round(med).toLocaleString()}만원`);
-        document.querySelectorAll('a[href^="bidcast-simulator.html"]').forEach(a=>{
-          let h=a.getAttribute('href'); if(!h||/[?&]mktM2=/.test(h))return;
-          h+=(h.indexOf('?')>=0?'&':'?')+'mktM2='+Math.round(med)+'&mktRef='+ref;
-          a.setAttribute('href',h);
-        });
-      }
+      if(med>0)passSim(med,`${scope} ${svcName} ㎡당 중앙값 ${Math.round(med).toLocaleString()}만원`);
       document.getElementById('sec-rtms').style.display='';
     }catch(e){console.log('[rtms] 주변 실거래 로드 실패(섹션 미표시):',e.message);}
   })();
