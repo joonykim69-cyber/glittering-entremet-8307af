@@ -116,6 +116,31 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 .type-section { padding:12px 0 0; }
 .type-group { margin-bottom:6px; }
 .type-group-label { font-size:10.5px; font-weight:800; color:var(--mute); letter-spacing:.06em; text-transform:uppercase; margin-bottom:6px; }
+/* ═══ 온비드式 빠른검색 카드 (2026-07-26) — 좌측 자산군 탭 + 처분방식/용도/재산유형/지역 열 ═══ */
+.qs-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin-top:14px;}
+.qs-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+.qs-title{font-size:15px;font-weight:900;}
+.qs-links{display:flex;gap:8px;}
+.qs-link{font:inherit;font-size:12.5px;font-weight:800;color:var(--green-deep);background:var(--green-soft);border:1px solid var(--green);border-radius:999px;padding:7px 14px;cursor:pointer;text-decoration:none;}
+.qs-link:hover{background:var(--green);color:#fff;}
+.qs-body{display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:start;}
+@media(max-width:760px){.qs-body{grid-template-columns:1fr;}}
+.qs-tabs{display:flex;flex-direction:column;gap:8px;}
+@media(max-width:760px){.qs-tabs{flex-direction:row;flex-wrap:wrap;}}
+.qs-tabs button{font:inherit;font-size:13.5px;font-weight:800;cursor:pointer;background:var(--bg);border:1.5px solid var(--line);color:var(--sub);padding:12px 14px;border-radius:12px;text-align:left;transition:all .15s;}
+.qs-tabs button:hover{border-color:var(--green);color:var(--green-deep);}
+.qs-tabs button.on{background:var(--green-soft);border-color:var(--green);color:var(--green-deep);box-shadow:0 0 0 1px var(--green) inset;}
+.qs-cols{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:14px;}
+@media(max-width:920px){.qs-cols{grid-template-columns:repeat(2,1fr);}}
+.qs-k{font-size:12px;font-weight:800;color:var(--sub);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--line);}
+.qs-opt{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;padding:4px 0;cursor:pointer;}
+.qs-opt input{accent-color:var(--green);width:15px;height:15px;}
+.qs-opt.qs-dis{opacity:.5;cursor:not-allowed;}
+.qs-soon{font-size:10px;font-weight:800;color:var(--mute);background:var(--line);border-radius:999px;padding:1px 7px;}
+.qs-sel{display:block;width:100%;font:inherit;font-size:13px;font-weight:600;padding:8px 10px;border:1.5px solid var(--line);border-radius:9px;background:var(--bg);margin-bottom:8px;}
+.qs-go{display:block;width:min(340px,100%);margin:14px auto 0;font:inherit;font-size:14.5px;font-weight:900;color:#fff;background:var(--green);border:none;border-radius:12px;padding:13px;cursor:pointer;}
+.qs-go:hover{background:var(--green-deep);}
+.qs-note{font-size:11px;color:var(--mute);margin-top:8px;text-align:center;}
 .type-chips { display:flex; flex-wrap:wrap; gap:6px; }
 .type-chips button { font:inherit; font-size:12px; font-weight:700; cursor:pointer; background:var(--surface); border:1.5px solid var(--line); color:var(--sub); padding:6px 13px; border-radius:999px; transition:all .2s; white-space:nowrap; }
 .type-chips button:hover { border-color:var(--green); }
@@ -387,6 +412,63 @@ h1,h2,h3,h4{font-family:var(--font-head)}
       </div>
     </div>
 
+    <!-- ══ 온비드式 빠른검색 (2026-07-26) — 자산군 탭 + 처분방식/용도/재산유형/지역 + 물건 보기 ══ -->
+    <div class="qs-card" id="qsCard">
+      <div class="qs-head">
+        <span class="qs-title">⚡ 빠른검색</span>
+        <span class="qs-links">
+          <button type="button" class="qs-link" id="advToggleBtn" onclick="toggleAdvFilters()">🔍 조건검색 ›</button>
+          <a class="qs-link" href="bidcast-map.html">📍 지도검색 ›</a>
+        </span>
+      </div>
+      <div class="qs-body">
+        <div class="qs-tabs" id="qsTabs">
+          <button type="button" data-ac="" class="on">🗂 전체</button>
+          <button type="button" data-ac="부동산">🏢 부동산</button>
+          <button type="button" data-ac="동산">📦 동산</button>
+          <button type="button" data-ac="자동차">🚗 차량</button>
+        </div>
+        <div class="qs-cols">
+          <div class="qs-col">
+            <div class="qs-k">처분방식</div>
+            <label class="qs-opt"><input type="radio" name="qsDsps" value="0001" checked> 매각</label>
+            <label class="qs-opt qs-dis" title="임대 처분방식 코드는 실호출 검증 후 제공됩니다"><input type="radio" name="qsDsps" value="" disabled> 임대 <span class="qs-soon">준비중</span></label>
+          </div>
+          <div class="qs-col" id="qsUsageColRe">
+            <div class="qs-k">용도</div>
+            <label class="qs-opt"><input type="checkbox" class="qsUseRe" value="" checked> 전체</label>
+            <label class="qs-opt"><input type="checkbox" class="qsUseRe" value="주거용"> 주거용</label>
+            <label class="qs-opt"><input type="checkbox" class="qsUseRe" value="토지"> 토지</label>
+            <label class="qs-opt"><input type="checkbox" class="qsUseRe" value="상가업무"> 상가/업무용</label>
+            <label class="qs-opt"><input type="checkbox" class="qsUseRe" value="기타"> 기타</label>
+          </div>
+          <div class="qs-col" id="qsUsageColMv" style="display:none;">
+            <div class="qs-k">용도</div>
+            <label class="qs-opt"><input type="checkbox" class="qsUseMv" value="" checked> 전체</label>
+            <label class="qs-opt"><input type="checkbox" class="qsUseMv" value="기계장비"> 기계장비</label>
+            <label class="qs-opt"><input type="checkbox" class="qsUseMv" value="유가증권"> 유가증권</label>
+            <label class="qs-opt"><input type="checkbox" class="qsUseMv" value="선박항공"> 선박/항공기</label>
+            <label class="qs-opt"><input type="checkbox" class="qsUseMv" value="기타동산"> 기타동산</label>
+          </div>
+          <div class="qs-col" id="qsPrptCol">
+            <div class="qs-k">재산유형</div>
+            <label class="qs-opt"><input type="checkbox" class="qsPrpt" value="" checked> 전체</label>
+            <label class="qs-opt"><input type="checkbox" class="qsPrpt" value="0007"> 압류재산</label>
+            <label class="qs-opt"><input type="checkbox" class="qsPrpt" value="0010"> 국유재산</label>
+            <label class="qs-opt"><input type="checkbox" class="qsPrpt" value="0004"> 불용품</label>
+            <label class="qs-opt"><input type="checkbox" class="qsPrpt" value="0002,0003,0005,0006,0008,0011,0013"> 기타재산</label>
+          </div>
+          <div class="qs-col">
+            <div class="qs-k">지역</div>
+            <select id="qsSido" class="qs-sel"><option value="">전체</option></select>
+            <select id="qsSgg" class="qs-sel"><option value="">시/군/구 전체</option></select>
+          </div>
+        </div>
+      </div>
+      <button type="button" class="qs-go" onclick="qsApply()">🔍 물건 보기</button>
+      <p class="qs-note">재산유형 필터는 온비드 부동산 목록 API에 적용됩니다 · 임대 처분방식은 코드 실검증 후 제공 · 시/군/구는 불러온 목록 기준</p>
+    </div>
+
     <!-- 검색창 -->
     <div class="search-row">
       <div class="search-box">
@@ -396,7 +478,8 @@ h1,h2,h3,h4{font-family:var(--font-head)}
       <button class="btn-reset" type="button" onclick="resetFilters()">초기화</button>
     </div>
 
-    <!-- 필터 드롭다운 -->
+    <!-- 조건검색(상세 필터) — 온비드式 빠른검색의 "조건검색 ›"로 여닫음 (기본 접힘, 2026-07-26) -->
+    <div id="advFilters" style="display:none;">
     <div class="filter-row">
 
       <!-- 기관 -->
@@ -489,24 +572,6 @@ h1,h2,h3,h4{font-family:var(--font-head)}
         </div>
       </div>
 
-      <!-- 정렬 -->
-      <div class="cd" id="cdSort" data-filter="sort" style="margin-left:auto;">
-        <button class="cd-trig" type="button" onclick="openCd('cdSort')">
-          <span class="cd-trig-text">최신순</span><span class="cd-arr">▾</span>
-        </button>
-        <div class="cd-panel cd-panel align-right">
-          <div class="cd-list">
-            <button class="cd-opt on" data-v="latest">최신순</button>
-            <button class="cd-opt" data-v="notable">주목순 (할인·유찰·임박)</button>
-            <button class="cd-opt" data-v="views">조회수 높은순</button>
-            <button class="cd-opt" data-v="discount">할인율 높은순</button>
-            <button class="cd-opt" data-v="fail-desc">유찰 많은순</button>
-            <button class="cd-opt" data-v="price-asc">낮은 가격순</button>
-            <button class="cd-opt" data-v="price-desc">높은 가격순</button>
-          </div>
-        </div>
-      </div>
-
     </div><!-- /filter-row -->
 
     <!-- 상태 빠른 필터 -->
@@ -548,6 +613,27 @@ h1,h2,h3,h4{font-family:var(--font-head)}
       <div class="type-toggle-row">
         <button class="type-all-btn" type="button" onclick="setAllTypes(true)">전체 선택</button>
         <button class="type-none-btn" type="button" onclick="setAllTypes(false)">전체 해제</button>
+      </div>
+    </div>
+    </div><!-- /advFilters -->
+
+    <!-- 정렬 (항상 노출 — 조건검색 접힘과 무관) -->
+    <div class="filter-row" style="justify-content:flex-end;">
+      <div class="cd" id="cdSort" data-filter="sort">
+        <button class="cd-trig" type="button" onclick="openCd('cdSort')">
+          <span class="cd-trig-text">최신순</span><span class="cd-arr">▾</span>
+        </button>
+        <div class="cd-panel cd-panel align-right">
+          <div class="cd-list">
+            <button class="cd-opt on" data-v="latest">최신순</button>
+            <button class="cd-opt" data-v="notable">주목순 (할인·유찰·임박)</button>
+            <button class="cd-opt" data-v="views">조회수 높은순</button>
+            <button class="cd-opt" data-v="discount">할인율 높은순</button>
+            <button class="cd-opt" data-v="fail-desc">유찰 많은순</button>
+            <button class="cd-opt" data-v="price-asc">낮은 가격순</button>
+            <button class="cd-opt" data-v="price-desc">높은 가격순</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -836,6 +922,16 @@ function resetFilters() {
   document.querySelectorAll('#typeChipsRe button, #typeChipsMv button').forEach(b => b.classList.add('on'));
   activeMode = 'search';
   document.querySelectorAll('#modeTabs button').forEach(b => b.classList.toggle('on', b.dataset.mode==='search'));
+  // 온비드式 빠른검색 패널 초기화(자산군 전체·용도/재산유형 전체·지역 전체)
+  const hadPrpt = QS.prptCodes !== '';
+  QS.ac = ''; QS.sgg = ''; QS.prptCodes = '';
+  document.querySelectorAll('#qsTabs button').forEach(b => b.classList.toggle('on', (b.dataset.ac || '') === ''));
+  ['qsUseRe','qsUseMv','qsPrpt'].forEach(cls => document.querySelectorAll('.' + cls).forEach(x => { x.checked = x.value === ''; }));
+  const qsS = document.getElementById('qsSido'); if (qsS) qsS.value = '';
+  const qsG = document.getElementById('qsSgg'); if (qsG) qsG.innerHTML = '<option value="">시/군/구 전체</option>';
+  const reC = document.getElementById('qsUsageColRe'); if (reC) reC.style.display = '';
+  const mvC = document.getElementById('qsUsageColMv'); if (mvC) mvC.style.display = 'none';
+  if (hadPrpt && liveMode) loadRealItems({}); // 재산유형 서버 필터가 걸려 있었으면 전체로 재조회
   applyFilters();
 }
 
@@ -851,6 +947,10 @@ function computeFilteredList() {
   // 타입 필터: activeTypes에 포함된 타입만 — 데모 ITEMS의 'type' 값이 ALL_TYPES의
   // 부동산/동산 값과 다를 수 있으므로 데모 타입을 그대로 허용하는 정규화 적용
   list = list.filter(it => activeTypes.has(normalizeTypeFilter(it.type)));
+
+  // 온비드式 빠른검색 필터(2026-07-26): 자산군 탭 + 시/군/구
+  if (QS.ac) list = list.filter(it => assetClassOf(it) === QS.ac);
+  if (QS.sgg) list = list.filter(it => String(it.address || '').includes(QS.sgg));
 
   if (qTerm) {
     const q = qTerm.toLowerCase();
@@ -913,6 +1013,115 @@ function notableScore(it) {
 function normalizeTypeFilter(t) {
   const map = { '상가':'상가', '공장':'공장창고', '단독':'단독주택', '연립':'연립다세대', '다세대':'연립다세대', '임야':'농지임야', '농지':'농지임야', '선박':'선박항공', '항공':'선박항공' };
   return map[t] || t; // 대부분 그대로 반환 (아파트, 토지, 상가, 차량, 기계장비, 유가증권 등)
+}
+
+// ═══════════════════════════════════════
+// 온비드式 빠른검색 (2026-07-26) — 자산군 탭·처분방식·용도 그룹·재산유형(prptDivCd 서버 필터)·지역 2단
+// ═══════════════════════════════════════
+const QS = { ac: '', prptCodes: '', sgg: '' };
+// 물건의 자산군 판정 — 라이브는 assetClass 태그, 데모·부동산은 type으로 유추
+function assetClassOf(it) {
+  if (it.assetClass === '동산') return '동산';
+  if (it.assetClass === '자동차') return '자동차';
+  const t = normalizeTypeFilter(it.type);
+  if (t === '차량') return '자동차';
+  if (['기계장비', '유가증권', '선박항공', '기타동산'].includes(t)) return '동산';
+  return '부동산';
+}
+// 온비드 용도 그룹 → 우리 10버킷 매핑 (주거용/토지/상가·업무용/기타)
+const QS_USE_RE = {
+  '주거용': ['아파트', '오피스텔', '단독주택', '연립다세대'],
+  '토지': ['토지', '농지임야'],
+  '상가업무': ['상가', '사무실', '공장창고'],
+  '기타': ['기타부동산'],
+};
+const QS_RE_ALL = ['아파트','오피스텔','단독주택','연립다세대','토지','상가','사무실','공장창고','농지임야','기타부동산'];
+const QS_MV_ALL = ['기계장비','유가증권','선박항공','기타동산'];
+
+function toggleAdvFilters() {
+  const el = document.getElementById('advFilters'), b = document.getElementById('advToggleBtn');
+  const open = el.style.display === 'none';
+  el.style.display = open ? '' : 'none';
+  if (b) b.textContent = open ? '🔍 조건검색 접기 ▴' : '🔍 조건검색 ›';
+}
+
+// 체크박스 그룹: "전체"와 개별 항목의 상호 배타 처리
+function qsExclusive(cls) {
+  document.querySelectorAll('.' + cls).forEach(cb => cb.addEventListener('change', () => {
+    const all = [...document.querySelectorAll('.' + cls)];
+    const total = all.find(x => x.value === '');
+    if (cb.value === '' && cb.checked) all.forEach(x => { if (x.value !== '') x.checked = false; });
+    else if (cb.value !== '' && cb.checked && total) total.checked = false;
+    if (!all.some(x => x.checked) && total) total.checked = true; // 아무것도 없으면 전체로 복귀(빈 화면 방지)
+  }));
+}
+
+// 자산군 탭 — 용도 열 전환 + 즉시 필터
+document.querySelectorAll('#qsTabs button').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('#qsTabs button').forEach(b => b.classList.toggle('on', b === btn));
+  QS.ac = btn.dataset.ac || '';
+  const re = document.getElementById('qsUsageColRe'), mv = document.getElementById('qsUsageColMv');
+  if (re) re.style.display = (QS.ac === '' || QS.ac === '부동산') ? '' : 'none';
+  if (mv) mv.style.display = QS.ac === '동산' ? '' : 'none';
+  applyFilters();
+}));
+
+// 시도 목록 채우기 + 시군구는 불러온 목록(주소 2번째 토큰)에서 추출
+(function initQsRegion() {
+  const sido = document.getElementById('qsSido');
+  if (!sido) return;
+  ['서울','경기','인천','강원','충북','충남','대전','세종','전북','전남','광주','경북','경남','대구','부산','울산','제주']
+    .forEach(r => { const o = document.createElement('option'); o.value = r; o.textContent = r; sido.appendChild(o); });
+  sido.addEventListener('change', () => {
+    const sgg = document.getElementById('qsSgg');
+    sgg.innerHTML = '<option value="">시/군/구 전체</option>';
+    QS.sgg = '';
+    if (!sido.value) return;
+    const set = new Set();
+    ITEMS.forEach(it => {
+      if (it.region !== sido.value) return;
+      const tok = String(it.address || '').split(/\s+/)[1] || '';
+      if (/(시|군|구)$/.test(tok)) set.add(tok);
+    });
+    [...set].sort((a, b) => a.localeCompare(b, 'ko')).forEach(g => {
+      const o = document.createElement('option'); o.value = g; o.textContent = g; sgg.appendChild(o);
+    });
+  });
+})();
+qsExclusive('qsUseRe'); qsExclusive('qsUseMv'); qsExclusive('qsPrpt');
+
+// [물건 보기] — 용도 그룹→activeTypes, 재산유형→prptDivCd 서버 재조회, 지역 반영
+function qsApply() {
+  // ① 용도 그룹 → activeTypes 재구성 (자산군 탭 범위 밖 유형은 유지해 교차 오염 방지)
+  const reSel = [...document.querySelectorAll('.qsUseRe:checked')].map(x => x.value);
+  const mvSel = [...document.querySelectorAll('.qsUseMv:checked')].map(x => x.value);
+  const reTypes = (reSel.includes('') || !reSel.length) ? QS_RE_ALL : reSel.flatMap(g => QS_USE_RE[g] || []);
+  const mvTypes = (mvSel.includes('') || !mvSel.length) ? QS_MV_ALL : mvSel;
+  if (QS.ac === '부동산') activeTypes = new Set(reTypes);
+  else if (QS.ac === '동산') activeTypes = new Set(mvTypes);
+  else if (QS.ac === '자동차') activeTypes = new Set(['차량']);
+  else activeTypes = new Set([...reTypes, ...QS_MV_ALL, '차량']); // 전체 탭: 부동산 용도만 적용
+  document.querySelectorAll('.type-chips button').forEach(b => b.classList.toggle('on', activeTypes.has(b.dataset.type)));
+
+  // ② 재산유형 → prptDivCd (부동산 목록 API 서버 필터 — loadRealItems가 QS.prptCodes를 항상 동봉)
+  const prptSel = [...document.querySelectorAll('.qsPrpt:checked')].map(x => x.value).filter(Boolean);
+  const newPrpt = prptSel.length ? prptSel.join(',') : '';
+
+  // ③ 지역 (시도는 서버 재조회 조건, 시군구는 클라 필터)
+  const sido = document.getElementById('qsSido').value;
+  QS.sgg = document.getElementById('qsSgg').value;
+
+  const needRequery = liveMode && (newPrpt !== QS.prptCodes || sido !== F.region);
+  QS.prptCodes = newPrpt;
+  if (sido !== F.region) {
+    F.region = sido;
+    const t = document.querySelector('#cdRegion .cd-trig-text');
+    if (t) t.textContent = sido ? sido : '지역 전체'; // 조건검색의 지역 드롭다운 표기 동기화
+  }
+  if (needRequery) loadRealItems({ region: F.region, keyword: qTerm });
+  else applyFilters();
+  const rb = document.querySelector('.result-bar');
+  if (rb) rb.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function applyFilters() {
@@ -1604,6 +1813,9 @@ async function loadRealItems(opts = {}) {
     const p = new URLSearchParams({ page:'1', numOfRows:'200' });
     if (opts.region) p.set('region', opts.region);
     if (opts.keyword) p.set('keyword', opts.keyword);
+    // 온비드式 빠른검색 재산유형(압류/국유/불용품 등) — 부동산 목록 API의 prptDivCd 서버 필터.
+    // 동산·차량 프록시는 이 파라미터를 무시하므로 공용 쿼리에 실어도 무해.
+    if (QS.prptCodes) p.set('prptDivCd', QS.prptCodes);
     // 부동산 + 동산 + 차량을 병렬 요청 — 동산/차량 프록시는 미연동·경로오류 시
     // 5xx를 반환하므로 실패해도 부동산 목록만으로 정상 동작 (degrade-gracefully)
     const [rlstRes, mvastRes, vhclRes] = await Promise.allSettled([
