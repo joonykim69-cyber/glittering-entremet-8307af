@@ -1,0 +1,212 @@
+// netlify/functions/sim-live.js
+// 예측 엔진 — "모의 라이브 학습장" (2026-07-27 착수, 헌장 Golden Rule 11 준수).
+//
+// 목적: 마스킹 수집한 과거를 "그 시점부터 라이브인 것처럼" 월 단위로 재생하며,
+//   각 물건을 개찰 전 값만으로 예측 → 개찰 후 채점하고 **per-item 기록**을 남긴다.
+//   이 per-item 기록이 마이페이지 "엔진 학습 관제실"의 리플레이·과녁을 진짜
+//   데이터로 채운다(백테스트는 3단계 집계뿐이라 점 하나하나가 없었다).
+//
+// ── Golden Rule 11 (시점 정직성 / No Look-Ahead) — 코드 구조로 강제 ──
+//   대상 월 M을 예측할 때 학습 셀은 M 시작 이전(opbd < M-01) 데이터로만 만든다.
+//   예측 함수 predictOne(cells, feat)의 feat엔 개찰 전 값(type/usage/round/low)만 있고
+//   win/lr 필드가 아예 없다 → 미래(낙찰가)를 훔쳐볼 경로가 구조적으로 없다.
+//   낙찰가는 채점 시점에만 레코드에서 꺼낸다. 결과는 bt/sim/* 에만 쓴다(라이브 원장 무관).
+//
+// 실행: 일반 함수(30초). 월당 1회 호출로 끝내고 커서(bt/sim/_state)로 재개.
+//   ?status=1 진행 조회 / ?reset=1&confirm=1 초기화. backfill 완료 전 no-op.
+//   기간은 env로 확장: SIM_TRAIN_FROM(기본 202601) · SIM_START_YM(202602) · SIM_END_YM(202606).
+//   2025 데이터가 쌓이면 env만 바꿔 그 시점부터 재생(코드 변경 없음).
+
+const CORS = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' };
+const MIN_N = 20;                 // 챌린저 셀 자격 최소 표본 (라이브·백테스트와 동일)
+const SIM_VERSION = 'sim-v0.5-1'; // 방식 변경 시 올려 자동 재실행
+const REC_PER_MONTH = 60;         // 월별 보존 per-item 샘플 상한(과녁 점 대표성 + 블롭 크기 억제)
+
+async function openLedger(event) {
+  if (global.__FAKE_STORE__) return global.__FAKE_STORE__; // fixture 검증용(런타임 미사용)
+  const blobs = await import('@netlify/blobs');
+  try { if (event && typeof blobs.connectLambda === 'function') blobs.connectLambda(event); } catch (e) { /* 자동 구성 */ }
+  try { return blobs.getStore('ledger'); }
+  catch (e) {
+    const siteID = process.env.NETLIFY_SITE_ID || process.env.SITE_ID;
+    const token = process.env.NETLIFY_BLOBS_TOKEN;
+    if (siteID && token) return blobs.getStore({ name: 'ledger', siteID, token });
+    throw e;
+  }
+}
+
+async function mapLimit(items, limit, fn) {
+  const out = [];
+  for (let i = 0; i < items.length; i += limit) out.push(...await Promise.all(items.slice(i, i + limit).map(fn)));
+  return out;
+}
+function tierOf(lowWon) { const m = lowWon / 10000; return m < 10000 ? 'lt1' : m < 50000 ? 't1to5' : m < 100000 ? 't5to10' : 'gte10'; }
+function roundBucket(n) { return (Number(n) || 1) >= 4 ? '4+' : String(Math.max(1, Number(n) || 1)); }
+function keysFor(type, usage, rb, tier) {
+  return [`L3|${type}|${usage}|${rb}|${tier}`, `L2|${type}|${usage}|${rb}`, `L1|${type}|${usage}`, `L0|${type}`];
+}
+function quantiles(sorted) {
+  const q = p => { const idx = (sorted.length - 1) * p, lo = Math.floor(idx), hi = Math.ceil(idx); return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo); };
+  return { p10: q(0.1), p50: q(0.5), p90: q(0.9) };
+}
+function overlaps(key, start, end) { const m = key.match(/(\d{8})_(\d{8})\//); return m ? !(m[2] < start || m[1] > end) : false; }
+
+// 월 유틸 (YYYYMM)
+function firstDay(ym) { return ym + '01'; }
+function lastDay(ym) { const y = +ym.slice(0, 4), m = +ym.slice(4, 6); return ym + String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, '0'); }
+function prevMonthLastDay(ym) { let y = +ym.slice(0, 4), m = +ym.slice(4, 6); m -= 1; if (m === 0) { m = 12; y -= 1; } const p = `${y}${String(m).padStart(2, '0')}`; return lastDay(p); }
+function enumMonths(startYm, endYm) { const out = []; let y = +startYm.slice(0, 4), m = +startYm.slice(4, 6); while (`${y}${String(m).padStart(2, '0')}` <= endYm) { out.push(`${y}${String(m).padStart(2, '0')}`); m++; if (m > 12) { m = 1; y++; } } return out; }
+
+// (feat⋈win) 조인 로드 — opbd 기간 필터·id_cdtn 중복제거. win은 싣되 예측엔 안 넘긴다.
+async function loadRange(store, featKeys, start, end) {
+  const relevant = featKeys.filter(k => overlaps(k, start, end));
+  const seen = new Set(); const recs = [];
+  await mapLimit(relevant, 30, async fkey => {
+    const parts = fkey.split('/'); const w = parts[2], type = parts[3];
+    const [feat, winMap] = await Promise.all([store.get(fkey, { type: 'json' }), store.get(`hist/win/${w}/${type}`, { type: 'json' })]);
+    if (!Array.isArray(feat)) return;
+    const wm = winMap || {};
+    for (const f of feat) {
+      const opbd = String(f.opbd || '').slice(0, 8);
+      if (opbd < start || opbd > end) continue;
+      const uid = `${f.id}_${f.cdtn}`; if (seen.has(uid)) continue; seen.add(uid);
+      const wv = wm[uid] || {};
+      recs.push({
+        type, id: f.id, cdtn: f.cdtn, usage: String(f.usage || f.usageM || '기타').trim() || '기타',
+        round: f.round, low: Number(f.low) || 0, apsl: Number(f.apsl) || 0, st: f.st,
+        win: Number(wv.win) || 0, lr: Number(wv.lr) || 0, opbd,
+      });
+    }
+  });
+  return recs;
+}
+
+// 학습 셀 = 최저가 대비 낙찰가율(lr) 분위수. 낙찰(0010)만. (M 이전 데이터로만 호출됨)
+function buildCells(records) {
+  const acc = {};
+  for (const r of records) {
+    if (r.st !== '0010' || !(r.lr > 0)) continue;
+    for (const k of keysFor(r.type, r.usage, roundBucket(r.round), tierOf(r.low))) {
+      (acc[k] || (acc[k] = [])).push(r.lr);
+    }
+  }
+  const cells = {};
+  for (const [k, arr] of Object.entries(acc)) { if (arr.length < 3) continue; arr.sort((a, b) => a - b); cells[k] = { n: arr.length, lr: quantiles(arr) }; }
+  return cells;
+}
+
+// ── 예측: 개찰 전 값만 받는다 (win 없음 — 미래 차단) ──
+// feat = {type, usage, round, low}. 낙찰가·lr는 인자에 존재하지 않는다.
+function predictOne(cells, feat) {
+  for (const k of keysFor(feat.type, feat.usage, roundBucket(feat.round), tierOf(feat.low))) {
+    const c = cells[k];
+    if (c && c.n >= MIN_N && c.lr) {
+      const lo = Math.round(feat.low * c.lr.p10 / 100);
+      const mid = Math.round(feat.low * c.lr.p50 / 100);
+      let hi = Math.round(feat.low * c.lr.p90 / 100);
+      if (hi <= lo) hi = Math.round(lo * 1.05);
+      return { lo, mid, hi, level: k.split('|')[0] };
+    }
+  }
+  return null;
+}
+
+function downsample(arr, k) { if (arr.length <= k) return arr; const step = arr.length / k, out = []; for (let i = 0; i < k; i++) out.push(arr[Math.floor(i * step)]); return out; }
+
+// exports._test 로 순수 로직 검증(런타임 미사용)
+exports._test = { keysFor, buildCells, predictOne, enumMonths, prevMonthLastDay };
+
+exports.handler = async (event) => {
+  const qs = (event && event.queryStringParameters) || {};
+  const store = await openLedger(event);
+  const TRAIN_FROM = (process.env.SIM_TRAIN_FROM || '202601');
+  const START_YM = (process.env.SIM_START_YM || '202602');
+  const END_YM = (process.env.SIM_END_YM || '202606');
+  const months = enumMonths(START_YM, END_YM);
+
+  try {
+    if (qs.status === '1') {
+      const [state, summary] = await Promise.all([store.get('bt/sim/_state', { type: 'json' }), store.get('bt/sim/summary', { type: 'json' })]);
+      return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true, version: SIM_VERSION, months, state: state || null, summary: summary || null }) };
+    }
+    if (qs.reset === '1' && qs.confirm === '1') {
+      await Promise.all([store.setJSON('bt/sim/_state', { i: 0, version: SIM_VERSION }), store.setJSON('bt/sim/summary', { version: SIM_VERSION, months: [], cum: null }), store.setJSON('bt/sim/records', [])]);
+      return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true, note: '모의 라이브 상태 초기화됨.' }) };
+    }
+
+    const bf = await store.get('hist/_bfmeta', { type: 'json' });
+    if (!bf || !bf.done) {
+      return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true, waiting: true, note: '백필(과거 마스킹 수집) 완료 후 모의 라이브가 시작됩니다.', backfill: bf || null }) };
+    }
+
+    let state = await store.get('bt/sim/_state', { type: 'json' });
+    if (state && state.version !== SIM_VERSION) state = null; // 방식 바뀌면 처음부터
+    if (!state) { state = { i: 0, version: SIM_VERSION }; await store.setJSON('bt/sim/_state', state); }
+    if (state.i >= months.length) {
+      return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true, done: true, version: SIM_VERSION, note: '모의 라이브 재생 완료.' }) };
+    }
+
+    const listing = await store.list({ prefix: 'hist/feat/' });
+    const featKeys = (listing && listing.blobs ? listing.blobs : []).map(b => b.key).filter(k => /^hist\/feat\/\d{8}_\d{8}\/\d+$/.test(k));
+
+    const ym = months[state.i];
+    const trainEnd = prevMonthLastDay(ym);          // M 시작 직전까지만 학습 (GR11)
+    const trainRecs = await loadRange(store, featKeys, firstDay(TRAIN_FROM), trainEnd);
+    const cells = buildCells(trainRecs);
+    const testRecs = await loadRange(store, featKeys, firstDay(ym), lastDay(ym));
+    const sold = testRecs.filter(r => r.st === '0010' && r.win > 0);
+
+    let n = 0, hit = 0, sumErr = 0, sumWidth = 0;
+    const recs = [];
+    for (const item of sold) {
+      const feat = { type: item.type, usage: item.usage, round: item.round, low: item.low }; // win 없음(GR11)
+      const pred = predictOne(cells, feat);
+      if (!pred) continue;
+      const win = item.win; // 채점 시점에만 꺼냄
+      const isHit = win >= pred.lo && win <= pred.hi;
+      const errPct = Math.round((pred.mid - win) / win * 1000) / 10;
+      const widthPct = Math.round((pred.hi - pred.lo) / win * 1000) / 10;
+      n++; if (isHit) hit++; sumErr += Math.abs(errPct); sumWidth += widthPct;
+      recs.push({ ym, usage: item.usage, low: item.low, lo: pred.lo, mid: pred.mid, hi: pred.hi, win, hit: isHit, errPct, level: pred.level });
+    }
+
+    const monthResult = {
+      ym, trainN: trainRecs.length, testSold: sold.length, n,
+      hitRate: n ? Math.round(hit / n * 1000) / 10 : null,
+      avgAbsErrPct: n ? Math.round(sumErr / n * 10) / 10 : null,
+      avgWidthPct: n ? Math.round(sumWidth / n * 10) / 10 : null,
+    };
+
+    // 요약 누적 (같은 방식이면 이어붙이고, 이번 월은 교체)
+    const summary = (await store.get('bt/sim/summary', { type: 'json' })) || {};
+    summary.months = (summary.version === SIM_VERSION && Array.isArray(summary.months)) ? summary.months.filter(m => m.ym !== ym) : [];
+    summary.months.push(monthResult);
+    summary.months.sort((a, b) => a.ym.localeCompare(b.ym));
+    // 누적 적중률(재생이 진행될수록 오르는 곡선) — 월별 n·hit 재구성
+    let cn = 0, ch = 0, ce = 0, cw = 0, cnW = 0;
+    summary.months.forEach(m => { if (m.n) { cn += m.n; ch += Math.round(m.hitRate / 100 * m.n); if (m.avgAbsErrPct != null) { ce += m.avgAbsErrPct * m.n; } if (m.avgWidthPct != null) { cw += m.avgWidthPct * m.n; cnW += m.n; } m.cumHitRate = Math.round(ch / cn * 1000) / 10; } });
+    summary.cum = cn ? { n: cn, hitRate: Math.round(ch / cn * 1000) / 10, avgAbsErrPct: Math.round(ce / cn * 10) / 10, avgWidthPct: cnW ? Math.round(cw / cnW * 10) / 10 : null } : null;
+    summary.version = SIM_VERSION;
+    summary.method = '월 단위 확장 walk-forward · 낙찰가 마스킹 · 시점 정직성(GR11) · bt/sim 격리';
+    summary.trainFrom = TRAIN_FROM; summary.range = `${START_YM}~${END_YM}`;
+
+    // per-item 레코드 — 월별 상한 내로 다운샘플해 누적(과녁 점: 초기 월 vs 후기 월 대표성 유지)
+    const allRecs = (await store.get('bt/sim/records', { type: 'json' })) || [];
+    const kept = allRecs.filter(r => r.ym !== ym).concat(downsample(recs, REC_PER_MONTH));
+    kept.sort((a, b) => a.ym.localeCompare(b.ym));
+
+    const nextI = state.i + 1;
+    summary.done = nextI >= months.length; summary.updatedAt = new Date().toISOString();
+    await Promise.all([
+      store.setJSON('bt/sim/summary', summary),
+      store.setJSON('bt/sim/records', kept),
+      store.setJSON('bt/sim/_state', { i: nextI, version: SIM_VERSION }),
+      store.setJSON('_run/sim-live', { at: new Date().toISOString(), ok: true, ym, n, hitRate: monthResult.hitRate, done: summary.done }),
+    ]);
+
+    return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true, ym, month: monthResult, cum: summary.cum, allDone: summary.done }) };
+  } catch (e) {
+    try { await store.setJSON('_run/sim-live', { at: new Date().toISOString(), ok: false, error: e.message }); } catch (_) { /* 무시 */ }
+    return { statusCode: 500, headers: CORS, body: JSON.stringify({ ok: false, error: e.message }) };
+  }
+};
