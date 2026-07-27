@@ -876,10 +876,34 @@ function deepFiles(o,out,depth){
   Object.values(o).forEach(v=>{if(v&&typeof v==='object')deepFiles(v,out,depth+1);});
   return out;
 }
-// 관련문서 AI 정리 — 온비드 PDF만 대상(doc-extract 프록시가 호스트를 재검증). 문서당 1회 캐시.
-// 스캔본·HWP는 정직하게 "원문 열람" 안내(추측 요약 금지).
+// 공고 첨부파일 1건 → {name,url} — atchFileList의 실 필드명이 미확정이라 관례 키 우선 + 값 스캔 폴백.
+// 이름: 알려진 키 → *Nm 계열 키 → 확장자 있는 값 → 한글 값 → '첨부파일 N'.
+// URL: urlAdr/fileDwldUrl → http 값 → 온비드 상대경로('/…' + dwld/file/atch/down 힌트)는 온비드 호스트로 보정.
+function mapAtchFile(f,i){
+  f=f&&typeof f==='object'?f:{};
+  const vals=Object.values(f).filter(v=>typeof v==='string');
+  let u=String(f.urlAdr||f.fileDwldUrl||vals.find(v=>/^https?:\/\//.test(v))||'');
+  if(!/^https?:\/\//.test(u)){
+    const rel=vals.find(v=>/^\/\S+$/.test(v)&&/(dwld|file|atch|down)/i.test(v));
+    u=rel?'https://www.onbid.co.kr'+rel:'';
+  }
+  const nonUrl=vals.filter(v=>v!==u&&!/^https?:\/\//.test(v)&&!/^\/\S+$/.test(v));
+  const nmKey=Object.keys(f).find(k=>/nm$/i.test(k)&&typeof f[k]==='string'&&!/^(https?:\/\/|\/)/.test(f[k])&&f[k].length<100);
+  const nm=f.fileNm||f.atchFileNm||f.orgnlFileNm
+    ||(nmKey?f[nmKey]:null)
+    ||nonUrl.find(v=>/\.(pdf|hwpx?|docx?|xlsx?|zip)$/i.test(v))
+    ||nonUrl.find(v=>/[가-힣]/.test(v)&&v.length<60)
+    ||('첨부파일 '+(i+1));
+  return {name:String(nm),url:u};
+}
+// 관련문서 AI 정리 — 온비드 호스트 문서만 대상(doc-extract 프록시가 호스트·PDF 매직을 재검증). 문서당 1회 캐시.
+// 온비드 다운로드 URL은 확장자가 없는 형태가 많아 확장자로 거르지 않고, 명백한 비-PDF 확장자만 제외 —
+// 실제 PDF 여부는 서버가 %PDF 매직으로 판정하고 아니면 "원문 열람" 정직 안내(스캔본·HWP 동일).
 function docAiBtn(url){
-  if(!/\.pdf([?#]|$)/i.test(String(url)))return '';
+  const u=String(url||'');
+  if(!/^https?:\/\//.test(u))return '';
+  try{ if(!/(^|\.)onbid\.co\.kr$/i.test(new URL(u).hostname))return ''; }catch(e){ return ''; }
+  if(/\.(hwpx?|docx?|xlsx?|zip|jpe?g|png|gif|tiff?)([?#]|$)/i.test(u))return '';
   return ` <button type="button" onclick="docSummary('${String(url).replace(/'/g,'%27').replace(/"/g,'&quot;')}',this)" style="font:inherit;font-size:10.5px;font-weight:800;color:var(--green-deep);background:var(--green-soft);border:1px solid var(--green);border-radius:999px;padding:2px 9px;cursor:pointer;">📖 AI 정리</button>`;
 }
 async function docSummary(url,btn){
@@ -1464,15 +1488,17 @@ if(isLive&&liveItem){
               const pdate=p0.pbancPstgDt||p0.pbancDt||p0.rgstDt||'';
               if(pdate){const t=String(pdate).replace(/[^0-9]/g,'');document.getElementById('obDate').textContent=t.length>=8?`${t.slice(0,4)}-${t.slice(4,6)}-${t.slice(6,8)}`:String(pdate);document.getElementById('obDateWrap').style.display='';document.getElementById('obKindRow').style.display='';}
               if(p0.ptctCmsn)showRow('obFeeRow','obFee',p0.ptctCmsn);
-              // 첨부파일(공고문·감정평가서·명세서 등) — urlAdr이 http로 시작할 때만 링크(상대경로·미확인은 이름만 표기, 날조 금지)
+              // 첨부파일(공고문·감정평가서·명세서 등) — 실 필드명 미확정이라 mapAtchFile 관용 매핑
+              // (이름 키·URL 키 값 스캔 + 온비드 상대경로 보정). URL 확보 실패 시 이름만 텍스트 표기(날조 금지).
               // 항목 1개면 배열이 아니라 객체로 오는 data.go.kr 관례 커버
               const files=Array.isArray(p0.atchFileList)?p0.atchFileList:(p0.atchFileList&&typeof p0.atchFileList==='object'?[p0.atchFileList]:[]);
               if(files.length){
+                console.log('[detail] 첨부파일 실필드:',Object.keys(files[0]||{}).join(','),files[0]); // 실 응답 필드명 확인용(F12)
                 const html=files.map((f,i)=>{
-                  const nm=String(f.fileNm||f.atchFileNm||f.orgnlFileNm||('첨부파일 '+(i+1))).replace(/</g,'&lt;');
-                  const u=f.urlAdr||f.fileDwldUrl||'';
-                  return /^https?:\/\//.test(u)
-                    ? `<span style="display:inline-flex;align-items:center;gap:4px;"><a href="${String(u).replace(/"/g,'&quot;')}" target="_blank" rel="noopener" style="color:var(--green-deep);font-weight:700;">📎 ${nm}</a>${docAiBtn(u)}</span>`
+                  const m=mapAtchFile(f,i);
+                  const nm=m.name.replace(/</g,'&lt;');
+                  return m.url
+                    ? `<span style="display:inline-flex;align-items:center;gap:4px;"><a href="${m.url.replace(/"/g,'&quot;')}" target="_blank" rel="noopener" style="color:var(--green-deep);font-weight:700;">📎 ${nm}</a>${docAiBtn(m.url)}</span>`
                     : `<span style="color:var(--sub);">📎 ${nm}</span>`;
                 }).join('');
                 if(html){document.getElementById('obFile').innerHTML=html;document.getElementById('obFileRow').style.display='';}
