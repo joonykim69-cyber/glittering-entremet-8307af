@@ -899,11 +899,13 @@ function mapAtchFile(f,i){
 // 관련문서 AI 정리 — 온비드 호스트 문서만 대상(doc-extract 프록시가 호스트·PDF 매직을 재검증). 문서당 1회 캐시.
 // 온비드 다운로드 URL은 확장자가 없는 형태가 많아 확장자로 거르지 않고, 명백한 비-PDF 확장자만 제외 —
 // 실제 PDF 여부는 서버가 %PDF 매직으로 판정하고 아니면 "원문 열람" 정직 안내(스캔본·HWP 동일).
-function docAiBtn(url){
+function docAiBtn(url,name){
   const u=String(url||'');
   if(!/^https?:\/\//.test(u))return '';
   try{ if(!/(^|\.)onbid\.co\.kr$/i.test(new URL(u).hostname))return ''; }catch(e){ return ''; }
   if(/\.(hwpx?|docx?|xlsx?|zip|jpe?g|png|gif|tiff?)([?#]|$)/i.test(u))return '';
+  // URL에 확장자가 없어도 표시 파일명이 비-PDF면 버튼 생략 — 항상 "PDF 아님"으로 끝나는 헛클릭 방지(프리뷰 실검증 2026-07-27)
+  if(/\.(hwpx?|docx?|xlsx?|zip|jpe?g|png|gif|tiff?)\s*$/i.test(String(name||'')))return '';
   return ` <button type="button" onclick="docSummary('${String(url).replace(/'/g,'%27').replace(/"/g,'&quot;')}',this)" style="font:inherit;font-size:10.5px;font-weight:800;color:var(--green-deep);background:var(--green-soft);border:1px solid var(--green);border-radius:999px;padding:2px 9px;cursor:pointer;">📖 AI 정리</button>`;
 }
 async function docSummary(url,btn){
@@ -1498,7 +1500,7 @@ if(isLive&&liveItem){
                   const m=mapAtchFile(f,i);
                   const nm=m.name.replace(/</g,'&lt;');
                   return m.url
-                    ? `<span style="display:inline-flex;align-items:center;gap:4px;"><a href="${m.url.replace(/"/g,'&quot;')}" target="_blank" rel="noopener" style="color:var(--green-deep);font-weight:700;">📎 ${nm}</a>${docAiBtn(m.url)}</span>`
+                    ? `<span style="display:inline-flex;align-items:center;gap:4px;"><a href="${m.url.replace(/"/g,'&quot;')}" target="_blank" rel="noopener" style="color:var(--green-deep);font-weight:700;">📎 ${nm}</a>${docAiBtn(m.url,m.name)}</span>`
                     : `<span style="color:var(--sub);">📎 ${nm}</span>`;
                 }).join('');
                 if(html){document.getElementById('obFile').innerHTML=html;document.getElementById('obFileRow').style.display='';}
@@ -1531,7 +1533,7 @@ if(isLive&&liveItem){
         if(docs.length){
           const seen=new Set();
           const html=docs.filter(d=>{if(seen.has(d.url))return false;seen.add(d.url);return true;}).slice(0,6)
-            .map(d=>`<span style="display:inline-flex;align-items:center;gap:4px;"><a href="${String(d.url).replace(/"/g,'&quot;')}" target="_blank" rel="noopener" style="color:var(--green-deep);font-weight:700;">📎 ${String(d.name).replace(/</g,'&lt;')}</a>${docAiBtn(d.url)}</span>`).join('');
+            .map(d=>`<span style="display:inline-flex;align-items:center;gap:4px;"><a href="${String(d.url).replace(/"/g,'&quot;')}" target="_blank" rel="noopener" style="color:var(--green-deep);font-weight:700;">📎 ${String(d.name).replace(/</g,'&lt;')}</a>${docAiBtn(d.url,d.name)}</span>`).join('');
           const fe=document.getElementById('obFile');
           if(html&&fe){fe.insertAdjacentHTML('beforeend',html);document.getElementById('obFileRow').style.display='';}
         }
