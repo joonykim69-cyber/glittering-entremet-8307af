@@ -20,6 +20,7 @@ const CORS = { 'Access-Control-Allow-Origin': '*' };
 const MIN_N_DEFAULT = 20;
 
 async function openLedger(event) {
+  if (global.__FAKE_STORE__) return global.__FAKE_STORE__; // fixture 검증용(런타임 미사용)
   const blobs = await import('@netlify/blobs');
   try { if (event && typeof blobs.connectLambda === 'function') blobs.connectLambda(event); } catch (e) { /* 신형 런타임은 자동 구성 */ }
   try {
@@ -84,6 +85,8 @@ async function buildCells(store, force) {
   const allKeys = (listing && listing.blobs ? listing.blobs : []).map(b => b.key);
   // 구형 통짜 포맷(win 포함): hist/{start}_{end}/{type}
   const oldKeys = allKeys.filter(k => /^hist\/\d{8}_\d{8}\/\d+$/.test(k));
+  // 증분 롤링 스냅샷(collect-history 최근 7일, win 포함·고정 키로 매일 덮어씀): hist/_inc/{type}
+  const incKeys = allKeys.filter(k => /^hist\/_inc\/\d+$/.test(k));
   // 신형 마스킹 분리 포맷: hist/feat/{start}_{end}/{type} (+ 짝 hist/win/…)
   const featKeys = allKeys.filter(k => /^hist\/feat\/\d{8}_\d{8}\/\d+$/.test(k));
 
@@ -112,8 +115,8 @@ async function buildCells(store, force) {
     }
   };
 
-  // 구형 통짜 포맷 (레코드에 win 내장)
-  await mapLimit(oldKeys, 40, async key => {
+  // 구형 통짜 포맷 + 증분 롤링 스냅샷 (둘 다 레코드에 win 내장, key의 [2]가 자산군)
+  await mapLimit(oldKeys.concat(incKeys), 40, async key => {
     const arr = await store.get(key, { type: 'json' });
     if (!Array.isArray(arr)) return;
     const type = key.split('/')[2] || '';
