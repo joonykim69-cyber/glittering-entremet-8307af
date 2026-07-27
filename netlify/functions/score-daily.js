@@ -34,6 +34,7 @@ async function fetchJson(url) {
 // connectLambda(event)로 요청 이벤트의 Blobs 컨텍스트를 수동 연결해야 한다.
 // (MissingBlobsEnvironmentError 대응 — 2026-07-19 프로덕션 첫 실행에서 확인)
 async function openLedger(event) {
+  if (global.__FAKE_STORE__) return global.__FAKE_STORE__; // fixture 검증용(런타임 미사용)
   const blobs = await import('@netlify/blobs');
   try { if (event && typeof blobs.connectLambda === 'function') blobs.connectLambda(event); } catch (e) { /* 신형 런타임은 자동 구성 */ }
   try {
@@ -51,18 +52,25 @@ exports.handler = async (event) => {
   const base = process.env.URL || '';
 
   try {
-    // 최근 3일 개찰 결과 수집 (자산군 3종 × 2페이지)
+    // 최근 3일 개찰 결과 수집 — 전수 채점 보장: 자산군별로 마지막 페이지까지 수집한다.
+    // (과거 버그: 자산군×2페이지=200건 상한이라, 개찰이 많은 3일 창에선 초과분이 영영 채점 안 돼
+    //  "전수 채점" 문구와 어긋났다. numOfRows=1000으로 올려 대부분 자산군 1콜에 끝나고, batch<1000이면
+    //  마지막 페이지로 종료. 자산군당 최대 6페이지(6000건) 안전 상한으로 실행시간 보호.)
     const start = ymd(new Date(kst().getTime() - 3 * 86400000));
     const end = ymd(kst());
-    const fetches = [];
-    for (const cltrTypeCd of ['0001', '0002', '0003']) {
-      for (const page of ['1', '2']) {
-        fetches.push(fetchJson(`${base}/.netlify/functions/onbid-bidresults?cltrTypeCd=${cltrTypeCd}&numOfRows=100&page=${page}&opbdDtStart=${start}&opbdDtEnd=${end}`).catch(() => null));
-      }
-    }
-    const responses = await Promise.all(fetches);
+    const MAX_PAGES = 6;
     const results = [];
-    responses.forEach(d => { if (d && Array.isArray(d.results)) results.push(...d.results); });
+    await Promise.all(['0001', '0002', '0003'].map(async cltrTypeCd => {
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        let d = null;
+        try {
+          d = await fetchJson(`${base}/.netlify/functions/onbid-bidresults?cltrTypeCd=${cltrTypeCd}&numOfRows=1000&page=${page}&opbdDtStart=${start}&opbdDtEnd=${end}`);
+        } catch (e) { break; }
+        const batch = Array.isArray(d && d.results) ? d.results : [];
+        results.push(...batch);
+        if (batch.length < 1000) break; // 마지막 페이지
+      }
+    }));
 
     const agg = (await store.get('agg', { type: 'json' })) || {
       n: 0, hit: 0, sumAbsErrPct: 0,
@@ -72,6 +80,10 @@ exports.handler = async (event) => {
     const calib = (await store.get('calib', { type: 'json' })) || { byUsage: {} };
     // v0.5 챌린저(predb/*) 비교 집계 — 챔피언과 같은 물건에서만 채점되므로 공정 비교가 된다
     const aggB = (await store.get('aggB', { type: 'json' })) || { n: 0, hit: 0, sumAbsErrPct: 0, headToHead: { n: 0, bWins: 0 } };
+    // 관측 계측(2026-07-27): 챌린저 폭 원인 진단용 — 백오프 레벨별(L0~L3) 건수·적중·폭 누적 +
+    // 회차 실측(pbctNsq) vs 근사(유찰+1) 비율. 폭 335% 진단의 "어느 레벨에서 오나"를 데이터로 노출.
+    aggB.byLevel = aggB.byLevel || {};
+    aggB.roundReal = aggB.roundReal || { real: 0, approx: 0 };
     // 모델 연혁 장부(chronicle) — "초기값 → 변경 → 결과"를 순차 기록하는 추가 전용 로그.
     // 봉인 장부처럼 과거 항목은 수정하지 않고 뒤에 붙이기만 한다.
     const chronicle = (await store.get('chronicle', { type: 'json' })) || [];
@@ -200,11 +212,17 @@ exports.handler = async (event) => {
       if (predB && predB.lo) {
         const bHit = winMan >= predB.lo && winMan <= predB.hi;
         const bErrPct = Math.round((predB.mid - winMan) / winMan * 1000) / 10;
+        const bWidthPct = Math.round((predB.hi - predB.lo) / winMan * 1000) / 10;
         aggB.n++; if (bHit) aggB.hit++;
         aggB.sumAbsErrPct += Math.abs(bErrPct);
-        aggB.sumWidthPct = (aggB.sumWidthPct || 0) + Math.round((predB.hi - predB.lo) / winMan * 1000) / 10;
+        aggB.sumWidthPct = (aggB.sumWidthPct || 0) + bWidthPct;
         aggB.headToHead.n++;
         if (Math.abs(bErrPct) <= Math.abs(errPct)) aggB.headToHead.bWins++;
+        // 관측: 백오프 레벨별(폭 원인 진단) + 회차 실측/근사 비율
+        const lvl = String(predB.cellKey || '').split('|')[0] || '?';
+        const lc = aggB.byLevel[lvl] || (aggB.byLevel[lvl] = { n: 0, hit: 0, sumWidthPct: 0 });
+        lc.n++; if (bHit) lc.hit++; lc.sumWidthPct += bWidthPct;
+        if (predB.roundReal) aggB.roundReal.real++; else aggB.roundReal.approx++;
         bCmp = { hit: bHit, errPct: bErrPct, modelV: predB.modelV, cellKey: predB.cellKey };
       }
 

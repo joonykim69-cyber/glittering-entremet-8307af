@@ -140,6 +140,12 @@ exports.handler = async (event) => {
           avgAbsErrPct: Math.round(aggB.sumAbsErrPct / aggB.n * 10) / 10,
           avgWidthPct: aggB.sumWidthPct ? Math.round(aggB.sumWidthPct / aggB.n * 10) / 10 : null,
           headToHead: aggB.headToHead || { n: 0, bWins: 0 },
+          // 폭 원인 진단: 백오프 레벨별(L0~L3) n·hit·평균폭 + 회차 실측/근사 비율(2026-07-27 계측)
+          byLevel: aggB.byLevel ? Object.fromEntries(Object.entries(aggB.byLevel).map(function (e) {
+            var k = e[0], v = e[1];
+            return [k, { n: v.n, hit: v.hit, hitRate: v.n ? Math.round(v.hit / v.n * 1000) / 10 : null, avgWidthPct: v.n ? Math.round(v.sumWidthPct / v.n * 10) / 10 : null }];
+          })) : {},
+          roundReal: aggB.roundReal || { real: 0, approx: 0 },
         } : { n: 0 },
         target: { hitRateLo: 95, hitRateHi: 98 },
         // 모델 연혁 — 초기값·변경·결과의 순차 기록 (첫 채점 전에는 도입 항목을 합성해 표시)
