@@ -25,7 +25,11 @@ const CORS = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/
 const WINDOW_DAYS = 7;
 const MAX_PAGES = 15;             // 창×자산군당 최대 페이지 (numOfRows=1000 census)
 const TIME_BUDGET_MS = 22000;     // 30초 함수 한도 안전 예산
-const BF_START = (process.env.HIST_BF_START || '20260101').replace(/[^0-9]/g, '');
+// 수집 목표 구간. 2026-07-27 창업자 지시로 2025까지 확장(BF_START 20260101→20250101).
+// 기존 프로덕션 커서(2026 완료 시점 = 20251231)가 그대로 2025로 이어지므로 2026분은 재수집 안 함
+// (창 블롭 키가 달라 덮어쓰기도 없음). 수집 중 hist/_bfmeta.done이 false가 되어 sim-live/backtest는
+// 2025 완료까지 일시 no-op → 완료 시 자동 재개(그때 sim-live env를 2025로 넓혀 더 긴 곡선 재생).
+const BF_START = (process.env.HIST_BF_START || '20250101').replace(/[^0-9]/g, '');
 const BF_END = (process.env.HIST_BF_END || '20260630').replace(/[^0-9]/g, '');
 
 function ymd(d) { return `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`; }
