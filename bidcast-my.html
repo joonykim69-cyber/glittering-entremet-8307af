@@ -1343,14 +1343,21 @@ document.addEventListener('keydown', (e) => {
       ? (btSt[0].hitRate.toFixed(0)+'% → '+btSt[btSt.length-1].hitRate.toFixed(0)+'%') : null;
     var chN=(d&&d.challenger&&Number(d.challenger.n))||0;
     var goal=100; // 조기 승격 체크포인트
+    // 모의 라이브(4단계) 실측 진행 — sim 월별 재생이 있으면 진행 중/완료로 승격
+    var sim=d&&d.sim&&Array.isArray(d.sim.months)?d.sim.months.filter(function(m){return typeof m.cumHitRate==='number';}):null;
+    var simActive=sim&&sim.length;
+    var simDone=d&&d.sim&&d.sim.done;
+    var simCurve=simActive?(sim[0].cumHitRate.toFixed(0)+'% → '+sim[sim.length-1].cumHitRate.toFixed(0)+'%'):null;
     var html='';
     html+=rmCard(1,'done','✅ 완료','데이터 모으기','과거 개찰 결과를 낙찰가 가린 채 수집',recs?('완료 · '+recs.toLocaleString()+'건'):'완료 (1~6월 전수)',null);
     html+=rmCard(2,'done','✅ 완료','되짚어 학습·검증','walk-forward로 "배울수록 나아지는지" 확인',curve?('적중률 '+curve):'완료',null);
-    html+=rmCard(3,'active','🔵 진행 중','학습을 눈으로','이 관제실에서 학습 과정을 시각화(지금 이 화면)','진행 중',null);
-    html+=rmCard(4,'','⏳ 예정','하루씩 재생 학습장','2025까지 확장 + 모의 라이브 (시점 정직성 준수)','수집 1~3일(자동)+구현',null);
+    html+=rmCard(3,'done','✅ 완료','학습을 눈으로','이 관제실에서 학습 과정을 시각화(리플레이·과녁·성적표)','완료',null);
+    html+=rmCard(4, simActive?(simDone?'done':'active'):'', simActive?(simDone?'✅ 완료':'🔵 진행 중'):'⏳ 예정',
+      '하루씩 재생 학습장','과거를 시점 정직성(GR11)으로 재생 — 2025까지 확장 예정',
+      simActive?('실측 재생 '+sim.length+'개월'+(simCurve?' · '+simCurve:'')):'수집 1~3일(자동)+구현', null);
     html+=rmCard(5,'','📈 누적 중','실전 대결·승격','챔피언 vs 도전자, 고정 기준 통과 시 교체','개찰 누적에 달림 ('+chN+'/'+goal+'건)',Math.min(100,Math.round(chN/goal*100)));
     box.innerHTML=html;
-    var now=$('engRmNow'); if(now)now.textContent='지금 3단계 · 학습을 눈으로';
+    var now=$('engRmNow'); if(now)now.textContent=simActive?(simDone?'지금 5단계 · 실전 대결 누적':'지금 4단계 · 하루씩 재생'):'지금 3단계 · 학습을 눈으로';
   }
 
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
@@ -1405,22 +1412,53 @@ document.addEventListener('keydown', (e) => {
   }
   function renderData(d){ renderRoadmap(d); renderPV(d); renderRace(d); renderCard3(d); }
 
-  // 실측 백테스트 학습곡선 로드 — scoreboard.backtest.stages (없으면 예시 유지, degrade)
+  // ② 과녁 실측 점 — 모의 라이브 per-item 기록(errPct→반경, hit→색). 없으면 예시 유지.
+  function plotReal(el,list){
+    if(!el)return; el.innerHTML=''; var rd=rng(list.length*7+3);
+    list.slice(0,40).forEach(function(r){
+      var ae=Math.abs(Number(r.errPct)||0);
+      var rad=Math.min(98, ae*1.7 + (r.hit?0:6)); // 오차 클수록 바깥, 빗나감은 살짝 더 바깥
+      var ang=rd()*Math.PI*2, x=110+Math.cos(ang)*rad, y=110+Math.sin(ang)*rad;
+      var c=document.createElementNS(SVGNS,'circle');
+      c.setAttribute('cx',x.toFixed(1));c.setAttribute('cy',y.toFixed(1));c.setAttribute('r','5');
+      c.setAttribute('fill', r.hit?'var(--green)':'var(--red)');c.setAttribute('fill-opacity','.82');
+      el.appendChild(c);
+    });
+  }
+  function setSub(gEl,ym,cnt){
+    var card=gEl&&gEl.closest?gEl.closest('.eng-tcard'):null; if(!card)return;
+    var sub=card.querySelector('.sub'); if(!sub)return;
+    var y=String(ym), lbl=y.length>=6?(y.slice(0,4)+'.'+y.slice(4,6)):y;
+    sub.textContent=lbl+' 재생 · 실측 '+cnt+'건';
+  }
+  function renderTargets(d){
+    var recs=d&&Array.isArray(d.simRecords)?d.simRecords.filter(function(r){return r&&r.ym;}):null;
+    if(!recs||recs.length<6) return; // 예시 유지(초기 렌더된 darts)
+    var yms=recs.map(function(r){return r.ym;}).sort();
+    var firstYm=yms[0], lastYm=yms[yms.length-1];
+    var early=recs.filter(function(r){return r.ym===firstYm;});
+    var late=recs.filter(function(r){return r.ym===lastYm;});
+    plotReal($('engEarly'),early); plotReal($('engLate'),late);
+    setSub($('engEarly'),firstYm,early.length); setSub($('engLate'),lastYm,late.length);
+  }
+
+  // 학습곡선·과녁 데이터: 모의 라이브(sim, per-item)를 우선, 없으면 백테스트(3단계), 없으면 예시.
   fetch('/.netlify/functions/scoreboard').then(function(r){return r.ok?r.json():null;}).then(function(d){
-    var st=d&&d.backtest&&Array.isArray(d.backtest.stages)?d.backtest.stages:null;
-    if(st&&st.length>=2){
-      stages=st.slice(0,3).map(function(s,i){
-        return {label:['적게 학습','더 학습','많이 학습'][i]||('단계'+(i+1)),
-                hit:(typeof s.hitRate==='number')?s.hitRate:stages[i]?stages[i].hit:50,
-                sub:s.vlabel||''};
-      });
-      isReal=true;
-      src.textContent='실측 백테스트 학습곡선'; src.className='eng-chip real';
+    var sim=d&&d.sim&&Array.isArray(d.sim.months)?d.sim.months.filter(function(m){return typeof m.cumHitRate==='number';}):null;
+    var bt=d&&d.backtest&&Array.isArray(d.backtest.stages)?d.backtest.stages:null;
+    if(sim&&sim.length>=2){
+      var pk=[sim[0], sim[Math.floor((sim.length-1)/2)], sim[sim.length-1]];
+      stages=pk.map(function(m,i){return {label:['적게 학습','더 학습','많이 학습'][i], hit:m.cumHitRate};});
+      isReal=true; src.textContent='실측 모의 라이브 (시점 정직성 재생)'; src.className='eng-chip real';
+    }else if(bt&&bt.length>=2){
+      stages=bt.slice(0,3).map(function(s,i){return {label:['적게 학습','더 학습','많이 학습'][i]||('단계'+(i+1)),
+        hit:(typeof s.hitRate==='number')?s.hitRate:(stages[i]?stages[i].hit:50)};});
+      isReal=true; src.textContent='실측 백테스트 학습곡선'; src.className='eng-chip real';
     }else{
-      src.textContent='예시 데이터 (백테스트 집계 전)'; src.className='eng-chip';
+      src.textContent='예시 데이터 (재생 집계 전)'; src.className='eng-chip';
     }
-    renderData(d); boot();
-  }).catch(function(){ src.textContent='예시 데이터 (오프라인)'; src.className='eng-chip'; renderData(null); boot(); });
+    renderTargets(d); renderData(d); boot();
+  }).catch(function(){ src.textContent='예시 데이터 (오프라인)'; src.className='eng-chip'; renderTargets(null); renderData(null); boot(); });
 })();
 </script>
 
