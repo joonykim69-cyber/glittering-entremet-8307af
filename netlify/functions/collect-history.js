@@ -42,6 +42,7 @@ async function fetchJson(url) {
 
 // Lambda 호환 함수는 Blobs 자동 구성이 안 되므로 connectLambda로 수동 연결 (score-daily와 동일 패턴)
 async function openLedger(event) {
+  if (global.__FAKE_STORE__) return global.__FAKE_STORE__; // fixture 검증용(런타임 미사용)
   const blobs = await import('@netlify/blobs');
   try { if (event && typeof blobs.connectLambda === 'function') blobs.connectLambda(event); } catch (e) { /* 신형 런타임은 자동 구성 */ }
   try {
@@ -83,7 +84,10 @@ exports.handler = async (event) => {
     let cursorEnd = state.cursorEnd;
 
     // 백필이 끝난 뒤에는 최근 7일 창을 매일 다시 수집해 신규 개찰분을 증분 유지한다.
-    // (창이 겹치며 중복 레코드가 생길 수 있으나, 소비 측에서 id_cdtn으로 중복 제거)
+    // **고정 키(hist/_inc/{type})로 매일 덮어쓴다**(2026-07-27 하우스키핑 수정): 과거엔 창 키가 매일
+    // 이동해(hist/{start}_{end}/{type}) 6일씩 겹치는 블롭이 무한 누적되고 meta.records가 팽창했다.
+    // 고정 키 롤링이면 자산군당 블롭 1개만 유지되고 hist-stats가 id_cdtn 중복제거로 백필과 조인한다.
+    let incRows = 0;
     const backfillDone = cursorEnd <= oldestTarget;
     if (backfillDone) {
       const end = ymd(kst());
@@ -99,8 +103,9 @@ exports.handler = async (event) => {
           rows.push(...batch.filter(x => x.statCd === '0010' || x.statCd === '0011').map(toRecord));
           if (batch.length < 100) break;
         }
-        await store.setJSON(`hist/${start}_${end}/${cltrTypeCd}`, rows);
-        runWindows.push({ window: `${start}~${end}`, type: cltrTypeCd, rows: rows.length });
+        await store.setJSON(`hist/_inc/${cltrTypeCd}`, rows); // 고정 키 덮어쓰기(누적 아님)
+        incRows += rows.length;
+        runWindows.push({ window: `_inc(${start}~${end})`, type: cltrTypeCd, rows: rows.length });
       }
     }
 
@@ -129,15 +134,21 @@ exports.handler = async (event) => {
 
     await store.setJSON('hist/_state', { cursorEnd });
 
-    // 메타 갱신 — 이번 실행 분만 증분 (전체 재스캔은 비용이 커서 하지 않음)
+    // 메타 갱신. 증분(고정 키 덮어쓰기)은 누적하지 않고 incRecords에 교체 기록(팽창 방지).
+    // 과거 백필 창(비-증분, 새 창을 계속 만드는 경로)만 records에 누적.
     const meta = (await store.get('hist/_meta', { type: 'json' })) || { records: 0, windows: 0, oldest: '', newest: '' };
-    const added = runWindows.reduce((s, w) => s + w.rows, 0);
-    meta.records += added;
-    meta.windows += runWindows.length;
-    const starts = runWindows.map(w => w.window.slice(0, 8));
-    if (starts.length) {
-      const oldest = starts.sort()[0];
-      if (!meta.oldest || oldest < meta.oldest) meta.oldest = oldest;
+    const added = runWindows.reduce((s, w) => s + w.rows, 0); // 이번 실행 수집 건수(표시·하트비트용)
+    if (backfillDone) {
+      meta.incRecords = incRows; // 증분 롤링 스냅샷 최신 건수(누적 아님)
+    } else {
+      const backfillWins = runWindows.filter(w => !String(w.window).startsWith('_inc'));
+      meta.records += backfillWins.reduce((s, w) => s + w.rows, 0);
+      meta.windows += backfillWins.length;
+      const starts = backfillWins.map(w => w.window.slice(0, 8));
+      if (starts.length) {
+        const oldest = starts.sort()[0];
+        if (!meta.oldest || oldest < meta.oldest) meta.oldest = oldest;
+      }
     }
     if (!meta.newest) meta.newest = state.cursorEnd;
     meta.updatedAt = new Date().toISOString();
