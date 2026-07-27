@@ -272,6 +272,31 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
 .eng-legend{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:12px;font-size:12.5px;color:var(--sub)}
 .eng-legend span{display:inline-flex;align-items:center;gap:6px}
 .eng-sw{width:11px;height:11px;border-radius:50%;display:inline-block}
+/* 학습 로드맵 스텝퍼 */
+.eng-rm{margin:16px 0 4px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);padding:16px 18px}
+.eng-rm-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px 14px;flex-wrap:wrap;margin-bottom:12px}
+.eng-rm-top .lead{font-weight:800;font-size:15px}
+.eng-rm-now{font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:999px;background:#FEF8E7;color:#B77A00;border:1px solid #F3D98A;margin-left:6px}
+.eng-rm-eta{font-size:12px;color:var(--sub)}
+.eng-rm-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+@media(max-width:680px){.eng-rm-grid{grid-template-columns:1fr}}
+.eng-rm-c{border:1px solid var(--line);border-radius:12px;padding:11px 12px;background:var(--bg);position:relative}
+.eng-rm-c.done{border-color:#C4EBD8;background:var(--green-soft)}
+.eng-rm-c.active{border-color:#F3D98A;background:#FEF8E7}
+.eng-rm-c .eng-rm-n{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:12px;font-weight:800;background:var(--mute);color:#fff}
+.eng-rm-c.done .eng-rm-n{background:var(--green)}
+.eng-rm-c.active .eng-rm-n{background:#E9A100}
+.eng-rm-badge{float:right;font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;background:rgba(16,32,26,.06);color:var(--sub)}
+.eng-rm-c.done .eng-rm-badge{background:var(--green);color:#fff}
+.eng-rm-c.active .eng-rm-badge{background:#E9A100;color:#fff}
+.eng-rm-t{font-weight:800;font-size:13.5px;margin:8px 0 3px;line-height:1.3}
+.eng-rm-d{font-size:12px;color:var(--sub);line-height:1.45}
+.eng-rm-time{font-size:11px;color:var(--mute);margin-top:6px;font-weight:700}
+.eng-rm-mini{height:6px;border-radius:999px;background:var(--line);overflow:hidden;margin-top:7px}
+.eng-rm-mini i{display:block;height:100%;background:linear-gradient(90deg,#F5B90F,var(--green))}
+@keyframes engPulse{0%,100%{box-shadow:0 0 0 0 rgba(233,161,0,.45)}50%{box-shadow:0 0 0 5px rgba(233,161,0,0)}}
+.eng-rm-c.active .eng-rm-n{animation:engPulse 2.2s infinite}
+@media (prefers-reduced-motion:reduce){.eng-rm-c.active .eng-rm-n{animation:none}}
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Nunito:wght@700;800;900&family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap">
 <style>
@@ -384,6 +409,15 @@ h1,h2,h3,h4{font-family:var(--font-head)}
       </div>
     </div>
     <p class="eng-note">엔진이 <b>과거 개찰 결과를 가려놓고 먼저 예측 → 정답을 펼쳐 채점</b>하는 과정을, 수학 없이 눈으로 봅니다. 이건 <b>엔진의 공식 학습</b>이며, 위 "나의 예언자 여정"(내 개인 연습)과는 별개입니다.</p>
+
+    <!-- 학습 로드맵 — 지금 어디 / 다음 뭐 / 얼마나 (실측 가능 단계는 실데이터, 예정은 시간 추정) -->
+    <div class="eng-rm">
+      <div class="eng-rm-top">
+        <div><span class="lead">🗺️ 엔진 학습 로드맵</span><span class="eng-rm-now" id="engRmNow">현재 단계 확인 중…</span></div>
+        <div class="eng-rm-eta" id="engRmEta">다음 도약까지: 2025 데이터 자동 수집 1~3일 + 구현</div>
+      </div>
+      <div class="eng-rm-grid" id="engRoadmap"></div>
+    </div>
 
     <!-- ① 학습 리플레이 -->
     <div class="eng-hero">
@@ -1242,6 +1276,32 @@ document.addEventListener('keydown', (e) => {
   function boot(){ applyStages(); renderAt(0); if(!reduce)setTimeout(play,400); else renderAt(1); }
   $('engPlay').addEventListener('click',play);
 
+  // 학습 로드맵 — 실측 가능한 단계(수집·백테스트·라이브 대결)는 실데이터, 예정 단계는 시간 추정.
+  function rmCard(i,cls,badge,title,desc,time,mini){
+    return '<div class="eng-rm-c '+cls+'">'
+      +'<span class="eng-rm-n">'+i+'</span><span class="eng-rm-badge">'+badge+'</span>'
+      +'<div class="eng-rm-t">'+title+'</div><div class="eng-rm-d">'+desc+'</div>'
+      +(mini!=null?'<div class="eng-rm-mini"><i style="width:'+mini+'%"></i></div>':'')
+      +'<div class="eng-rm-time">'+time+'</div></div>';
+  }
+  function renderRoadmap(d){
+    var box=$('engRoadmap'); if(!box)return;
+    var bf=d&&d.backfill, recs=bf&&Number(bf.records)||0;
+    var bt=d&&d.backtest, btSt=bt&&Array.isArray(bt.stages)?bt.stages:null;
+    var curve=(btSt&&btSt.length>=2&&typeof btSt[0].hitRate==='number'&&typeof btSt[btSt.length-1].hitRate==='number')
+      ? (btSt[0].hitRate.toFixed(0)+'% → '+btSt[btSt.length-1].hitRate.toFixed(0)+'%') : null;
+    var chN=(d&&d.challenger&&Number(d.challenger.n))||0;
+    var goal=100; // 조기 승격 체크포인트
+    var html='';
+    html+=rmCard(1,'done','✅ 완료','데이터 모으기','과거 개찰 결과를 낙찰가 가린 채 수집',recs?('완료 · '+recs.toLocaleString()+'건'):'완료 (1~6월 전수)',null);
+    html+=rmCard(2,'done','✅ 완료','되짚어 학습·검증','walk-forward로 "배울수록 나아지는지" 확인',curve?('적중률 '+curve):'완료',null);
+    html+=rmCard(3,'active','🔵 진행 중','학습을 눈으로','이 관제실에서 학습 과정을 시각화(지금 이 화면)','진행 중',null);
+    html+=rmCard(4,'','⏳ 예정','하루씩 재생 학습장','2025까지 확장 + 모의 라이브 (시점 정직성 준수)','수집 1~3일(자동)+구현',null);
+    html+=rmCard(5,'','📈 누적 중','실전 대결·승격','챔피언 vs 도전자, 고정 기준 통과 시 교체','개찰 누적에 달림 ('+chN+'/'+goal+'건)',Math.min(100,Math.round(chN/goal*100)));
+    box.innerHTML=html;
+    var now=$('engRmNow'); if(now)now.textContent='지금 3단계 · 학습을 눈으로';
+  }
+
   // 실측 백테스트 학습곡선 로드 — scoreboard.backtest.stages (없으면 예시 유지, degrade)
   fetch('/.netlify/functions/scoreboard').then(function(r){return r.ok?r.json():null;}).then(function(d){
     var st=d&&d.backtest&&Array.isArray(d.backtest.stages)?d.backtest.stages:null;
@@ -1256,8 +1316,8 @@ document.addEventListener('keydown', (e) => {
     }else{
       src.textContent='예시 데이터 (백테스트 집계 전)'; src.className='eng-chip';
     }
-    boot();
-  }).catch(function(){ src.textContent='예시 데이터 (오프라인)'; src.className='eng-chip'; boot(); });
+    renderRoadmap(d); boot();
+  }).catch(function(){ src.textContent='예시 데이터 (오프라인)'; src.className='eng-chip'; renderRoadmap(null); boot(); });
 })();
 </script>
 
