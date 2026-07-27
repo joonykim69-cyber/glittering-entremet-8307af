@@ -297,6 +297,39 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
 @keyframes engPulse{0%,100%{box-shadow:0 0 0 0 rgba(233,161,0,.45)}50%{box-shadow:0 0 0 5px rgba(233,161,0,0)}}
 .eng-rm-c.active .eng-rm-n{animation:engPulse 2.2s infinite}
 @media (prefers-reduced-motion:reduce){.eng-rm-c.active .eng-rm-n{animation:none}}
+/* ③④⑤ 친절한 실데이터 뷰 */
+.eng-block{margin-top:20px}
+.eng-eyebrow{font-size:12px;font-weight:800;color:var(--sub);margin-bottom:10px}
+.eng-empty{font-size:13px;color:var(--mute);background:var(--bg);border:1px dashed var(--line);border-radius:10px;padding:14px}
+.eng-note-in{margin-top:12px;font-size:12px;color:var(--sub);background:var(--bg);border:1px dashed var(--line);border-radius:10px;padding:10px 12px;line-height:1.5}
+.eng-pv{display:grid;gap:12px}
+.eng-pvrow{display:grid;grid-template-columns:120px 1fr auto;gap:12px;align-items:center}
+@media(max-width:600px){.eng-pvrow{grid-template-columns:1fr;gap:5px}}
+.eng-pv-name{font-weight:700;font-size:13.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.eng-pv-name .u{display:block;font-size:11px;color:var(--mute);font-weight:500}
+.eng-bar{position:relative;height:28px;background:var(--bg);border:1px solid var(--line);border-radius:8px}
+.eng-band{position:absolute;top:-1px;bottom:-1px;border-radius:8px;background:color-mix(in srgb,var(--green) 22%,transparent);border:1px solid color-mix(in srgb,var(--green) 45%,transparent)}
+.eng-pvrow.miss .eng-band{background:color-mix(in srgb,var(--red) 16%,transparent);border-color:color-mix(in srgb,var(--red) 42%,transparent)}
+.eng-actual{position:absolute;top:-4px;bottom:-4px;width:3px;border-radius:2px;background:var(--ink)}
+.eng-actual::after{content:"";position:absolute;left:50%;top:-4px;width:10px;height:10px;margin-left:-5px;border-radius:50%;background:var(--ink);border:2px solid var(--surface)}
+.eng-verdict{font-size:12px;font-weight:800;white-space:nowrap}
+.eng-verdict.hit{color:var(--green-deep)}.eng-verdict.miss{color:var(--red)}
+.eng-race{display:grid;gap:14px}
+.eng-racer{display:grid;grid-template-columns:110px 1fr 52px;gap:10px;align-items:center}
+.eng-racer .who{font-weight:700;font-size:13.5px}.eng-racer .who small{display:block;color:var(--mute);font-weight:500;font-size:10.5px}
+.eng-rtrack{height:20px;background:var(--bg);border:1px solid var(--line);border-radius:999px;position:relative;overflow:hidden}
+.eng-rfill{position:absolute;inset:0 auto 0 0;border-radius:999px;transition:width .6s var(--ease)}
+.eng-rfill.champ{background:linear-gradient(90deg,#cbd6d0,var(--mute))}
+.eng-rfill.chall{background:linear-gradient(90deg,#F5B90F,var(--green))}
+.eng-rval{font-size:12.5px;font-weight:800;text-align:right;font-variant-numeric:tabular-nums}
+.eng-cards3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:680px){.eng-cards3{grid-template-columns:1fr}}
+.eng-stat{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:16px}
+.eng-stat .n{font-weight:900;font-size:clamp(24px,4vw,30px);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.eng-stat .lbl{font-weight:700;margin:2px 0 8px;font-size:13.5px}
+.eng-stat .exp{font-size:12px;color:var(--mute)}
+.eng-stat .g{height:7px;border-radius:999px;background:var(--line);overflow:hidden;margin:8px 0 4px}
+.eng-stat .g i{display:block;height:100%;background:linear-gradient(90deg,#F5B90F,var(--green))}
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Nunito:wght@700;800;900&family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap">
 <style>
@@ -475,6 +508,24 @@ h1,h2,h3,h4{font-family:var(--font-head)}
       <span><i class="eng-sw" style="background:var(--green)"></i> 예측 구간 안(적중)</span>
       <span><i class="eng-sw" style="background:var(--red)"></i> 빗나감</span>
       <span><i class="eng-sw" style="background:var(--mute)"></i> 정중앙 = 실제 낙찰가</span>
+    </div>
+
+    <!-- ③ 예측 vs 실제 (실데이터: scoreboard.recent 최근 채점) -->
+    <div class="eng-block">
+      <div class="eng-eyebrow">③ 예측 구간 vs 실제 낙찰가 — 최근 채점 (실측)</div>
+      <div class="eng-pv" id="engPV"></div>
+    </div>
+
+    <!-- ④ 챔피언 vs 도전자 경주 (실데이터: challenger headToHead) -->
+    <div class="eng-block">
+      <div class="eng-eyebrow">④ 챔피언 vs 도전자 — 누가 더 자주 정답에 가까웠나 (실측)</div>
+      <div id="engRace"></div>
+    </div>
+
+    <!-- ⑤ 쉬운 성적표 (실데이터: scoreboard.summary) -->
+    <div class="eng-block">
+      <div class="eng-eyebrow">⑤ 수학 뺀 성적표 (실측)</div>
+      <div class="eng-cards3" id="engCard3"></div>
     </div>
   </section>
 
@@ -1302,6 +1353,58 @@ document.addEventListener('keydown', (e) => {
     var now=$('engRmNow'); if(now)now.textContent='지금 3단계 · 학습을 눈으로';
   }
 
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  var EMPTY=function(msg){return '<div class="eng-empty">'+msg+'</div>';};
+
+  // ③ 예측 구간 vs 실제 낙찰가 — 최근 채점(실측 scoreboard.recent)
+  function renderPV(d){
+    var box=$('engPV'); if(!box)return;
+    var rows=(d&&Array.isArray(d.recent)?d.recent:[]).filter(function(r){return r&&r.lo>0&&r.hi>r.lo&&r.win>0;}).slice(0,5);
+    if(!rows.length){ box.innerHTML=EMPTY('아직 채점된 예측이 없어요 — 개찰이 쌓이면 여기에 <b>실제 낙찰가 vs 예측 구간</b>이 한 건씩 표시됩니다.'); return; }
+    box.innerHTML=rows.map(function(r){
+      var lo=r.lo,hi=r.hi,win=r.win;
+      var mn=Math.min(lo,win)*0.96, mx=Math.max(hi,win)*1.04, span=(mx-mn)||1;
+      var L=(lo-mn)/span*100, W=(hi-lo)/span*100, A=(win-mn)/span*100;
+      var hit=win>=lo&&win<=hi;
+      return '<div class="eng-pvrow'+(hit?'':' miss')+'">'
+        +'<div class="eng-pv-name">'+esc(r.title||r.usage||'물건')+'<span class="u">'+esc(r.usage||'')+'</span></div>'
+        +'<div class="eng-bar"><div class="eng-band" style="left:'+L.toFixed(1)+'%;width:'+W.toFixed(1)+'%"></div>'
+        +'<div class="eng-actual" style="left:'+Math.max(0,Math.min(100,A)).toFixed(1)+'%"></div></div>'
+        +'<div class="eng-verdict '+(hit?'hit':'miss')+'">'+(hit?'✅ 적중':'✕ 빗나감')+'</div></div>';
+    }).join('');
+  }
+
+  // ④ 챔피언 vs 도전자 — "정답에 더 가까웠던 비율"(headToHead)로 겨룸(적중률만이면 폭 착시)
+  function renderRace(d){
+    var box=$('engRace'); if(!box)return;
+    var ch=d&&d.challenger;
+    if(!ch||!ch.n){ box.innerHTML=EMPTY('도전자(새 모델) 대결이 아직 누적 중입니다 — 같은 물건을 두 모델이 나란히 예측·채점한 표본이 쌓이면 여기서 겨룹니다.'); return; }
+    var hh=ch.headToHead||{n:0,bWins:0};
+    var total=hh.n||ch.n, chW=hh.bWins||0, cmW=Math.max(0,total-chW);
+    var chPct=total?Math.round(chW/total*100):0, cmPct=total?Math.round(cmW/total*100):0;
+    box.innerHTML='<div class="eng-race">'
+      +'<div class="eng-racer"><div class="who">챔피언<small>지금 쓰는 모델</small></div><div class="eng-rtrack"><div class="eng-rfill champ" style="width:'+cmPct+'%"></div></div><div class="eng-rval">'+cmPct+'%</div></div>'
+      +'<div class="eng-racer"><div class="who">도전자<small>학습한 새 모델</small></div><div class="eng-rtrack"><div class="eng-rfill chall" style="width:'+chPct+'%"></div></div><div class="eng-rval" style="color:var(--green-deep)">'+chPct+'%</div></div>'
+      +'</div>'
+      +'<div class="eng-note-in">🏁 <b>"정답에 더 가까웠던 비율"</b>로 겨룹니다 — 적중률만 보면 구간을 넓혀서 이기는 착시가 생기기 때문입니다. 표본 '+total+'건 · 고정 기준(100·200·300건) 도달 전이라 <b>아직 승격 판정 아님</b>.</div>';
+  }
+
+  // ⑤ 수학 뺀 성적표(실측 scoreboard.summary) — 지표를 일상어 + 게이지로 번역
+  function statCard(nHtml,lbl,gauge,exp){
+    return '<div class="eng-stat"><div class="n">'+nHtml+'</div><div class="lbl">'+lbl+'</div>'
+      +'<div class="g"><i style="width:'+Math.max(0,Math.min(100,gauge))+'%"></i></div><div class="exp">'+exp+'</div></div>';
+  }
+  function renderCard3(d){
+    var box=$('engCard3'); if(!box)return;
+    var s=d&&d.summary;
+    if(!s||!s.n){ box.innerHTML=EMPTY('채점 성적이 누적되는 중입니다 — 개찰이 쌓이면 적중률·평균 오차·구간 폭이 실측으로 표시됩니다.'); return; }
+    var html=statCard('<span style="color:var(--green-deep)">'+(s.hitRate/10).toFixed(1)+'</span><span style="font-size:.5em">/10</span>','10번 중 적중',s.hitRate,'예측한 구간 안에 실제 낙찰가가 들어온 비율');
+    if(typeof s.avgAbsErrPct==='number') html+=statCard(s.avgAbsErrPct.toFixed(0)+'<span style="font-size:.5em">%</span>','평균 오차',Math.max(0,100-s.avgAbsErrPct),'예측 한가운데와 실제 낙찰가의 평균 차이 (작을수록 좋음)');
+    if(typeof s.avgWidthPct==='number') html+=statCard('±'+(s.avgWidthPct/2).toFixed(0)+'<span style="font-size:.5em">%</span>','예측 구간 폭',Math.max(0,100-s.avgWidthPct/2),'너무 넓으면 대충 크게 질러 맞힌 것 — 좁을수록 자신 있는 예측');
+    box.innerHTML=html;
+  }
+  function renderData(d){ renderRoadmap(d); renderPV(d); renderRace(d); renderCard3(d); }
+
   // 실측 백테스트 학습곡선 로드 — scoreboard.backtest.stages (없으면 예시 유지, degrade)
   fetch('/.netlify/functions/scoreboard').then(function(r){return r.ok?r.json():null;}).then(function(d){
     var st=d&&d.backtest&&Array.isArray(d.backtest.stages)?d.backtest.stages:null;
@@ -1316,8 +1419,8 @@ document.addEventListener('keydown', (e) => {
     }else{
       src.textContent='예시 데이터 (백테스트 집계 전)'; src.className='eng-chip';
     }
-    renderRoadmap(d); boot();
-  }).catch(function(){ src.textContent='예시 데이터 (오프라인)'; src.className='eng-chip'; renderRoadmap(null); boot(); });
+    renderData(d); boot();
+  }).catch(function(){ src.textContent='예시 데이터 (오프라인)'; src.className='eng-chip'; renderData(null); boot(); });
 })();
 </script>
 
