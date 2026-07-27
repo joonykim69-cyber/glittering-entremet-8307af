@@ -908,6 +908,16 @@ function docAiBtn(url,name){
   if(/\.(hwpx?|docx?|xlsx?|zip|jpe?g|png|gif|tiff?)\s*$/i.test(String(name||'')))return '';
   return ` <button type="button" onclick="docSummary('${String(url).replace(/'/g,'%27').replace(/"/g,'&quot;')}',this)" style="font:inherit;font-size:10.5px;font-weight:800;color:var(--green-deep);background:var(--green-soft);border:1px solid var(--green);border-radius:999px;padding:2px 9px;cursor:pointer;">📖 AI 정리</button>`;
 }
+// AI 정리 출력용 경량 마크다운 렌더 — 전체 HTML 이스케이프 후 소제목(#)·굵게(**)·구분선(---)·불릿만 변환.
+// (요약 출력이 마크다운 기호 날것으로 노출되던 문제 교정, 프리뷰 실검증 2026-07-27. 임의 HTML은 구조적으로 불가.)
+function mdLite(s){
+  let h=String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  h=h.replace(/^#{1,6}\s*(.+)$/gm,'<strong style="display:block;margin:10px 0 4px;font-size:13.5px;">$1</strong>');
+  h=h.replace(/^\s*[-*_]{3,}\s*$/gm,'<hr style="border:none;border-top:1px solid var(--line);margin:8px 0;">');
+  h=h.replace(/\*\*([^*\n]+)\*\*/g,'<strong>$1</strong>');
+  h=h.replace(/^\s*[-*•]\s+/gm,'· ');
+  return h.replace(/\n/g,'<br>');
+}
 async function docSummary(url,btn){
   const row=document.getElementById('docSumRow'),box=document.getElementById('docSumBox');
   if(!row||!box)return;
@@ -918,7 +928,9 @@ async function docSummary(url,btn){
     const r=await fetch(`/.netlify/functions/doc-extract?summarize=1&url=${encodeURIComponent(url)}`);
     const d=await r.json();
     if(d&&d.status==='ok'&&d.summary){
-      box.textContent=`📖 문서 AI 정리 (${d.pages||'?'}쪽 · 기재 사실만)\n\n${d.summary}\n\n※ ${d.disclaimer||'원문 열람을 대체하지 않으며 법률 자문이 아닙니다.'}`;
+      box.innerHTML=`<strong>📖 문서 AI 정리 (${Number(d.pages)||'?'}쪽 · 기재 사실만)</strong><br><br>`
+        +mdLite(d.summary)
+        +`<br><br><span style="color:var(--mute);">※ ${mdLite(d.disclaimer||'원문 열람을 대체하지 않으며 법률 자문이 아닙니다.')}</span>`;
     }else if(d&&(d.status==='scan'||d.status==='unsupported')){
       box.textContent=`ℹ️ ${d.message||'이 문서는 자동 정리를 지원하지 않습니다 — 온비드에서 원문을 열람하세요.'}`;
     }else{
