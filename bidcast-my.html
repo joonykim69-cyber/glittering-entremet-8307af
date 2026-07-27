@@ -226,6 +226,52 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
 .mp-field input:focus{outline:none;border-color:var(--green)}
 .mp-row{display:flex;gap:10px}.mp-row>div{flex:1}
 .mp-hint{font-size:11.5px;color:var(--mute);margin-top:5px}
+
+/* ═══ 엔진 학습 관제실 (엔진의 과거 학습 시각화 — 개인 예언자 트랙과 분리) ═══ */
+.eng-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 14px;justify-content:space-between}
+.eng-chip{font-size:11.5px;font-weight:700;padding:5px 11px;border-radius:999px;border:1px dashed var(--mute);color:var(--sub)}
+.eng-chip.real{border-style:solid;border-color:#C4EBD8;background:var(--green-soft);color:var(--green-deep)}
+.eng-chip.real::before{content:"🟢 "}
+.eng-note{font-size:13px;color:var(--sub);margin-top:6px;max-width:64ch}
+/* ① 리플레이 — 다크 계기판 카드(랜딩 성적표 밴드와 같은 결) */
+.eng-hero{--go:#27CE88;--god:#12A66C;--amb:#FFC24B;--red2:#F2686D;--ink2:#E9F3ED;--mut2:#8FB3A2;--ln2:#244436;
+  margin-top:16px;border-radius:var(--radius);padding:clamp(18px,3vw,26px);color:var(--ink2);
+  background:linear-gradient(150deg,#0E2A1F 0%,#0C3524 60%,#0E2A1F 100%);border:1px solid #123a29}
+.eng-rtop{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:18px}
+.eng-big{font-variant-numeric:tabular-nums;letter-spacing:-.03em;line-height:.9}
+.eng-big .v{font-size:clamp(48px,11vw,84px);font-weight:900;color:var(--go)}
+.eng-big .u{font-size:clamp(20px,4vw,30px);font-weight:900;color:var(--go);opacity:.7}
+.eng-big .c{display:block;font-size:13px;color:var(--mut2);margin-top:6px;font-weight:600;letter-spacing:0}
+.eng-big .c b{color:var(--ink2)}
+.eng-phase{font-size:13px;color:var(--mut2);text-align:right}
+.eng-phase b{display:block;color:var(--ink2);font-size:15px;margin-top:2px}
+.eng-mini svg circle.ring{fill:none;stroke:var(--ln2)}
+.eng-tl{margin-top:20px}
+.eng-track{position:relative;height:12px;border-radius:999px;background:#0a1f17;overflow:hidden}
+.eng-fill{position:absolute;inset:0 auto 0 0;width:0;border-radius:999px;background:linear-gradient(90deg,var(--amb),var(--go));transition:width .1s linear}
+.eng-headdot{position:absolute;top:50%;left:0;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;background:#0E2A1F;border:3px solid var(--go);box-shadow:0 2px 8px rgba(0,0,0,.4);transition:left .1s linear}
+.eng-ticks{display:flex;justify-content:space-between;margin-top:8px;font-size:11px;color:var(--mut2)}
+.eng-stages{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.eng-stage{border:1px solid var(--ln2);border-radius:12px;padding:10px 12px;background:rgba(255,255,255,.02);transition:border-color .3s,background .3s}
+.eng-stage.on{border-color:color-mix(in srgb,var(--go) 55%,transparent);background:color-mix(in srgb,var(--go) 12%,transparent)}
+.eng-stage .k{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut2)}
+.eng-stage .val{font-weight:800;font-size:14px;margin-top:3px}
+.eng-stage .h{font-size:12px;color:var(--go);margin-top:2px;font-variant-numeric:tabular-nums}
+.eng-ctrl{display:flex;align-items:center;gap:12px;margin-top:20px;flex-wrap:wrap}
+.eng-play{font:inherit;font-weight:800;font-size:15px;cursor:pointer;color:#052;background:var(--go);border:none;border-radius:11px;padding:11px 20px;display:inflex;display:inline-flex;align-items:center;gap:8px;transition:transform .08s,filter .2s}
+.eng-play:hover{filter:brightness(1.06)}.eng-play:active{transform:translateY(1px)}
+.eng-play:focus-visible{outline:3px solid color-mix(in srgb,var(--go) 55%,transparent);outline-offset:2px}
+.eng-ctrl .hint{font-size:13px;color:var(--mut2)}
+/* ② 과녁 */
+.eng-targets{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+@media(max-width:560px){.eng-targets{grid-template-columns:1fr}}
+.eng-tcard{border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);padding:18px;text-align:center}
+.eng-tcard h4{font-size:15px;margin-bottom:2px}
+.eng-tcard .sub{font-size:11.5px;color:var(--mute);margin-bottom:10px}
+.eng-tcard svg circle.ring{fill:none;stroke:var(--line)}
+.eng-legend{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:12px;font-size:12.5px;color:var(--sub)}
+.eng-legend span{display:inline-flex;align-items:center;gap:6px}
+.eng-sw{width:11px;height:11px;border-radius:50%;display:inline-block}
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Nunito:wght@700;800;900&family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap">
 <style>
@@ -327,6 +373,75 @@ h1,h2,h3,h4{font-family:var(--font-head)}
       <div class="gw-road" id="gwRoad"></div>
     </div>
     <a href="#secGrowth" class="track-bridge">🎯 모의입찰로도 예측력을 단련하세요 — 아래 <b>나의 성장</b>에서 시뮬레이터 나 vs AI 채점 기록을 확인하세요 <span style="margin-left:auto">↓</span></a>
+  </section>
+
+  <!-- 🎓 엔진 학습 관제실 — 엔진이 과거를 되감아 배우는 과정 시각화 (개인 예언자 트랙과 분리) -->
+  <section class="section" id="engineRoom" aria-labelledby="secEngine">
+    <div class="section-head">
+      <div class="eng-head" style="width:100%">
+        <h2 id="secEngine">🎓 엔진 학습 관제실</h2>
+        <span class="eng-chip" id="engSrc">데이터 불러오는 중…</span>
+      </div>
+    </div>
+    <p class="eng-note">엔진이 <b>과거 개찰 결과를 가려놓고 먼저 예측 → 정답을 펼쳐 채점</b>하는 과정을, 수학 없이 눈으로 봅니다. 이건 <b>엔진의 공식 학습</b>이며, 위 "나의 예언자 여정"(내 개인 연습)과는 별개입니다.</p>
+
+    <!-- ① 학습 리플레이 -->
+    <div class="eng-hero">
+      <div class="eng-rtop">
+        <div class="eng-big">
+          <span class="v" id="engAcc">50.2</span><span class="u">%</span>
+          <span class="c">10번 예측하면 <b id="engCnt">5.0</b>번, 실제 낙찰가가 예측 구간 안에 들어옴</span>
+        </div>
+        <div class="eng-phase">학습에 쓴 기간<b id="engPhase">시작 전</b></div>
+        <div class="eng-mini" aria-hidden="true">
+          <svg width="112" height="112" viewBox="0 0 120 120">
+            <circle class="ring" cx="60" cy="60" r="54"/><circle class="ring" cx="60" cy="60" r="36"/>
+            <circle class="ring" cx="60" cy="60" r="18"/><circle cx="60" cy="60" r="3" fill="#8FB3A2"/>
+            <g id="engMini"></g>
+          </svg>
+        </div>
+      </div>
+      <div class="eng-tl">
+        <div class="eng-track"><div class="eng-fill" id="engFill"></div><div class="eng-headdot" id="engHead"></div></div>
+        <div class="eng-ticks"><span>학습 적음</span><span>→ 데이터가 쌓일수록 →</span><span>학습 많음</span></div>
+        <div class="eng-stages" id="engStages">
+          <div class="eng-stage" id="engS0"><div class="k">1단계</div><div class="val">적게 학습</div><div class="h">—</div></div>
+          <div class="eng-stage" id="engS1"><div class="k">2단계</div><div class="val">더 학습</div><div class="h">—</div></div>
+          <div class="eng-stage" id="engS2"><div class="k">3단계</div><div class="val">많이 학습</div><div class="h">—</div></div>
+        </div>
+      </div>
+      <div class="eng-ctrl">
+        <button class="eng-play" id="engPlay" type="button">▶ 다시 재생</button>
+        <span class="hint">막대가 오를수록, 오른쪽 과녁의 점이 가운데(정답)로 모입니다.</span>
+      </div>
+    </div>
+
+    <!-- ② 과녁 -->
+    <div class="eng-targets">
+      <div class="eng-tcard">
+        <h4>학습 초기</h4><div class="sub">적게 배웠을 때 · 예시 시각화</div>
+        <svg viewBox="0 0 220 220" width="100%" style="max-width:220px" role="img" aria-label="흩어진 점들">
+          <circle class="ring" cx="110" cy="110" r="100"/><circle class="ring" cx="110" cy="110" r="68"/>
+          <circle class="ring" cx="110" cy="110" r="36"/><circle cx="110" cy="110" r="5" fill="var(--mute)"/>
+          <g id="engEarly"></g>
+        </svg>
+        <div class="sub" style="margin-top:6px">넓게 흩어짐 · 빗나감 많음</div>
+      </div>
+      <div class="eng-tcard">
+        <h4>학습 후</h4><div class="sub">많이 배운 뒤 · 예시 시각화</div>
+        <svg viewBox="0 0 220 220" width="100%" style="max-width:220px" role="img" aria-label="가운데로 모인 점들">
+          <circle class="ring" cx="110" cy="110" r="100"/><circle class="ring" cx="110" cy="110" r="68"/>
+          <circle class="ring" cx="110" cy="110" r="36"/><circle cx="110" cy="110" r="5" fill="var(--mute)"/>
+          <g id="engLate"></g>
+        </svg>
+        <div class="sub" style="margin-top:6px">가운데로 모임 · 대부분 적중</div>
+      </div>
+    </div>
+    <div class="eng-legend">
+      <span><i class="eng-sw" style="background:var(--green)"></i> 예측 구간 안(적중)</span>
+      <span><i class="eng-sw" style="background:var(--red)"></i> 빗나감</span>
+      <span><i class="eng-sw" style="background:var(--mute)"></i> 정중앙 = 실제 낙찰가</span>
+    </div>
   </section>
 
   <!-- 나의 성장 — 시뮬레이터 나 vs AI 채점 기록 기반 (localStorage bidcast:myscore) -->
@@ -1061,6 +1176,88 @@ document.addEventListener('keydown', (e) => {
   window.logoutDemo = window.__bcLogout;
   if (document.readyState !== 'loading') render();
   else document.addEventListener('DOMContentLoaded', render);
+})();
+</script>
+
+<!-- 🎓 엔진 학습 관제실 — 리플레이(①)·과녁(②). 학습곡선은 실측 백테스트(bt/summary)로 구동, 없으면 예시. -->
+<script>
+(function(){
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  var $=function(id){return document.getElementById(id);};
+  var fill=$('engFill'),head=$('engHead'),acc=$('engAcc'),cnt=$('engCnt'),phase=$('engPhase'),mini=$('engMini'),src=$('engSrc');
+  var stEl=[$('engS0'),$('engS1'),$('engS2')];
+  if(!fill) return;
+  var SVGNS='http://www.w3.org/2000/svg';
+
+  // 실측 백테스트가 없을 때의 예시 3단계(라벨로 '예시' 표기). 있으면 아래 fetch가 덮어씀.
+  var stages=[
+    {label:'적게 학습',hit:53.5},{label:'더 학습',hit:56.4},{label:'많이 학습',hit:62.8}
+  ], isReal=false;
+
+  function rng(seed){return function(){seed=(seed*9301+49297)%233280;return seed/233280;};}
+  function darts(el,count,spread,missP,seed,cx,cy,r,missR){
+    el.innerHTML='';var rd=rng(seed);
+    for(var i=0;i<count;i++){
+      var a=rd()*Math.PI*2, rr=Math.pow(rd(),0.7)*spread;
+      var x=cx+Math.cos(a)*rr, y=cy+Math.sin(a)*rr;
+      var miss=rr>missR || rd()<missP;
+      var c=document.createElementNS(SVGNS,'circle');
+      c.setAttribute('cx',x.toFixed(1));c.setAttribute('cy',y.toFixed(1));c.setAttribute('r',String(r));
+      c.setAttribute('fill',miss?'var(--red)':'var(--green)');c.setAttribute('fill-opacity','.82');
+      el.appendChild(c);
+    }
+  }
+  // 과녁 두 개(예시 시각화 — 실제 per-item 기록은 2단계 오프라인 학습장에서 채움)
+  darts($('engEarly'),26,96,0.28,7,110,110,5,92);
+  darts($('engLate'),26,40,0.06,91,110,110,5,92);
+  function setMini(spread){darts(mini,10,spread,0,33,60,60,3.4,50);}
+
+  function renderAt(t){
+    fill.style.width=(t*100).toFixed(1)+'%';
+    head.style.left=(t*100).toFixed(1)+'%';
+    var a=stages[0].hit+(stages[stages.length-1].hit-stages[0].hit)*t;
+    acc.textContent=a.toFixed(1); cnt.textContent=(a/10).toFixed(1);
+    var si=t<0.34?0:(t<0.7?1:2);
+    phase.innerHTML=stages[si].label+(isReal?'':' <span style="opacity:.6">(예시)</span>');
+    stEl.forEach(function(s,i){s.classList.toggle('on',i<=si);});
+    setMini(52-(52-16)*t);
+  }
+  function play(){
+    if(reduce){renderAt(1);return;}
+    var start=null,dur=4200;
+    (function step(ts){
+      if(!start)start=ts;
+      var t=Math.min(1,(ts-start)/dur), e=t*t*(3-2*t);
+      renderAt(e);
+      if(t<1)requestAnimationFrame(step);
+    })(performance.now());
+  }
+  function applyStages(){
+    stEl.forEach(function(s,i){
+      var st=stages[i]; if(!st)return;
+      s.querySelector('.val').textContent=st.label;
+      s.querySelector('.h').textContent='적중 '+st.hit.toFixed(1)+'%';
+    });
+  }
+  function boot(){ applyStages(); renderAt(0); if(!reduce)setTimeout(play,400); else renderAt(1); }
+  $('engPlay').addEventListener('click',play);
+
+  // 실측 백테스트 학습곡선 로드 — scoreboard.backtest.stages (없으면 예시 유지, degrade)
+  fetch('/.netlify/functions/scoreboard').then(function(r){return r.ok?r.json():null;}).then(function(d){
+    var st=d&&d.backtest&&Array.isArray(d.backtest.stages)?d.backtest.stages:null;
+    if(st&&st.length>=2){
+      stages=st.slice(0,3).map(function(s,i){
+        return {label:['적게 학습','더 학습','많이 학습'][i]||('단계'+(i+1)),
+                hit:(typeof s.hitRate==='number')?s.hitRate:stages[i]?stages[i].hit:50,
+                sub:s.vlabel||''};
+      });
+      isReal=true;
+      src.textContent='실측 백테스트 학습곡선'; src.className='eng-chip real';
+    }else{
+      src.textContent='예시 데이터 (백테스트 집계 전)'; src.className='eng-chip';
+    }
+    boot();
+  }).catch(function(){ src.textContent='예시 데이터 (오프라인)'; src.className='eng-chip'; boot(); });
 })();
 </script>
 
