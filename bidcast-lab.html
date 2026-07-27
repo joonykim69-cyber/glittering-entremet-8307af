@@ -263,6 +263,12 @@ h1,h2,h3,h4{font-family:var(--font-head)}
       <table style="width:100%; border-collapse:collapse; font-size:13.5px;" id="vsTable"></table>
     </div>
     <p class="foot-note" id="vsNote"></p>
+    <!-- 폭 원인 분해 — 챌린저 백오프 레벨별(관측 계측, byLevel 데이터 있을 때만) -->
+    <div id="vsLevelWrap" style="display:none; margin-top:22px;">
+      <p class="lead" style="font-size:14px;">챌린저의 넓은 구간은 어디서 오나 — <b>백오프 레벨별 분해</b>. 예측 셀은 정밀 조합(L3)을 먼저 찾고, 표본이 얇으면 더 넓은 조합(→L0)으로 내려갑니다. 상위 레벨(L0·L1)일수록 여러 용도를 섞어 낙찰가율 분포가 넓어져 구간 폭이 커집니다.</p>
+      <div class="acc-card" style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:13px;" id="vsLevelTable"></table></div>
+      <p class="foot-note" id="vsRoundNote"></p>
+    </div>
   </div>
 </section>
 
@@ -678,6 +684,25 @@ document.addEventListener('keydown', (e) => {
         row('상대전적 (오차가 작은 쪽 승)', winRate != null ? `${ch.headToHead.n - ch.headToHead.bWins}승` : '—', winRate != null ? `${ch.headToHead.bWins}승 (승률 ${winRate}%)` : '—');
       document.getElementById('vsNote').textContent = `✅ 실데이터 — 두 모델 모두 개찰 전 봉인·사후 수정 불가 · 판정은 100/200/300건 체크포인트에서만 수행합니다.`;
       document.getElementById('vsSec').style.display = '';
+
+      // 폭 원인 분해 — 백오프 레벨별(L3 정밀 → L0 광범위) n·적중·평균폭 + 회차 실측/근사(2026-07-27 계측)
+      const bl = ch.byLevel || {};
+      const order = ['L3', 'L2', 'L1', 'L0'];
+      const lvDesc = { L3: '용도×회차×가격대 (가장 정밀)', L2: '용도×회차', L1: '용도만', L0: '자산군 전체 (가장 광범위)' };
+      const lvRows = order.filter(k => bl[k] && bl[k].n).map(k => {
+        const v = bl[k];
+        return `<tr style="border-bottom:1px solid var(--line);"><td style="padding:8px; font-weight:800;">${k}</td><td style="padding:8px; color:var(--sub);">${lvDesc[k]}</td><td style="padding:8px; text-align:right;">${v.n}건</td><td style="padding:8px; text-align:right;">${v.hitRate != null ? v.hitRate + '%' : '—'}</td><td style="padding:8px; text-align:right; font-weight:800;">${v.avgWidthPct != null ? v.avgWidthPct + '%' : '—'}</td></tr>`;
+      });
+      if (lvRows.length) {
+        document.getElementById('vsLevelTable').innerHTML =
+          `<tr style="border-bottom:2px solid var(--line);"><th style="text-align:left;padding:8px;font-size:12px;color:var(--mute);">레벨</th><th style="text-align:left;padding:8px;font-size:12px;color:var(--mute);">셀 조합</th><th style="text-align:right;padding:8px;font-size:12px;color:var(--mute);">표본</th><th style="text-align:right;padding:8px;font-size:12px;color:var(--mute);">적중률</th><th style="text-align:right;padding:8px;font-size:12px;color:var(--mute);">평균 폭</th></tr>` + lvRows.join('');
+        const rr = ch.roundReal || { real: 0, approx: 0 };
+        const tot = (rr.real || 0) + (rr.approx || 0);
+        document.getElementById('vsRoundNote').textContent = tot
+          ? `회차 기준: 실측(공매차수) ${rr.real}건 · 근사(유찰+1) ${rr.approx}건 — 실측 ${Math.round(rr.real / tot * 100)}%. 근사 비중이 높으면 회차 셀이 어긋나 상위 레벨로 떨어지기 쉬워 폭이 커집니다.`
+          : '';
+        document.getElementById('vsLevelWrap').style.display = '';
+      }
     }
   } catch (e) { console.info('[lab] 모델 연혁 로드 실패(숨김):', e.message); }
 })();
