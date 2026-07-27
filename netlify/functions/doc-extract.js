@@ -101,7 +101,10 @@ exports.handler = async (event) => {
       if (buf.slice(0, 5).toString('latin1') !== '%PDF-') {
         return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'unsupported', kind: 'not-pdf', message: 'PDF가 아닌 문서입니다 — 온비드에서 원문을 열람하세요.' }) };
       }
-      const pdfParse = require('pdf-parse');
+      // index.js가 아니라 lib를 직접 require — pdf-parse@1.1.1 index.js의 `!module.parent` 디버그 블록이
+      // esbuild 번들에선 항상 참이 되어 './test/data/05-versions-space.pdf'를 읽다 ENOENT로 죽는 버그 우회
+      // (프로덕션 실클릭에서 발견, 2026-07-27 — 감정평가서(등촌동).pdf).
+      const pdfParse = require('pdf-parse/lib/pdf-parse.js');
       const parsed = await pdfParse(buf, { max: 40 }); // 최대 40쪽 — 감정평가서 커버, 폭주 방지
       const text = String(parsed.text || '');
       const kind = classifyKind(text);
