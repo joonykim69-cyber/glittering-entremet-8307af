@@ -57,12 +57,15 @@ exports.handler = async (event) => {
       store.get('_run/collect-history', { type: 'json' }),
     ]);
     // 과거 백필(1~6월 마스킹 census) 진행 + walk-forward 백테스트 성장 곡선
-    const [bfMeta, runBackfill, btSummary, runBacktest, curatedAgg] = await Promise.all([
+    const [bfMeta, runBackfill, btSummary, runBacktest, curatedAgg, simSummary, simRecords, runSim] = await Promise.all([
       store.get('hist/_bfmeta', { type: 'json' }),
       store.get('_run/collect-backfill', { type: 'json' }),
       store.get('bt/summary', { type: 'json' }),
       store.get('_run/backtest', { type: 'json' }),
       store.get('curatedAgg', { type: 'json' }),
+      store.get('bt/sim/summary', { type: 'json' }),   // 모의 라이브 재생 요약(월별 학습곡선)
+      store.get('bt/sim/records', { type: 'json' }),   // 모의 라이브 per-item 기록(관제실 과녁 점)
+      store.get('_run/sim-live', { type: 'json' }),
     ]);
 
     const n = agg?.n || 0;
@@ -119,11 +122,16 @@ exports.handler = async (event) => {
           collect: runCollect || null,
           backfill: runBackfill || null,
           backtest: runBacktest || null,
+          sim: runSim || null,
         },
         // 1~6월 마스킹 백필 진행: {records, windows, oldest, newest, done, cursorEnd}. 미시작이면 null.
         backfill: bfMeta || null,
         // walk-forward 백테스트 성장 곡선: {stages:[{vlabel,testLabel,n,coverage,hitRate,avgAbsErrPct,avgWidthPct}], done}. 미시작이면 null.
         backtest: btSummary || null,
+        // 모의 라이브 재생(GR11): 월별 학습곡선 {months:[{ym,hitRate,cumHitRate,avgWidthPct...}],cum,done}. 미시작이면 null.
+        sim: simSummary || null,
+        // 모의 라이브 per-item 기록(관제실 과녁 점): [{ym,lo,mid,hi,win,hit,errPct,level}]. 최대 240건.
+        simRecords: Array.isArray(simRecords) ? simRecords.slice(0, 240) : null,
         modelV: 'v0.1',
         // v0.5 챌린저 비교 성적 (predb 채점분) — 데이터 없으면 n:0
         challenger: (aggB && aggB.n) ? {

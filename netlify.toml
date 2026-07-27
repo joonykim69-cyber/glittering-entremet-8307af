@@ -28,6 +28,11 @@
    # chronicle에 개선 제안 기록(채택은 사람). 채점 표본 부족하면 no-op.
    [functions."audit-weekly"]
      schedule = "0 12 * * 0"
+   # 모의 라이브 학습장(sim-live) 임시 스케줄 — 마스킹 과거를 월 단위로 재생하며 per-item 기록 생성.
+   # 온비드 API를 안 부르고 Blobs만 읽으므로 쿼터 무관. 월당 1회씩 처리하고 5개월 완료(bt/sim done) 후
+   # no-op이 되므로, 데이터가 다 쌓이면 이 스케줄은 제거 예정(백필·백테스트와 동일 패턴).
+   [functions."sim-live"]
+     schedule = "*/15 * * * *"
    # (2026-07-23 완료·제거) 1~6월 마스킹 백필 임시 스케줄은 완료(hist/_bfmeta.done) 후
    # no-op이 되어 제거함. collect-backfill.js는 수동 GET 재실행용으로 유지.
    # (2026-07-26 완료·제거) 챌린저 백테스트 임시 스케줄(*/6)도 제거 — v0.5 vs v0.6(기각,
