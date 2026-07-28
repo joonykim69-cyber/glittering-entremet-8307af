@@ -1797,6 +1797,39 @@ if(isLive&&liveItem){
           mgnInput.addEventListener('input',calcMargin);
           calcMargin();
         }
+        // ── 보유 기간별 예상 시세 시나리오 (부동산원 지수 추세 기계적 연장 — 예측 아님) ──
+        // 아파트에 한정: RONE_STATBL_ID=아파트 매매지수라 apples-to-apples(비아파트는 프록시 오도 방지로 생략).
+        // 시나리오 rate는 지수 실제 변동(3/6/12개월)에서만 뽑아 임의 스프레드를 만들지 않는다(정직성).
+        if(KIND==='apt'&&me.status==='ok'&&me.perM2){
+          try{
+            const rn=await fetch(`/.netlify/functions/rone-svc?region=${encodeURIComponent(t[0])}`).then(r=>r.ok?r.json():null);
+            if(rn&&rn.status==='ok'&&rn.change){
+              const c=rn.change;
+              const ann=(v,m)=>v==null?null:v*(12/m);                 // 월 변동률 → 연율 근사
+              const clamp=r=>Math.max(-20,Math.min(20,Math.round(r*10)/10)); // 극단 연율 방지 ±20%/년
+              const cand=[ann(c.m3,3),ann(c.m6,6),c.m12].filter(v=>v!=null).map(clamp);
+              if(cand.length){
+                const base=clamp(c.m12!=null?c.m12:cand[cand.length-1]);
+                const consvR=Math.min(0,Math.min(...cand)); // 보수 = 최근 최약 추세, 상승장이면 '정체(0%)'를 하한
+                const optR=Math.max(...cand);                // 낙관 = 최근 최강 추세
+                const p50=me.perM2.p50, grow=(r,tt)=>Math.pow(1+r/100,tt);
+                const rows=[{t:0.5,l:'6개월'},{t:1,l:'1년'},{t:3,l:'3년'}].map(h=>{
+                  const cv=Math.round(p50*grow(consvR,h.t)),bv=Math.round(p50*grow(base,h.t)),ov=Math.round(p50*grow(optR,h.t));
+                  return `<tr><th style="white-space:nowrap;">${h.l} 후</th><td style="text-align:right;color:var(--sub);">${cv.toLocaleString()}</td><td style="text-align:right;font-weight:800;">${bv.toLocaleString()}</td><td style="text-align:right;color:var(--sub);">${ov.toLocaleString()}</td></tr>`;
+                }).join('');
+                const regLbl=rn.regionMatched?esc(rn.region||t[0]):'전국(지역 미매칭)';
+                const scenCard=`<div style="margin-top:12px;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:12px;">
+                  <div style="font-size:13px;font-weight:800;margin-bottom:2px;">📈 보유 기간별 예상 시세 시나리오 <span style="font-size:11px;color:var(--mute);font-weight:600;">(㎡당 만원 · 추세 연장 · 예측 아님)</span></div>
+                  <div style="font-size:11.5px;color:var(--sub);margin-bottom:8px;">부동산원 <b>${regLbl} 아파트 매매지수</b> 최근 흐름을 기계적으로 연장한 참고치입니다. 연율 보수 <b>${consvR.toFixed(1)}%</b> · 기준 <b>${base.toFixed(1)}%</b> · 낙관 <b>${optR.toFixed(1)}%</b> 가정(현재 ㎡당 중앙 ${p50.toLocaleString()}만원 기준).</div>
+                  <table class="info-table" style="font-size:12.5px;"><thead><tr><th></th><th style="text-align:right;color:var(--sub);font-weight:700;">보수</th><th style="text-align:right;color:var(--green-deep);font-weight:800;">기준</th><th style="text-align:right;color:var(--sub);font-weight:700;">낙관</th></tr></thead><tbody>${rows}</tbody></table>
+                  <div style="font-size:11px;color:var(--mute);margin-top:8px;line-height:1.6;">※ <b>예측이 아니라 지수 추세를 그대로 늘린 산술 참고치</b>입니다. 실제 시세는 금리·정책·공급·개별 요인으로 크게 달라질 수 있고 기간이 길수록 불확실성이 급증합니다. <b>시세·수익을 보장하지 않습니다.</b></div>
+                </div>`;
+                const host=document.getElementById('rtmsCard');
+                if(host) host.insertAdjacentHTML('beforeend',scenCard);
+              }
+            }
+          }catch(e){console.log('[rtms] 시세 시나리오(rone) 생략:',e.message);}
+        }
         return;
       }
 
