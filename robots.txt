@@ -1,0 +1,8 @@
+# 신호등옥션 (BidCast) robots.txt
+User-agent: *
+Allow: /
+
+# 내부 서버리스 함수는 색인 대상이 아님
+Disallow: /.netlify/
+
+Sitemap: https://sucessbid.netlify.app/sitemap.xml
