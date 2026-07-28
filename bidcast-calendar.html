@@ -72,6 +72,41 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 .day-row.today .d { color:var(--green-deep); font-weight:800; }
 .day-row.today .todaytag { display:inline-block; font-size:9.5px; font-weight:800; color:#fff; background:var(--green); border-radius:5px; padding:1px 6px; margin-left:6px; vertical-align:middle; }
 
+/* ═══ 진짜 달력 그리드 (2026-07-28 재디자인) ═══ */
+.cal-card { background:var(--surface); border:1px solid var(--line); border-radius:22px; padding:22px 22px 18px; box-shadow:0 10px 30px rgba(16,32,26,.05); }
+.cal-top { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+.cal-title { font-size:20px; font-weight:900; letter-spacing:-0.02em; font-variant-numeric:tabular-nums; }
+.cal-title .yy { font-size:13px; font-weight:800; color:var(--mute); margin-right:6px; }
+.cal-nav { display:flex; gap:6px; margin-left:auto; }
+.cal-nav button { width:34px; height:34px; border-radius:10px; border:1px solid var(--line); background:var(--surface); cursor:pointer; font:inherit; font-size:14px; font-weight:900; color:var(--sub); display:grid; place-items:center; }
+.cal-nav button:hover { border-color:var(--green); color:var(--green-deep); background:var(--green-soft); }
+.cal-nav .today-btn { width:auto; padding:0 14px; font-size:12.5px; font-weight:800; }
+.cal-legend { display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-size:11.5px; color:var(--mute); font-weight:700; margin-bottom:10px; }
+.cal-legend i { display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:4px; vertical-align:-1px; }
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+.cal-dow { text-align:center; font-size:11.5px; font-weight:900; color:var(--sub); padding:6px 0 8px; letter-spacing:.02em; }
+.cal-dow.sun { color:var(--red); } .cal-dow.sat { color:#3B7DD8; }
+.cal-day { position:relative; min-height:86px; border:1px solid var(--line); border-radius:12px; background:var(--surface); padding:7px 8px 8px; text-align:left; font:inherit; cursor:default; transition:transform .15s var(--ease), box-shadow .15s, border-color .15s; display:flex; flex-direction:column; gap:4px; }
+.cal-day.empty { background:transparent; border-color:transparent; }
+.cal-day .dnum { font-size:12.5px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums; }
+.cal-day.sun .dnum { color:var(--red); } .cal-day.sat .dnum { color:#3B7DD8; }
+.cal-day.out .dnum { color:var(--mute); opacity:.55; }
+.cal-day.past { background:var(--bg); }
+.cal-day.past .dnum { color:var(--mute); }
+.cal-day.today { border-color:var(--green); box-shadow:0 0 0 2px rgba(0,168,107,.18); }
+.cal-day.today .dnum { color:#fff; background:var(--green); border-radius:7px; padding:1px 7px; display:inline-block; }
+.cal-day.has { cursor:pointer; }
+.cal-day.has:hover { transform:translateY(-2px); box-shadow:0 10px 22px rgba(16,32,26,.10); border-color:var(--green); }
+.cal-day.sel { border-color:var(--green-deep); background:var(--green-soft); box-shadow:0 0 0 2px rgba(0,116,75,.18); }
+.cal-cnt { font-size:15px; font-weight:900; color:var(--green-deep); line-height:1.1; font-variant-numeric:tabular-nums; }
+.cal-cnt span { font-size:10px; font-weight:800; color:var(--sub); margin-left:2px; }
+.cal-heat { height:5px; border-radius:3px; background:var(--green); opacity:.28; margin-top:auto; }
+.cal-heat.h2 { opacity:.5; } .cal-heat.h3 { opacity:.72; } .cal-heat.h4 { opacity:1; }
+.cal-tags { display:flex; flex-wrap:wrap; gap:3px; }
+.cal-tags b { font-size:9.5px; font-weight:800; color:var(--sub); background:var(--bg); border:1px solid var(--line); border-radius:5px; padding:0 4px; line-height:1.5; }
+.cal-foot { margin-top:12px; font-size:11.5px; color:var(--mute); line-height:1.6; }
+@media (max-width:640px) { .cal-day { min-height:64px; padding:5px 5px 6px; } .cal-cnt { font-size:13px; } .cal-tags { display:none; } .cal-card { padding:16px 12px 14px; border-radius:16px; } }
+
 /* 월별 캘린더 그래프 */
 .month-grid { display:grid; grid-template-columns:repeat(9,1fr); gap:8px; margin-top:24px; }
 .month-cell { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px 8px; text-align:center; transition:transform .2s var(--ease), box-shadow .2s; cursor:default; }
@@ -207,6 +242,26 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 
 <section class="section">
   <div class="wrap">
+    <!-- ═══ 진짜 달력 — 월 그리드. 날짜 클릭 시 아래 물건 목록이 그 날짜로 필터됨 ═══ -->
+    <div class="cal-card" id="calCard" style="margin-bottom:20px;">
+      <div class="cal-top">
+        <div class="cal-title"><span class="yy" id="calYear">—</span><span id="calMonthLbl">—</span></div>
+        <div class="cal-nav">
+          <button type="button" id="calPrev" aria-label="이전 달">‹</button>
+          <button type="button" class="today-btn" id="calToday">오늘</button>
+          <button type="button" id="calNext" aria-label="다음 달">›</button>
+        </div>
+      </div>
+      <div class="cal-legend">
+        <span><i style="background:var(--green);opacity:.28"></i>적음</span>
+        <span><i style="background:var(--green);opacity:.72"></i>보통</span>
+        <span><i style="background:var(--green)"></i>많음</span>
+        <span style="margin-left:auto" id="calScope">불러오는 중…</span>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <p class="cal-foot" id="calFoot"></p>
+    </div>
+
     <div class="two-col">
       <div class="panel">
         <h3>🟢 다가오는 경매 7일</h3>
@@ -338,6 +393,104 @@ document.getElementById('monthGrid').innerHTML = MONTHS.map(mo => `
 `).join('');
 
 // ═══════════════════════════════════════
+// 진짜 달력 그리드 — 월 단위 7열. 마감 물건이 있는 날짜에 건수·히트바를 표시하고,
+// 클릭하면 아래 "다가오는 입찰 물건" 목록이 그 날짜로 필터된다.
+// 데이터는 아래 실연동이 채우는 window.__calAll(마감 임박 창 질의 결과)을 그대로 쓴다 —
+// 별도 API 호출을 늘리지 않는다. 데이터 도착 전에는 빈 달력(구조만) 표시.
+// ═══════════════════════════════════════
+// 같은 건물의 여러 호실을 하나로 묶는다(랜딩의 buildingKey와 동일 휴리스틱).
+// 대표 1건 + _more(나머지 개수). 재고를 감추지 않고 접어서 보여주기 위함.
+function buildingKeyC(it) {
+  return String(it.title || '').replace(/\s*\d+\s*호(?:\s|$).*$/, '').replace(/\s*제?\d+층.*$/, '').trim() || String(it.id);
+}
+function groupByBuilding(list) {
+  const map = new Map();
+  for (const it of list) {
+    const k = buildingKeyC(it) + '|' + String(it.bidEnd || '').slice(0, 8); // 같은 건물+같은 마감일만 묶음
+    if (map.has(k)) { map.get(k)._more++; continue; }
+    map.set(k, Object.assign({}, it, { _more: 0 }));
+  }
+  return [...map.values()];
+}
+
+let calCursor = null;      // 표시 중인 달(Date, KST 기준 1일)
+let calSelDay = '';        // 선택된 날짜(yyyymmdd) — '' 면 전체
+function kstNow() { return new Date(Date.now() + 9 * 3600 * 1000); }
+function ymdOf(y, m, d) { return `${y}${String(m).padStart(2,'0')}${String(d).padStart(2,'0')}`; }
+
+function renderCalendar() {
+  const grid = document.getElementById('calGrid'); if (!grid) return;
+  const now = kstNow();
+  if (!calCursor) calCursor = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const Y = calCursor.getUTCFullYear(), M = calCursor.getUTCMonth() + 1;
+  document.getElementById('calYear').textContent = `${Y}년`;
+  document.getElementById('calMonthLbl').textContent = `${M}월`;
+
+  // 날짜별 집계 — 마감일(bidEnd) 기준. 유형 태그도 상위 2개까지.
+  const all = Array.isArray(window.__calAll) ? window.__calAll : [];
+  const byDay = {};
+  for (const it of all) {
+    const t = String(it.bidEnd || '').replace(/[^0-9]/g, '').slice(0, 8);
+    if (t.length !== 8) continue;
+    (byDay[t] = byDay[t] || { n: 0, types: {} }).n++;
+    const ty = it.type || '기타'; byDay[t].types[ty] = (byDay[t].types[ty] || 0) + 1;
+  }
+  const counts = Object.values(byDay).map(x => x.n);
+  const max = counts.length ? Math.max(...counts) : 0;
+  const heat = n => !max ? '' : (n >= max * 0.75 ? 'h4' : n >= max * 0.5 ? 'h3' : n >= max * 0.25 ? 'h2' : '');
+
+  const first = new Date(Date.UTC(Y, M - 1, 1));
+  const startDow = first.getUTCDay();                        // 0=일
+  const daysInMonth = new Date(Date.UTC(Y, M, 0)).getUTCDate();
+  const todayYmd = ymdOf(now.getUTCFullYear(), now.getUTCMonth() + 1, now.getUTCDate());
+
+  const DOW = ['일','월','화','수','목','금','토'];
+  let html = DOW.map((d, i) => `<div class="cal-dow ${i===0?'sun':i===6?'sat':''}">${d}</div>`).join('');
+  for (let i = 0; i < startDow; i++) html += '<div class="cal-day empty"></div>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ymdS = ymdOf(Y, M, d);
+    const dow = (startDow + d - 1) % 7;
+    const info = byDay[ymdS];
+    const isToday = ymdS === todayYmd;
+    const isPast = ymdS < todayYmd;
+    const cls = ['cal-day', dow===0?'sun':dow===6?'sat':'', isToday?'today':'', isPast?'past':'', info?'has':'', calSelDay===ymdS?'sel':''].filter(Boolean).join(' ');
+    const tags = info ? Object.entries(info.types).sort((a,b)=>b[1]-a[1]).slice(0,2).map(([k,v])=>`<b>${escH(k)} ${v}</b>`).join('') : '';
+    html += `<div class="${cls}"${info?` data-ymd="${ymdS}" role="button" tabindex="0"`:''}>
+      <span class="dnum">${d}</span>
+      ${info?`<span class="cal-cnt">${info.n}<span>건</span></span><span class="cal-tags">${tags}</span><span class="cal-heat ${heat(info.n)}"></span>`:''}
+    </div>`;
+  }
+  grid.innerHTML = html;
+  grid.querySelectorAll('.cal-day.has').forEach(el => {
+    const pick = () => { calSelDay = (calSelDay === el.dataset.ymd) ? '' : el.dataset.ymd; renderCalendar(); renderSchedList(); };
+    el.addEventListener('click', pick);
+    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+  });
+
+  const marked = Object.keys(byDay).length;
+  document.getElementById('calScope').textContent = all.length
+    ? (calSelDay ? `${+calSelDay.slice(4,6)}월 ${+calSelDay.slice(6,8)}일 선택됨 — 다시 클릭하면 해제` : `마감 예정 ${all.length.toLocaleString()}건 · ${marked}일에 분포`)
+    : '실시간 데이터 불러오는 중…';
+  document.getElementById('calFoot').innerHTML = all.length
+    ? '※ 날짜별 건수는 <b>오늘~+30일 마감 창</b>에서 조회한 실시간 온비드 물건 기준입니다(그 창 밖의 달은 표시되지 않습니다) · 날짜를 클릭하면 아래 목록이 그 날짜로 좁혀집니다.'
+    : '※ 실시간 물건을 불러오면 마감일별 건수가 표시됩니다.';
+}
+// 목록 렌더 — 선택 날짜 필터 + 건물 묶기 적용. 실데이터 없으면 아무 것도 안 함(예시 유지).
+function renderSchedList() {
+  const all = Array.isArray(window.__calAll) ? window.__calAll : [];
+  if (!all.length || typeof window.__calRowHtml !== 'function') return;
+  const filtered = calSelDay ? all.filter(it => String(it.bidEnd||'').replace(/[^0-9]/g,'').slice(0,8) === calSelDay) : all;
+  const items = groupByBuilding(filtered).slice(0, 12);
+  const host = document.getElementById('schedList');
+  host.innerHTML = items.length ? items.map(window.__calRowHtml).join('')
+    : '<div style="padding:18px 4px;color:var(--sub);font-size:13px;">이 날짜에 표시할 물건이 없습니다.</div>';
+}
+document.getElementById('calPrev').addEventListener('click', () => { calCursor.setUTCMonth(calCursor.getUTCMonth()-1); calSelDay=''; renderCalendar(); renderSchedList(); });
+document.getElementById('calNext').addEventListener('click', () => { calCursor.setUTCMonth(calCursor.getUTCMonth()+1); calSelDay=''; renderCalendar(); renderSchedList(); });
+document.getElementById('calToday').addEventListener('click', () => { calCursor=null; calSelDay=''; renderCalendar(); renderSchedList(); });
+renderCalendar(); // 초기: 구조만(데이터 도착 시 아래 실연동이 다시 그림)
+
+// ═══════════════════════════════════════
 // 실 데이터 연동 — onbid-calendar(요일별 건수) + onbid-search(마감 임박 물건, 마감일 순).
 // 각각 실패해도 위 예시가 그대로 유지됨(degrade-gracefully).
 // ═══════════════════════════════════════
@@ -388,10 +541,16 @@ function calMarkLive(){
         document.getElementById('sum30').textContent = Number(data.totalCount).toLocaleString();
         const lbl = document.getElementById('sum30').nextElementSibling; if (lbl) lbl.textContent = '다가오는 30일';
       }
-      const items = data.items.filter(it=>it.bidEnd && bidEndInt(it.bidEnd) >= now)
-        .sort((a,b)=> bidEndInt(a.bidEnd)-bidEndInt(b.bidEnd)).slice(0,12);
+      // 같은 건물 여러 호실이 목록을 도배하는 문제(창업자 지적) — 건물 단위로 묶어 1개만 대표
+      // 표시하고 나머지는 "외 N건"으로 안내한다. 재고를 숨기는 게 아니라 접어서 보여주는 것.
+      const liveItems = data.items.filter(it=>it.bidEnd && bidEndInt(it.bidEnd) >= now)
+        .sort((a,b)=> bidEndInt(a.bidEnd)-bidEndInt(b.bidEnd));
+      window.__calAll = liveItems;                    // 달력 그리드가 쓰는 원본(중복 제거 전)
+      const items = groupByBuilding(liveItems).slice(0,12);
+      renderCalendar();                               // 실데이터 도착 → 달력 다시 그림
       if (items.length) {
-        document.getElementById('schedList').innerHTML = items.map(it => {
+        // 행 렌더러를 전역으로 노출 — 달력 날짜 클릭 시 renderSchedList()가 재사용한다.
+        window.__calRowHtml = (it => {
           const id=String(it.id);
           calSnaps[id]={ id, title:it.title||'', min:it.min||0, appr:it.appr||0, type:it.type||'', court:it.court||it.orgNm||'', status:it.status||'진행', thumb:TYPE_EMOJI_C[it.type]||'📦', photo:it.photo||'', live:true, cltrMngNo:id, pbctCdtnNo:it.pbctCdtnNo!=null?String(it.pbctCdtnNo):'', bidEnd:it.bidEnd||'', address:it.address||'' };
           const t=String(it.bidEnd).replace(/[^0-9]/g,''); const yy=+t.slice(0,4), mm=+t.slice(4,6), dd=+t.slice(6,8);
@@ -401,10 +560,11 @@ function calMarkLive(){
           return `<a class="sched-row" href="bidcast-detail.html?id=${encodeURIComponent(id)}" onclick="stashCalLive('${safeId}')">
             <span class="sched-date"><span class="yy">${yy}년</span><span class="dd">${mm}.${dd}</span><span class="wd">${wd} 마감</span><span class="mw">${mm}월 ${wk}주</span></span>
             <span class="sched-ico">${it.photo && /^https?:\/\//.test(it.photo) ? `<img class="sched-photo" src="${escH(it.photo)}" alt="" loading="lazy" onerror="this.remove()">` : (TYPE_EMOJI_C[it.type]||'📦')}</span>
-            <span class="sched-body"><span class="t">${escH(it.title)}</span><br/><span class="m">${escH(it.court||it.orgNm||'')} · ${escH(it.type||'')}</span></span>
+            <span class="sched-body"><span class="t">${escH(it.title)}${it._more>0?` <b style="font-size:10.5px;font-weight:800;color:var(--green-deep);background:var(--green-soft);border-radius:6px;padding:1px 7px;vertical-align:middle;">같은 건물 외 ${it._more}건</b>`:''}</span><br/><span class="m">${escH(it.court||it.orgNm||'')} · ${escH(it.type||'')}</span></span>
             <span class="sched-price"><span class="p">최저 ${fmtMinMan(it.min)}</span>${it.fail>0?`<br/><span class="tag">유찰 ${it.fail}회</span>`:''}</span>
           </a>`;
-        }).join('');
+        });
+        document.getElementById('schedList').innerHTML = items.map(window.__calRowHtml).join('');
         calLive.sched = true; calMarkLive();
       }
     }
