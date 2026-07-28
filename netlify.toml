@@ -39,9 +39,13 @@
    [functions."collect-backfill"]
      schedule = "0 */2 * * *"
    # (2026-07-23 완료) 1~6월(2026) 마스킹 백필은 이미 완료됨 — 위 2025 확장이 그 커서를 이어받음.
-   # (2026-07-26 완료·제거) 챌린저 백테스트 임시 스케줄(*/6)도 제거 — v0.5 vs v0.6(기각,
-   # 밴드 확대)·v0.7(기각, 저가율 과분할) 비교 완료. backtest.js는 수동 GET·차기 모델 후보
-   # 재검증용으로 유지(MODELS 등록 + BT_VERSION 범프 후 수동/임시 크론으로 재실행).
+   # 챌린저 백테스트 임시 스케줄 (2026-07-28 v0.8 비교용 재활성 — BT_VERSION v4-gbtree 범프됨).
+   # backtest.js가 bt/_state.version≠BT_VERSION이면 처음부터 재실행하므로, 이 크론이 v0.5 vs
+   # v0.7 vs v0.8을 3단계 walk-forward로 자동 채점한다. backfill(hist/_bfmeta.done) 완료 전엔
+   # no-op이고 3단계 완료(bt/summary) 후에도 no-op이므로, 2025 백필이 끝나면 비교가 저절로 돌고
+   # 끝난 뒤엔 조용히 멈춘다 — 비교 확인 후 이 스케줄 제거 예정(v0.6·v0.7 때와 동일 패턴).
+   [functions."backtest"]
+     schedule = "*/6 * * * *"
 
    # 루트(/)는 낙찰예보(BidCast) 랜딩으로 안내.
    # force = true: 루트에 파일이 실존하면 Netlify는 기본적으로 리다이렉트보다 파일을 우선하므로 유지.
