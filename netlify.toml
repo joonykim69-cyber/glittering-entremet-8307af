@@ -9,7 +9,10 @@
      # ONBID_SVC_*_URL 계열(레지스트리 오버라이드)은 이름을 미리 열거할 수 없으므로,
      # 공개 Base URL이 원래부터 적혀 있는 파일들만 값-일치 스캔에서 제외한다.
      # (진짜 비밀값은 이 파일들에 존재하지 않으므로 보안 저하 없음)
-     SECRETS_SCAN_OMIT_PATHS = "CLAUDE.md,netlify/functions/*"
+     # 001_LIVE_VERIFICATION_CHECKLIST.md도 참조 문서라 공개 식별자(RONE 통계표 ID 등)를
+     # 담아 값-일치 스캐너가 오탐 → CLAUDE.md와 동일하게 경로 제외. (이 주석/문서에는 실제
+     # 식별자 값을 적지 않는다 — netlify.toml은 omit 대상이 아니라 값을 적으면 스캐너가 잡음.)
+     SECRETS_SCAN_OMIT_PATHS = "CLAUDE.md,001_LIVE_VERIFICATION_CHECKLIST.md,netlify/functions/*"
 
    [functions]
      node_bundler = "esbuild"
