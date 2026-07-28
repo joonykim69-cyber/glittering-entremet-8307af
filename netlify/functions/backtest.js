@@ -32,9 +32,14 @@
 //   BT_VERSION이 바뀌면 자동 초기화·재실행. backfill 완료 전 no-op, 3단계 완료 후 no-op.
 //   ?status=1 진행 조회 / ?reset=1&confirm=1 초기화.
 
+const GB = require('./lib/gbtree'); // 차세대 v0.8 — 순수 JS 분위수 그래디언트 부스팅
+
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' };
 const MIN_N = 20;              // 챌린저 셀 자격 최소 표본 (라이브와 동일)
-const BT_VERSION = 'v3-discband'; // 모델/방식 변경 시 올려 자동 재실행
+const BT_VERSION = 'v4-gbtree'; // 모델/방식 변경 시 올려 자동 재실행 (v0.8 등록)
+// v0.8 성능 가드 — 100k행 census를 30초 함수 안에서 학습하려면 서브샘플·트리수 제한 필요.
+const V08_NMAX = 12000;                                     // 학습 표본 상한(초과 시 균등 서브샘플)
+const V08_OPTS = { nTrees: 40, maxDepth: 3, minLeaf: 30, lr: 0.15 };
 
 const STAGES = [
   { key: 's1', vlabel: '1개월 학습 (1월)', testLabel: '2·3월', train: ['20260101', '20260131'], test: ['20260201', '20260331'] },
@@ -43,6 +48,7 @@ const STAGES = [
 ];
 
 async function openLedger(event) {
+  if (global.__FAKE_STORE__) return global.__FAKE_STORE__; // fixture 검증용(런타임 미사용)
   const blobs = await import('@netlify/blobs');
   try { if (event && typeof blobs.connectLambda === 'function') blobs.connectLambda(event); } catch (e) { /* 자동 구성 */ }
   try { return blobs.getStore('ledger'); }
@@ -167,19 +173,66 @@ function predictFromChain(cells, item, keys) {
   return { lo, mid, hi };
 }
 
+// ── v0.8 (GBDT) — 피처 인코딩 + 학습/예측 ──
+// 예측 대상은 v0.5와 동일하게 낙찰가율 lr(최저가 대비 %) — [lo,mid,hi]는 it.low로 환산해 apples-to-apples.
+// 피처: 자산군 원핫(3) + 용도 top-12 원핫 + other(13) + 회차·최저가log·감정가log·저가율(4).
+function buildEncoderV08(sold, K) {
+  const cnt = {};
+  for (const r of sold) cnt[r.usage] = (cnt[r.usage] || 0) + 1;
+  const usages = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]).slice(0, K || 12);
+  return { usages };
+}
+function encodeV08(rec, enc) {
+  const v = [rec.type === '0001' ? 1 : 0, rec.type === '0002' ? 1 : 0, rec.type === '0003' ? 1 : 0];
+  let matched = 0;
+  for (const u of enc.usages) { const m = (String(rec.usage) === u) ? 1 : 0; v.push(m); matched |= m; }
+  v.push(matched ? 0 : 1); // other
+  const low = Number(rec.low) || 0, apsl = Number(rec.apsl) || 0, round = Number(rec.round) || 1;
+  v.push(Math.min(round, 10));                               // 회차(상한)
+  v.push(low > 0 ? Math.log10(low) : 0);                     // 최저가 로그
+  v.push(apsl > 0 ? Math.log10(apsl) : 0);                   // 감정가 로그
+  v.push(apsl > 0 ? Math.max(0, Math.min(2, low / apsl)) : 0); // 저가율(최저가/감정가)
+  return v;
+}
+// 학습: 낙찰(0010)·lr>0만. 서브샘플로 성능 가드. win/lr을 x에 안 넣음(y=lr만 목표).
+function trainV08(records) {
+  let sold = records.filter(r => r.st === '0010' && r.lr > 0 && r.low > 0);
+  if (sold.length < 50) return null; // 표본 부족 → v0.8 해당 스테이지 생략
+  if (sold.length > V08_NMAX) { const step = sold.length / V08_NMAX, s = []; for (let i = 0; i < V08_NMAX; i++) s.push(sold[Math.floor(i * step)]); sold = s; }
+  const enc = buildEncoderV08(sold, 12);
+  const X = sold.map(r => encodeV08(r, enc)), y = sold.map(r => r.lr);
+  return { enc, gb: GB.trainQuantileBands(X, y, V08_OPTS), n: sold.length };
+}
+// 예측: it엔 개찰 전 값만(win 없음 — GR11). lr 분위수 → it.low로 환산.
+function predictV08(model, it) {
+  if (!model || !model.gb) return null;
+  const b = GB.predictBands(model.gb, encodeV08(it, model.enc)); // lr 분위수
+  const lo = Math.round(it.low * b.lo / 100), mid = Math.round(it.low * b.mid / 100);
+  let hi = Math.round(it.low * b.hi / 100);
+  if (hi <= lo) hi = Math.round(lo * 1.05);
+  return { lo, mid, hi };
+}
+
 // ═══ 모델 레지스트리 — 새 후보는 여기 등록 한 줄 + BT_VERSION 범프 ═══
-// predict(cells, item)의 item엔 개찰 전 값만 들어온다(win 없음 — 마스킹 구조 보장).
+// predict(art, item)의 item엔 개찰 전 값만 들어온다(win 없음 — 마스킹 구조 보장).
+// art = { cells(v05/v07용), gb08(v08 학습 결과) } — train 단계에서 함께 만든다.
 // (v0.6 두앵커+광폭 밴드는 2026-07-23 기각 — Golden Rule "넓혀서 맞히기 금지" 위반으로 제외.)
 const MODELS = [
   {
     key: 'v05', label: '최저가 × 낙찰가율 분위수(p10~p90) — 기준선',
-    predict: (cells, it) => predictFromChain(cells, it, keysFor(it.type, it.usage, roundBucket(it.round), tierOf(it.low))),
+    predict: (art, it) => predictFromChain(art.cells || {}, it, keysFor(it.type, it.usage, roundBucket(it.round), tierOf(it.low))),
   },
   {
     key: 'v07', label: 'v0.5 + 저가율(최저가/감정가) 조건 셀 L4 — 폭 불변·중심 정밀화',
-    predict: (cells, it) => predictFromChain(cells, it, keysForV07(it.type, it.usage, roundBucket(it.round), tierOf(it.low), discBand(it.low, it.apsl))),
+    predict: (art, it) => predictFromChain(art.cells || {}, it, keysForV07(it.type, it.usage, roundBucket(it.round), tierOf(it.low), discBand(it.low, it.apsl))),
+  },
+  {
+    key: 'v08', label: 'GBDT 분위수 부스팅 — 피처 상호작용·연속값·이분산 학습(순수 JS)',
+    predict: (art, it) => predictV08(art.gb08, it),
   },
 ];
+
+exports._test = { encodeV08, trainV08, predictV08, buildEncoderV08 }; // fixture 검증용
 
 function newAcc() { return { n: 0, hit: 0, sumErr: 0, sumWidth: 0 }; }
 function grade(pred, win, acc) {
@@ -231,16 +284,18 @@ exports.handler = async (event) => {
 
     if (state.phase === 'train') {
       const trainRecs = await loadRange(store, featKeys, stage.train[0], stage.train[1]);
-      const cells = buildCells(trainRecs);
-      await store.setJSON(`bt/_traincells_${stage.key}`, { cells, trainN: trainRecs.length, cellCount: Object.keys(cells).length });
+      const cells = buildCells(trainRecs);          // v05/v07용 셀
+      const gb08 = trainV08(trainRecs);             // v0.8 GBDT 학습(표본 부족·서브샘플 내장, 없으면 null)
+      // art = {cells, gb08} — 두 단계(train/score) 사이 재개를 위해 blob에 저장.
+      await store.setJSON(`bt/_traincells_${stage.key}`, { cells, gb08, trainN: trainRecs.length, cellCount: Object.keys(cells).length, gb08N: gb08 ? gb08.n : 0 });
       await store.setJSON('bt/_state', { stageIdx: state.stageIdx, phase: 'score', version: BT_VERSION });
-      await store.setJSON('_run/backtest', { at: new Date().toISOString(), ok: true, stage: stage.key, phase: 'trained', trainN: trainRecs.length, cells: Object.keys(cells).length });
-      return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true, stage: stage.key, phase: 'trained', trainRecords: trainRecs.length, cellCount: Object.keys(cells).length, note: '다음 실행에서 테스트 블록을 채점합니다.' }) };
+      await store.setJSON('_run/backtest', { at: new Date().toISOString(), ok: true, stage: stage.key, phase: 'trained', trainN: trainRecs.length, cells: Object.keys(cells).length, gb08N: gb08 ? gb08.n : 0 });
+      return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true, stage: stage.key, phase: 'trained', trainRecords: trainRecs.length, cellCount: Object.keys(cells).length, gb08N: gb08 ? gb08.n : 0, note: '다음 실행에서 테스트 블록을 채점합니다.' }) };
     }
 
-    // score — 레지스트리의 모든 모델 병행 채점 (예측 입력엔 개찰 전 값만)
-    const tc = (await store.get(`bt/_traincells_${stage.key}`, { type: 'json' })) || { cells: {} };
-    const cells = tc.cells || {};
+    // score — 레지스트리의 모든 모델 병행 채점 (예측 입력엔 개찰 전 값만). art={cells,gb08}.
+    const art = (await store.get(`bt/_traincells_${stage.key}`, { type: 'json' })) || { cells: {}, gb08: null };
+    const cells = art.cells || {};
     const testRecs = await loadRange(store, featKeys, stage.test[0], stage.test[1]);
     const sold = testRecs.filter(r => r.st === '0010' && r.win > 0);
 
@@ -248,7 +303,7 @@ exports.handler = async (event) => {
     for (const m of MODELS) accs[m.key] = newAcc();
     for (const item of sold) {
       const feat = { type: item.type, usage: item.usage, round: item.round, low: item.low, apsl: item.apsl }; // win 없음
-      for (const m of MODELS) grade(m.predict(cells, feat), item.win, accs[m.key]);
+      for (const m of MODELS) grade(m.predict(art, feat), item.win, accs[m.key]);
     }
     const perModel = {};
     for (const m of MODELS) perModel[m.key] = finalize(accs[m.key], sold.length);
@@ -257,7 +312,7 @@ exports.handler = async (event) => {
     const result = {
       key: stage.key, vlabel: stage.vlabel, testLabel: stage.testLabel,
       trainRange: stage.train.join('~'), testRange: stage.test.join('~'),
-      trainRecords: tc.trainN || 0, trainCells: tc.cellCount || Object.keys(cells).length,
+      trainRecords: art.trainN || 0, trainCells: art.cellCount || Object.keys(cells).length,
       testSold: sold.length,
       models: perModel,
       // 하위호환: 기존 랩이 읽던 최상위 필드는 기준선(v0.5) 값으로 유지
