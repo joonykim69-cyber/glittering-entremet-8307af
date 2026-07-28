@@ -47,7 +47,7 @@
 - [ ] **ECOS CD·국고채 시리즈 코드** — `/.netlify/functions/ecos-svc?series=cd91,tb3y&debug=1`
   - 정상: 각 시리즈 최근값+추세. 실패: `INFO-200`(item 코드 오류) → `ECOS_SERIES_CD91`/`_TB3Y` env 교정. (기준금리 baseRate는 실호출 확정됨.)
 - [ ] **RONE 지역 매칭** — `/.netlify/functions/rone-svc?region=부산&debug=1`
-  - 정상: 소재 시도 매칭 시계열(`regionMatched:true`) 또는 전국 폴백. `RONE_STATBL_ID=A_2024_00178` 확정됨.
+  - 정상: 소재 시도 매칭 시계열(`regionMatched:true`) 또는 전국 폴백. `RONE_STATBL_ID`(월 지역별 아파트 매매지수 통계표)는 Netlify env에 설정·확정됨(값은 CLAUDE.md 참조).
 - [ ] **네이버 뉴스** — `bidcast-insight.html` 부동산소식 탭 / `/.netlify/functions/naver-news?query=부동산&debug=1`
   - 정상: 실뉴스 카드. 실패: 501 → 예시 유지(키 미설정 degrade).
 
