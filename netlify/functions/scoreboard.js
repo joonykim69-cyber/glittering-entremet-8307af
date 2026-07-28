@@ -67,6 +67,14 @@ exports.handler = async (event) => {
       store.get('bt/sim/records', { type: 'json' }),   // 모의 라이브 per-item 기록(관제실 과녁 점)
       store.get('_run/sim-live', { type: 'json' }),
     ]);
+    // 시세 축(⑤) — 낙찰가 원장과 별개 지표("시세 추정 신뢰도"). 미수집이면 전부 null → 랩 섹션 숨김.
+    const [mktAgg, mktBt, runMktSeal, runMktBt, mktMeta] = await Promise.all([
+      store.get('mkt/agg', { type: 'json' }),          // 라이브 밴드 봉인·채점 집계(3단계)
+      store.get('mkt/bt/summary', { type: 'json' }),   // nowcast walk-forward 정합도(2단계)
+      store.get('_run/mkt-seal-daily', { type: 'json' }),
+      store.get('_run/mkt-backtest', { type: 'json' }),
+      store.get('mkt/rtms/_meta', { type: 'json' }),   // RTMS 수집 진행(1단계)
+    ]);
 
     const n = agg?.n || 0;
     const summary = n ? {
@@ -123,7 +131,16 @@ exports.handler = async (event) => {
           backfill: runBackfill || null,
           backtest: runBacktest || null,
           sim: runSim || null,
+          mktSeal: runMktSeal || null,
+          mktBacktest: runMktBt || null,
         },
+        // ── 시세 축(⑤) — 낙찰가 성적표와 **별개 지표**. UI에서 절대 섞지 말 것.
+        //   market: 라이브 밴드 봉인·채점(결과 전 봉인·불변) {overall:{n,hitRate,avgErrPct,avgCoverage},byKind,byMonth}
+        //   marketBacktest: 과거 nowcast 정합도(walk-forward, "학습곡선" 아님)
+        //   marketData: RTMS 수집 진행 {records,cellMonths,done}
+        market: (mktAgg && mktAgg.overall && mktAgg.overall.n) ? mktAgg : null,
+        marketBacktest: (mktBt && mktBt.observations) ? mktBt : null,
+        marketData: mktMeta ? { records: mktMeta.records || 0, cellMonths: mktMeta.cellMonths || 0, done: !!mktMeta.done } : null,
         // 1~6월 마스킹 백필 진행: {records, windows, oldest, newest, done, cursorEnd}. 미시작이면 null.
         backfill: bfMeta || null,
         // walk-forward 백테스트 성장 곡선: {stages:[{vlabel,testLabel,n,coverage,hitRate,avgAbsErrPct,avgWidthPct}], done}. 미시작이면 null.

@@ -310,6 +310,19 @@ h1,h2,h3,h4{font-family:var(--font-head)}
   </div>
 </section>
 
+<!-- ═══ 시세 추정 신뢰도 (시세 축 ⑤ 4단계) — 낙찰가 성적표와 **별개 지표**. 문구·색으로 분리 ═══ -->
+<!-- 표본 없으면 섹션 자체를 숨긴다(degrade) — 가짜 수치 금지. renderMarket()이 채움. -->
+<section class="section" id="mktSec" style="padding-top:0; display:none;">
+  <div class="wrap">
+    <span class="eyebrow" style="color:#8A6D00;">Market Estimate — 별개 지표</span>
+    <h2 class="title">시세 추정 신뢰도 <span style="font-size:14px;font-weight:700;color:var(--sub);vertical-align:middle;">(낙찰가 적중률과 다른 지표입니다)</span></h2>
+    <p class="lead">위의 적중률은 <b>"얼마에 낙찰될까"</b>의 성적입니다. 이 섹션은 <b>"주변 시세가 지금 얼마인가"</b>를 우리가 얼마나 정확히 잡는지의 성적입니다 — 두 숫자는 <b>성격이 달라 섞어 읽으면 안 됩니다.</b> 시세 밴드도 낙찰가와 같은 규율로 <b>결과가 나오기 전에 봉인</b>하고, 나중에 도착한 실거래로 채점합니다.</p>
+    <div id="mktLive" style="margin-top:22px;"></div>
+    <div id="mktBt" style="margin-top:22px;"></div>
+    <p class="foot-note" id="mktFoot"></p>
+  </div>
+</section>
+
 <!-- 모델 연혁 — 초기값부터 모든 변경·결과의 순차 공개 기록 (scoreboard chronicle, 실데이터) -->
 <section class="section" id="chronicleSec" style="padding-top:0; display:none;">
   <div class="wrap">
@@ -540,6 +553,60 @@ document.addEventListener('keydown', (e) => {
 
 // ═══ 모델 연혁 타임라인 — scoreboard.chronicle 렌더 ═══
 (async () => {
+  // 시세 추정 신뢰도 렌더 — market(라이브 봉인·채점) + marketBacktest(과거 정합도).
+  // 둘 다 없으면 섹션을 열지 않는다(가짜 수치·빈 표 금지). 낙찰가 지표와 문구·색으로 분리.
+  function renderMarket(d) {
+    const KIND = { apt: '아파트', offi: '오피스텔', rh: '연립·다세대', sh: '단독·다가구' };
+    const cell = (lbl, val, note) => `<div class="asset-acc"><h4>${lbl}</h4><div class="pct">${val}</div><div class="note">${note}</div></div>`;
+    const mk = d.market, bt = d.marketBacktest;
+    let shown = false;
+
+    // ① 라이브 봉인·채점 (결과 전 봉인·불변)
+    const live = document.getElementById('mktLive');
+    if (mk && mk.overall && mk.overall.n > 0) {
+      const o = mk.overall;
+      const kinds = Object.keys(mk.byKind || {}).filter(k => mk.byKind[k] && mk.byKind[k].n > 0);
+      live.innerHTML =
+        `<h3 style="font-size:17px;font-weight:800;margin:0 0 12px;">봉인한 시세 밴드의 성적 <span style="font-size:12px;color:var(--sub);font-weight:700;">— 결과 전 봉인 · 사후 수정 없음</span></h3>` +
+        `<div class="asset-acc-grid">` +
+        cell('채점된 봉인', o.n.toLocaleString() + '건', '다음 달 실거래가 도착한 봉인') +
+        cell('밴드 적중률', o.hitRate + '%', '실제 ㎡당 중앙값이 밴드 안에 든 비율') +
+        cell('중앙값 오차', o.avgErrPct + '%', '봉인 중앙값 vs 실제 중앙값') +
+        cell('거래 커버리지', o.avgCoverage + '%', '개별 거래가 밴드 안에 든 비율') +
+        `</div>` +
+        (kinds.length ? `<div class="asset-acc-grid" style="margin-top:14px;">` + kinds.map(k =>
+          cell(KIND[k] || k, mk.byKind[k].hitRate + '%', `표본 ${mk.byKind[k].n}건 · 오차 ${mk.byKind[k].avgErrPct}%`)).join('') + `</div>` : '');
+      shown = true;
+    } else {
+      live.innerHTML = `<div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px 20px;font-size:14px;line-height:1.7;color:var(--sub);">📒 시세 밴드 봉인 가동 중 — 봉인한 달의 <b>다음 달 실거래가 도착하면</b> 자동 채점되어 성적이 여기 실측으로 표시됩니다. 표본이 쌓이기 전에는 숫자를 만들지 않습니다.</div>`;
+    }
+
+    // ② 과거 정합도(walk-forward) — "학습곡선"이 아니라 정합도 측정임을 명시
+    const btBox = document.getElementById('mktBt');
+    if (bt && bt.observations > 0 && bt.overall) {
+      const o = bt.overall;
+      btBox.innerHTML =
+        `<h3 style="font-size:17px;font-weight:800;margin:0 0 12px;">과거 재현 정합도 <span style="font-size:12px;color:var(--sub);font-weight:700;">— 그 달 이전 거래로만 추정 → 다음 달 실거래로 채점</span></h3>` +
+        `<div class="asset-acc-grid">` +
+        cell('관측', o.n.toLocaleString() + '건', `${bt.cells}개 지역·유형 셀`) +
+        cell('밴드 적중률', o.hitRate + '%', '다음 달 중앙값이 밴드 안') +
+        cell('중앙값 오차', (o.medErrPct != null ? o.medErrPct : '—') + '%', '중앙값 기준(중위)') +
+        cell('거래 커버리지', (o.avgCoverage != null ? o.avgCoverage : '—') + '%', '개별 거래 포함률') +
+        `</div>` +
+        `<p class="foot-note" style="margin-top:10px;">※ 이 값은 <b>"학습해서 좋아지는 곡선"이 아닙니다</b> — 시세 추정기는 학습 모델이 아니라 최근 실거래 분위수를 쓰는 고정 방식이라, 시간이 지난다고 성적이 오르는 종류가 아닙니다. "지금 시세를 얼마나 정확히 잡는가"의 측정치입니다.</p>`;
+      shown = true;
+    } else {
+      btBox.innerHTML = '';
+    }
+
+    if (!shown) return; // 실측이 하나도 없으면 섹션 자체를 열지 않는다
+    const md = d.marketData;
+    document.getElementById('mktFoot').innerHTML =
+      '✅ 실측 — 국토교통부 실거래가 기반' + (md && md.records ? ` (수집 ${md.records.toLocaleString()}건)` : '') +
+      ' · 시세 밴드는 <b>범위(㎡당 25~75분위)</b>로만 제시하며 한 숫자로 단정하지 않습니다 · <b>이 지표는 낙찰가 적중률과 별개</b>이고, 시세·수익을 보장하지 않습니다.';
+    document.getElementById('mktSec').style.display = '';
+  }
+
   try {
     const r = await fetch('/.netlify/functions/scoreboard');
     if (!r.ok) return;
@@ -547,6 +614,9 @@ document.addEventListener('keydown', (e) => {
 
     // ── 적중률 추이 실측화 (scoreboard.daily) ──
     if (d.daily) renderTrend(d.daily);
+
+    // ── 시세 추정 신뢰도(⑤ 4단계) — 낙찰가 성적표와 별개 지표. 실측 없으면 섹션 숨김 유지 ──
+    renderMarket(d);
 
     // ── 큐레이션 성적 실측화 (curatedScore, 표본 있을 때만 노출) ──
     if (d.curatedScore && d.curatedScore.n > 0) {
