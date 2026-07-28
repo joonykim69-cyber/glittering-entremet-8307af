@@ -418,8 +418,20 @@ document.getElementById('monthGrid').innerHTML = MONTHS.map(mo => `
 // ═══════════════════════════════════════
 // 같은 건물의 여러 호실을 하나로 묶는다(랜딩의 buildingKey와 동일 휴리스틱).
 // 대표 1건 + _more(나머지 개수). 재고를 감추지 않고 접어서 보여주기 위함.
+// 건물 키 — 물건명 꼬리의 호수·층수·필지 표기를 반복 제거해 "같은 건물"을 식별한다.
+// ⚠️ 접두 문자는 **ASCII만**(B110호 같은 표기) 허용하고 앞에 공백 경계를 요구한다.
+//    한글 한 글자를 옵션으로 두면 "110동 104-2호"의 '동', "…생활시설 101호"의 '설'을
+//    잡아먹어 키가 갈라진다(실제 프로덕션에서 5건이 안 묶인 원인 — 2026-07-28 수정).
 function buildingKeyC(it) {
-  return String(it.title || '').replace(/\s*\d+\s*호(?:\s|$).*$/, '').replace(/\s*제?\d+층.*$/, '').trim() || String(it.id);
+  let s = String(it.title || '').trim(), prev;
+  do {
+    prev = s;
+    s = s.replace(/\s+(?:지하|지상|제)?(?:[A-Za-z]{1,2})?\d+(?:[-–~/]\d+)*\s*호(?=\s|$)[\s\S]*$/, '')  // …B110호 / 104-2호 이하
+         .replace(/\s+(?:지하|지상)?제?\s*\d+\s*층(?=\s|$)[\s\S]*$/, '')                                 // …제3층 / 지하1층 이하
+         .replace(/\s+외\s*\d+\s*(?:필지|개호|호|세대)(?=\s|$)[\s\S]*$/, '')                              // …외 5필지 이하
+         .trim();
+  } while (s !== prev && s.length);
+  return s.replace(/[\s,·\-–]+$/, '').trim() || String(it.id || '');
 }
 function groupByBuilding(list) {
   const map = new Map();
