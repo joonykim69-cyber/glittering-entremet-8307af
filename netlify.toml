@@ -51,6 +51,10 @@
    # RTMS가 쌓이는 동안 매시간 정합도 갱신, 미수집이면 no-op. 낙찰가 백테스트(backtest)와 별개.
    [functions."mkt-backtest"]
      schedule = "25 * * * *"
+   # 시세 축 ⑤ 3단계 시세 밴드 봉인·채점 — KST 07:20(낙찰가 봉인 07:00 직후). 각 셀의 이번 달
+   # 밴드를 불변 봉인하고, 다음 달 실거래가 도착한 과거 봉인을 채점(멱등). 블롭만 읽고 씀.
+   [functions."mkt-seal-daily"]
+     schedule = "20 22 * * *"
    # (2026-07-23 완료) 1~6월(2026) 마스킹 백필은 이미 완료됨 — 위 2025 확장이 그 커서를 이어받음.
    # 챌린저 백테스트 임시 스케줄 (2026-07-28 v0.8 비교용 재활성 — BT_VERSION v4-gbtree 범프됨).
    # backtest.js가 bt/_state.version≠BT_VERSION이면 처음부터 재실행하므로, 이 크론이 v0.5 vs
