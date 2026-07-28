@@ -74,6 +74,46 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 .newsletter button { font:inherit; font-size:13.5px; font-weight:800; cursor:pointer; background:var(--grad); color:#fff; border:none; padding:11px 22px; border-radius:999px; }
 
 /* 상세 모달 */
+/* ═══ 뉴스룸 지면 (2026-07-28 재디자인) ═══ */
+.news-head { padding-bottom:4px; }
+.masthead { margin:6px 0 12px; }
+.mh-rule { height:1px; background:var(--ink); opacity:.85; }
+.mh-rule.thick { height:3px; margin-top:3px; }
+.mh-main { display:flex; align-items:baseline; gap:14px; padding:12px 2px; }
+.mh-title { font-family:var(--font-head,'Nunito',serif); font-size:clamp(26px,4.2vw,40px); font-weight:900; letter-spacing:-0.04em; margin:0 auto; text-align:center; }
+.mh-title em { font-style:normal; color:var(--green-deep); }
+.mh-left, .mh-right { font-size:11px; font-weight:800; color:var(--mute); letter-spacing:.04em; white-space:nowrap; text-transform:uppercase; }
+@media (max-width:640px) { .mh-left, .mh-right { display:none; } .mh-main { padding:10px 0; } }
+.mh-lead { color:var(--sub); font-size:14px; max-width:640px; margin-top:2px; }
+/* 지면 레이아웃 — 톱기사 + 사이드 + 랭킹 리스트 */
+.news-wrap { margin-top:20px; }
+.news-lead-row { display:grid; grid-template-columns:1.55fr 1fr; gap:22px; padding-bottom:20px; border-bottom:2px solid var(--ink); }
+@media (max-width:860px) { .news-lead-row { grid-template-columns:1fr; gap:16px; } }
+.lead-story { cursor:pointer; }
+.lead-story .kicker { font-size:11px; font-weight:900; color:var(--red); letter-spacing:.08em; text-transform:uppercase; }
+.lead-story h2 { font-family:var(--font-head,'Nunito',sans-serif); font-size:clamp(21px,2.9vw,31px); font-weight:900; line-height:1.28; letter-spacing:-0.03em; margin:8px 0 10px; }
+.lead-story:hover h2 { color:var(--green-deep); }
+.lead-story p { font-size:14px; color:var(--sub); line-height:1.75; }
+.lead-story .byline { margin-top:10px; font-size:11.5px; color:var(--mute); font-weight:700; display:flex; gap:10px; align-items:center; }
+.side-col { display:flex; flex-direction:column; gap:14px; border-left:1px solid var(--line); padding-left:22px; }
+@media (max-width:860px) { .side-col { border-left:none; padding-left:0; border-top:1px solid var(--line); padding-top:16px; } }
+.side-story { cursor:pointer; padding-bottom:12px; border-bottom:1px solid var(--line); }
+.side-story:last-child { border-bottom:none; padding-bottom:0; }
+.side-story h3 { font-size:14.5px; font-weight:800; line-height:1.45; letter-spacing:-0.01em; }
+.side-story:hover h3 { color:var(--green-deep); }
+.side-story .byline { margin-top:5px; font-size:11px; color:var(--mute); font-weight:700; }
+.news-sec-title { display:flex; align-items:center; gap:10px; margin:24px 0 12px; }
+.news-sec-title h3 { font-size:15px; font-weight:900; letter-spacing:-0.01em; white-space:nowrap; }
+.news-sec-title .line { flex:1; height:1px; background:var(--line); }
+.rank-list { display:grid; grid-template-columns:1fr 1fr; gap:0 26px; }
+@media (max-width:760px) { .rank-list { grid-template-columns:1fr; } }
+.rank-item { display:flex; gap:12px; align-items:flex-start; padding:11px 0; border-bottom:1px solid var(--line); cursor:pointer; }
+.rank-item:hover .rt { color:var(--green-deep); }
+.rank-item .no { flex:none; width:22px; font-family:var(--font-head,'Nunito',sans-serif); font-size:15px; font-weight:900; color:var(--green); font-variant-numeric:tabular-nums; line-height:1.5; }
+.rank-item .rt { font-size:13.5px; font-weight:700; line-height:1.5; }
+.rank-item .rm { font-size:11px; color:var(--mute); font-weight:700; margin-top:3px; }
+.news-src { margin-top:16px; font-size:11.5px; color:var(--mute); line-height:1.7; }
+
 .art-overlay { position:fixed; inset:0; z-index:210; display:none; align-items:flex-start; justify-content:center; padding:min(6vh,50px) 16px 40px; background:rgba(16,32,26,.5); backdrop-filter:blur(6px); overflow-y:auto; opacity:0; transition:opacity .25s var(--ease); }
 .art-overlay.open { display:flex; } .art-overlay.vis { opacity:1; }
 .art-modal { width:100%; max-width:600px; background:var(--surface); border:1px solid var(--line); border-radius:24px; padding:30px 32px 32px; position:relative; box-shadow:0 30px 80px rgba(16,32,26,.28); transform:scale(.97) translateY(10px); transition:transform .25s var(--ease); }
@@ -167,11 +207,20 @@ h1,h2,h3,h4{font-family:var(--font-head)}
   </div>
 </nav>
 
-<header class="page-head">
+<header class="page-head news-head">
   <div class="wrap">
-    <h1>인사이트</h1>
-    <p>공매 소식과 전문가 컬럼, 처음이라도 괜찮도록 용어부터 입찰 전략까지 정리했습니다.</p>
-    <span class="demo-chip">🔧 아래 글은 예시 데이터입니다 — 실제 콘텐츠는 서비스 오픈 후 발행됩니다</span>
+    <!-- 신문 제호(masthead) — 실제 뉴스 지면처럼 -->
+    <div class="masthead">
+      <div class="mh-rule"></div>
+      <div class="mh-main">
+        <span class="mh-left" id="mhDate">—</span>
+        <h1 class="mh-title">신호등 <em>인사이트</em></h1>
+        <span class="mh-right">공매 · 부동산 뉴스룸</span>
+      </div>
+      <div class="mh-rule thick"></div>
+    </div>
+    <p class="mh-lead">공매 소식과 전문가 컬럼, 처음이라도 괜찮도록 용어부터 입찰 전략까지 정리했습니다.</p>
+    <span class="demo-chip" id="insightChip">🔧 부동산소식은 실시간 뉴스 · 전문가 컬럼은 예시 데이터입니다</span>
 
     <div class="kind-tabs" id="kindTabs">
       <button data-kind="news" class="on">부동산소식</button>
@@ -320,31 +369,71 @@ function renderCatChips() {
   });
 }
 
+// 신문 제호의 발행일 — KST 기준 "2026년 7월 28일 화요일"
+(function setMastheadDate(){
+  const el = document.getElementById('mhDate'); if (!el) return;
+  const d = new Date(Date.now() + 9*3600*1000);
+  const wd = ['일','월','화','수','목','금','토'][d.getUTCDay()];
+  el.textContent = `${d.getUTCFullYear()}년 ${d.getUTCMonth()+1}월 ${d.getUTCDate()}일 ${wd}요일`;
+})();
+
+// 뉴스룸 지면 렌더 — 톱기사 1 + 사이드 3 + 나머지 랭킹 리스트.
+// 카드 나열 대신 실제 신문/방송 뉴스 페이지의 위계를 따른다(창업자 지시 2026-07-28).
+function renderNewsroom(list, opts) {
+  const o = opts || {};
+  const grid = document.getElementById('articleGrid');
+  const lead = list[0], side = list.slice(1, 4), rest = list.slice(4);
+  const byline = a => [o.source || '', a.date ? fmtNewsDate(a.date) : (a.rt ? `${a.rt}분 읽기` : '')].filter(Boolean).join(' · ');
+  const key = a => o.real ? `data-link="${esc(a.link)}"` : `data-idx="${ARTICLES.indexOf(a)}"`;
+  grid.className = 'news-wrap';
+  grid.innerHTML = `
+    <div class="news-lead-row">
+      ${lead ? `<div class="lead-story" ${key(lead)}>
+        <span class="kicker">${esc(lead.cat || '헤드라인')}</span>
+        <h2>${esc(lead.title)}</h2>
+        <p>${esc(lead.desc || lead.excerpt || '')}</p>
+        <div class="byline">${esc(byline(lead))}</div>
+      </div>` : '<div></div>'}
+      <div class="side-col">
+        ${side.map(a => `<div class="side-story" ${key(a)}>
+          <h3>${esc(a.title)}</h3>
+          <div class="byline">${esc(a.cat || '')}${a.cat ? ' · ' : ''}${esc(byline(a))}</div>
+        </div>`).join('') || '<div style="font-size:13px;color:var(--sub)">표시할 기사가 더 없습니다.</div>'}
+      </div>
+    </div>
+    ${rest.length ? `<div class="news-sec-title"><h3>${o.real ? '더 많은 소식' : '이어지는 글'}</h3><div class="line"></div></div>
+    <div class="rank-list">
+      ${rest.map((a, i) => `<div class="rank-item" ${key(a)}>
+        <span class="no">${i + 4}</span>
+        <span><span class="rt">${esc(a.title)}</span><span class="rm">${esc(byline(a))}</span></span>
+      </div>`).join('')}
+    </div>` : ''}
+    <p class="news-src">${o.note || ''}</p>`;
+  // 클릭 — 실뉴스는 원문 새 탭, 예시 컬럼은 모달
+  grid.querySelectorAll('[data-link]').forEach(el => el.addEventListener('click', () => {
+    const l = el.getAttribute('data-link'); if (l && /^https?:\/\//.test(l)) window.open(l, '_blank', 'noopener');
+  }));
+  grid.querySelectorAll('[data-idx]').forEach(el => el.addEventListener('click', () => openArticle(+el.getAttribute('data-idx'))));
+}
+
 function renderArticles() {
   const grid = document.getElementById('articleGrid');
-  // 부동산소식 실뉴스가 있으면 실데이터로 렌더(클릭 시 원문 새 탭)
+  // 부동산소식 실뉴스가 있으면 실데이터로 뉴스룸 지면 렌더(클릭 시 원문 새 탭)
   if (activeKind === 'news' && realNews[activeCat] && realNews[activeCat].length) {
-    grid.innerHTML = realNews[activeCat].map(a => `
-      <article class="article-card" data-link="${esc(a.link)}">
-        <span class="cat">${esc(a.cat)}</span>
-        <h4>${esc(a.title)}</h4>
-        <p>${esc(a.desc)}</p>
-        <div class="meta"><span>📰 네이버 뉴스</span><span>${fmtNewsDate(a.date)}</span></div>
-      </article>`).join('');
-    grid.querySelectorAll('article[data-link]').forEach(el => {
-      el.addEventListener('click', () => { const l = el.getAttribute('data-link'); if (l && /^https?:\/\//.test(l)) window.open(l, '_blank', 'noopener'); });
+    renderNewsroom(realNews[activeCat], {
+      real: true, source: '네이버 뉴스',
+      note: '📰 네이버 뉴스 검색 실시간 연동 — 제목을 누르면 언론사 원문으로 이동합니다. 같은 보도자료를 옮겨 실은 중복 기사는 자동으로 걸러집니다.',
     });
     return;
   }
   let list = ARTICLES.filter(a => a.kind === activeKind);
   if (activeCat !== '전체') list = list.filter(a => a.cat === activeCat);
-  grid.innerHTML = list.map((a, i) => `
-    <article class="article-card" onclick="openArticle(${ARTICLES.indexOf(a)})">
-      <span class="cat ${a.warn ? 'warn' : ''}">${a.cat}</span>
-      <h4>${a.title}</h4>
-      <p>${a.excerpt}</p>
-      <div class="meta"><span>📖 ${a.rt}분 읽기</span><span>조회 ${a.views.toLocaleString()}</span></div>
-    </article>`).join('');
+  renderNewsroom(list, {
+    real: false, source: '신호등옥션 편집',
+    note: activeKind === 'column'
+      ? '✍️ 전문가 컬럼은 <b>예시 데이터</b>입니다 — 실제 필자 콘텐츠는 오픈 후 발행됩니다(없는 글을 지어내지 않기 위해 예시임을 명시합니다).'
+      : '🔧 예시 데이터 — 실시간 뉴스 연동이 되지 않아 예시 지면을 표시합니다.',
+  });
 }
 
 document.querySelectorAll('#kindTabs button').forEach(btn => {

@@ -65,6 +65,46 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 .axis-chip .n { font-size:13.5px; font-weight:700; }
 .axis-chip .c { font-size:12px; color:var(--green-deep); font-weight:800; white-space:nowrap; }
 
+/* ═══ 백과사전형 허브 (2026-07-28 재디자인) ═══ */
+.cat-intro { background:linear-gradient(135deg,#0E2A1F 0%,#0A6B45 60%,#00A86B 100%); color:#fff; border-radius:22px; padding:26px 28px; margin:24px 0 8px; }
+.cat-intro h2 { font-size:clamp(18px,2.4vw,23px); font-weight:900; letter-spacing:-0.02em; }
+.cat-intro p { font-size:13.5px; color:rgba(255,255,255,.9); margin-top:8px; line-height:1.7; max-width:640px; }
+.cat-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:18px; }
+.cat-stats div { background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18); border-radius:14px; padding:12px 14px; }
+.cat-stats b { display:block; font-size:19px; font-weight:900; font-variant-numeric:tabular-nums; }
+.cat-stats span { font-size:11px; color:rgba(255,255,255,.82); font-weight:700; }
+@media (max-width:700px) { .cat-stats { grid-template-columns:1fr 1fr; } .cat-intro { padding:20px 18px; } }
+.axis-head { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:4px; }
+.axis-head h3 { font-size:17px; font-weight:900; margin:0; }
+.axis-head .sub { font-size:12.5px; color:var(--sub); font-weight:600; }
+.axis-head .cnt { margin-left:auto; font-size:11.5px; font-weight:800; color:var(--mute); }
+.axis-desc { font-size:12.5px; color:var(--sub); line-height:1.65; margin:0 0 14px; }
+/* 유형 카드 — 아이콘 + 설명이 있는 백과사전형 */
+.type-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:12px; }
+.type-card { background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px; text-decoration:none; color:var(--ink); display:flex; flex-direction:column; gap:6px; transition:all .2s; }
+.type-card:hover { border-color:var(--green); transform:translateY(-3px); box-shadow:0 12px 28px rgba(16,32,26,.09); }
+.type-card .th { display:flex; align-items:center; gap:9px; }
+.type-card .ico { font-size:21px; }
+.type-card .nm { font-size:14.5px; font-weight:900; }
+.type-card .ct { margin-left:auto; font-size:12px; font-weight:800; color:var(--green-deep); white-space:nowrap; font-variant-numeric:tabular-nums; }
+.type-card .ds { font-size:12px; color:var(--sub); line-height:1.6; }
+/* 지역 칩 — 17개 시도 조밀 배치 */
+.region-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(132px,1fr)); gap:8px; }
+.rg-chip { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:11px 12px; text-decoration:none; color:var(--ink); display:flex; align-items:center; justify-content:space-between; gap:8px; transition:all .18s; }
+.rg-chip:hover { border-color:var(--green); background:var(--green-soft); }
+.rg-chip .n { font-size:13px; font-weight:800; }
+.rg-chip .c { font-size:11.5px; font-weight:800; color:var(--green-deep); font-variant-numeric:tabular-nums; }
+.rg-chip.zero .c { color:var(--mute); font-weight:700; }
+/* 동산 안내 + 용어 사전 */
+.mv-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:12px; }
+.mv-card { background:var(--bg); border:1px dashed var(--line); border-radius:14px; padding:14px 16px; }
+.mv-card b { font-size:13.5px; font-weight:900; display:flex; align-items:center; gap:8px; }
+.mv-card p { font-size:12px; color:var(--sub); line-height:1.6; margin-top:6px; }
+.gl-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:10px; }
+.gl-item { background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--green); border-radius:12px; padding:12px 14px; }
+.gl-item dt { font-size:13px; font-weight:900; color:var(--green-deep); }
+.gl-item dd { font-size:12px; color:var(--sub); line-height:1.65; margin-top:4px; }
+
 /* LEAF */
 .leaf-switch { display:flex; align-items:flex-end; flex-wrap:wrap; gap:14px; margin-top:22px; padding:16px 18px; background:var(--surface); border:1px solid var(--line); border-radius:16px; }
 .leaf-switch .ls-group { display:flex; flex-direction:column; gap:5px; }
@@ -226,21 +266,50 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 
 <script>
 // 예시 카테고리 통계 (실 데이터는 온비드 API 연동 후 교체)
+// 지역 축 — 전국 17개 시도(사이트맵 leaf와 동일 축). count는 예시 초기값이며
+// loadHubCounts()가 지역별 실 totalCount로 교체한다(실패 시 예시 유지).
 const REGION_DATA = {
   '서울': { count: 2499, sub: [['강서구',395],['금천구',212],['강남구',188],['서대문구',156],['그 외',1548]] },
   '경기': { count: 1830, sub: [['시흥시',210],['수원시',180],['성남시',165],['고양시',140],['그 외',1135]] },
   '인천': { count: 640, sub: [['서구',120],['남동구',98],['부평구',80],['그 외',342]] },
   '부산': { count: 710, sub: [['해운대구',140],['부산진구',95],['동래구',70],['그 외',405]] },
   '대구': { count: 380, sub: [['달서구',90],['수성구',60],['그 외',230]] },
+  '광주': { count: 0, sub: [] }, '대전': { count: 0, sub: [] }, '울산': { count: 0, sub: [] },
+  '세종': { count: 0, sub: [] }, '강원': { count: 0, sub: [] }, '충북': { count: 0, sub: [] },
+  '충남': { count: 0, sub: [] }, '전북': { count: 0, sub: [] }, '전남': { count: 0, sub: [] },
+  '경북': { count: 0, sub: [] }, '경남': { count: 0, sub: [] }, '제주': { count: 0, sub: [] },
 };
+// 유형 축 — 리스트 페이지 normalizeType()의 10버킷과 동일(필터가 그대로 걸리도록).
+// desc는 "이 유형이 공매에서 무엇인지"의 사실 설명(백과사전 성격). 수치 주장 아님.
 const TYPE_DATA = {
-  '아파트': { count: 3088, region: [['서울',1120],['경기',980],['인천',320],['부산',350],['그 외',318]] },
-  '토지': { count: 1450, region: [['경기',520],['서울',280],['강원',210],['충청',180],['그 외',260]] },
-  '상가': { count: 890, region: [['서울',360],['경기',220],['부산',140],['그 외',170]] },
-  '차량': { count: 610, region: [['서울',180],['경기',150],['인천',120],['그 외',160]] },
-  '기계장비': { count: 240, region: [['경기',90],['인천',60],['대구',40],['그 외',50]] },
-  '유가증권': { count: 95, region: [['서울',70],['경기',15],['그 외',10]] },
+  '아파트': { count: 3088, ico: '🏢', desc: '표본이 가장 많아 예측 근거가 두터운 유형. 실거래가 시세 대조도 가능합니다.', region: [['서울',1120],['경기',980],['인천',320],['부산',350],['그 외',318]] },
+  '오피스텔': { count: 0, ico: '🏙️', desc: '주거·업무 혼용. 아파트보다 표본이 적고 단지별 편차가 큽니다.', region: [] },
+  '단독주택': { count: 0, ico: '🏠', desc: '토지+건물 일체. 개별성이 커서 시세 밴드가 넓게 잡힙니다.', region: [] },
+  '연립다세대': { count: 0, ico: '🏘️', desc: '빌라·다세대. 실거래 표본이 적어 신뢰도 등급을 함께 확인하세요.', region: [] },
+  '토지': { count: 1450, ico: '🏞️', desc: '지목·용도지역에 따라 가치가 갈립니다. 현황 확인이 특히 중요합니다.', region: [['경기',520],['서울',280],['강원',210],['충청',180],['그 외',260]] },
+  '상가': { count: 890, ico: '🏬', desc: '임대수익형. 임차인·보증금 인수 조건을 명세서에서 반드시 확인하세요.', region: [['서울',360],['경기',220],['부산',140],['그 외',170]] },
+  '사무실': { count: 0, ico: '🏢', desc: '업무용 구분건물. 공실 위험과 관리비 미납 여부가 변수입니다.', region: [] },
+  '공장창고': { count: 0, ico: '🏭', desc: '기계·설비가 함께 매각되기도 합니다. 공고문 범위 확인이 필수.', region: [] },
+  '농지임야': { count: 0, ico: '🌲', desc: '농지취득자격증명 등 별도 요건이 붙을 수 있습니다.', region: [] },
+  '기타부동산': { count: 0, ico: '📦', desc: '위 분류에 들지 않는 부동산. 공고문 원문 확인을 권합니다.', region: [] },
 };
+// 동산·차량은 부동산과 API·성격이 달라 별도 안내 블록으로 노출(필터 축은 유형과 공유).
+const MOVABLE_INFO = [
+  { k: '차량', ico: '🚗', desc: '압류 차량 등. 엔카·KB차차차로 시세를 교차 확인하고 과태료·저당 승계를 점검하세요.' },
+  { k: '기계장비', ico: '⚙️', desc: '공장 설비·중장비. 현상태 인도가 원칙이라 공람(실견)이 중요합니다.' },
+  { k: '유가증권', ico: '📈', desc: '주식·회원권 등. 종목·권리관계에 따라 가치 편차가 큽니다.' },
+];
+// 공매 용어 — 사실 기반 설명(백과사전 축). 수치·전망 주장 없음.
+const GLOSSARY = [
+  ['감정평가금액', '감정평가기관이 매긴 물건 가치. 최저입찰가의 출발점이지만 시세와 다를 수 있습니다.'],
+  ['최저입찰가격', '이번 회차에서 받아주는 최소 금액. 유찰될 때마다 통상 일정 비율씩 낮아집니다.'],
+  ['유찰', '입찰자가 없거나 조건 미달로 낙찰되지 않은 것. 유찰이 반복되면 가격 외 요인을 의심해야 합니다.'],
+  ['공매조건(회차)', '같은 물건이라도 회차마다 최저가·조건이 다릅니다. 물건관리번호+공매조건번호로 특정됩니다.'],
+  ['압류재산', '세금 체납 등으로 압류되어 캠코가 대행 매각하는 재산.'],
+  ['신탁공매', '신탁회사가 신탁계약에 따라 매각하는 방식. 최저가가 감정가보다 높게 설정되기도 합니다.'],
+  ['명도', '기존 점유자를 내보내는 절차. 법원경매와 달리 공매는 인도명령이 없어 협의·소송이 필요할 수 있습니다.'],
+  ['공매재산명세서', '임차인·인수조건 등 핵심 정보가 담긴 문서. 입찰 전 반드시 원문을 확인하세요.'],
+];
 // 공고기관(기관) 축 — 온비드 공매는 법원 관할 개념이 없고 공고기관(orgNm)이 주체이므로
 // "법원"이 아니라 실제 공고기관명으로 구성한다. 아래는 예시이며, 허브·리프에서
 // loadHubOrgs()/loadRepItems()가 온비드 실물건의 orgNm 집계(표본)로 교체한다.
@@ -265,21 +334,83 @@ function renderHub() {
   document.getElementById('leadP').textContent = '지역별 · 물건유형별 · 기관별(공고기관)로 공매 물건과 AI 예측 데이터를 모아봤습니다.';
   document.title = '카테고리 — 신호등옥션';
 
-  const blocks = [
-    ['지역별', 'region', REGION_DATA],
-    ['물건유형별', 'type', TYPE_DATA],
-    ['기관별 (공고기관)', 'court', COURT_DATA],
-  ];
-  main.innerHTML = blocks.map(([label, axisKey, data]) => `
+  const esc = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+  const href = (ax,k) => `bidcast-category.html?axis=${ax}&value=${encodeURIComponent(k)}`;
+
+  main.innerHTML = `
+    <!-- 안내 밴드 — 이 페이지가 무엇을 모아둔 곳인지 -->
+    <div class="cat-intro">
+      <h2>공매 물건, 축을 바꿔가며 훑어보세요</h2>
+      <p>지역 · 물건유형 · 공고기관 세 축으로 온비드 공매 재고를 정리했습니다. 각 축을 누르면 그 조건의 실물건과 분포를 보여주고, 아래에는 처음 보는 분을 위한 <b>공매 용어 설명</b>도 함께 정리해 두었습니다.</p>
+      <div class="cat-stats">
+        <div><b id="statRegion">17</b><span>지역(시도)</span></div>
+        <div><b id="statType">${Object.keys(TYPE_DATA).length}</b><span>부동산 유형</span></div>
+        <div><b id="statOrg">${Object.keys(COURT_DATA).length}</b><span>공고기관(표본)</span></div>
+        <div><b id="statAll">—</b><span>전체 진행 물건</span></div>
+      </div>
+    </div>
+
+    <!-- 지역별 — 전국 17개 시도 -->
     <div class="axis-block">
-      <h3>${label}</h3>
-      <div class="axis-grid">
-        ${Object.entries(data).map(([k, v]) => `
-          <a class="axis-chip" data-axis="${axisKey}" data-value="${k.replace(/"/g,'&quot;')}" href="bidcast-category.html?axis=${axisKey}&value=${encodeURIComponent(k)}">
-            <span class="n">${k}</span><span class="c">${fmtCount(v.count)}</span>
+      <div class="axis-head"><h3>🗺 지역별</h3><span class="sub">전국 17개 시도</span><span class="cnt" id="regionCntNote">건수 불러오는 중…</span></div>
+      <p class="axis-desc">시도를 고르면 그 지역의 실물건과 시군구 분포를 보여줍니다. 건수는 온비드 지역 필터의 실시간 전체 건수입니다.</p>
+      <div class="region-grid">
+        ${Object.entries(REGION_DATA).map(([k,v]) => `
+          <a class="rg-chip ${v.count?'':'zero'}" data-axis="region" data-value="${esc(k)}" href="${href('region',k)}">
+            <span class="n">${esc(k)}</span><span class="c">${v.count?fmtCount(v.count):'—'}</span>
           </a>`).join('')}
       </div>
-    </div>`).join('');
+    </div>
+
+    <!-- 물건유형별 — 설명이 붙은 백과사전형 카드 -->
+    <div class="axis-block">
+      <div class="axis-head"><h3>🏷 물건유형별</h3><span class="sub">부동산 10종</span></div>
+      <p class="axis-desc">유형마다 확인해야 할 점이 다릅니다. 각 카드의 설명은 그 유형이 공매에서 무엇인지에 대한 안내이며, 수익을 보장하는 내용이 아닙니다.</p>
+      <div class="type-grid">
+        ${Object.entries(TYPE_DATA).map(([k,v]) => `
+          <a class="type-card" data-axis="type" data-value="${esc(k)}" href="${href('type',k)}">
+            <span class="th"><span class="ico">${v.ico||'📦'}</span><span class="nm">${esc(k)}</span><span class="ct">${v.count?fmtCount(v.count):'물건 보기'}</span></span>
+            <span class="ds">${esc(v.desc||'')}</span>
+          </a>`).join('')}
+      </div>
+    </div>
+
+    <!-- 동산·차량 안내 (부동산과 성격이 다른 축) -->
+    <div class="axis-block">
+      <div class="axis-head"><h3>🚗 동산 · 차량</h3><span class="sub">부동산과 확인 포인트가 다릅니다</span></div>
+      <p class="axis-desc">동산·차량은 <b>현상태 인도</b>가 원칙이라 공람(실견)과 시세 교차 확인이 특히 중요합니다. 물건 검색에서 자산군 탭으로 바로 볼 수 있습니다.</p>
+      <div class="mv-grid">
+        ${MOVABLE_INFO.map(m => `
+          <div class="mv-card"><b><span>${m.ico}</span>${esc(m.k)}</b><p>${esc(m.desc)}</p>
+            <a href="bidcast-list.html?type=${encodeURIComponent(m.k)}" style="font-size:12px;font-weight:800;color:var(--green-deep);text-decoration:none;">물건 보러가기 →</a></div>`).join('')}
+      </div>
+    </div>
+
+    <!-- 기관별 (id 고정 — loadHubOrgs가 인덱스가 아니라 이 id로 찾는다) -->
+    <div class="axis-block" id="axisOrg">
+      <div class="axis-head"><h3>🏛 기관별 (공고기관)</h3><span class="sub">온비드 공매는 법원이 아니라 공고기관이 주체</span></div>
+      <p class="axis-desc">캠코(한국자산관리공사)의 압류재산 공매와 신탁회사의 신탁공매는 매각 조건과 인수 부담이 다릅니다. 아래는 실시간 표본에서 집계한 상위 기관입니다.</p>
+      <div class="axis-grid">
+        ${Object.entries(COURT_DATA).map(([k,v]) => `
+          <a class="axis-chip" data-axis="court" data-value="${esc(k)}" href="${href('court',k)}">
+            <span class="n">${esc(k)}</span><span class="c">${fmtCount(v.count)}</span>
+          </a>`).join('')}
+      </div>
+    </div>
+
+    <!-- 공매 용어 — 백과사전 축(사실 설명) -->
+    <div class="axis-block">
+      <div class="axis-head"><h3>📖 공매 용어 바로 알기</h3><span class="sub">처음이라면 여기부터</span></div>
+      <p class="axis-desc">입찰 전에 알아야 할 기본 용어입니다. 법률 자문이 아니며, 개별 물건의 조건은 반드시 공고문·공매재산명세서 원문으로 확인하세요.</p>
+      <dl class="gl-grid">
+        ${GLOSSARY.map(([t,d]) => `<div class="gl-item"><dt>${esc(t)}</dt><dd>${esc(d)}</dd></div>`).join('')}
+      </dl>
+    </div>`;
+
+  // 전체 진행 물건 수(실측) — 헤더 스탯 채움. 실패 시 '—' 유지.
+  fetch('/.netlify/functions/onbid-search?page=1&numOfRows=1').then(r=>r.ok?r.json():null).then(d=>{
+    if (d && d.totalCount) document.getElementById('statAll').textContent = Number(d.totalCount).toLocaleString();
+  }).catch(()=>{});
   loadHubCounts(); // 지역 블록 건수 실연동(지역 서버 필터 totalCount)
   loadHubOrgs();   // 기관 블록 실연동(온비드 실물건 orgNm 집계·표본)
 }
@@ -296,10 +427,15 @@ async function loadHubCounts() {
     const tc = Number(res.value && res.value.totalCount);
     if (!Number.isFinite(tc)) return;
     const sel = (window.CSS && CSS.escape) ? CSS.escape(regions[i]) : regions[i];
-    const chip = document.querySelector(`.axis-chip[data-axis="region"][data-value="${sel}"] .c`);
-    if (chip) { chip.textContent = fmtCount(tc); any = true; }
+    // 지역 칩은 .rg-chip(신규 그리드), 그 외 축은 .axis-chip — 둘 다 허용
+    const el = document.querySelector(`.rg-chip[data-axis="region"][data-value="${sel}"], .axis-chip[data-axis="region"][data-value="${sel}"]`);
+    const chip = el && el.querySelector('.c');
+    if (chip) { chip.textContent = fmtCount(tc); if (el) el.classList.toggle('zero', !tc); any = true; }
   });
-  if (any) { const c = document.querySelector('.demo-chip'); if (c) c.textContent = '✅ 지역별 건수 · 기관별 목록은 실시간 온비드 데이터 (유형 분포는 참고 예시)'; }
+  if (any) {
+    const c = document.querySelector('.demo-chip'); if (c) c.textContent = '✅ 지역별 건수 · 기관별 목록은 실시간 온비드 데이터 (유형 분포는 참고 예시)';
+    const note = document.getElementById('regionCntNote'); if (note) note.textContent = '✅ 실시간 온비드 건수';
+  }
 }
 
 // 허브 기관 블록 실연동 — 온비드 실물건 한 페이지(표본 100건)를 공고기관(orgNm)으로 집계해
@@ -314,8 +450,8 @@ async function loadHubOrgs() {
     if (!top.length) return;
     COURT_DATA = {};
     top.forEach(([k, v]) => { COURT_DATA[k] = { count: v, type: [], sample: true }; });
-    const blocks = document.querySelectorAll('.axis-block');
-    const block = blocks[2]; if (!block) return;
+    // 블록 인덱스가 아니라 id로 찾는다(허브 재구성으로 순서가 바뀌어도 안전 — 2026-07-28)
+    const block = document.getElementById('axisOrg'); if (!block) return;
     const grid = block.querySelector('.axis-grid'); if (!grid) return;
     grid.innerHTML = top.map(([k, v]) => `
       <a class="axis-chip" data-axis="court" data-value="${escC(k)}" href="bidcast-category.html?axis=court&value=${encodeURIComponent(k)}">
