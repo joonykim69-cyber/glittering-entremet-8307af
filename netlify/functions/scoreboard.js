@@ -150,6 +150,13 @@ exports.handler = async (event) => {
             } : null,
           };
         })(),
+        // 소스(시장)별 성적 — 다중 소스(AIOS) 대비. 지금은 onbid 하나지만 구조를 먼저 세운다.
+        // 합산 수치는 화면에서 "합산"임을 반드시 밝힐 것(byAsset과 같은 규율).
+        bySource: Object.fromEntries(Object.entries(agg?.bySource || {}).map(([k, v]) => [k, {
+          n: v.n, hit: v.hit,
+          hitRate: v.n ? Math.round(v.hit / v.n * 1000) / 10 : null,
+          avgAbsErrPct: v.sumAbsErrPct != null && v.n ? Math.round(v.sumAbsErrPct / v.n * 10) / 10 : null,
+        }])),
         curatedScore,                          // 큐레이션 사후 성적(3단계) — 랩 "큐레이션 성적" 섹션
         // 오차 범위별 누적 비율(중앙값 오차 기준) — 랩 오차분포 실측화. 표본 없으면 null.
         errDist: (n && agg?.errBuckets) ? {

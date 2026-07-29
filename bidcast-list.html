@@ -355,18 +355,6 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Nunito:wght@700;800;900&family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap">
 <style>
-/* ═══ 디자인 시스템 v2 공통 오버라이드 (클로드 디자인 병합, 2026-07-19) ═══
-   랜딩(bidcast.html)에서 채택한 새 포맷을 전 페이지에 전파:
-   - 타이포: Nunito(제목)/Poppins+Noto Sans KR(본문)
-   - 로고: 딥그린 함체 세로 신호등 → 투명 가로 3도트 (마크업 변경 없이 오버라이드) */
-:root{--yellow:#F5B90F;--yellow-soft:#FDF4D7;--font:'Poppins','Noto Sans KR',-apple-system,'Malgun Gothic',sans-serif;--font-head:'Nunito','Noto Sans KR',-apple-system,'Malgun Gothic',sans-serif}
-body{font-family:var(--font) !important}
-h1,h2,h3,h4{font-family:var(--font-head)}
-.logo-mark{display:flex !important;flex-direction:row !important;align-items:center !important;gap:5px !important;background:transparent !important;box-shadow:none !important;width:auto !important;height:auto !important;padding:0 !important;border-radius:0 !important}
-.logo-mark .tl{width:10px !important;height:10px !important;box-shadow:none !important}
-.logo-mark .tl.r{background:#EB763C !important}
-.logo-mark .tl.y{background:#FFC000 !important}
-.logo-mark .tl.g{background:#27A857 !important}
 
 /* ═══ 터치 타깃 (모바일 점검 2026-07-29) ═══
    푸터 바로가기 링크가 전 페이지에서 높이 14~21px로 측정돼 손가락으로 정확히 누르기
@@ -389,6 +377,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
   footer ul a,.foot-grid a{display:block;padding:11px 0;line-height:1.4;font-size:13.5px}
 }
 </style>
+<link rel="stylesheet" href="/bidcast.css"/>
 </head>
 <body>
 
@@ -440,6 +429,22 @@ h1,h2,h3,h4{font-family:var(--font-head)}
     </div>
 
     <!-- ══ 온비드式 빠른검색 (2026-07-26) — 자산군 탭 + 처분방식/용도/재산유형/지역 + 물건 보기 ══ -->
+    <!-- ── 소스 축 (AIOS 다중 소스 대비, 2026-07-29) ────────────────────────────
+       지금은 공매(온비드) 하나뿐이라 눈에 띄지 않지만, 이 자리를 지금 만들어 두지 않으면
+       법원경매·신탁공매를 붙일 때 전 페이지 네비게이션을 다시 짜야 한다.
+       "준비 중"을 숨기지 않고 표시하는 이유: ① 없는 걸 있다고 하지 않으면서
+       ② 확장 계획 자체가 신뢰 신호가 되고 ③ 나중에 활성화 한 줄로 끝난다.
+       ⚠️ 소스에는 색을 쓰지 않는다 — 색은 판단 신호(🟢🟡🔴)에 예약돼 있다.
+       상세: 002_AIOS_DESIGN_HANDOFF.md §2·§3 ────────────────────────────── -->
+    <div class="src-axis" role="tablist" aria-label="공매 시장 선택">
+      <button type="button" class="src-tab on" role="tab" aria-selected="true">🏛 공매(온비드)</button>
+      <button type="button" class="src-tab" role="tab" aria-selected="false" aria-disabled="true"
+        onclick="srcSoon('법원경매')">⚖️ 법원경매 <span class="src-soon">준비 중</span></button>
+      <button type="button" class="src-tab" role="tab" aria-selected="false" aria-disabled="true"
+        onclick="srcSoon('신탁공매')">🏦 신탁공매 <span class="src-soon">준비 중</span></button>
+    </div>
+    <p class="src-note" id="srcNote">지금 보시는 물건은 <b>온비드 공매</b>입니다. 법원경매·신탁공매는 시장마다 입찰 방식과 권리 구조가 달라, 같은 화면에 섞지 않고 <b>시장별로 나눠</b> 준비하고 있습니다.</p>
+
     <div class="qs-card" id="qsCard">
       <div class="qs-head">
         <span class="qs-title">⚡ 빠른검색</span>
@@ -1205,7 +1210,7 @@ function renderCard(it) {
     <button type="button" class="heart ${liked?'on':''}" onclick="toggleLike('${it.id}',this)" aria-label="${liked?'관심물건 해제':'관심물건 등록'}" aria-pressed="${liked}">♥</button>
   </div>
   <div class="item-body">
-    <span class="item-kind">${it.court} · ${statusBadge(it)}</span>
+    <span class="item-kind"><span class="src-badge">🏛 공매</span> ${it.court} · ${statusBadge(it)}</span>
     <div class="item-title"><a href="bidcast-detail.html?id=${encodeURIComponent(it.id)}" onclick="stashDetail('${String(it.id).replace(/[^0-9A-Za-z\-_.]/g,'')}')">${it.title}</a></div>
     <div class="item-meta">${it.pbctCdtnNo?String(it.id):it.caseNo} · ${it.address}</div>
     <div class="item-tags">${it.tags.map(t=>`<span>${t}</span>`).join('')}</div>
@@ -1235,7 +1240,7 @@ function renderRow(it) {
   </div>
   <div class="item-row-body">
     <div class="item-row-info">
-      <div class="item-row-kind">${it.court} ${statusBadge(it)}</div>
+      <div class="item-row-kind"><span class="src-badge">🏛 공매</span> ${it.court} ${statusBadge(it)}</div>
       <div class="item-row-title"><a href="bidcast-detail.html?id=${encodeURIComponent(it.id)}" onclick="stashDetail('${String(it.id).replace(/[^0-9A-Za-z\-_.]/g,'')}')">${it.title}</a></div>
       <div class="item-row-meta">${it.pbctCdtnNo?String(it.id):it.caseNo} · ${it.address}</div>
       <div class="item-row-tags">${it.tags.map(t=>`<span>${t}</span>`).join('')}</div>
@@ -1951,6 +1956,16 @@ loadRealItems();
   if (document.readyState !== 'loading') render();
   else document.addEventListener('DOMContentLoaded', render);
 })();
+
+// 소스 축 — 아직 붙지 않은 시장을 눌렀을 때. 빈 화면 대신 "왜 아직 없는지"를 말한다.
+function srcSoon(name){
+  const el=document.getElementById('srcNote'); if(!el)return;
+  // 한국어 조사 — 받침 있으면 '은', 없으면 '는'("법원경매은"이 되지 않게)
+  const last=name.charCodeAt(name.length-1), josa=(last>=0xAC00&&last<=0xD7A3&&(last-0xAC00)%28)?'은':'는';
+  el.innerHTML='<b>'+name+'</b>'+josa+' 아직 준비 중입니다 — 시장마다 입찰 방식·식별자·권리 구조가 달라 '
+    +'같은 화면에 섞으면 판단을 오도합니다. 지금은 <b>온비드 공매</b>를 먼저 정확하게 만들고 있으며, '
+    +'그 위에 시장을 하나씩 얹습니다. 성적도 <b>시장별로 따로</b> 공개합니다.';
+}
 </script>
 
 </body>

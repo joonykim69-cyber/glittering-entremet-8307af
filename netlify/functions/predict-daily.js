@@ -237,6 +237,9 @@ exports.handler = async (event) => {
 
       writes.push({ key, val: {
         id: it.id, pbctCdtnNo: it.pbctCdtnNo, title: it.title, type: it.type,
+        // 소스(시장) — 지금은 온비드 하나뿐이지만 봉인 시점에 남겨야 나중에 소스별로
+        // 성적을 나눌 수 있다(자산군 분리와 같은 논리 — 섞으면 둘 다 오도한다).
+        source: 'onbid',
         assetClass: it.assetClass || '부동산',
         appr: it.appr, min: it.min, // 만원
         lo, mid, hi,                // 만원
@@ -317,6 +320,7 @@ exports.handler = async (event) => {
       const p = predMap[`pred/${it.id}_${it.pbctCdtnNo}`] || null;
       curated.push({
         id: f.id, cdtn: f.cdtn, title: it.title, type: f.type, assetClass: f.assetClass,
+        source: f.source || 'onbid',
         region: f.region, apsl: f.apsl, low: f.low, area: f.area,
         failCount: f.failCount, round: f.round, bidEnd: f.bidEnd,
         photo: it.photo || '', track: res.track, score: res.score,
@@ -354,7 +358,7 @@ exports.handler = async (event) => {
     // "이 물건을 주목 물건으로 뽑았다"는 사실을 물건별로 보존해야 개찰 후 score-daily가
     // 조인해 채점할 수 있다. 같은 물건이 다음 날 재큐레이션되면 갱신(멱등). 추가 온비드 호출 0.
     await Promise.all(curatedTop.map(c => store.setJSON(`curated/pick/${c.id}_${c.cdtn}`, {
-      score: c.score, track: c.track, assetClass: c.assetClass, type: c.type, region: c.region,
+      score: c.score, track: c.track, source: c.source || 'onbid', assetClass: c.assetClass, type: c.type, region: c.region,
       apsl: c.apsl, low: c.low, reasons: (c.reasons || []).map(x => x.tag), at: new Date().toISOString(),
     })));
 
