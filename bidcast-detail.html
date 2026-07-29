@@ -904,9 +904,11 @@ function docAiBtn(url,name){
   const u=String(url||'');
   if(!/^https?:\/\//.test(u))return '';
   try{ if(!/(^|\.)onbid\.co\.kr$/i.test(new URL(u).hostname))return ''; }catch(e){ return ''; }
-  if(/\.(hwpx?|docx?|xlsx?|zip|jpe?g|png|gif|tiff?)([?#]|$)/i.test(u))return '';
-  // URL에 확장자가 없어도 표시 파일명이 비-PDF면 버튼 생략 — 항상 "PDF 아님"으로 끝나는 헛클릭 방지(프리뷰 실검증 2026-07-27)
-  if(/\.(hwpx?|docx?|xlsx?|zip|jpe?g|png|gif|tiff?)\s*$/i.test(String(name||'')))return '';
+  // (2026-07-29) HWP/HWPX 지원 추가 — 공매재산명세서가 주로 hwp라 이제 버튼을 띄운다.
+  //   서버가 매직 바이트로 판정하며, 읽지 못하면 "원문 열람" 안내로 degrade.
+  //   여전히 제외: doc/xls/zip/이미지 (파서 없음 → 헛클릭 방지)
+  if(/\.(docx?|xlsx?|pptx?|zip|jpe?g|png|gif|tiff?)([?#]|$)/i.test(u))return '';
+  if(/\.(docx?|xlsx?|pptx?|zip|jpe?g|png|gif|tiff?)\s*$/i.test(String(name||'')))return '';
   return ` <button type="button" onclick="docSummary('${String(url).replace(/'/g,'%27').replace(/"/g,'&quot;')}',this)" style="font:inherit;font-size:10.5px;font-weight:800;color:var(--green-deep);background:var(--green-soft);border:1px solid var(--green);border-radius:999px;padding:2px 9px;cursor:pointer;">📖 AI 정리</button>`;
 }
 // AI 정리 출력용 경량 마크다운 렌더 — 전체 HTML 이스케이프 후 소제목(#)·굵게(**)·구분선(---)·불릿만 변환.
