@@ -209,6 +209,17 @@ exports.handler = async (event) => {
       if (aerr <= 10) agg.errBuckets.le10++;
       if (aerr <= 15) agg.errBuckets.le15++;
       if (aerr <= 20) agg.errBuckets.le20++;
+      // 예측 시점(leadDays)별 집계 — 봉인 창을 +2일에서 +14일로 넓혔으므로(2026-07-29),
+      // "개찰 직전 예측"과 "2주 전 예측"이 한 숫자에 섞이면 성적의 의미가 흐려진다.
+      // 먼 예측이 더 어려운 건 당연하니, 숨기지 말고 나눠서 보여준다(자산군 분리와 같은 논리).
+      const ld = pred.leadDays;
+      if (ld != null && ld >= 0) {
+        const lb = ld <= 1 ? 'd0_1' : ld <= 3 ? 'd2_3' : ld <= 7 ? 'd4_7' : 'd8plus';
+        agg.byLead = agg.byLead || {};
+        const lc = agg.byLead[lb] = agg.byLead[lb] || { n: 0, hit: 0, sumAbsErrPct: 0 };
+        lc.n++; if (hit) lc.hit++; lc.sumAbsErrPct += aerr;
+      }
+
       // 자산군별 집계 — 적중률만이 아니라 **오차·구간폭까지** 함께 쌓는다(2026-07-29).
       // 전체 하나의 숫자(예: 48.6%)는 표본 구성이 자산군에 쏠리면 사용자를 오도한다:
       // 실제로 부동산은 오차 1~5%로 잘 맞는데 표본의 99%가 동산이라 전체가 나빠 보였다.

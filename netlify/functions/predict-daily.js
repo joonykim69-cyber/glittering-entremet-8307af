@@ -55,6 +55,15 @@ const STAT_BUCKET = {
 };
 
 function kst() { return new Date(Date.now() + 9 * 3600 * 1000); }
+// 봉인 시점 기준 마감까지 남은 일수(달력일). bidEnd는 yyyyMMddHHmm.
+function leadDaysOf(bidEnd) {
+  const b = String(bidEnd || '').slice(0, 8);
+  if (!/^\d{8}$/.test(b)) return null;
+  const end = Date.UTC(+b.slice(0, 4), +b.slice(4, 6) - 1, +b.slice(6, 8));
+  const n = kst();
+  const today = Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate());
+  return Math.max(0, Math.round((end - today) / 86400000));
+}
 function ymd(d) { return `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`; }
 
 async function fetchJson(url) {
@@ -113,8 +122,17 @@ exports.handler = async (event) => {
     // 마감 임박 물건 수집: 부동산 + 동산 + 차량 (입찰기간 검색 창: 오늘~+2일)
     // 수집 상한(사용자 지정 2026-07-22): 부동산 700(일반 500 + 토지 200 — 토지는 온비드에서
     // 부동산 목록의 한 유형이라 같은 엔드포인트로 함께 수집) · 동산 50 · 차량 50.
+    // ── 봉인 창 (2026-07-29 창업자 승인으로 +2일 → +14일 확대) ──
+    // 표본은 늘지 않는다 — 모든 물건은 마감이 다가오며 이 창을 통과하고, 봉인은 물건당 1회
+    // 멱등이기 때문이다. 넓히는 이유는 **사용자가 물건을 보는 시점에 예측이 있게** 하기 위해서다.
+    // (D-10에 검색·큐레이션으로 들어온 사용자는 지금까지 AI 구간을 볼 수 없었다.)
+    //
+    // 대가는 정직하게 진다: 개찰에서 먼 시점의 예측은 더 어렵다(회차·최저가가 아직 바뀔 수 있다).
+    // 그래서 봉인 레코드에 **leadDays**(봉인일 → 마감일 간격)를 함께 남겨, 채점 때
+    // "D-1 예측과 D-14 예측 중 어느 쪽이 정확한가"를 분리해 볼 수 있게 한다.
+    const SEAL_WINDOW_DAYS = Math.max(1, Math.min(60, parseInt(process.env.SEAL_WINDOW_DAYS || '14', 10) || 14));
     const start = ymd(kst());
-    const end = ymd(new Date(kst().getTime() + 2 * 86400000));
+    const end = ymd(new Date(kst().getTime() + SEAL_WINDOW_DAYS * 86400000));
     const q = `bidPrdYmdStart=${start}&bidPrdYmdEnd=${end}`;
     // ── 전수 봉인 보장: 마지막 페이지까지 수집 (2026-07-29) ──
     // 기존엔 자산군별 **단일 페이지**(부동산 700·동산 50·차량 50)만 조회해, 창 안에 물건이
@@ -196,6 +214,7 @@ exports.handler = async (event) => {
         statPerd: stats ? stats.perd : '',
         round: Number(it.round) || 0, fail: Number(it.fail) || 0, // 공매차수·유찰수 실측(회차별 채점·분석용)
         bidEnd: it.bidEnd || '', modelV: MODEL_V,
+        leadDays: leadDaysOf(it.bidEnd), // 봉인일 → 마감일 간격(일). 먼 예측일수록 어렵다는 걸 채점에서 분리해 본다.
         sealedAt: new Date().toISOString(),
       } });
       predMap[key] = { lo, mid, hi };
