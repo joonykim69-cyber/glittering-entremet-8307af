@@ -14,7 +14,8 @@
 //
 // 수동 실행: GET /.netlify/functions/predict-daily (테스트·백필용, 동작 동일)
 
-const { fromOnbid, scoreOpportunity } = require('./lib/curation');
+const { fromOnbid, selectItem, RESIDENTIAL } = require('./lib/curation');
+const { lawdOf } = require('./lib/lawd');
 const quota = require('./lib/quota.js');
 
 const CORS = { 'Access-Control-Allow-Origin': '*' };
@@ -279,31 +280,81 @@ exports.handler = async (event) => {
     // ── 큐레이션 패스 — "오늘의 주목 물건" (봉인 로직과 분리·소스 중립 엔진) ──
     // 같은 마감 임박 물건을 소스 중립 공통 팩트로 바꿔 기회 점수를 매기고 상위 N건을 저장한다.
     // 추가 온비드 호출 0(이미 가져온 items 재사용). 봉인 예측(predMap)·실측 셀(cellFor)을 근거로.
+    // ── 시세 밴드 선적재 (2026-07-29) ──
+    // 차익 트랙은 "시세 × 면적 − 예상 낙찰가"라 시세가 필요한데, 물건마다 market-est를 부르면
+    // 수천 번의 외부 호출이 된다. mkt-seal-daily가 이미 **셀 단위로 봉인해 둔 밴드**를 읽으면
+    // 외부 API 호출 0으로 끝난다(Blobs만 조회). 이번 달 봉인이 없으면 지난달로 한 번 물러난다.
+    const bandMap = {};
+    try {
+      const ymNow = `${kst().getUTCFullYear()}${String(kst().getUTCMonth() + 1).padStart(2, '0')}`;
+      const prev = new Date(Date.UTC(kst().getUTCFullYear(), kst().getUTCMonth() - 1, 1));
+      const ymPrev = `${prev.getUTCFullYear()}${String(prev.getUTCMonth() + 1).padStart(2, '0')}`;
+      const bl = await store.list({ prefix: 'mkt/seal/' });
+      const bKeys = (bl && bl.blobs ? bl.blobs : []).map(b => b.key)
+        .filter(k => k.endsWith(`/${ymNow}`) || k.endsWith(`/${ymPrev}`));
+      await mapLimit(bKeys, 40, async k => {
+        const m = k.match(/^mkt\/seal\/(\d+_[a-z]+)\/(\d{6})$/);
+        if (!m) return;
+        const v = await store.get(k, { type: 'json' });
+        if (!v || !(v.lo > 0)) return;
+        // 이번 달 봉인이 지난달보다 우선
+        if (!bandMap[m[1]] || m[2] === ymNow) bandMap[m[1]] = v;
+      });
+    } catch (e) { /* 시세 밴드 없으면 차익 트랙만 비고 나머지는 정상 동작 */ }
+
     const curated = [];
     for (const it of targets) {
       const f = fromOnbid(it);
-      const res = scoreOpportunity(f, { pred: predMap[`pred/${it.id}_${it.pbctCdtnNo}`] || null, cell: cellFor(cellsData, f), nowKst: kst() });
+      const kind = RESIDENTIAL[f.type];
+      const lawd = kind ? lawdOf(f.region) : '';
+      const res = selectItem(f, {
+        pred: predMap[`pred/${it.id}_${it.pbctCdtnNo}`] || null,
+        band: (kind && lawd) ? (bandMap[`${lawd}_${kind}`] || null) : null,
+        cell: cellFor(cellsData, f),
+        nowKst: kst(),
+      });
       if (!res) continue;
       const p = predMap[`pred/${it.id}_${it.pbctCdtnNo}`] || null;
       curated.push({
         id: f.id, cdtn: f.cdtn, title: it.title, type: f.type, assetClass: f.assetClass,
-        region: f.region, apsl: f.apsl, low: f.low, failCount: f.failCount, round: f.round, bidEnd: f.bidEnd,
-        photo: it.photo || '', score: res.score, reasons: res.reasons, flags: res.flags,
-        pred: p, // {lo,mid,hi} 만원 (없으면 null)
+        region: f.region, apsl: f.apsl, low: f.low, area: f.area,
+        failCount: f.failCount, round: f.round, bidEnd: f.bidEnd,
+        photo: it.photo || '', track: res.track, score: res.score,
+        reasons: res.reasons, flags: res.flags,
+        ...(res.margin ? { margin: res.margin } : {}),
+        ...(res.category ? { category: res.category } : {}),
+        pred: p, // {lo,mid,hi,soldProb,bidders} 만원 (없으면 null)
       });
     }
-    curated.sort((a, b) => b.score - a.score);
-    const curatedTop = curated.slice(0, CURATED_MAX);
+    // 트랙별로 나눠 각자의 잣대로 정렬한다(한 점수로 줄 세우지 않는다).
+    //   margin  차익률 높은 순 · demand 낙찰률 높은 순 · closing 마감 임박 순 · trust 마감 임박 순
+    const byTrack = { margin: [], demand: [], closing: [], trust: [] };
+    for (const c of curated) (byTrack[c.track] || byTrack.demand).push(c);
+    const byEnd = (a, b) => String(a.bidEnd || '').localeCompare(String(b.bidEnd || ''));
+    byTrack.margin.sort((a, b) => b.score - a.score);
+    byTrack.demand.sort((a, b) => b.score - a.score || byEnd(a, b));
+    byTrack.closing.sort(byEnd);
+    byTrack.trust.sort(byEnd);
+    const TRACK_MAX = 8; // 트랙당 저장 상한 (랜딩은 3건씩만 보여주고 나머지는 "더 보기")
+    const tracks = {
+      margin: byTrack.margin.slice(0, TRACK_MAX),
+      demand: byTrack.demand.slice(0, TRACK_MAX),
+      closing: byTrack.closing.slice(0, TRACK_MAX),
+      trust: byTrack.trust.slice(0, TRACK_MAX),
+    };
+    const curatedTop = [...tracks.margin, ...tracks.demand, ...tracks.closing, ...tracks.trust].slice(0, CURATED_MAX);
     await store.setJSON('curated/latest', {
-      at: new Date().toISOString(), window: { start, end },
+      at: new Date().toISOString(), window: { start, end }, v: 2,
       scanned: targets.length, scored: curated.length, count: curatedTop.length,
-      items: curatedTop,
+      bands: Object.keys(bandMap).length,
+      tracks,
+      items: curatedTop, // 하위호환 — 구형 클라이언트가 읽던 평면 목록
     });
     // 큐레이션 사후 채점(3단계)용 개별 픽 마커 — curated/latest는 매일 덮어써지므로,
     // "이 물건을 주목 물건으로 뽑았다"는 사실을 물건별로 보존해야 개찰 후 score-daily가
     // 조인해 채점할 수 있다. 같은 물건이 다음 날 재큐레이션되면 갱신(멱등). 추가 온비드 호출 0.
     await Promise.all(curatedTop.map(c => store.setJSON(`curated/pick/${c.id}_${c.cdtn}`, {
-      score: c.score, assetClass: c.assetClass, type: c.type, region: c.region,
+      score: c.score, track: c.track, assetClass: c.assetClass, type: c.type, region: c.region,
       apsl: c.apsl, low: c.low, reasons: (c.reasons || []).map(x => x.tag), at: new Date().toISOString(),
     })));
 

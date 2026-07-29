@@ -277,12 +277,13 @@
 | AI | claude(프록시) / agents(전문 에이전트 8종 라우터) / doc-extract(PDF·HWP) | 생성·분석 |
 | 운영 | scoreboard / curated / integrations-status / map-config | 공개 성적표·큐레이션·자가진단·지도 키 |
 
-**공용 라이브러리 5종** (`netlify/functions/lib/`, 엔드포인트 아님 — require로 번들):
+**공용 라이브러리 6종** (`netlify/functions/lib/`, 엔드포인트 아님 — require로 번들):
 
 | 파일 | 역할 |
 |---|---|
 | `quota.js` | 외부 API 일일 호출 예산 가드(critical/bulk 티어, 반쪽 창 금지) |
-| `curation.js` | 큐레이션 엔진(소스 중립 — Appendix D 계약) |
+| `curation.js` | 큐레이션 엔진 v2(수요 분류 필터 → 낙찰률 배제 → 트랙별 순위 — Appendix D 계약) |
+| `lawd.js` | 시도·시군구 → 법정동코드(시세 밴드 셀의 지역 축). 클라이언트에 사본 존재 |
 | `gbtree.js` | 분위수 GBDT(차세대 모델 v0.8 코어, 순수 JS) |
 | `hwp.js` | HWP/HWPX 텍스트 추출(순수 JS, 의존성 0) |
 | `alerts.js` | 마감 알림 발송 계획(멱등) + 메일 렌더 |
@@ -370,11 +371,22 @@ API·LLM 생성 품질)은 `test/README.md`에 정직하게 적어 둔다.
 ```
 { source,            // 'onbid' | 'court' | 'trust' | 'npl' …
   id, cdtn,          // 물건 식별자
-  assetClass, type, usage, region,
+  assetClass, type, usage, title, region,
   apsl, low,         // 감정가 · 최저가 (만원)
+  area,              // 건물 전용면적 ㎡ (0이면 차익 트랙 제외)
   failCount, round,  // 유찰 횟수 · 회차
   bidEnd }           // 'yyyyMMddHHmm' | ''
 ```
+
+**v2 선별 규율 (2026-07-29 창업자 승인)** — 한 점수로 줄 세우지 않는다. 성격이 다른 선별을
+뭉치면 v1의 모순(랜딩이 1등으로 올린 물건에 상세가 경고를 붙임)이 재발한다.
+
+1. **필터** 실제 입찰 수요가 있는 분류만 후보 — 주거 4종(시세 밴드가 존재하는 범위와 정확히 일치) /
+   명품시계·명품잡화·귀금속·골프·콘도 회원권·골동품 / 차량.
+2. **배제** 낙찰률(`soldProb`)이 본 지표, 유찰 횟수는 근거가 없을 때의 폴백. 신탁·특수매각은
+   제외가 아니라 **별도 트랙으로 분리**(할인 폭 축이 성립하지 않으므로 같이 정렬할 수 없다).
+3. **순위** 트랙별 잣대 — 차익은 **보수 가정으로만**(시세 하단 × 면적 − 예상 낙찰 상단 − 부대비용),
+   동산은 **차익을 말하지 않는다**(그 시세는 우리 데이터가 아니다). 근거가 없으면 올리지 않는다.
 
 - **점수 = 분석 주목도이지 투자 추천이 아니다.** 마법 숫자로 뭉치지 않고 근거 태그(reasons)로
   분해해 노출한다. 가점 근거가 하나도 없으면 큐레이션에 올리지 않는다(null).
