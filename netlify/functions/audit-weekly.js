@@ -54,6 +54,20 @@ function buildAudit(agg, aggB, calib) {
     .sort((a, b) => a.hitRate - b.hitRate);
   const weak = segs.filter(s => s.hitRate < TARGET_LO).slice(0, 3);
 
+  // 자산군별 성적 — 전체 하나의 숫자는 표본이 쏠린 자산군에 끌려간다.
+  // 감사역이 "전체가 나쁘다"가 아니라 "어느 자산군이 나쁘다"를 짚어야 조치가 가능하다.
+  const byAsset = Object.entries(agg.byAsset || {})
+    .filter(([, s]) => s && s.n > 0)
+    .map(([asset, s]) => ({
+      asset, n: s.n,
+      hitRate: Math.round(s.hit / s.n * 1000) / 10,
+      avgAbsErrPct: s.sumAbsErrPct != null ? Math.round(s.sumAbsErrPct / s.n * 10) / 10 : null,
+      avgWidthPct: s.sumWidthPct != null ? Math.round(s.sumWidthPct / s.n * 10) / 10 : null,
+    }))
+    .sort((a, b) => b.n - a.n);
+  // 표본 쏠림 경고 — 한 자산군이 전체의 대부분이면 합산 수치는 그 자산군의 성적이나 마찬가지다
+  const dominant = byAsset.length > 1 && byAsset[0].n / n >= 0.7 ? byAsset[0] : null;
+
   // ── 챔피언 vs 챌린저 승격/탈락 체크포인트 (미리 고정된 기준만 — 수시 판정 금지) ──
   //
   // ⚠️ 여기서 쓰는 "승률"은 **비교 승률(headToHead)** = 같은 물건에서 챌린저 중앙값이
@@ -100,12 +114,24 @@ function buildAudit(agg, aggB, calib) {
   if (challenger && (challenger.verdict === 'early_promote' || challenger.verdict === 'standard_promote')) suggestions.push(`챌린저 승격 후보: ${challenger.reason}. 승격 결정은 사람이 chronicle에 기록.`);
   if (challenger && challenger.verdict === 'early_drop') suggestions.push(`챌린저 조기 탈락 신호: ${challenger.reason}. 새 챌린저 준비 검토.`);
   if (challenger && challenger.verdict === 'blocked_width') suggestions.push(`챌린저 승격 보류: ${challenger.reason} 적중률(${challenger.hitRate}%)이 높아 보여도 구간을 넓혀 얻은 것이므로 승격 근거가 되지 않는다 — 폭 축소가 선행되어야 함.`);
+  if (dominant) suggestions.push(`표본 쏠림: 채점 ${n}건 중 ${dominant.asset}이 ${dominant.n}건(${Math.round(dominant.n / n * 100)}%) — 전체 적중률 ${hitRate}%는 사실상 ${dominant.asset} 성적이다. 자산군별 수치로 판단할 것.`);
+  const weakAsset = byAsset.filter(a => a.n >= SEG_MIN_N && a.hitRate < TARGET_LO).sort((a, b) => a.hitRate - b.hitRate)[0];
+  if (weakAsset) {
+    // 오차·폭은 자산군별 누적을 시작한 2026-07-29 이후 채점분에만 있다 — 예전 집계엔 없으므로
+    // "null%"을 찍지 않고 해당 항목만 뺀다(없는 수치를 있는 척하지 않는다, Golden Rule 6).
+    const extra = [
+      weakAsset.avgAbsErrPct != null ? `오차 ${weakAsset.avgAbsErrPct}%` : null,
+      weakAsset.avgWidthPct != null ? `폭 ${weakAsset.avgWidthPct}%` : null,
+    ].filter(Boolean);
+    suggestions.push(`가장 약한 자산군: ${weakAsset.asset}(${weakAsset.hitRate}% / ${weakAsset.n}건${extra.length ? ' · ' + extra.join(' · ') : ''}) — 구간 폭 확대로 수렴하지 않으면 모델 자체가 이 자산군에 안 맞는 것이다.`);
+  }
   if (!suggestions.length) suggestions.push('현재 지표는 목표 범위 내 — 특이 조치 불요, 표본 축적 지속.');
 
   return {
     at: new Date().toISOString(),
     overall: { n, hitRate, avgAbsErrPct: avgErr, avgWidthPct: avgWidth, target: `${TARGET_LO}~${TARGET_HI}%` },
     weakSegments: weak,
+    byAsset, dominantAsset: dominant ? { asset: dominant.asset, n: dominant.n, share: Math.round(dominant.n / n * 1000) / 10 } : null,
     challenger,
     suggestions,
   };
