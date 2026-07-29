@@ -405,7 +405,7 @@ a{color:inherit;text-decoration:none;}
 .rd-badge.stop{background:#FDECEC;color:#8A2A2E;}
 .rd-title{display:flex;flex-direction:column;gap:2px;min-width:0;}
 .rd-title b{font-size:14px;}
-.rd-sub{font-size:11.5px;color:var(--mute);}
+.rd-sub{font-size:12.5px;color:var(--sub);}
 .rd-tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px;}
 .rd-tag{font-size:11.5px;font-weight:700;padding:5px 11px;border-radius:999px;background:var(--line);color:var(--sub);}
 .rd-tag.warn{background:#FFF6DE;color:#8A6D00;}
@@ -413,10 +413,9 @@ a{color:inherit;text-decoration:none;}
 .rd-next{margin-top:11px;font-size:12.5px;color:var(--sub);line-height:1.7;}
 .rd-next a{color:var(--green-deep);font-weight:800;text-decoration:underline;}
 .rd-note{margin-top:11px;font-size:11px;color:var(--mute);line-height:1.6;}
-/* 질문 묶음 제목 — 사용자가 던지는 말 그대로. 내부 순번(data-q)은 화면에 내지 않는다. */
-.q-head{display:flex;align-items:center;gap:11px;margin:30px 0 14px;}
-.q-head b{font-size:17px;letter-spacing:-.3px;white-space:nowrap;}
-.q-head::after{content:'';flex:1;height:1px;background:var(--line);}
+/* 질문 묶음은 순서·표시 제어용 DOM 구조로만 존재한다 — 제목 문구는 화면에 내지 않는다
+   (창업자 지시 2026-07-29: 각 섹션의 제목이 이미 무슨 얘긴지 말하고 있다). */
+.q-group{margin-top:26px;}
 /* 접어 두는 근거 — 기본은 결론만, 궁금한 사람만 펼친다 */
 .more{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px;}
 .more>summary{cursor:pointer;font-size:11.5px;font-weight:700;color:var(--green-deep);list-style:none;padding:3px 0;}
@@ -644,7 +643,6 @@ h1,h2,h3,h4{font-family:var(--font-head)}
       <div class="rd-head">
         <span class="rd-badge" id="rdBadge">—</span>
         <div class="rd-title">
-          <b>판단 준비도</b>
           <span class="rd-sub" id="rdSub">이 물건을 지금 판단할 수 있는 상태인지</span>
         </div>
       </div>
@@ -696,11 +694,10 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 
     <!-- ── Q0. 이번 회차에 팔릴까 ── -->
     <div class="q-group" data-q="0">
-    <div class="q-head"><b>이번 회차에 팔릴까</b></div>
 
     <!-- 낙찰 가능성 — 봉인 예측(pred.soldProb). 근거 셀이 없으면 수치를 만들지 않는다. -->
     <section class="rp-section" id="sec-sold" style="display:none;">
-      <h2>이번 회차에 팔릴까 <span class="sec-tag" style="background:var(--green-soft);color:var(--green-deep);">🔒 개찰 전 봉인</span></h2>
+      <h2>낙찰 가능성 <span class="sec-tag" style="background:var(--green-soft);color:var(--green-deep);">🔒 개찰 전 봉인</span></h2>
       <div class="card" id="soldCard"></div>
       <p style="font-size:11px;color:var(--mute);margin-top:10px;" id="soldNote"></p>
     </section>
@@ -708,7 +705,6 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 
     <!-- ── Q1. 얼마에 살 수 있나 ── -->
     <div class="q-group" data-q="1">
-    <div class="q-head"><b>얼마에 살 수 있나</b></div>
 
     <!-- AI 예상 낙찰가 (봉인 예측) -->
     <section class="rp-section" id="sec-ai">
@@ -747,7 +743,6 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 
     <!-- ── Q2. 그게 싼 건가 ── -->
     <div class="q-group" data-q="2">
-    <div class="q-head"><b>그게 싼 건가</b></div>
 
     <!-- 주변 실거래 + 시세 밴드 + 마진 — 국토부 실거래가 (라이브 + 시군구 식별 시에만 표시) -->
     <section class="rp-section" id="sec-rtms" style="display:none;">
@@ -766,7 +761,6 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 
     <!-- ── Q3. 왜 아직 안 팔렸나 ── -->
     <div class="q-group" data-q="3">
-    <div class="q-head"><b>왜 아직 안 팔렸나</b></div>
 
     <!-- 유찰 진단 — 규칙 기반 신호 정리 (라이브 물건 + 유찰 3회 이상일 때만 표시. LLM 미사용) -->
     <section class="rp-section" id="sec-failDiag" style="display:none;">
@@ -779,7 +773,6 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 
     <!-- ── Q4. 그럼 뭘 확인해야 하나 ── -->
     <div class="q-group" data-q="4">
-    <div class="q-head"><b>그럼 뭘 확인해야 하나</b></div>
 
     <!-- AI 전문가 분석 — agents.js (실데이터 주입 생성, 물건당 1회 캐시). 라이브 물건에서만 표시 -->
     <section class="rp-section" id="sec-agents" style="display:none;">
