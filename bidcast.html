@@ -56,6 +56,64 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .chip-yellow{background:var(--yellow-soft);color:#8a6d00}
 .chip-red{background:var(--red-soft);color:var(--red)}
 .kicker{font-size:13px;font-weight:800;color:var(--green-deep);letter-spacing:.08em}
+
+/* ═══ 오늘의 주목 물건 — 트랙별 색·큰 사진·큰 숫자 (2026-07-29 디자인 교정) ═══
+   창업자 지적 "너무 평범하고 임팩트가 없다". 원인은 카드가 전부 같은 크기·같은 무게였고
+   초록 한 색으로 다 칠해 강조가 강조로 안 읽힌 것. 트랙마다 색(--tc)을 주고, 실물 사진과
+   그 트랙의 주인공 숫자를 키운다. 색은 항상 아이콘·라벨과 함께 쓴다(색만으로 의미 전달 금지). */
+.cur-hero{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:0;border-radius:20px;overflow:hidden;
+  border:2px solid var(--tc);background:#fff;box-shadow:0 12px 32px rgba(16,24,40,.10);cursor:pointer;margin-bottom:30px;
+  transition:transform .18s ease,box-shadow .18s ease}
+.cur-hero:hover{transform:translateY(-3px);box-shadow:0 18px 44px rgba(16,24,40,.16)}
+.cur-hero-ph{position:relative;min-height:260px;background:var(--ts);display:grid;place-items:center;overflow:hidden}
+.cur-hero-ph img{width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0}
+.cur-hero-body{padding:26px 28px}
+.cur-hero-kick{font-size:12.5px;font-weight:900;color:var(--tc);letter-spacing:.02em;margin-bottom:10px}
+.cur-hero-num{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.cur-hero-num b{font-size:46px;font-weight:900;line-height:1;letter-spacing:-.02em;color:var(--tc)}
+.cur-hero-num span{font-size:13px;font-weight:700;color:var(--sub)}
+.cur-hero-t{font-size:18px;font-weight:800;line-height:1.4;margin-bottom:6px}
+.cur-hero-p{font-size:13.5px;color:var(--sub);margin-bottom:10px}
+.cur-hero-ai{display:inline-block;font-size:13px;background:var(--ts);color:var(--ink);border-radius:10px;padding:7px 12px;margin-bottom:12px}
+.cur-hero-ai span{font-size:11px;color:var(--sub);margin-left:6px}
+.cur-hero-why{margin:0 0 14px;padding-left:18px;font-size:13px;color:var(--ink);line-height:1.7}
+.cur-hero-cta{display:inline-block;font-size:14px;font-weight:800;color:#fff;background:var(--tc);border-radius:12px;padding:11px 20px}
+@media(max-width:820px){.cur-hero{grid-template-columns:1fr}.cur-hero-ph{min-height:200px}
+  .cur-hero-body{padding:20px}.cur-hero-num b{font-size:38px}}
+
+.cur-sec{margin-top:34px}
+.cur-sec-h{display:flex;align-items:center;gap:9px;margin-bottom:4px}
+.cur-sec-h b{font-size:19px;letter-spacing:-.02em}
+.cur-sec-h i{font-style:normal;font-size:12px;font-weight:800;color:var(--tc);background:var(--ts);border-radius:999px;padding:3px 10px}
+.cur-sec-ico{font-size:20px}
+.cur-sec-d{font-size:13px;color:var(--sub);margin:0 0 14px;line-height:1.6;max-width:680px}
+
+.cur-card{border-radius:16px;overflow:hidden;background:#fff;border:1px solid var(--line);cursor:pointer;
+  display:flex;flex-direction:column;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
+.cur-card:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(16,24,40,.12);border-color:var(--tc)}
+.cur-ph{position:relative;height:150px;background:var(--ts);display:grid;place-items:center;overflow:hidden}
+.cur-ph img{width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0}
+.cur-ph::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 42%,rgba(0,0,0,.66) 100%)}
+.cur-noimg{font-size:42px;opacity:.55}
+.cur-badge{position:absolute;top:10px;left:10px;z-index:2;font-size:11px;font-weight:800;color:#fff;background:var(--tc);border-radius:999px;padding:4px 10px}
+.cur-num{position:absolute;left:12px;bottom:9px;z-index:2;font-size:27px;font-weight:900;color:#fff;letter-spacing:-.02em;text-shadow:0 2px 10px rgba(0,0,0,.45)}
+.cur-body{padding:13px 14px 15px;display:flex;flex-direction:column;gap:5px}
+.cur-chips{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:2px}
+.cur-t{font-size:14px;font-weight:800;line-height:1.45}
+.cur-p{font-size:12.5px;color:var(--sub)}
+.cur-ai{font-size:12.5px;color:var(--ink);background:var(--ts);border-radius:8px;padding:5px 9px;align-self:flex-start}
+.cur-why{font-size:12.5px;color:var(--ink);line-height:1.55;margin-top:3px}
+.cur-more-n{font-size:11.5px;color:var(--mute)}
+.cur-morebtn{margin-top:14px;font-size:13px;font-weight:800;color:var(--tc);background:var(--ts);border:none;border-radius:11px;padding:10px 18px;cursor:pointer}
+
+.cur-trust{margin-top:38px;border:1px solid var(--line);border-radius:16px;padding:16px 18px;background:var(--bg)}
+.cur-trust>summary{cursor:pointer;font-size:15px;font-weight:800;color:var(--tc);list-style:none}
+.cur-trust>summary::-webkit-details-marker{display:none}
+.cur-trust>summary::before{content:'▸ '}
+.cur-trust[open]>summary::before{content:'▾ '}
+.cur-trust .cur-sec-d{margin-top:10px}
+@media(prefers-reduced-motion:reduce){.cur-hero,.cur-card{transition:none}
+  .cur-hero:hover,.cur-card:hover{transform:none}}
 .h2{font-size:clamp(24px,3.6vw,34px);font-weight:900;letter-spacing:-.02em;line-height:1.3;text-wrap:pretty}
 .sub{font-size:16px;color:var(--sub);line-height:1.7;text-wrap:pretty}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 2px 16px rgba(16,32,26,.04)}
@@ -442,8 +500,8 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
     <span class="kicker">TODAY'S PICKS</span>
     <span class="chip chip-demo" id="curatedChip">불러오는 중…</span>
   </div>
-  <h2 style="margin:0 0 6px">오늘의 주목 물건</h2>
-  <p style="color:var(--sub);margin:0 0 16px;max-width:640px">수만 건을 일일이 보지 않아도 됩니다. 엔진이 <b>할인 폭·유찰·유사 사례 통계·개찰 임박</b>을 종합해 분석해 볼 만한 물건을 추립니다 — <b>투자 추천이 아니라</b> 왜 볼 만한지 근거를 함께 보여드립니다.</p>
+  <h2 style="margin:0 0 6px">오늘 우리가 고른 물건</h2>
+  <p style="color:var(--sub);margin:0 0 16px;max-width:680px">수만 건을 다 보지 않아도 됩니다. <b>실제 입찰 수요가 있는 분류</b>(주거·명품·회원권·귀금속·차량)만 후보로 두고, <b>낙찰률이 낮아 접근하기 어려운 물건</b>은 뺍니다. 남은 것 중 <b>보수적으로 계산해도 여지가 남거나 실제로 잘 팔리는</b> 물건을 올립니다 — 근거는 카드마다 함께 표시하며, <b>수익을 보장하지 않습니다</b>.</p>
   <!-- 관심 설정(온보딩) — 내 관심 기준으로 큐레이션을 좁힌다. localStorage bidcast:profile -->
   <div id="curatedPrefs" style="display:none;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:18px">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
@@ -1594,7 +1652,10 @@ async function loadCurated() {
   let d;
   try { d = await fetch('/.netlify/functions/curated').then(r => r.ok ? r.json() : Promise.reject(new Error("HTTP "+r.status))); }
   catch (e) { return; } // 함수 미배포/오류 → 섹션 숨김 유지(degrade, 가짜 데이터 금지)
-  if (!d || d.status !== 'ok' || !Array.isArray(d.items) || !d.items.length) return;
+  // v2는 트랙별로 온다. 구형(v1, items 평면 목록)도 계속 받아들인다.
+  const hasTracks = d && d.tracks && ['margin', 'demand', 'closing', 'trust'].some(k => Array.isArray(d.tracks[k]) && d.tracks[k].length);
+  const hasItems = d && Array.isArray(d.items) && d.items.length;
+  if (!d || d.status !== 'ok' || (!hasTracks && !hasItems)) return;
 
   const ddayBadge = bidEnd => {
     const s = String(bidEnd || '').replace(/[^0-9]/g, ''); if (s.length < 8) return '';
@@ -1605,36 +1666,76 @@ async function loadCurated() {
     const cls = dd <= 3 ? 'chip-red' : dd <= 7 ? 'chip-yellow' : 'chip-green';
     return `<span class="chip ${cls}">${dd === 0 ? '오늘 개찰' : 'D-' + dd}</span>`;
   };
+  // ── 트랙 정의 (2026-07-29 창업자 승인) ──
+  // 성격이 다른 선별을 한 목록에 섞지 않는다. 각 트랙이 자기 색과 자기 잣대를 갖는다.
+  const TRACK = {
+    margin:  { key:'margin',  ico:'💰', name:'차익 여지가 계산된 물건',
+               desc:'주변 실거래 시세 <b>하단</b>과 예상 낙찰가 <b>상단</b>으로만 계산했습니다 — 가장 보수적인 가정입니다.',
+               c:'#00A86B', soft:'#E4F6EE' },
+    demand:  { key:'demand',  ico:'🔥', name:'사람들이 찾는 품목',
+               desc:'명품·회원권·귀금속·차량 중 <b>실제로 잘 낙찰되는</b> 품목입니다. 시세는 우리가 산정하지 않습니다.',
+               c:'#EB763C', soft:'#FDECE1' },
+    closing: { key:'closing', ico:'⏰', name:'오늘·내일 마감',
+               desc:'위 두 기준 중 하나를 통과하면서 개찰이 코앞인 물건입니다.',
+               c:'#E5484D', soft:'#FDECEC' },
+    trust:   { key:'trust',   ico:'🏛', name:'신탁·특수매각',
+               desc:'최저가가 감정가보다 높은 것이 <b>정상인 구조</b>라 할인 폭으로 비교할 수 없습니다. 권리·인수조건이 압류재산과 다릅니다.',
+               c:'#6B5CE7', soft:'#EDEBFD' },
+  };
   const snaps = {};
-  const card = it => {
-    // 상세 페이지 스냅샷은 온비드 필드명으로 변환(리스트/히어로와 동일 규약)
+
+  // 카드 — 사진을 키우고 숫자를 키운다. 무엇이 중요한지 화면이 말하게(2026-07-29 디자인 교정).
+  const card = (it, t) => {
     snaps[String(it.id)] = {
       id: it.id, pbctCdtnNo: it.cdtn, cltrMngNo: it.id, title: it.title, type: it.type,
       assetClass: it.assetClass, appr: it.apsl, min: it.low, fail: it.failCount, round: it.round,
       bidEnd: it.bidEnd, photo: it.photo || '', region: it.region, court: it.region, live: true,
+      bldgAr: it.area || 0,
     };
-    // 근거는 **대표 하나만** 카드에 싣는다 — 세 줄로 나열하면 카드 24장이 곧 "그래서 뭐?"가 된다
-    // (창업자 지시 2026-07-29). 나머지는 개수만 알리고 상세 페이지에서 전부 본다.
+    // 카드의 주인공 숫자 — 트랙마다 다르다.
+    const head = it.margin
+      ? { v: (it.margin.netMan >= 10000 ? (it.margin.netMan / 10000).toFixed(1).replace(/\.0$/, '') + '억' : Math.round(it.margin.netMan).toLocaleString() + '만'), k: '보수 기준 여지' }
+      : (it.pred && it.pred.soldProb != null) ? { v: it.pred.soldProb + '%', k: '낙찰 가능성' }
+      : { v: hWon(it.low), k: '최저가' };
     const rs = it.reasons || [];
-    const reasons = rs.length
-      ? `<div style="margin-top:9px;font-size:13px;color:var(--ink);line-height:1.55">${escHtml(rs[0].tag)}</div>`
-        + (rs.length > 1 ? `<div style="margin-top:3px;font-size:11.5px;color:var(--mute)">+ 근거 ${rs.length - 1}개 · 눌러서 자세히</div>` : '')
-      : '';
-    const flags = (it.flags || []).map(fl => `<div class="chip chip-yellow" style="margin-top:4px">⚠ ${escHtml(fl)}</div>`).join('');
-    const predLine = it.pred ? `<div style="font-size:12.5px;color:var(--ink);margin-top:6px">🔒 AI 예상 <b>${hWon(it.pred.lo)}~${hWon(it.pred.hi)}</b></div>` : '';
-    // 실사진(온비드 썸네일) — 있으면 카드 상단에. 온비드 이미지 서버 리퍼러 거부 대비 no-referrer, 실패 시 조용히 제거(이모지 대체 불필요 — 카드 정보로 충분)
-    const ph = /^https?:\/\//.test(it.photo || '') ? `<div style="height:120px;border-radius:10px;overflow:hidden;margin-bottom:10px;background:var(--bg)"><img src="${escHtml(it.photo)}" alt="" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentNode.remove()"></div>` : '';
-    return `<div class="mcard mcard-live" data-id="${escHtml(String(it.id))}" role="link" tabindex="0" style="cursor:pointer;display:flex;flex-direction:column">
-      ${ph}<div class="tags" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-        <span class="chip chip-green">🟢 주목</span>${ddayBadge(it.bidEnd)}
-        <span class="chip chip-demo">${escHtml(it.type || '부동산')}</span>
-      </div>
-      <div class="t" style="margin-top:8px">${escHtml(it.title || '')}</div>
-      <div class="p">감정가 ${hWon(it.apsl)} · 최저가 ${hWon(it.low)}${it.region ? ' · ' + escHtml(it.region) : ''}</div>
-      ${predLine}
-      ${reasons}
-      ${flags}
-    </div>`;
+    const why = rs.length ? `<div class="cur-why">${escHtml(rs[0].tag || rs[0])}</div>` : '';
+    const more = rs.length > 1 ? `<div class="cur-more-n">+ 근거 ${rs.length - 1}개 · 눌러서 자세히</div>` : '';
+    const dd = ddayBadge(it.bidEnd);
+    const ph = /^https?:\/\//.test(it.photo || '')
+      ? `<img src="${escHtml(it.photo)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
+      : `<div class="cur-noimg">${it.assetClass === '동산' ? '📦' : it.assetClass === '자동차' ? '🚗' : '🏢'}</div>`;
+    return `<div class="cur-card mcard-live" data-id="${escHtml(String(it.id))}" role="link" tabindex="0" style="--tc:${t.c};--ts:${t.soft}">
+      <div class="cur-ph">${ph}<div class="cur-badge">${t.ico} ${escHtml(head.k)}</div><div class="cur-num">${escHtml(head.v)}</div></div>
+      <div class="cur-body">
+        <div class="cur-chips">${dd}<span class="chip chip-demo">${escHtml(it.type || it.assetClass || '')}</span></div>
+        <div class="cur-t">${escHtml(it.title || '')}</div>
+        <div class="cur-p">최저가 <b>${hWon(it.low)}</b>${it.apsl > 0 ? ` · 감정가 ${hWon(it.apsl)}` : ''}</div>
+        ${it.pred && it.pred.lo > 0 ? `<div class="cur-ai">🔒 AI 예상 <b>${hWon(it.pred.lo)}~${hWon(it.pred.hi)}</b></div>` : ''}
+        ${why}${more}
+      </div></div>`;
+  };
+
+  // 히어로 픽 — 오늘 우리가 가장 앞세우는 한 건. 크게 보여준다.
+  const heroCard = (it, t) => {
+    const head = it.margin
+      ? { v: (it.margin.netMan >= 10000 ? (it.margin.netMan / 10000).toFixed(1).replace(/\.0$/, '') + '억' : Math.round(it.margin.netMan).toLocaleString() + '만'), k: '보수적으로 계산해도 남는 여지' }
+      : (it.pred && it.pred.soldProb != null) ? { v: it.pred.soldProb + '%', k: '같은 조건 낙찰 가능성' }
+      : { v: hWon(it.low), k: '최저입찰가' };
+    const ph = /^https?:\/\//.test(it.photo || '')
+      ? `<img src="${escHtml(it.photo)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
+      : `<div class="cur-noimg" style="font-size:64px">${it.assetClass === '동산' ? '📦' : it.assetClass === '자동차' ? '🚗' : '🏢'}</div>`;
+    const rs = (it.reasons || []).slice(0, 2).map(r => `<li>${escHtml(r.tag || r)}</li>`).join('');
+    return `<div class="cur-hero mcard-live" data-id="${escHtml(String(it.id))}" role="link" tabindex="0" style="--tc:${t.c};--ts:${t.soft}">
+      <div class="cur-hero-ph">${ph}</div>
+      <div class="cur-hero-body">
+        <div class="cur-hero-kick">${t.ico} 오늘 가장 앞세운 물건 · ${escHtml(t.name)}</div>
+        <div class="cur-hero-num"><b>${escHtml(head.v)}</b><span>${escHtml(head.k)}</span></div>
+        <div class="cur-hero-t">${escHtml(it.title || '')}</div>
+        <div class="cur-hero-p">최저가 <b>${hWon(it.low)}</b>${it.apsl > 0 ? ` · 감정가 ${hWon(it.apsl)}` : ''}${it.region ? ' · ' + escHtml(it.region) : ''}</div>
+        ${it.pred && it.pred.lo > 0 ? `<div class="cur-hero-ai">🔒 AI 예상 낙찰가 <b>${hWon(it.pred.lo)} ~ ${hWon(it.pred.hi)}</b> <span>개찰 전 봉인 · 수정 없음</span></div>` : ''}
+        <ul class="cur-hero-why">${rs}</ul>
+        <div class="cur-hero-cta">자세히 보기 →</div>
+      </div></div>`;
   };
 
   // 프로필 필터 — 유형/지역/예산. 매칭 0건이면 전체로 폴백(빈 화면 금지).
@@ -1645,30 +1746,52 @@ async function loadCurated() {
     const match = it => (!types.length || types.includes(it.type))
       && (!region || String(it.region || '').indexOf(region) >= 0)
       && (!budget || (it.low > 0 && it.low <= budget));
-    const hit = d.items.filter(match);
-    const used = hit.length ? hit : d.items;
-    // 같은 건물 여러 호실이 주목 물건을 채우지 않도록 건물당 1건만(점수 높은 쪽) — 2026-07-28
-    const sorted = dedupeBld(used.slice().sort((a, b) => b.score - a.score));
 
-    // 자산군별로 묶어 3개 미리보기 + "더 보기"로 3개 추가(그룹당 최대 6개 — 2026-07-26 창업자 지시,
-    // 전부 펼치면 압도되므로 상한. 전체 목록은 물건검색 페이지가 담당).
-    const GRID = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px';
-    const ORDER = ['부동산', '자동차', '동산'], PREVIEW = 3, CAP = 6;
-    const groups = {};
-    sorted.forEach(it => { const k = it.assetClass || '기타'; (groups[k] = groups[k] || []).push(it); });
-    const keys = [...ORDER.filter(k => groups[k]), ...Object.keys(groups).filter(k => !ORDER.includes(k))];
+    // v2 응답은 트랙별로 온다. 구형(v1, items만)이면 한 트랙으로 취급해 계속 동작시킨다.
+    const src = (d.tracks && typeof d.tracks === 'object')
+      ? d.tracks
+      : { margin: [], demand: (d.items || []), closing: [], trust: [] };
+    const filt = arr => {
+      const a = (arr || []).filter(match);
+      const used = a.length ? a : (arr || []);
+      return dedupeBld(used); // 같은 건물 여러 호실이 목록을 채우지 않도록
+    };
+    const T = { margin: filt(src.margin), demand: filt(src.demand), closing: filt(src.closing), trust: filt(src.trust) };
+    const hitN = T.margin.length + T.demand.length + T.closing.length;
+
+    // 히어로 = 차익 여지 1등, 없으면 수요 1등, 없으면 마감 1등
+    const heroSrc = T.margin[0] ? ['margin', T.margin[0]] : T.demand[0] ? ['demand', T.demand[0]] : T.closing[0] ? ['closing', T.closing[0]] : null;
     let html = '';
-    keys.forEach((k, gi) => {
-      const arr = groups[k];
-      const shown = Math.min(arr.length, CAP);
-      html += `<div style="display:flex;align-items:center;gap:8px;margin:${gi ? '24px' : '4px'} 0 12px">`
-        + `<b style="font-size:15px">${escHtml(k)}</b><span class="chip chip-demo">${arr.length}건${arr.length > CAP ? ` · 주목도 상위 ${CAP}건 표시` : ''}</span></div>`;
-      html += `<div style="${GRID}">${arr.slice(0, PREVIEW).map(card).join('')}</div>`;
-      if (shown > PREVIEW) {
-        html += `<div class="cur-more" data-g="${gi}" style="${GRID};display:none;margin-top:14px">${arr.slice(PREVIEW, CAP).map(card).join('')}</div>`
-          + `<button class="cur-morebtn" data-g="${gi}" style="margin-top:12px;font-size:13px;font-weight:700;color:var(--green-deep);background:var(--green-soft);border:none;border-radius:10px;padding:9px 16px;cursor:pointer">${escHtml(k)} ${shown - PREVIEW}건 더 보기 ▾</button>`;
+    if (heroSrc) {
+      html += heroCard(heroSrc[1], TRACK[heroSrc[0]]);
+      T[heroSrc[0]] = T[heroSrc[0]].slice(1); // 히어로는 아래 목록에서 뺀다(같은 물건 두 번 금지)
+    }
+
+    const GRID = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(272px,1fr));gap:16px';
+    const PREVIEW = 3;
+    ['margin', 'demand', 'closing'].forEach(k => {
+      const arr = T[k], t = TRACK[k];
+      if (!arr.length) return;                       // 빈 트랙은 제목째 숨긴다
+      html += `<div class="cur-sec" style="--tc:${t.c};--ts:${t.soft}">
+          <div class="cur-sec-h"><span class="cur-sec-ico">${t.ico}</span><b>${escHtml(t.name)}</b><i>${arr.length}건</i></div>
+          <p class="cur-sec-d">${t.desc}</p>
+          <div style="${GRID}">${arr.slice(0, PREVIEW).map(it => card(it, t)).join('')}</div>`;
+      if (arr.length > PREVIEW) {
+        html += `<div class="cur-more" data-g="${k}" style="${GRID};display:none;margin-top:16px">${arr.slice(PREVIEW).map(it => card(it, t)).join('')}</div>`
+          + `<button class="cur-morebtn" data-g="${k}">${arr.length - PREVIEW}건 더 보기 ▾</button>`;
       }
+      html += `</div>`;
     });
+
+    // 신탁·특수매각 — 구조가 달라 같은 잣대로 비교할 수 없다. 하단·기본 접힘(창업자 결정).
+    if (T.trust.length) {
+      const t = TRACK.trust;
+      html += `<details class="cur-trust" style="--tc:${t.c};--ts:${t.soft}">
+        <summary>${t.ico} ${escHtml(t.name)} ${T.trust.length}건 — 구조가 다릅니다</summary>
+        <p class="cur-sec-d">${t.desc}</p>
+        <div style="${GRID}">${T.trust.slice(0, 6).map(it => card(it, t)).join('')}</div></details>`;
+    }
+
     document.getElementById('curatedGrid').innerHTML = html;
     document.querySelectorAll('#curatedGrid .mcard-live[data-id]').forEach(el => {
       const id = el.getAttribute('data-id'); if (!id) return;
@@ -1685,13 +1808,12 @@ async function loadCurated() {
     if (foot) {
       const at = d.at ? new Date(d.at) : null;
       const filtered = (types.length || region || budget);
-      const head = filtered
-        ? (hit.length ? `내 관심 기준으로 <b>${hit.length}건</b>을 추렸습니다. ` : `관심 기준에 맞는 물건이 없어 전체를 보여드립니다. `)
-        : `엔진이 마감 임박 ${(d.scanned || 0).toLocaleString()}건을 분석해 ${(d.scored || 0).toLocaleString()}건에서 주목 신호를 찾고 상위 ${d.count}건을 추렸습니다. `;
-      foot.innerHTML = `${head}점수는 분석 주목도이며 <b>투자 권유가 아닙니다</b>.${at ? ' · ' + at.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' 갱신' : ''}`;
+      foot.innerHTML = `엔진이 마감 임박 <b>${(d.scanned || 0).toLocaleString()}건</b>을 훑어 기준을 통과한 <b>${hitN}건</b>을 골랐습니다`
+        + (filtered ? ' (내 관심 기준 적용)' : '')
+        + `. 차익은 <b>보수 가정</b>으로만 계산하며 <b>수익을 보장하지 않습니다</b>. 이 선별의 사후 성적은 <a href="bidcast-lab.html" style="color:var(--green-deep);font-weight:700">적중률 랩</a>에서 공개합니다.`
+        + (at ? ' · ' + at.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' 갱신' : '');
     }
   }
-
   // 관심 설정 UI 렌더 + 이벤트
   function renderPrefs() {
     const p = getProfile();
