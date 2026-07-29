@@ -686,6 +686,18 @@ h1,h2,h3,h4{font-family:var(--font-head)}
          엔진을 만든 순서가 아니라 질문의 순서로 놓아야 "그래서 뭐?"가 안 나온다.
          내용이 하나도 없는 묶음은 syncQGroups()가 제목째 숨긴다(빈 질문 금지). -->
 
+    <!-- ── Q0. 이번 회차에 팔릴까 ── -->
+    <div class="q-group" data-q="0">
+    <div class="q-head"><span class="q-no">Q0</span><b>이번 회차에 팔릴까</b><span class="q-sub">가격을 따지기 전에, 이번에 낙찰될 물건인지</span></div>
+
+    <!-- 낙찰 가능성 — 봉인 예측(pred.soldProb). 근거 셀이 없으면 수치를 만들지 않는다. -->
+    <section class="rp-section" id="sec-sold" style="display:none;">
+      <h2>이번 회차 낙찰 가능성 <span class="sec-tag" style="background:var(--green-soft);color:var(--green-deep);">개찰 전 봉인 · 실측 이력 기반</span></h2>
+      <div class="card" id="soldCard"></div>
+      <p style="font-size:11px;color:var(--mute);margin-top:10px;" id="soldNote"></p>
+    </section>
+    </div><!-- /Q0 -->
+
     <!-- ── Q1. 얼마에 살 수 있나 ── -->
     <div class="q-group" data-q="1">
     <div class="q-head"><span class="q-no">Q1</span><b>얼마에 살 수 있나</b><span class="q-sub">개찰 전에 봉인한 예상 구간과 경쟁 정도</span></div>
@@ -706,6 +718,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
           </div>
         </div>
         <p class="ai-note">※ 통계 기반 예측 <b>범위</b>이며 특정 낙찰가를 보장하지 않습니다. 개찰 전 봉인 후 수정하지 않으며, 적중률은 <a href="bidcast-lab.html">적중률 랩</a>에서 전수 공개합니다.</p>
+        <div id="aiBidders"></div>
         <div id="aiFitLine"></div>
       </div>
       <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
@@ -1349,7 +1362,8 @@ async function loadSealedPred(){
         +'봉인되면 이 자리에 구간이 표시되고, 개찰 후 <a href="bidcast-lab.html">적중률 랩</a>에서 채점됩니다.';
     }
   }
-  rdSet({sealed:!!p,sealedKnown:true});
+  renderOutcome(p);
+  rdSet({sealed:!!p,sealedKnown:true,soldProb:(p&&p.soldProb!=null)?p.soldProb:null});
 
   // 봉인이 있을 때만 "이 방식이 실제로 얼마나 맞았나"를 각주로 붙인다(없는 예측의 성적은 무의미).
   if(p){
@@ -1366,6 +1380,58 @@ async function loadSealedPred(){
   }
 }
 window.__aiReady=loadSealedPred();
+
+// ═══ 결과 예보 — Q0 "이번에 팔릴까" + Q1 "몇 명과 붙나" (2026-07-29) ═══
+// 낙찰가 예측만으로는 사용자의 첫 질문에 답하지 못한다. 유찰 8회 물건에 "예상 낙찰가 1.2억"만
+// 보여주면서 "이번에도 안 팔릴 가능성이 높다"는 말을 안 하는 게 지금까지의 상태였다.
+// 두 숫자 모두 낙찰가와 **같은 순간에 봉인**되고 개찰 후 채점받는다(soldProb는 적중률이 아니라
+// 보정으로 채점 — "70%라 말한 것들이 실제로 몇 % 팔렸나"). 근거 셀이 없으면 만들지 않는다.
+function renderOutcome(p){
+  const esc=v=>String(v==null?'':v).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  const sec=document.getElementById('sec-sold'),card=document.getElementById('soldCard'),note=document.getElementById('soldNote');
+  const bidBox=document.getElementById('aiBidders');
+
+  // ── Q0: 낙찰 가능성 ──
+  if(sec&&card){
+    if(p&&p.soldProb!=null){
+      const v=p.soldProb;
+      const tone=v>=60?['var(--green-deep)','높은 편']:v>=35?['#8A6D00','보통']:['#8A2A2E','낮은 편'];
+      card.innerHTML=`<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;">
+          <div style="font-size:30px;font-weight:900;color:${tone[0]};line-height:1.1;">${v}%</div>
+          <div style="font-size:13px;font-weight:800;color:${tone[0]};">${tone[1]}</div>
+          <div style="flex:1;min-width:140px;">
+            <div style="height:9px;border-radius:99px;background:var(--line);overflow:hidden;">
+              <div style="height:100%;width:${Math.max(2,Math.min(100,v))}%;background:${tone[0]};"></div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:11px;font-size:12.5px;color:var(--sub);line-height:1.75;">
+          같은 조건(자산군·용도·회차·가격대)의 과거 개찰 <b>${esc(p.outcomeN||0)}건</b> 중 이 비율이 낙찰됐습니다.
+          ${v<35?'<b style="color:#8A2A2E;">이번에도 유찰될 가능성이 더 큽니다</b> — 유찰되면 다음 회차에 최저가가 더 내려갑니다(기다리는 것도 선택지입니다).'
+                :'유찰되면 다음 회차에 최저가가 내려가고, 그때 다시 봉인 예측이 만들어집니다.'}
+        </div>`;
+      note.textContent='※ 이 확률은 개찰 전에 봉인되어 수정되지 않으며, 개찰 후 "이 확률대로 실제로 팔렸는지"로 채점됩니다(적중/불적중이 아니라 보정으로 측정). 낙찰가 적중률과는 별개 지표입니다.';
+      sec.style.display='';
+    }else if(p){
+      card.innerHTML='<div style="font-size:13px;color:var(--sub);line-height:1.7;">이 조합(자산군·용도·회차·가격대)은 과거 개찰 표본이 부족해 <b>낙찰 가능성을 계산하지 않았습니다.</b><br>근거 없는 확률을 지어내지 않기 위해 비워 둡니다 — 아래 이전 입찰내역과 유찰 진단을 대신 참고하세요.</div>';
+      note.textContent='';
+      sec.style.display='';
+    }else{
+      sec.style.display='none'; // 봉인 자체가 없으면 Q1이 이미 설명한다(같은 말 두 번 금지)
+    }
+  }
+
+  // ── Q1 나머지 절반: 예상 경쟁(입찰자 수) ──
+  if(bidBox){
+    if(p&&p.bidders&&p.bidders.hi>0){
+      const b=p.bidders;
+      bidBox.innerHTML=`<div style="margin-top:10px;padding-top:9px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--sub);line-height:1.7;">
+        🥊 <b>예상 경쟁</b> — 낙찰된다면 <b style="color:var(--ink)">${b.lo}~${b.hi}명</b>(중앙 ${b.mid}명)과 겨루게 될 가능성이 높습니다.
+        같은 조건 낙찰 <b>${esc(p.bidN||0)}건</b>의 유효 입찰자 수 분포 기준 · 개찰 전 봉인.
+        <br><span style="color:var(--mute);">입찰자가 많을수록 낙찰가가 예상 구간 위쪽에 붙는 경향이 있습니다. 특정 입찰가를 권하지 않습니다.</span></div>`;
+    }else{ bidBox.innerHTML=''; }
+  }
+}
 
 // ═══ 판단 준비도 — 이 페이지의 한 줄 결론 (2026-07-29 정보구조 재배열) ═══
 // 왜 만드나: 화면에 숫자가 25종 넘게 흩어져 있는데 결론 문장이 하나도 없어 사용자가
@@ -1427,6 +1493,9 @@ function computeReadiness(f){
   }
 
   if(level==='go')tags.push({t:'경고 신호 없음',l:'ok'});
+  // 낙찰 가능성은 **판정을 바꾸지 않고** 헤드라인에만 얹는다 — 유찰 이력이 이미 같은 현상을
+  // 신호로 잡고 있어, 등급까지 또 올리면 한 사실을 두 번 세는 셈이 된다.
+  if(f.soldProb!=null)tags.push({t:`이번 회차 낙찰 가능성 ${f.soldProb}%`,l:'ok'});
   return {level,tags,next};
 }
 // RD-ENGINE-END

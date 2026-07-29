@@ -332,6 +332,20 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 </section>
 
 <!-- ═══ 시세 추정 신뢰도 (시세 축 ⑤ 4단계) — 낙찰가 성적표와 **별개 지표**. 문구·색으로 분리 ═══ -->
+<!-- 결과 예보 성적 — "이번에 팔릴까"(확률 보정) + "몇 명과 붙나"(구간).
+     확률은 적중/불적중이 없어 **보정**으로 잰다: 우리가 70%라 말한 것들이 실제 몇 % 팔렸나.
+     표본 없으면 섹션 숨김(degrade). renderOutcome()이 채움. -->
+<section class="section" id="outcomeSec" style="padding-top:0; display:none;">
+  <div class="wrap">
+    <span class="eyebrow">Outcome Forecast</span>
+    <h2 class="title">결과 예보 성적 — 팔릴까 · 몇 명과 붙나</h2>
+    <p class="lead">낙찰가 예측과 <b>같은 순간에 봉인</b>되는 두 가지 예보입니다. <b>확률은 맞다·틀리다가 없습니다</b> — 그래서 적중률 대신 <b>보정(calibration)</b>으로 잽니다: <b>"우리가 70%라고 말한 물건들 중 실제로 몇 %가 팔렸는가."</b> 두 값이 가까울수록 정직한 확률입니다.</p>
+    <div id="outSold" style="margin-top:22px;"></div>
+    <div id="outBid" style="margin-top:22px;"></div>
+    <p class="foot-note" id="outFoot"></p>
+  </div>
+</section>
+
 <!-- 표본 없으면 섹션 자체를 숨긴다(degrade) — 가짜 수치 금지. renderMarket()이 채움. -->
 <section class="section" id="mktSec" style="padding-top:0; display:none;">
   <div class="wrap">
@@ -576,6 +590,53 @@ document.addEventListener('keydown', (e) => {
 (async () => {
   // 시세 추정 신뢰도 렌더 — market(라이브 봉인·채점) + marketBacktest(과거 정합도).
   // 둘 다 없으면 섹션을 열지 않는다(가짜 수치·빈 표 금지). 낙찰가 지표와 문구·색으로 분리.
+  // 결과 예보 성적 — 확률은 보정표로, 입찰자 수는 구간 적중률로.
+  function renderOutcome(d) {
+    const o = d.outcome;
+    if (!o || (!o.sold && !o.bidders)) return;      // 채점 전이면 섹션을 열지 않는다
+    const esc = v => String(v == null ? '' : v).replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+    let shown = false;
+
+    if (o.sold && o.sold.n) {
+      // 표본 10건 미만 밴드는 비율이 튀므로 회색으로 구분(작은 표본 단정 금지)
+      const rows = o.sold.buckets.map(b => {
+        const thin = b.n < 10;
+        const gap = (b.predAvg != null && b.actual != null) ? Math.abs(b.predAvg - b.actual) : null;
+        return `<tr style="${thin ? 'color:var(--mute);' : ''}">
+          <td>${esc(b.band)}</td><td style="text-align:right;">${b.n}건</td>
+          <td style="text-align:right;">${b.predAvg}%</td>
+          <td style="text-align:right;font-weight:800;">${b.actual}%</td>
+          <td style="text-align:right;">${gap == null ? '—' : (Math.round(gap * 10) / 10) + '%p'}${thin ? ' <span style="font-size:10px;">(표본 부족)</span>' : ''}</td>
+        </tr>`;
+      }).join('');
+      document.getElementById('outSold').innerHTML = `
+        <h3 style="font-size:17px;font-weight:800;margin-bottom:10px;">이번 회차에 팔릴까 — 확률 보정 <span style="font-size:12.5px;font-weight:600;color:var(--sub);">채점 ${o.sold.n}건 · Brier ${o.sold.brier}</span></h3>
+        <div style="overflow-x:auto;"><table class="acc-table" style="min-width:520px;">
+          <thead><tr><th>우리가 말한 확률대</th><th style="text-align:right;">표본</th><th style="text-align:right;">우리가 말한 평균</th><th style="text-align:right;">실제로 팔린 비율</th><th style="text-align:right;">차이</th></tr></thead>
+          <tbody>${rows}</tbody></table></div>
+        <p style="font-size:12px;color:var(--sub);margin-top:9px;line-height:1.7;">
+          두 열이 가까울수록 확률이 정직합니다. Brier는 낮을수록 좋고(0이 완벽), 아무 정보 없이 매번 평균만 대는 예보가 대략 0.25 근처입니다.
+          <b>취소(0012)된 공매는 제외</b>합니다 — 열리지 않은 공매는 "안 팔린 것"이 아니기 때문입니다.</p>`;
+      shown = true;
+    }
+
+    if (o.bidders && o.bidders.n) {
+      document.getElementById('outBid').innerHTML = `
+        <h3 style="font-size:17px;font-weight:800;margin-bottom:10px;">몇 명과 붙나 — 입찰자 수 구간</h3>
+        <div class="asset-grid">
+          <div class="asset-acc"><h4>구간 적중률</h4><div class="pct">${o.bidders.hitRate}%</div><div class="note">낙찰 ${o.bidders.n}건 채점</div></div>
+          <div class="asset-acc"><h4>평균 빗나감</h4><div class="pct">${o.bidders.avgAbsErr}명</div><div class="note">중앙값 기준</div></div>
+        </div>
+        <p style="font-size:12px;color:var(--sub);margin-top:9px;line-height:1.7;">낙찰된 회차만 채점합니다(유찰엔 유효 입찰자가 없습니다). 입찰자 수는 <b>경쟁 강도의 사후 확인</b>일 뿐, 특정 입찰가를 권하는 근거가 아닙니다.</p>`;
+      shown = true;
+    }
+
+    if (shown) {
+      document.getElementById('outFoot').textContent = '※ 두 예보 모두 낙찰가 예측과 같은 순간에 봉인되고 이후 수정되지 않습니다. 근거 표본이 부족한 물건에는 아예 만들지 않으며, 그 경우 물건 화면에도 수치를 표시하지 않습니다.';
+      document.getElementById('outcomeSec').style.display = '';
+    }
+  }
+
   function renderMarket(d) {
     const KIND = { apt: '아파트', offi: '오피스텔', rh: '연립·다세대', sh: '단독·다가구' };
     const cell = (lbl, val, note) => `<div class="asset-acc"><h4>${lbl}</h4><div class="pct">${val}</div><div class="note">${note}</div></div>`;
@@ -637,6 +698,7 @@ document.addEventListener('keydown', (e) => {
     if (d.daily) renderTrend(d.daily);
 
     // ── 시세 추정 신뢰도(⑤ 4단계) — 낙찰가 성적표와 별개 지표. 실측 없으면 섹션 숨김 유지 ──
+    renderOutcome(d);
     renderMarket(d);
 
     // ── 큐레이션 성적 실측화 (curatedScore, 표본 있을 때만 노출) ──

@@ -18,6 +18,9 @@
 
 const CORS = { 'Access-Control-Allow-Origin': '*' };
 const MIN_N_DEFAULT = 20;
+// 셀 스키마 버전 — 필드를 추가하면 올린다. 캐시 무효화 태그에 섞여 들어가 기존 _cells가 재빌드된다
+// (안 올리면 새 필드가 영원히 null인 채 캐시가 살아 있다).
+const CELLS_V = 'v2-bidders';
 
 async function openLedger(event) {
   if (global.__FAKE_STORE__) return global.__FAKE_STORE__; // fixture 검증용(런타임 미사용)
@@ -77,7 +80,7 @@ async function buildCells(store, force) {
   ]);
   const records = (meta?.records || 0) + (bfmeta?.records || 0);
   if (!records) return null; // 수집 전
-  const srcTag = `${meta?.updatedAt || ''}|${bfmeta?.updatedAt || ''}`;
+  const srcTag = `${CELLS_V}|${meta?.updatedAt || ''}|${bfmeta?.updatedAt || ''}`;
   const cached = force ? null : await store.get('hist/_cells', { type: 'json' });
   if (cached && cached.srcUpdatedAt === srcTag) return cached;
 
@@ -91,7 +94,7 @@ async function buildCells(store, force) {
   const featKeys = allKeys.filter(k => /^hist\/feat\/\d{8}_\d{8}\/\d+$/.test(k));
 
   const seen = new Set();
-  const acc = {}; // key → { lr:[], wr:[], win:0, fail:0 }
+  const acc = {}; // key → { lr:[], wr:[], bd:[], win:0, fail:0 }
   let total = 0;
 
   // 표본 1건 반영 — addSample은 await가 없어 병렬 콜백 사이에서도 원자적(seen/acc 안전).
@@ -106,11 +109,14 @@ async function buildCells(store, force) {
     const tier = tierOf(Number(r.low) || 0);
     const isWin = r.st === '0010' && Number(r.win) > 0;
     for (const k of keysFor(type, usage, rb, tier)) {
-      const cell = acc[k] || (acc[k] = { lr: [], wr: [], win: 0, fail: 0 });
+      const cell = acc[k] || (acc[k] = { lr: [], wr: [], bd: [], win: 0, fail: 0 });
       if (isWin) {
         cell.win++;
         if (Number(r.lr) > 0) cell.lr.push(Number(r.lr));
         if (Number(r.wr) > 0) cell.wr.push(Number(r.wr));
+        // 입찰자 수(유효 입찰자 vldBddrNope)는 **낙찰된 회차만** 모은다 — 유찰 회차의 0을 섞으면
+        // "몇 명과 붙나"가 아니라 "유찰이 흔한가"를 재는 지표가 되어 버린다(그건 soldRate가 이미 잰다).
+        if (Number(r.bd) > 0) cell.bd.push(Number(r.bd));
       } else if (r.st === '0011') cell.fail++;
     }
   };
@@ -136,7 +142,7 @@ async function buildCells(store, force) {
     const wm = winMap || {};
     for (const f of feat) {
       const wv = wm[`${f.id}_${f.cdtn}`] || {};
-      addSample(type, { id: f.id, cdtn: f.cdtn, usage: f.usage, usageM: f.usageM, round: f.round, low: f.low, st: f.st, win: wv.win || 0, wr: wv.wr || 0, lr: wv.lr || 0 });
+      addSample(type, { id: f.id, cdtn: f.cdtn, usage: f.usage, usageM: f.usageM, round: f.round, low: f.low, st: f.st, win: wv.win || 0, wr: wv.wr || 0, lr: wv.lr || 0, bd: wv.bd || 0 });
     }
   });
 
@@ -144,12 +150,19 @@ async function buildCells(store, force) {
   for (const [k, c] of Object.entries(acc)) {
     const n = c.win;
     if (n < 3) continue; // 분위수가 무의미한 극소 표본 셀은 저장하지 않음
-    c.lr.sort((a, b) => a - b); c.wr.sort((a, b) => a - b);
+    c.lr.sort((a, b) => a - b); c.wr.sort((a, b) => a - b); c.bd.sort((a, b) => a - b);
+    const outcomeN = c.win + c.fail;
     cells[k] = {
       n,
-      failRate: (c.win + c.fail) > 0 ? Math.round(c.fail / (c.win + c.fail) * 1000) / 10 : null,
+      outcomeN,                                      // 낙찰+유찰 표본(결과 확률의 분모 — n과 다르다)
+      failRate: outcomeN > 0 ? Math.round(c.fail / outcomeN * 1000) / 10 : null,
+      soldRate: outcomeN > 0 ? Math.round(c.win / outcomeN * 1000) / 10 : null, // "이번에 팔릴까"(Q0)의 근거
       lr: c.lr.length >= 3 ? quantiles(c.lr) : null, // 최저가 대비 낙찰가율 %
       wr: c.wr.length >= 3 ? quantiles(c.wr) : null, // 감정가 대비 낙찰가율 %
+      // 낙찰된 회차의 유효 입찰자 수 분포 — "몇 명과 붙나"(Q1의 나머지 절반).
+      // 표본 5건 미만이면 분위수를 만들지 않는다(근거 없으면 미산출).
+      bidN: c.bd.length,
+      bidders: c.bd.length >= 5 ? quantiles(c.bd) : null,
     };
   }
 

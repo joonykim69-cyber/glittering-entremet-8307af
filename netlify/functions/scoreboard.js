@@ -126,6 +126,30 @@ exports.handler = async (event) => {
           avgAbsErrPct: s.sumAbsErrPct != null && s.n ? Math.round(s.sumAbsErrPct / s.n * 10) / 10 : null,
           avgWidthPct: s.sumWidthPct != null && s.n ? Math.round(s.sumWidthPct / s.n * 10) / 10 : null,
         }])),
+        // 결과 예보 성적(2026-07-29) — "이번에 팔릴까"(확률)와 "몇 명과 붙나"(구간).
+        // 확률은 적중률로 잴 수 없어 **보정**으로 잰다: "70%라 말한 것들이 실제로 몇 % 팔렸나".
+        // 낙찰가 적중률과 **별개 지표**이므로 화면에서도 문구를 분리할 것.
+        outcome: (() => {
+          const o = agg?.outcome;
+          if (!o) return null;
+          const s = o.sold || {}, b = o.bidders || {};
+          const buckets = Object.entries(s.buckets || {})
+            .map(([k, v]) => ({
+              band: `${Number(k) * 10}~${Number(k) * 10 + 10}%`,
+              n: v.n,
+              predAvg: v.n ? Math.round(v.sumP / v.n * 10) / 10 : null,  // 우리가 말한 평균 확률
+              actual: v.n ? Math.round(v.sold / v.n * 1000) / 10 : null, // 실제로 팔린 비율
+            }))
+            .sort((x, y) => parseInt(x.band, 10) - parseInt(y.band, 10));
+          return {
+            sold: s.n ? { n: s.n, brier: Math.round(s.sumBrier / s.n * 1000) / 1000, buckets } : null,
+            bidders: b.n ? {
+              n: b.n, hit: b.hit,
+              hitRate: Math.round(b.hit / b.n * 1000) / 10,
+              avgAbsErr: Math.round(b.sumAbsErr / b.n * 10) / 10, // 평균 몇 명 빗나갔나
+            } : null,
+          };
+        })(),
         curatedScore,                          // 큐레이션 사후 성적(3단계) — 랩 "큐레이션 성적" 섹션
         // 오차 범위별 누적 비율(중앙값 오차 기준) — 랩 오차분포 실측화. 표본 없으면 null.
         errDist: (n && agg?.errBuckets) ? {
