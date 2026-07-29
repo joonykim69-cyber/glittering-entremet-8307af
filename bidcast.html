@@ -1253,6 +1253,19 @@ loadLiveListings();
 // 봉인만 있고 채점 전이면 하단 각주로 봉인 현황만 알린다.
 // 장부가 비어 있거나 로드 실패면 목표치 예시 그대로 둔다.
 // ═══════════════════════════════════════
+// 자산군별 성적 한 줄 — 합산 숫자 하나만 보여주면 표본이 쏠린 자산군의 성적으로
+// 다른 자산군 사용자를 오도한다(부동산은 잘 맞는데 동산 표본이 대부분이라 전체가 나빠 보임).
+// 표본 20건 미만은 수치를 단정하지 않고 "표본 부족"으로 적는다.
+function assetLine(byAsset) {
+  const es = Object.entries(byAsset || {}).filter(([, s]) => s && s.n > 0).sort((a, b) => b[1].n - a[1].n);
+  if (!es.length) return '';
+  const parts = es.map(([name, s]) => {
+    const rate = s.hitRate != null ? s.hitRate : Math.round(s.hit / s.n * 100);
+    const thin = s.n < 20;
+    return `<b>${escHtml(name)}</b> ${thin ? '표본 ' + s.n + '건(부족)' : rate + '% <span style="opacity:.7">(' + s.n.toLocaleString() + '건)</span>'}`;
+  });
+  return `<div class="ledger-log-item">📊 자산군별: ${parts.join(' · ')} — 자산군마다 난이도가 크게 다릅니다. <a href="bidcast-lab.html#assetAccGrid" style="color:var(--green-deep);font-weight:800">자세히 →</a></div>`;
+}
 async function loadLedger() {
   try {
     const res = await fetch('/.netlify/functions/scoreboard');
@@ -1274,10 +1287,11 @@ async function loadLedger() {
         <div class="cap">살아있는 성적표 <span class="chip chip-green">✅ 실측 — 예측 장부 자동 채점</span></div>
         <div class="ledger-tiles">
           <div class="ledger-tile"><div class="v">${n.toLocaleString()}건</div><div class="k">개찰 대조 채점 완료</div></div>
-          <div class="ledger-tile"><div class="v">${d.summary.hitRate}%</div><div class="k">구간 적중률 (목표 ${lo}~${hi}%)</div></div>
+          <div class="ledger-tile"><div class="v">${d.summary.hitRate}%</div><div class="k">구간 적중률 · 전 자산군 합산 (목표 ${lo}~${hi}%)</div></div>
           <div class="ledger-tile"><div class="v">${d.summary.avgAbsErrPct}%</div><div class="k">중앙값 평균 오차</div></div>
           <div class="ledger-tile"><div class="v">${totalSeal.toLocaleString()}건</div><div class="k">누적 봉인 예측 (오늘 ${todaySeal.toLocaleString()}건)</div></div>
         </div>
+        ${assetLine(d.byAsset)}
         ${(d.learningLog || []).slice(0, 2).map(l => `<div class="ledger-log-item">🧠 모델 학습: <b>${escHtml(l.usage)}</b> 구간 폭 ${escHtml(String(l.from))} → ${escHtml(String(l.to))} 보정 (표본 ${l.n}건 · 적중률 ${l.hitRate}%)</div>`).join('')}
         <div class="foot-note">예측은 개찰 전에 봉인되어 사후 수정이 불가능합니다 · 전수 대조 기준</div>`;
     } else {

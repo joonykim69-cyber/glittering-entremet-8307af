@@ -374,7 +374,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
   <div class="wrap">
     <span class="eyebrow">By Asset Type</span>
     <h2 class="title">자산군별 목표 정확도</h2>
-    <p class="lead">부동산은 감정가·등기부 등 표준화된 비교축이 많아 정확도가 높고, 동산·유가증권은 물건마다 형태가 달라 상대적으로 낮습니다. 이 차이도 숨기지 않습니다.</p>
+    <p class="lead">자산군마다 <b>예측 난이도가 근본적으로 다릅니다.</b> 부동산은 감정가·등기부·실거래 같은 표준화된 비교축이 많아 잘 맞고, 동산은 "중고 오븐 1대"와 "폐기물 2,376점"이 같은 분류에 들어갈 만큼 물건이 제각각이라 어렵습니다. <b>그래서 전체를 하나로 합친 숫자는 표본이 많은 자산군의 성적일 뿐입니다</b> — 여기 자산군별 수치를 보셔야 본인 물건에 해당하는 성적을 아실 수 있습니다.</p>
     <div class="asset-acc-grid" id="assetAccGrid">
       <div class="asset-acc"><span class="ico">🏢</span><h4>부동산</h4><div class="bar"><i style="width:91%;"></i></div><div class="pct">91%</div><div class="note">±10% 이내 목표</div></div>
       <div class="asset-acc"><span class="ico">🚗</span><h4>차량</h4><div class="bar"><i style="width:87%;"></i></div><div class="pct">87%</div><div class="note">±10% 이내 목표</div></div>
@@ -670,12 +670,25 @@ document.addEventListener('keydown', (e) => {
       const entries = Object.entries(d.byAsset).filter(([, s]) => s && s.n > 0).sort((a, b) => b[1].n - a[1].n);
       if (grid && entries.length) {
         const esc0 = v => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+        // 자산군별로 적중률·오차·폭을 함께 낸다. 하나의 합산 숫자는 표본이 한 자산군에
+        // 쏠리면 다른 자산군 사용자를 오도하기 때문이다(부동산은 잘 맞는데 동산 표본이
+        // 대부분이라 전체가 나빠 보이던 문제 — 2026-07-29).
+        const MIN_SHOW = 20; // 이보다 적으면 수치를 단정하지 않고 "표본 부족"으로 표기
         grid.innerHTML = entries.map(([name, s]) => {
-          const rate = Math.round(s.hit / s.n * 100);
-          return `<div class="asset-acc"><span class="ico">${ICO[name] || '📦'}</span><h4>${esc0(name)}</h4><div class="bar"><i style="width:${rate}%;"></i></div><div class="pct">${rate}%</div><div class="note">구간 적중 · 채점 ${s.n.toLocaleString()}건</div></div>`;
+          const rate = s.hitRate != null ? s.hitRate : Math.round(s.hit / s.n * 100);
+          const thin = s.n < MIN_SHOW;
+          const bits = [`채점 ${s.n.toLocaleString()}건`];
+          if (s.avgAbsErrPct != null) bits.push(`오차 ${s.avgAbsErrPct}%`);
+          if (s.avgWidthPct != null) bits.push(`폭 ${s.avgWidthPct}%`);
+          return `<div class="asset-acc"><span class="ico">${ICO[name] || '📦'}</span><h4>${esc0(name)}</h4>`
+            + `<div class="bar"><i style="width:${Math.max(0, Math.min(100, rate))}%;${thin ? 'background:var(--mute);' : ''}"></i></div>`
+            + `<div class="pct"${thin ? ' style="color:var(--mute)"' : ''}>${rate}%</div>`
+            + `<div class="note">${bits.join(' · ')}${thin ? '<br/><b style="color:var(--mute)">표본 부족 — 참고만</b>' : ''}</div></div>`;
         }).join('');
         const foot = document.getElementById('assetAccFoot');
-        if (foot) foot.innerHTML = '✅ 실측 — 자산군별 구간 적중률(개찰 전 봉인·전수 채점). 표본이 적은 자산군은 변동이 클 수 있습니다.';
+        if (foot) foot.innerHTML = '✅ 실측 — 자산군별 구간 적중률·중앙값 오차·평균 구간 폭(개찰 전 봉인·전수 채점). '
+          + '<b>자산군마다 난이도가 크게 다릅니다</b> — 부동산은 물건이 표준화돼 있어 잘 맞고, 동산은 품목이 제각각이라 어렵습니다. '
+          + `그래서 전체를 하나로 합친 숫자보다 이 표를 보셔야 합니다. 표본 ${MIN_SHOW}건 미만은 회색으로 표시합니다.`;
       }
     }
 
@@ -770,11 +783,17 @@ document.addEventListener('keydown', (e) => {
       document.getElementById('vsTable').innerHTML =
         `<tr style="border-bottom:2px solid var(--line);"><th style="text-align:left; padding:10px 8px; font-size:12px; color:var(--mute);">지표</th><th style="text-align:left; padding:10px 8px;">🏆 챔피언 v0.1 (캠코 평균 통계)</th><th style="text-align:left; padding:10px 8px;">🥊 챌린저 v0.5 (실측 분위수)</th></tr>` +
         row('채점 표본', `${d.summary.n.toLocaleString()}건`, `${ch.n.toLocaleString()}건 (동일 물건 비교)`) +
-        row('구간 적중률', `${d.summary.hitRate}%`, `${ch.hitRate}%`) +
+        row('구간 적중률 <span style="font-weight:600;color:var(--mute)">(전 자산군 합산)</span>', `${d.summary.hitRate}%`, `${ch.hitRate}%`) +
         row('중앙값 평균 오차', `${d.summary.avgAbsErrPct}%`, `${ch.avgAbsErrPct}%`) +
         row('평균 구간 폭 (낙찰가 대비)', d.summary.avgWidthPct != null ? `${d.summary.avgWidthPct}%` : '—', ch.avgWidthPct != null ? `${ch.avgWidthPct}%` : '—') +
         row('상대전적 (오차가 작은 쪽 승)', winRate != null ? `${ch.headToHead.n - ch.headToHead.bWins}승` : '—', winRate != null ? `${ch.headToHead.bWins}승 (승률 ${winRate}%)` : '—');
-      document.getElementById('vsNote').textContent = `✅ 실데이터 — 두 모델 모두 개찰 전 봉인·사후 수정 불가 · 판정은 100/200/300건 체크포인트에서만 수행합니다.`;
+      // 적중률만 보면 폭을 넓힌 쪽이 이겨 보인다 — 판정 기준이 상대전적임을 표 바로 아래에 못박는다.
+      const wide = (d.summary.avgWidthPct != null && ch.avgWidthPct != null && ch.avgWidthPct > d.summary.avgWidthPct * 2);
+      document.getElementById('vsNote').innerHTML = '✅ 실데이터 — 두 모델 모두 개찰 전 봉인·사후 수정 불가 · '
+        + '판정은 <b>상대전적</b>(정답에 더 가까웠던 비율)으로 100/200/300건 체크포인트에서만 수행합니다. '
+        + '적중률은 구간을 넓히기만 해도 오르므로 그 자체로는 승격 근거가 아닙니다.'
+        + (wide ? `<br/><b style="color:var(--red)">현재 챌린저 구간이 챔피언의 2배보다 넓어(${ch.avgWidthPct}% vs ${d.summary.avgWidthPct}%) 승격 판정이 보류된 상태입니다</b> — 적중률 ${ch.hitRate}%는 그 폭으로 얻은 것입니다.` : '')
+        + '<br/>위 적중률은 <b>전 자산군 합산</b>이라 표본 구성에 좌우됩니다 — 자산군별 성적은 아래 표를 보세요.';
       document.getElementById('vsSec').style.display = '';
 
       // 폭 원인 분해 — 백오프 레벨별(L3 정밀 → L0 광범위) n·적중·평균폭 + 회차 실측/근사(2026-07-27 계측)

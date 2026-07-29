@@ -15,6 +15,7 @@ const quota = require('./lib/quota.js');
 // connectLambda(event)로 요청 이벤트의 Blobs 컨텍스트를 수동 연결해야 한다.
 // (MissingBlobsEnvironmentError 대응 — 2026-07-19 프로덕션 첫 실행에서 확인)
 async function openLedger(event) {
+  if (global.__FAKE_STORE__) return global.__FAKE_STORE__; // fixture 검증용(런타임 미사용)
   const blobs = await import('@netlify/blobs');
   try { if (event && typeof blobs.connectLambda === 'function') blobs.connectLambda(event); } catch (e) { /* 신형 런타임은 자동 구성 */ }
   try {
@@ -109,7 +110,15 @@ exports.handler = async (event) => {
         summary,
         byTier: agg?.byTier || {},
         byUsage: agg?.byUsage || {},
-        byAsset: agg?.byAsset || {},           // 자산군별(부동산/차량/동산 등) 적중률 — 랩 실측화
+        // 자산군별 성적 — 적중률·오차·구간폭을 함께 낸다(2026-07-29).
+        // ⚠️ summary의 단일 수치는 **전 자산군 합산**이라 표본 구성에 좌우된다.
+        //   화면에서는 이 byAsset을 주(主)로 쓰고, summary는 "합산"임을 밝혀 함께 보여줄 것.
+        byAsset: Object.fromEntries(Object.entries(agg?.byAsset || {}).map(([k, s]) => [k, {
+          n: s.n, hit: s.hit,
+          hitRate: s.n ? Math.round(s.hit / s.n * 1000) / 10 : null,
+          avgAbsErrPct: s.sumAbsErrPct != null && s.n ? Math.round(s.sumAbsErrPct / s.n * 10) / 10 : null,
+          avgWidthPct: s.sumWidthPct != null && s.n ? Math.round(s.sumWidthPct / s.n * 10) / 10 : null,
+        }])),
         curatedScore,                          // 큐레이션 사후 성적(3단계) — 랩 "큐레이션 성적" 섹션
         // 오차 범위별 누적 비율(중앙값 오차 기준) — 랩 오차분포 실측화. 표본 없으면 null.
         errDist: (n && agg?.errBuckets) ? {

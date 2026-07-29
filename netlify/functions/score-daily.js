@@ -161,8 +161,17 @@ exports.handler = async (event) => {
       else if (r.statCd === '0012') curatedAgg.canceled++;
     };
 
+    // 실행 **내** 중복 제거 — scored/* 마커는 루프 시작 전에 한 번 읽으므로, 같은 물건이
+    // 이번 응답에 두 번 들어오면 두 번 채점된다(마커는 아직 안 쓰였으니 걸러지지 않는다).
+    // 자산군 필터가 있어 지금은 겹치지 않지만, 페이지 경계에서 상위 API가 같은 행을 다시
+    // 주는 일은 실제로 있다(collect-history도 같은 이유로 소비 측 id_cdtn 중복 제거를 한다).
+    // 겹치면 agg가 조용히 부풀고 사후에 알 방법이 없으므로 여기서 막는다.
+    const seenInRun = new Set();
+
     for (const { r, key, scored, pred, predB, pick } of enriched) {
       if (scored) { already++; continue; }
+      if (seenInRun.has(key)) { already++; continue; }
+      seenInRun.add(key);
       const scoredKey = `scored/${key}`;
 
       if (r.statCd !== '0010' || !(r.winAmt > 0)) {
@@ -200,10 +209,16 @@ exports.handler = async (event) => {
       if (aerr <= 10) agg.errBuckets.le10++;
       if (aerr <= 15) agg.errBuckets.le15++;
       if (aerr <= 20) agg.errBuckets.le20++;
+      // 자산군별 집계 — 적중률만이 아니라 **오차·구간폭까지** 함께 쌓는다(2026-07-29).
+      // 전체 하나의 숫자(예: 48.6%)는 표본 구성이 자산군에 쏠리면 사용자를 오도한다:
+      // 실제로 부동산은 오차 1~5%로 잘 맞는데 표본의 99%가 동산이라 전체가 나빠 보였다.
+      // 자산군별로 나눠 보여주는 게 더 정직하면서 동시에 더 쓸모있다(헌장 Appendix C 2026-07-29).
       const asset = pred.assetClass || '부동산';
       agg.byAsset = agg.byAsset || {};
-      agg.byAsset[asset] = agg.byAsset[asset] || { n: 0, hit: 0 };
-      agg.byAsset[asset].n++; if (hit) agg.byAsset[asset].hit++;
+      const ab = agg.byAsset[asset] = agg.byAsset[asset] || { n: 0, hit: 0 };
+      ab.n++; if (hit) ab.hit++;
+      ab.sumAbsErrPct = (ab.sumAbsErrPct || 0) + aerr;
+      ab.sumWidthPct = (ab.sumWidthPct || 0) + widthPct;
 
       recent.unshift({
         id: r.id, title: pred.title || r.title || '', usage,
