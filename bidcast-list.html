@@ -518,17 +518,17 @@ h1,h2,h3,h4{font-family:var(--font-head)}
           <div class="cd-search-wrap"><input class="cd-search" type="text" placeholder="기관 검색..." oninput="filterCdSearch(this)"/></div>
           <div class="cd-list" id="cdCourtList">
             <button class="cd-opt on" data-v="">기관 전체</button>
-            <button class="cd-opt" data-v="서울중앙지방법원">서울중앙지방법원</button>
-            <button class="cd-opt" data-v="서울동부지방법원">서울동부지방법원</button>
-            <button class="cd-opt" data-v="서울남부지방법원">서울남부지방법원</button>
-            <button class="cd-opt" data-v="서울북부지방법원">서울북부지방법원</button>
-            <button class="cd-opt" data-v="서울서부지방법원">서울서부지방법원</button>
-            <button class="cd-opt" data-v="수원지방법원">수원지방법원</button>
-            <button class="cd-opt" data-v="인천지방법원">인천지방법원</button>
-            <button class="cd-opt" data-v="부산지방법원">부산지방법원</button>
-            <button class="cd-opt" data-v="대구지방법원">대구지방법원</button>
-            <button class="cd-opt" data-v="광주지방법원">광주지방법원</button>
-            <button class="cd-opt" data-v="대전지방법원">대전지방법원</button>
+            <button class="cd-opt" data-v="한국자산관리공사 서울지역본부">한국자산관리공사 서울지역본부</button>
+            <button class="cd-opt" data-v="코리아신탁(주)">코리아신탁(주)</button>
+            <button class="cd-opt" data-v="한국자산관리공사 대전지역본부">한국자산관리공사 대전지역본부</button>
+            <button class="cd-opt" data-v="우리자산신탁(주)">우리자산신탁(주)</button>
+            <button class="cd-opt" data-v="한국자산관리공사 광주지역본부">한국자산관리공사 광주지역본부</button>
+            <button class="cd-opt" data-v="한국자산관리공사 경기지역본부">한국자산관리공사 경기지역본부</button>
+            <button class="cd-opt" data-v="한국자산관리공사 인천지역본부">한국자산관리공사 인천지역본부</button>
+            <button class="cd-opt" data-v="한국자산관리공사 부산지역본부">한국자산관리공사 부산지역본부</button>
+            <button class="cd-opt" data-v="하나자산신탁(주)">하나자산신탁(주)</button>
+            <button class="cd-opt" data-v="KB부동산신탁(주)">KB부동산신탁(주)</button>
+            <button class="cd-opt" data-v="대한토지신탁(주)">대한토지신탁(주)</button>
             <button class="cd-opt" data-v="한국자산관리공사">한국자산관리공사</button>
             <button class="cd-opt" data-v="코리아신탁">코리아신탁</button>
             <button class="cd-opt" data-v="한국토지신탁">한국토지신탁</button>
@@ -759,15 +759,15 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 // 예시 물건 데이터 (9건) — 실 API 폴백용
 // ═══════════════════════════════════════
 let ITEMS = [
-  { id:1, mode:['search','popular'], type:'아파트', region:'서울', court:'서울중앙지방법원', title:'서울 강남구 역삼동 아파트 24평', address:'강남구 역삼동', appr:65000, min:52000, fail:1, status:'진행', tags:['#재매각','#선순위임차인'], views:2140, thumb:'🏢', caseNo:'2026타경1021' },
-  { id:2, mode:['search','new'], type:'토지', region:'경기', court:'수원지방법원', title:'경기 시흥시 배곧동 대지 152㎡', address:'시흥시 배곧동', appr:84000, min:84000, fail:0, status:'진행', tags:['#신건'], views:640, thumb:'🏞️', caseNo:'2026타경0492' },
-  { id:3, mode:['search','sold'], type:'상가', region:'서울', court:'서울동부지방법원', title:'서울 서대문구 충정로 상가 1층', address:'서대문구 충정로3가', appr:41000, min:41000, fail:0, status:'낙찰', tags:['#매각완료'], views:980, thumb:'🏬', caseNo:'2025타경7710' },
-  { id:4, mode:['search','popular','hot'], type:'차량', region:'경기', court:'인천지방법원', title:'5톤 카고트럭 (2021년식)', address:'인천 남동구', appr:3200, min:2240, fail:1, status:'진행', tags:['#재매각'], views:1520, thumb:'🚚', caseNo:'2026타경0310' },
-  { id:5, mode:['search'], type:'기계장비', region:'대구', court:'서울중앙지방법원', title:'CNC 머시닝센터 외 3점', address:'대구 달서구', appr:11000, min:4510, fail:3, status:'진행', tags:['#일괄매각','#3회유찰'], views:410, thumb:'🏭', caseNo:'2025타경5521' },
-  { id:6, mode:['search','upcoming'], type:'유가증권', region:'서울', court:'서울중앙지방법원', title:'비상장주식 A사 지분 3%', address:'서울 강남구', appr:9800, min:9800, fail:0, status:'진행', tags:['#신건'], views:220, thumb:'📈', caseNo:'2026타경1188' },
-  { id:7, mode:['search','upcoming'], type:'아파트', region:'부산', court:'부산지방법원', title:'부산 해운대구 우동 아파트 32평', address:'해운대구 우동', appr:98000, min:78400, fail:1, status:'진행', tags:['#대항력있는임차인'], views:1870, thumb:'🏢', caseNo:'2026타경0877' },
-  { id:8, mode:['search','new'], type:'토지', region:'인천', court:'인천지방법원', title:'인천 서구 청라동 임야 3,120㎡', address:'서구 청라동', appr:56000, min:56000, fail:0, status:'진행', tags:['#신건'], views:305, thumb:'🌲', caseNo:'2026타경0512' },
-  { id:9, mode:['search','sold'], type:'차량', region:'서울', court:'서울동부지방법원', title:'승용차 그랜저 (2020년식)', address:'서울 송파구', appr:1850, min:1850, fail:0, status:'낙찰', tags:['#매각완료'], views:760, thumb:'🚗', caseNo:'2025타경9042' },
+  { id:1, mode:['search','popular'], type:'아파트', region:'서울', court:'한국자산관리공사 서울지역본부', title:'서울 강남구 역삼동 아파트 24평', address:'강남구 역삼동', appr:65000, min:52000, fail:1, status:'진행', tags:['#재매각','#선순위임차인'], views:2140, thumb:'🏢', caseNo:'2026-0100-001021' },
+  { id:2, mode:['search','new'], type:'토지', region:'경기', court:'한국자산관리공사 경기지역본부', title:'경기 시흥시 배곧동 대지 152㎡', address:'시흥시 배곧동', appr:84000, min:84000, fail:0, status:'진행', tags:['#신건'], views:640, thumb:'🏞️', caseNo:'2026-0100-000492' },
+  { id:3, mode:['search','sold'], type:'상가', region:'서울', court:'코리아신탁(주)', title:'서울 서대문구 충정로 상가 1층', address:'서대문구 충정로3가', appr:41000, min:41000, fail:0, status:'낙찰', tags:['#매각완료'], views:980, thumb:'🏬', caseNo:'2025-0100-007710' },
+  { id:4, mode:['search','popular','hot'], type:'차량', region:'경기', court:'한국자산관리공사 인천지역본부', title:'5톤 카고트럭 (2021년식)', address:'인천 남동구', appr:3200, min:2240, fail:1, status:'진행', tags:['#재매각'], views:1520, thumb:'🚚', caseNo:'2026-0100-000310' },
+  { id:5, mode:['search'], type:'기계장비', region:'대구', court:'한국자산관리공사 서울지역본부', title:'CNC 머시닝센터 외 3점', address:'대구 달서구', appr:11000, min:4510, fail:3, status:'진행', tags:['#일괄매각','#3회유찰'], views:410, thumb:'🏭', caseNo:'2025-0100-005521' },
+  { id:6, mode:['search','upcoming'], type:'유가증권', region:'서울', court:'한국자산관리공사 서울지역본부', title:'비상장주식 A사 지분 3%', address:'서울 강남구', appr:9800, min:9800, fail:0, status:'진행', tags:['#신건'], views:220, thumb:'📈', caseNo:'2026-0100-001188' },
+  { id:7, mode:['search','upcoming'], type:'아파트', region:'부산', court:'한국자산관리공사 부산지역본부', title:'부산 해운대구 우동 아파트 32평', address:'해운대구 우동', appr:98000, min:78400, fail:1, status:'진행', tags:['#대항력있는임차인'], views:1870, thumb:'🏢', caseNo:'2026-0100-000877' },
+  { id:8, mode:['search','new'], type:'토지', region:'인천', court:'한국자산관리공사 인천지역본부', title:'인천 서구 청라동 임야 3,120㎡', address:'서구 청라동', appr:56000, min:56000, fail:0, status:'진행', tags:['#신건'], views:305, thumb:'🌲', caseNo:'2026-0100-000512' },
+  { id:9, mode:['search','sold'], type:'차량', region:'서울', court:'코리아신탁(주)', title:'승용차 그랜저 (2020년식)', address:'서울 송파구', appr:1850, min:1850, fail:0, status:'낙찰', tags:['#매각완료'], views:760, thumb:'🚗', caseNo:'2025-0100-009042' },
 ];
 
 // ═══════════════════════════════════════

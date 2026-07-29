@@ -1613,20 +1613,26 @@ async function loadCurated() {
       assetClass: it.assetClass, appr: it.apsl, min: it.low, fail: it.failCount, round: it.round,
       bidEnd: it.bidEnd, photo: it.photo || '', region: it.region, court: it.region, live: true,
     };
-    const reasons = (it.reasons || []).slice(0, 3).map(r => `<li>${escHtml(r.tag)}</li>`).join('');
+    // 근거는 **대표 하나만** 카드에 싣는다 — 세 줄로 나열하면 카드 24장이 곧 "그래서 뭐?"가 된다
+    // (창업자 지시 2026-07-29). 나머지는 개수만 알리고 상세 페이지에서 전부 본다.
+    const rs = it.reasons || [];
+    const reasons = rs.length
+      ? `<div style="margin-top:9px;font-size:13px;color:var(--ink);line-height:1.55">${escHtml(rs[0].tag)}</div>`
+        + (rs.length > 1 ? `<div style="margin-top:3px;font-size:11.5px;color:var(--mute)">+ 근거 ${rs.length - 1}개 · 눌러서 자세히</div>` : '')
+      : '';
     const flags = (it.flags || []).map(fl => `<div class="chip chip-yellow" style="margin-top:4px">⚠ ${escHtml(fl)}</div>`).join('');
-    const predLine = it.pred ? `<div style="font-size:12px;color:var(--sub);margin-top:6px">AI 예상 구간 ${hWon(it.pred.lo)}~${hWon(it.pred.hi)}</div>` : '';
+    const predLine = it.pred ? `<div style="font-size:12.5px;color:var(--ink);margin-top:6px">🔒 AI 예상 <b>${hWon(it.pred.lo)}~${hWon(it.pred.hi)}</b></div>` : '';
     // 실사진(온비드 썸네일) — 있으면 카드 상단에. 온비드 이미지 서버 리퍼러 거부 대비 no-referrer, 실패 시 조용히 제거(이모지 대체 불필요 — 카드 정보로 충분)
     const ph = /^https?:\/\//.test(it.photo || '') ? `<div style="height:120px;border-radius:10px;overflow:hidden;margin-bottom:10px;background:var(--bg)"><img src="${escHtml(it.photo)}" alt="" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentNode.remove()"></div>` : '';
     return `<div class="mcard mcard-live" data-id="${escHtml(String(it.id))}" role="link" tabindex="0" style="cursor:pointer;display:flex;flex-direction:column">
       ${ph}<div class="tags" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-        <span class="chip chip-green">🟢 주목 ${it.score}</span>${ddayBadge(it.bidEnd)}
+        <span class="chip chip-green">🟢 주목</span>${ddayBadge(it.bidEnd)}
         <span class="chip chip-demo">${escHtml(it.type || '부동산')}</span>
       </div>
       <div class="t" style="margin-top:8px">${escHtml(it.title || '')}</div>
       <div class="p">감정가 ${hWon(it.apsl)} · 최저가 ${hWon(it.low)}${it.region ? ' · ' + escHtml(it.region) : ''}</div>
       ${predLine}
-      <ul style="margin:10px 0 0;padding-left:18px;color:var(--ink);font-size:13px;line-height:1.6">${reasons}</ul>
+      ${reasons}
       ${flags}
     </div>`;
   };

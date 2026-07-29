@@ -21,6 +21,10 @@ const CORS = { 'Access-Control-Allow-Origin': '*' };
 const MODEL_V = 'v0.1';
 const DEFAULT_W = 0.18;
 const CURATED_MAX = 24; // "오늘의 주목 물건" 저장 상한
+// 결과 예보(낙찰 확률·입찰자 수)의 최소 표본. 낙찰가 셀 문턱(20)과 **별개**다 —
+// 분모가 다르기 때문(가격은 낙찰 건만, 확률은 낙찰+유찰, 입찰자는 입찰자 수가 기록된 낙찰 건만).
+const OUTCOME_MIN_N = 30; // 확률을 %로 말하려면 이 정도는 있어야 한다
+const BIDDER_MIN_N = 20;
 // 1회 실행 봉인 상한 — 함수 실행시간 보호용. 기존 800에서 상향(전수 봉인 보장, 2026-07-29).
 // 상한에 걸리면 마감 임박 순으로 우선 봉인한다. 환경변수로 조정 가능(SEAL_CAP).
 const SEAL_CAP = Math.max(100, Math.min(5000, parseInt(process.env.SEAL_CAP || '2500', 10) || 2500));
@@ -199,6 +203,31 @@ exports.handler = async (event) => {
       }
       if (!anchors.length) { noBasis++; continue; } // 통계 근거 없으면 예측하지 않는다 (정직성)
 
+      // ── 실측 이력 셀 1회 조회 — 챔피언의 "결과 예보"(Q0·Q1)와 챌린저가 함께 쓴다 ──
+      // 회차는 온비드 공매차수(pbctNsq, it.round) 실측 우선, 없을 때만 유찰수+1 근사.
+      let cell = null, cellKey = '', cellRbN = 0, cellRoundReal = false;
+      if (cellsData && cellsData.cells) {
+        const typeCd = it.assetClass === '동산' ? '0003' : it.assetClass === '자동차' ? '0002' : '0001';
+        const usage = String(it.usage || it.type || '기타').trim() || '기타';
+        cellRoundReal = Number(it.round) > 0;
+        cellRbN = cellRoundReal ? Number(it.round) : ((Number(it.fail) || 0) + 1);
+        const rb = cellRbN >= 4 ? '4+' : String(cellRbN);
+        const tier = it.min < 10000 ? 'lt1' : it.min < 50000 ? 't1to5' : it.min < 100000 ? 't5to10' : 'gte10';
+        for (const ck of [`L3|${typeCd}|${usage}|${rb}|${tier}`, `L2|${typeCd}|${usage}|${rb}`, `L1|${typeCd}|${usage}`, `L0|${typeCd}`]) {
+          const c = cellsData.cells[ck];
+          if (c && c.n >= 20 && c.lr) { cell = c; cellKey = ck; break; }
+        }
+      }
+
+      // ── 결과 예보: "이번 회차에 팔릴까"(soldProb) + "몇 명과 붙나"(bidders) ──
+      // 낙찰가와 같은 규율로 **같은 순간에 봉인**하고 개찰 후 채점받는다.
+      // 근거 셀이 없거나 표본이 모자라면 만들지 않는다(null → 화면도 비운다).
+      const soldProb = (cell && cell.soldRate != null && (cell.outcomeN || 0) >= OUTCOME_MIN_N) ? cell.soldRate : null;
+      const bidders = (cell && cell.bidders && (cell.bidN || 0) >= BIDDER_MIN_N)
+        ? { lo: Math.max(1, Math.round(cell.bidders.p10)), mid: Math.round(cell.bidders.p50), hi: Math.round(cell.bidders.p90) }
+        : null;
+      if (bidders && bidders.hi <= bidders.lo) bidders.hi = bidders.lo + 1;
+
       const w = (calib.byUsage[it.type] && calib.byUsage[it.type].w) || DEFAULT_W;
       const mid = Math.round(anchors.reduce((s, v) => s + v, 0) / anchors.length);
       const lo = Math.round(Math.max(it.min, Math.min(...anchors) * (1 - w)));
@@ -215,6 +244,11 @@ exports.handler = async (event) => {
         round: Number(it.round) || 0, fail: Number(it.fail) || 0, // 공매차수·유찰수 실측(회차별 채점·분석용)
         bidEnd: it.bidEnd || '', modelV: MODEL_V,
         leadDays: leadDaysOf(it.bidEnd), // 봉인일 → 마감일 간격(일). 먼 예측일수록 어렵다는 걸 채점에서 분리해 본다.
+        // 결과 예보(2026-07-29) — 근거 없으면 null. 있으면 채점 대상이다.
+        soldProb, bidders,
+        outcomeCell: (soldProb != null || bidders) ? cellKey : '',
+        outcomeN: cell ? (cell.outcomeN || 0) : 0,
+        bidN: cell ? (cell.bidN || 0) : 0,
         sealedAt: new Date().toISOString(),
       } });
       predMap[key] = { lo, mid, hi };
@@ -223,31 +257,19 @@ exports.handler = async (event) => {
       // ── v0.5 챌린저 봉인 (predb/*) — 같은 물건을 실측 이력 분위수로 병행 예측 ──
       // 셀 조회는 hist-stats와 동일한 백오프(L3→L0, 표본 20+).
       // 회차는 온비드 공매차수(pbctNsq, it.round) 실측을 우선 사용하고, 없을 때만 유찰수+1로 근사한다.
-      if (cellsData && cellsData.cells) {
-        const typeCd = it.assetClass === '동산' ? '0003' : it.assetClass === '자동차' ? '0002' : '0001';
-        const usage = String(it.usage || it.type || '기타').trim() || '기타';
-        const roundReal = Number(it.round) > 0;
-        const rbN = roundReal ? Number(it.round) : ((Number(it.fail) || 0) + 1);
-        const rb = rbN >= 4 ? '4+' : String(rbN);
-        const tier = it.min < 10000 ? 'lt1' : it.min < 50000 ? 't1to5' : it.min < 100000 ? 't5to10' : 'gte10';
-        for (const ck of [`L3|${typeCd}|${usage}|${rb}|${tier}`, `L2|${typeCd}|${usage}|${rb}`, `L1|${typeCd}|${usage}`, `L0|${typeCd}`]) {
-          const cell = cellsData.cells[ck];
-          if (cell && cell.n >= 20 && cell.lr) {
-            const bLo = Math.round(it.min * cell.lr.p10 / 100);
-            const bMid = Math.round(it.min * cell.lr.p50 / 100);
-            let bHi = Math.round(it.min * cell.lr.p90 / 100);
-            if (bHi <= bLo) bHi = Math.round(bLo * 1.05);
-            writes.push({ key: `predb/${it.id}_${it.pbctCdtnNo}`, val: {
-              id: it.id, pbctCdtnNo: it.pbctCdtnNo, type: it.type,
-              lo: bLo, mid: bMid, hi: bHi, // 만원
-              cellKey: ck, cellN: cell.n, modelV: 'v0.5-cells',
-              round: rbN, roundReal, // 회차(pbctNsq 실측 여부 roundReal로 표시 — 근사면 false)
-              sealedAt: new Date().toISOString(),
-            } });
-            sealedB++;
-            break;
-          }
-        }
+      if (cell) {
+        const bLo = Math.round(it.min * cell.lr.p10 / 100);
+        const bMid = Math.round(it.min * cell.lr.p50 / 100);
+        let bHi = Math.round(it.min * cell.lr.p90 / 100);
+        if (bHi <= bLo) bHi = Math.round(bLo * 1.05);
+        writes.push({ key: `predb/${it.id}_${it.pbctCdtnNo}`, val: {
+          id: it.id, pbctCdtnNo: it.pbctCdtnNo, type: it.type,
+          lo: bLo, mid: bMid, hi: bHi, // 만원
+          cellKey, cellN: cell.n, modelV: 'v0.5-cells',
+          round: cellRbN, roundReal: cellRoundReal, // 회차(pbctNsq 실측 여부 — 근사면 false)
+          sealedAt: new Date().toISOString(),
+        } });
+        sealedB++;
       }
     }
 

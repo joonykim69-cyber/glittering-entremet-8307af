@@ -408,13 +408,13 @@ document.getElementById('sumWeek').textContent = UPCOMING.reduce((a,b)=>a+b,0).t
 
 // 다가오는 입찰 물건 (예시 데이터) — id는 bidcast-detail.html의 DETAILS와 일치, 마감일 순
 const SCHEDULE = [
-  { id:1, dd:'7.23', wd:'수', thumb:'🏢', title:'서울 강남구 역삼동 아파트 24평', meta:'서울중앙지방법원 · 아파트', min:'5.2억', fail:1 },
-  { id:4, dd:'7.24', wd:'목', thumb:'🚗', title:'5톤 카고트럭 (2021년식)', meta:'인천지방법원 · 차량', min:'2,240만', fail:1 },
-  { id:7, dd:'7.25', wd:'금', thumb:'🏢', title:'부산 해운대구 우동 아파트 32평', meta:'부산지방법원 · 아파트', min:'7.8억', fail:1 },
-  { id:2, dd:'7.30', wd:'수', thumb:'🏞️', title:'경기 시흥시 배곧동 대지 152㎡', meta:'수원지방법원 · 토지', min:'8.4억', fail:0 },
-  { id:5, dd:'7.31', wd:'목', thumb:'🏭', title:'CNC 머시닝센터 외 3점', meta:'서울중앙지방법원 · 기계장비', min:'4,510만', fail:3 },
-  { id:6, dd:'8.6', wd:'목', thumb:'📈', title:'비상장주식 A사 지분 3%', meta:'서울중앙지방법원 · 유가증권', min:'9,800만', fail:0 },
-  { id:8, dd:'8.7', wd:'금', thumb:'🏞️', title:'인천 서구 청라동 임야 890㎡', meta:'인천지방법원 · 토지', min:'5.6억', fail:0 },
+  { id:1, dd:'7.23', wd:'수', thumb:'🏢', title:'서울 강남구 역삼동 아파트 24평', meta:'한국자산관리공사 서울지역본부 · 아파트', min:'5.2억', fail:1 },
+  { id:4, dd:'7.24', wd:'목', thumb:'🚗', title:'5톤 카고트럭 (2021년식)', meta:'한국자산관리공사 인천지역본부 · 차량', min:'2,240만', fail:1 },
+  { id:7, dd:'7.25', wd:'금', thumb:'🏢', title:'부산 해운대구 우동 아파트 32평', meta:'한국자산관리공사 부산지역본부 · 아파트', min:'7.8억', fail:1 },
+  { id:2, dd:'7.30', wd:'수', thumb:'🏞️', title:'경기 시흥시 배곧동 대지 152㎡', meta:'한국자산관리공사 경기지역본부 · 토지', min:'8.4억', fail:0 },
+  { id:5, dd:'7.31', wd:'목', thumb:'🏭', title:'CNC 머시닝센터 외 3점', meta:'한국자산관리공사 서울지역본부 · 기계장비', min:'4,510만', fail:3 },
+  { id:6, dd:'8.6', wd:'목', thumb:'📈', title:'비상장주식 A사 지분 3%', meta:'한국자산관리공사 서울지역본부 · 유가증권', min:'9,800만', fail:0 },
+  { id:8, dd:'8.7', wd:'금', thumb:'🏞️', title:'인천 서구 청라동 임야 890㎡', meta:'한국자산관리공사 인천지역본부 · 토지', min:'5.6억', fail:0 },
 ];
 document.getElementById('schedList').innerHTML = SCHEDULE.map(s => `
   <a class="sched-row" href="bidcast-detail.html?id=${s.id}">
@@ -597,7 +597,11 @@ function renderSchedList() {
     const eng = engineMap && engineMap[String(it.id)];
     it._eng = !!eng;
     it._score = eng ? eng.score : notableScoreC(it);
-    it._why = eng ? eng.reasons.slice(0, 3).map(t => ({ t, w: false, e: true })) : whyTags(it).slice(0, 3);
+    // 근거는 대표 1개만 노출하고 나머지는 개수로 — 목록에 태그 3개씩 붙으면 그 자체가 소음이다
+    // (창업자 지시 2026-07-29: "저렇게 다 나열할 필요가 없어요"). 전체 근거는 상세에서 본다.
+    const why = eng ? eng.reasons.map(t => ({ t, w: false, e: true })) : whyTags(it);
+    it._why = why.slice(0, 1);
+    it._whyMore = Math.max(0, why.length - 1);
   });
   if (calSort === 'notable') items.sort((a, b) => (b._score - a._score) || (bidEndInt(a.bidEnd) - bidEndInt(b.bidEnd)));
   items = items.slice(0, 12);
@@ -690,7 +694,7 @@ function calMarkLive(){
           return `<a class="sched-row" href="bidcast-detail.html?id=${encodeURIComponent(id)}" onclick="stashCalLive('${safeId}')">
             <span class="sched-date"><span class="yy">${yy}년</span><span class="dd">${mm}.${dd}</span><span class="wd">${wd} 마감</span><span class="mw">${mm}월 ${wk}주</span></span>
             <span class="sched-ico">${it.photo && /^https?:\/\//.test(it.photo) ? `<img class="sched-photo" src="${escH(it.photo)}" alt="" loading="lazy" onerror="this.remove()">` : (TYPE_EMOJI_C[it.type]||'📦')}</span>
-            <span class="sched-body"><span class="t">${escH(it.title)}${it._more>0?` <b style="font-size:10.5px;font-weight:800;color:var(--green-deep);background:var(--green-soft);border-radius:6px;padding:1px 7px;vertical-align:middle;">같은 건물 외 ${it._more}건</b>`:''}${(calSort==='notable'&&it._eng)?'<span class="score-badge">🚦 엔진 선별</span>':''}</span><br/><span class="m">${escH(it.court||it.orgNm||'')} · ${escH(it.type||'')}</span>${(calSort==='notable'&&it._why&&it._why.length)?`<span class="why-row">${it._why.map(w=>`<span class="why ${w.e?'eng':(w.w?'warn':'')}">${escH(w.t)}</span>`).join('')}</span>`:''}</span>
+            <span class="sched-body"><span class="t">${escH(it.title)}${it._more>0?` <b style="font-size:10.5px;font-weight:800;color:var(--green-deep);background:var(--green-soft);border-radius:6px;padding:1px 7px;vertical-align:middle;">같은 건물 외 ${it._more}건</b>`:''}${(calSort==='notable'&&it._eng)?'<span class="score-badge">🚦 엔진 선별</span>':''}</span><br/><span class="m">${escH(it.court||it.orgNm||'')} · ${escH(it.type||'')}</span>${(calSort==='notable'&&it._why&&it._why.length)?`<span class="why-row">${it._why.map(w=>`<span class="why ${w.e?'eng':(w.w?'warn':'')}">${escH(w.t)}</span>`).join('')}${it._whyMore?`<span class="why" style="opacity:.7">+${it._whyMore}</span>`:''}</span>`:''}</span>
             <span class="sched-price"><span class="p">최저 ${fmtMinMan(it.min)}</span>${it.fail>0?`<br/><span class="tag">유찰 ${it.fail}회</span>`:''}</span>
           </a>`;
         });

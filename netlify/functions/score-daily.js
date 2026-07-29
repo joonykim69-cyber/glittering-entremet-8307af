@@ -168,6 +168,31 @@ exports.handler = async (event) => {
     // 겹치면 agg가 조용히 부풀고 사후에 알 방법이 없으므로 여기서 막는다.
     const seenInRun = new Set();
 
+    // ── 결과 예보 채점 (2026-07-29) ──
+    // "이번에 팔릴까"(확률)와 "몇 명과 붙나"(구간)는 낙찰가와 성격이 달라 따로 잰다.
+    //  · 확률은 맞다/틀리다가 없다 → **보정(calibration)**으로 잰다: "70%라고 말한 물건들 중
+    //    실제로 몇 %가 팔렸나". 10% 구간(decile) 버킷 + Brier score(낮을수록 좋음).
+    //  · 확률은 낙찰(0010)·유찰(0011) 둘 다에서 해소된다. **취소(0012)는 제외** — 공매가
+    //    열리지 않았으므로 "팔릴까"의 답이 아니다(넣으면 유찰로 오분류된다).
+    //  · 입찰자 수는 낙찰된 경우에만 채점한다(유찰엔 유효 입찰자가 없다).
+    const outAgg = agg.outcome = agg.outcome || { sold: { n: 0, sumBrier: 0, buckets: {} }, bidders: { n: 0, hit: 0, sumAbsErr: 0 } };
+    const tallyOutcome = (pred, sold, bidderCnt) => {
+      if (!pred) return;
+      if (pred.soldProb != null) {
+        const p = Math.max(0, Math.min(1, pred.soldProb / 100)), y = sold ? 1 : 0;
+        outAgg.sold.n++;
+        outAgg.sold.sumBrier += (p - y) * (p - y);
+        const b = String(Math.min(9, Math.floor(p * 10))); // 0.0~0.1 → '0' … 0.9~1.0 → '9'
+        const bk = outAgg.sold.buckets[b] = outAgg.sold.buckets[b] || { n: 0, sold: 0, sumP: 0 };
+        bk.n++; if (y) bk.sold++; bk.sumP += p * 100;
+      }
+      if (sold && pred.bidders && bidderCnt > 0) {
+        outAgg.bidders.n++;
+        if (bidderCnt >= pred.bidders.lo && bidderCnt <= pred.bidders.hi) outAgg.bidders.hit++;
+        outAgg.bidders.sumAbsErr += Math.abs(pred.bidders.mid - bidderCnt);
+      }
+    };
+
     for (const { r, key, scored, pred, predB, pick } of enriched) {
       if (scored) { already++; continue; }
       if (seenInRun.has(key)) { already++; continue; }
@@ -177,6 +202,7 @@ exports.handler = async (event) => {
       if (r.statCd !== '0010' || !(r.winAmt > 0)) {
         // 유찰은 다음 회차가 새 공매조건으로 다시 봉인되므로, 이 조건은 종결 처리
         if (r.statCd === '0011' || r.statCd === '0012') {
+          if (r.statCd === '0011') tallyOutcome(pred, false, 0); // 유찰 = "안 팔림"으로 확률 해소(취소는 제외)
           tallyCurated(pick, r, false); // 주목 물건이 유찰/취소로 종결된 경우도 집계
           markers.push({ key: scoredKey, value: { outcome: r.statCd === '0011' ? 'fail' : 'cancel', at: new Date().toISOString() } });
         }
@@ -184,6 +210,7 @@ exports.handler = async (event) => {
       }
       if (!pred) { noPred++; continue; }
 
+      tallyOutcome(pred, true, Number(r.bidderCnt) || 0); // 낙찰 = "팔림" + 실제 유효 입찰자 수
       const winMan = Math.round(r.winAmt / 10000); // 원 → 만원 (pred와 단위 통일)
       const hit = winMan >= pred.lo && winMan <= pred.hi;
       const errPct = Math.round((pred.mid - winMan) / winMan * 1000) / 10;
