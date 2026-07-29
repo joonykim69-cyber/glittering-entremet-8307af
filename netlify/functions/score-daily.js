@@ -253,6 +253,13 @@ exports.handler = async (event) => {
       // 자산군별로 나눠 보여주는 게 더 정직하면서 동시에 더 쓸모있다(헌장 Appendix C 2026-07-29).
       const asset = pred.assetClass || '부동산';
       agg.byAsset = agg.byAsset || {};
+      // 소스(시장)별 성적 — 법원경매·신탁공매가 붙으면 이 분리가 필수가 된다.
+      // 합치면 둘 다 오도하기 때문이다(자산군 분리와 같은 논리, 헌장 §14).
+      const src = pred.source || 'onbid';
+      agg.bySource = agg.bySource || {};
+      const sb = agg.bySource[src] = agg.bySource[src] || { n: 0, hit: 0, sumAbsErrPct: 0 };
+      sb.n++; if (hit) sb.hit++; sb.sumAbsErrPct += aerr;
+
       const ab = agg.byAsset[asset] = agg.byAsset[asset] || { n: 0, hit: 0 };
       ab.n++; if (hit) ab.hit++;
       ab.sumAbsErrPct = (ab.sumAbsErrPct || 0) + aerr;

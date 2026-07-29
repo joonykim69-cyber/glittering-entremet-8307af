@@ -442,6 +442,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
   footer ul a,.foot-grid a{display:block;padding:11px 0;line-height:1.4;font-size:13.5px}
 }
 </style>
+<link rel="stylesheet" href="/bidcast.css"/>
 </head>
 <body>
 <a href="#main" class="skip-link">본문 바로가기</a>
@@ -496,6 +497,21 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 <!-- ═══ 오늘의 주목 물건 (큐레이션) — 엔진이 "분석해 볼 만한" 물건을 근거와 함께 추린다 ═══ -->
 <!-- 검색은 사용자가 찾는 도구, 이 섹션은 엔진이 가져다주는 축. 소스 중립 큐레이션 엔진 실데이터. -->
 <section class="section" id="curated" style="display:none;background:var(--surface);border-top:1px solid var(--line);border-bottom:1px solid var(--line)"><div class="wrap">
+  <!-- ── 소스 축 (AIOS 다중 소스 대비, 2026-07-29) ────────────────────────────
+     지금은 공매(온비드) 하나뿐이라 눈에 띄지 않지만, 이 자리를 지금 만들어 두지 않으면
+     법원경매·신탁공매를 붙일 때 전 페이지 네비게이션을 다시 짜야 한다.
+     "준비 중"을 숨기지 않고 표시하는 이유: ① 없는 걸 있다고 하지 않으면서
+     ② 확장 계획 자체가 신뢰 신호가 되고 ③ 나중에 활성화 한 줄로 끝난다.
+     ⚠️ 소스에는 색을 쓰지 않는다 — 색은 판단 신호(🟢🟡🔴)에 예약돼 있다.
+     상세: 002_AIOS_DESIGN_HANDOFF.md §2·§3 ────────────────────────────── -->
+  <div class="src-axis" role="tablist" aria-label="공매 시장 선택">
+    <button type="button" class="src-tab on" role="tab" aria-selected="true">🏛 공매(온비드)</button>
+    <button type="button" class="src-tab" role="tab" aria-selected="false" aria-disabled="true"
+      onclick="srcSoon('법원경매')">⚖️ 법원경매 <span class="src-soon">준비 중</span></button>
+    <button type="button" class="src-tab" role="tab" aria-selected="false" aria-disabled="true"
+      onclick="srcSoon('신탁공매')">🏦 신탁공매 <span class="src-soon">준비 중</span></button>
+  </div>
+  <p class="src-note" id="srcNote">지금 보시는 물건은 <b>온비드 공매</b>입니다. 법원경매·신탁공매는 시장마다 입찰 방식과 권리 구조가 달라, 같은 화면에 섞지 않고 <b>시장별로 나눠</b> 준비하고 있습니다.</p>
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
     <span class="kicker">TODAY'S PICKS</span>
     <span class="chip chip-demo" id="curatedChip">불러오는 중…</span>
@@ -1707,7 +1723,7 @@ async function loadCurated() {
     return `<div class="cur-card mcard-live" data-id="${escHtml(String(it.id))}" role="link" tabindex="0" style="--tc:${t.c};--ts:${t.soft}">
       <div class="cur-ph">${ph}<div class="cur-badge">${t.ico} ${escHtml(head.k)}</div><div class="cur-num">${escHtml(head.v)}</div></div>
       <div class="cur-body">
-        <div class="cur-chips">${dd}<span class="chip chip-demo">${escHtml(it.type || it.assetClass || '')}</span></div>
+        <div class="cur-chips"><span class="src-badge">🏛 공매</span>${dd}<span class="chip chip-demo">${escHtml(it.type || it.assetClass || '')}</span></div>
         <div class="cur-t">${escHtml(it.title || '')}</div>
         <div class="cur-p">최저가 <b>${hWon(it.low)}</b>${it.apsl > 0 ? ` · 감정가 ${hWon(it.apsl)}` : ''}</div>
         ${it.pred && it.pred.lo > 0 ? `<div class="cur-ai">🔒 AI 예상 <b>${hWon(it.pred.lo)}~${hWon(it.pred.hi)}</b></div>` : ''}
@@ -1728,7 +1744,7 @@ async function loadCurated() {
     return `<div class="cur-hero mcard-live" data-id="${escHtml(String(it.id))}" role="link" tabindex="0" style="--tc:${t.c};--ts:${t.soft}">
       <div class="cur-hero-ph">${ph}</div>
       <div class="cur-hero-body">
-        <div class="cur-hero-kick">${t.ico} 오늘 가장 앞세운 물건 · ${escHtml(t.name)}</div>
+        <div class="cur-hero-kick"><span class="src-badge" style="margin-right:6px">🏛 공매(온비드)</span>${t.ico} 오늘 가장 앞세운 물건 · ${escHtml(t.name)}</div>
         <div class="cur-hero-num"><b>${escHtml(head.v)}</b><span>${escHtml(head.k)}</span></div>
         <div class="cur-hero-t">${escHtml(it.title || '')}</div>
         <div class="cur-hero-p">최저가 <b>${hWon(it.low)}</b>${it.apsl > 0 ? ` · 감정가 ${hWon(it.apsl)}` : ''}${it.region ? ' · ' + escHtml(it.region) : ''}</div>
@@ -1845,6 +1861,16 @@ async function loadCurated() {
   sec.style.display = '';
 }
 loadCurated();
+
+// 소스 축 — 아직 붙지 않은 시장을 눌렀을 때. 빈 화면 대신 "왜 아직 없는지"를 말한다.
+function srcSoon(name){
+  const el=document.getElementById('srcNote'); if(!el)return;
+  // 한국어 조사 — 받침 있으면 '은', 없으면 '는'("법원경매은"이 되지 않게)
+  const last=name.charCodeAt(name.length-1), josa=(last>=0xAC00&&last<=0xD7A3&&(last-0xAC00)%28)?'은':'는';
+  el.innerHTML='<b>'+name+'</b>'+josa+' 아직 준비 중입니다 — 시장마다 입찰 방식·식별자·권리 구조가 달라 '
+    +'같은 화면에 섞으면 판단을 오도합니다. 지금은 <b>온비드 공매</b>를 먼저 정확하게 만들고 있으며, '
+    +'그 위에 시장을 하나씩 얹습니다. 성적도 <b>시장별로 따로</b> 공개합니다.';
+}
 </script>
 </body>
 </html>

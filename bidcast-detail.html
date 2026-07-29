@@ -434,18 +434,6 @@ a{color:inherit;text-decoration:none;}
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Nunito:wght@700;800;900&family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap">
 <style>
-/* ═══ 디자인 시스템 v2 공통 오버라이드 (클로드 디자인 병합, 2026-07-19) ═══
-   랜딩(bidcast.html)에서 채택한 새 포맷을 전 페이지에 전파:
-   - 타이포: Nunito(제목)/Poppins+Noto Sans KR(본문)
-   - 로고: 딥그린 함체 세로 신호등 → 투명 가로 3도트 (마크업 변경 없이 오버라이드) */
-:root{--yellow:#F5B90F;--yellow-soft:#FDF4D7;--font:'Poppins','Noto Sans KR',-apple-system,'Malgun Gothic',sans-serif;--font-head:'Nunito','Noto Sans KR',-apple-system,'Malgun Gothic',sans-serif}
-body{font-family:var(--font) !important}
-h1,h2,h3,h4{font-family:var(--font-head)}
-.logo-mark{display:flex !important;flex-direction:row !important;align-items:center !important;gap:5px !important;background:transparent !important;box-shadow:none !important;width:auto !important;height:auto !important;padding:0 !important;border-radius:0 !important}
-.logo-mark .tl{width:10px !important;height:10px !important;box-shadow:none !important}
-.logo-mark .tl.r{background:#EB763C !important}
-.logo-mark .tl.y{background:#FFC000 !important}
-.logo-mark .tl.g{background:#27A857 !important}
 
 /* ═══ 터치 타깃 (모바일 점검 2026-07-29) ═══
    푸터 바로가기 링크가 전 페이지에서 높이 14~21px로 측정돼 손가락으로 정확히 누르기
@@ -482,6 +470,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
   .rp-footer-links a{display:inline-flex;align-items:center;min-height:40px;padding:0 8px;}
 }
 </style>
+<link rel="stylesheet" href="/bidcast.css"/>
 </head>
 <body>
 
@@ -578,6 +567,8 @@ h1,h2,h3,h4{font-family:var(--font-head)}
         <!-- 정보 (우) -->
         <div class="ob-info">
           <div class="ob-chiprow">
+            <!-- 소스(시장) 배지 — 다중 소스 대비. 어느 시장의 규칙이 적용되는지 항상 밝힌다. -->
+            <span class="src-badge">🏛 공매(온비드)</span>
             <span class="court-badge" id="courtBadge">—</span>
             <span class="info-chip date" id="chipDate">입찰마감 —</span>
             <span class="info-chip dday-chip" id="chipDday">—</span>

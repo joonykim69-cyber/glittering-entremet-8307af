@@ -1,0 +1,59 @@
+/* bidcast.css — 전 페이지 공용 스타일
+   ═══════════════════════════════════════════════════════════════════════
+   왜 파일로 뺐나 (2026-07-29 창업자 승인 · 002_AIOS_DESIGN_HANDOFF.md §5)
+     지금까지는 "페이지당 1파일, CSS·JS 전부 인라인"이 관례였고 소스가 하나일 땐 맞았다.
+     그런데 법원경매·신탁공매를 같은 형식의 섹션으로 추가하기로 하면서, 물건을 나열하는
+     모든 페이지가 소스별 분기를 갖게 된다 — 같은 블록을 14벌 복제해 둔 채로는 배지 하나
+     추가에 14군데를 고쳐야 한다. **소스를 붙이기 전이 가장 싼 시점**이라 지금 뺀다.
+
+   헌장 §5(빌드·번들러·프레임워크 금지)는 건드리지 않는다 — 정적 파일 하나가 늘 뿐이고,
+   각 페이지는 여전히 단독으로 열린다(이 파일이 없어도 레이아웃은 깨지지 않고 폰트·로고
+   모양만 예전으로 돌아간다). **JS는 계속 인라인**이다(외부 JS 파일 금지 관례 유지).
+
+   ⚠️ 로드 순서: 각 페이지의 인라인 <style> **다음에** <link>가 와야 한다.
+      이 파일의 규칙 상당수가 페이지 스타일을 덮어쓰는 오버라이드이기 때문이다.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ═══ 디자인 시스템 v2 공통 오버라이드 (클로드 디자인 병합, 2026-07-19) ═══
+   랜딩(bidcast.html)에서 채택한 새 포맷을 전 페이지에 전파:
+   - 타이포: Nunito(제목)/Poppins+Noto Sans KR(본문)
+   - 로고: 딥그린 함체 세로 신호등 → 투명 가로 3도트 (마크업 변경 없이 오버라이드) */
+:root{--yellow:#F5B90F;--yellow-soft:#FDF4D7;--font:'Poppins','Noto Sans KR',-apple-system,'Malgun Gothic',sans-serif;--font-head:'Nunito','Noto Sans KR',-apple-system,'Malgun Gothic',sans-serif}
+body{font-family:var(--font) !important}
+h1,h2,h3,h4{font-family:var(--font-head)}
+.logo-mark{display:flex !important;flex-direction:row !important;align-items:center !important;gap:5px !important;background:transparent !important;box-shadow:none !important;width:auto !important;height:auto !important;padding:0 !important;border-radius:0 !important}
+.logo-mark .tl{width:10px !important;height:10px !important;box-shadow:none !important}
+.logo-mark .tl.r{background:#EB763C !important}
+.logo-mark .tl.y{background:#FFC000 !important}
+.logo-mark .tl.g{background:#27A857 !important}
+
+/* ═══ 소스 축 (AIOS 다중 소스 대비, 2026-07-29) ═══
+   지금은 공매(온비드) 하나뿐이라 티가 안 나지만, 이 자리를 지금 만들어 두지 않으면
+   법원경매·신탁공매를 붙일 때 전 페이지 네비게이션을 다시 짜야 한다.
+   핸드오프 문서 §2 참조.
+
+   ⚠️ 색 규율: **소스에 색을 쓰지 않는다.** 색은 이미 판단 신호에 예약돼 있다
+      (판단 준비도 🟢🟡🔴 · 큐레이션 트랙 색). 소스에도 색을 쓰면 같은 초록이
+      "판단 가능"과 "공매"를 동시에 뜻하게 된다. 소스는 **아이콘 + 라벨**로만 구분한다. */
+.src-axis{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 14px}
+.src-tab{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;
+  border:1px solid var(--line,#E1EAE4);background:var(--surface,#fff);color:var(--sub,#55655D);
+  border-radius:999px;padding:8px 15px;cursor:pointer;font-family:inherit;white-space:nowrap;
+  min-height:40px}
+.src-tab:hover{border-color:var(--ink,#10201A);color:var(--ink,#10201A)}
+.src-tab.on{background:var(--ink,#10201A);border-color:var(--ink,#10201A);color:#fff}
+.src-tab[aria-disabled="true"]{opacity:.55;cursor:default}
+.src-tab[aria-disabled="true"]:hover{border-color:var(--line,#E1EAE4);color:var(--sub,#55655D)}
+.src-tab .src-soon{font-size:10.5px;font-weight:800;letter-spacing:.02em;
+  background:var(--line,#E1EAE4);color:var(--mute,#697A70);border-radius:6px;padding:2px 6px}
+.src-note{font-size:11.5px;color:var(--mute,#697A70);line-height:1.6;margin:0 0 16px}
+
+/* 소스 배지 — 물건을 보여주는 모든 카드가 단다.
+   검색 결과에서 세 시장이 섞이면 사용자는 "어느 규칙이 적용되는지"를 반드시 알아야 한다. */
+.src-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;
+  border-radius:999px;padding:3px 9px;white-space:nowrap;
+  background:var(--line,#E1EAE4);color:var(--sub,#55655D)}
+
+@media (max-width:520px){
+  .src-tab{font-size:12.5px;padding:8px 12px}
+}
