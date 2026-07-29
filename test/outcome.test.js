@@ -194,8 +194,12 @@ const mkPred = (id, extra) => ({
     t('⑧ 낙찰 가능성 섹션', /id="sec-sold"/.test(html));
     t('⑧ 봉인값만 사용(자체 계산 없음)', /p\.soldProb!=null/.test(html));
     t('⑧ 표본 부족은 "계산하지 않았습니다"로 정직 표기', /낙찰 가능성을 계산하지 않았습니다/.test(html));
-    t('⑧ 확률은 적중률이 아니라 보정으로 채점됨을 명시', /적중\/불적중이 아니라 보정으로 측정/.test(html));
-    t('⑧ 낙찰가 적중률과 별개 지표임을 명시', /낙찰가 적중률과는 별개 지표/.test(html));
+    t('⑧ 확률은 적중률이 아니라 보정으로 채점됨을 명시', /적중률 대신 <b>보정<\/b>으로 잽니다/.test(html));
+    t('⑧ 낙찰가 적중률과 별개 지표임을 명시', /낙찰가 적중률과는 <b>별개 지표<\/b>/.test(html));
+    // 엔진 내부 설명은 기본으로 펼쳐 놓지 않는다 — 결론만 보이고 궁금하면 펼친다(창업자 지시)
+    t('⑧ 채점 방식 설명은 접어 둠', /<details class="more"><summary>이 확률은 어떻게 만들고 채점하나/.test(html));
+    t('⑧ 예상 경쟁의 근거·주의도 접어 둠', /<details class="more"><summary>근거와 주의/.test(html));
+    t('⑧ 봉인 근거·검증 성적도 접어 둠', /<details class="more"><summary>이 예측은 어떻게 만들어졌나/.test(html));
     t('⑧ 유찰 시 다음 회차 안내(기다림도 선택지)', /기다리는 것도 선택지/.test(html));
     t('⑧ 입찰자 수는 Q1 안에', /id="aiBidders"/.test(html) && html.indexOf('id="aiBidders"') > html.indexOf('data-q="1"'));
     t('⑧ 특정 입찰가 권유 금지 문구', /특정 입찰가를 권하지 않습니다/.test(html));

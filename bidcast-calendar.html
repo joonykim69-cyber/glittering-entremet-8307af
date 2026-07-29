@@ -597,7 +597,11 @@ function renderSchedList() {
     const eng = engineMap && engineMap[String(it.id)];
     it._eng = !!eng;
     it._score = eng ? eng.score : notableScoreC(it);
-    it._why = eng ? eng.reasons.slice(0, 3).map(t => ({ t, w: false, e: true })) : whyTags(it).slice(0, 3);
+    // 근거는 대표 1개만 노출하고 나머지는 개수로 — 목록에 태그 3개씩 붙으면 그 자체가 소음이다
+    // (창업자 지시 2026-07-29: "저렇게 다 나열할 필요가 없어요"). 전체 근거는 상세에서 본다.
+    const why = eng ? eng.reasons.map(t => ({ t, w: false, e: true })) : whyTags(it);
+    it._why = why.slice(0, 1);
+    it._whyMore = Math.max(0, why.length - 1);
   });
   if (calSort === 'notable') items.sort((a, b) => (b._score - a._score) || (bidEndInt(a.bidEnd) - bidEndInt(b.bidEnd)));
   items = items.slice(0, 12);
@@ -690,7 +694,7 @@ function calMarkLive(){
           return `<a class="sched-row" href="bidcast-detail.html?id=${encodeURIComponent(id)}" onclick="stashCalLive('${safeId}')">
             <span class="sched-date"><span class="yy">${yy}년</span><span class="dd">${mm}.${dd}</span><span class="wd">${wd} 마감</span><span class="mw">${mm}월 ${wk}주</span></span>
             <span class="sched-ico">${it.photo && /^https?:\/\//.test(it.photo) ? `<img class="sched-photo" src="${escH(it.photo)}" alt="" loading="lazy" onerror="this.remove()">` : (TYPE_EMOJI_C[it.type]||'📦')}</span>
-            <span class="sched-body"><span class="t">${escH(it.title)}${it._more>0?` <b style="font-size:10.5px;font-weight:800;color:var(--green-deep);background:var(--green-soft);border-radius:6px;padding:1px 7px;vertical-align:middle;">같은 건물 외 ${it._more}건</b>`:''}${(calSort==='notable'&&it._eng)?'<span class="score-badge">🚦 엔진 선별</span>':''}</span><br/><span class="m">${escH(it.court||it.orgNm||'')} · ${escH(it.type||'')}</span>${(calSort==='notable'&&it._why&&it._why.length)?`<span class="why-row">${it._why.map(w=>`<span class="why ${w.e?'eng':(w.w?'warn':'')}">${escH(w.t)}</span>`).join('')}</span>`:''}</span>
+            <span class="sched-body"><span class="t">${escH(it.title)}${it._more>0?` <b style="font-size:10.5px;font-weight:800;color:var(--green-deep);background:var(--green-soft);border-radius:6px;padding:1px 7px;vertical-align:middle;">같은 건물 외 ${it._more}건</b>`:''}${(calSort==='notable'&&it._eng)?'<span class="score-badge">🚦 엔진 선별</span>':''}</span><br/><span class="m">${escH(it.court||it.orgNm||'')} · ${escH(it.type||'')}</span>${(calSort==='notable'&&it._why&&it._why.length)?`<span class="why-row">${it._why.map(w=>`<span class="why ${w.e?'eng':(w.w?'warn':'')}">${escH(w.t)}</span>`).join('')}${it._whyMore?`<span class="why" style="opacity:.7">+${it._whyMore}</span>`:''}</span>`:''}</span>
             <span class="sched-price"><span class="p">최저 ${fmtMinMan(it.min)}</span>${it.fail>0?`<br/><span class="tag">유찰 ${it.fail}회</span>`:''}</span>
           </a>`;
         });

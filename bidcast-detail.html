@@ -413,10 +413,18 @@ a{color:inherit;text-decoration:none;}
 .rd-next{margin-top:11px;font-size:12.5px;color:var(--sub);line-height:1.7;}
 .rd-next a{color:var(--green-deep);font-weight:800;text-decoration:underline;}
 .rd-note{margin-top:11px;font-size:11px;color:var(--mute);line-height:1.6;}
-.q-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:30px 0 14px;}
-.q-no{font-size:11.5px;font-weight:900;color:#fff;background:var(--green-deep,#0B7A4B);padding:4px 9px;border-radius:7px;flex:none;}
-.q-head b{font-size:17px;letter-spacing:-.3px;}
-.q-sub{font-size:11.5px;color:var(--mute);}
+/* 질문 묶음 제목 — 사용자가 던지는 말 그대로. 내부 순번(data-q)은 화면에 내지 않는다. */
+.q-head{display:flex;align-items:center;gap:11px;margin:30px 0 14px;}
+.q-head b{font-size:17px;letter-spacing:-.3px;white-space:nowrap;}
+.q-head::after{content:'';flex:1;height:1px;background:var(--line);}
+/* 접어 두는 근거 — 기본은 결론만, 궁금한 사람만 펼친다 */
+.more{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px;}
+.more>summary{cursor:pointer;font-size:11.5px;font-weight:700;color:var(--green-deep);list-style:none;padding:3px 0;}
+.more>summary::-webkit-details-marker{display:none;}
+.more>summary::before{content:'▸ ';}
+.more[open]>summary::before{content:'▾ ';}
+.more-body{font-size:11.5px;color:var(--sub);line-height:1.75;padding-top:7px;}
+.more-body a{color:var(--green-deep);font-weight:700;}
 
 /* ═══ 커스텀 신호등 로고 — 이모지 대신 CSS 3등(等), 등 크기 확대판 ═══ */
 .logo-mark { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.13em; background:#00744B; }
@@ -486,10 +494,10 @@ h1,h2,h3,h4{font-family:var(--font-head)}
     <button class="rp-tab" type="button" onclick="sbGo('rp-hero')">물건정보</button>
     <button class="rp-tab" type="button" onclick="sbGo('sec-tenancy')">임대차·권리</button>
     <button class="rp-tab" type="button" onclick="sbGo('sec-hist')">입찰이력</button>
-    <button class="rp-tab" type="button" onclick="sbGo('sec-ai')">Q1 얼마에</button>
-    <button class="rp-tab" type="button" onclick="sbGo('sec-rtms')">Q2 싼 건가</button>
-    <button class="rp-tab" type="button" onclick="sbGo('sec-failDiag')">Q3 왜 유찰</button>
-    <button class="rp-tab" type="button" onclick="sbGo('sec-agents')">Q4 확인할 것</button>
+    <button class="rp-tab" type="button" onclick="sbGo('sec-ai')">예상 낙찰가</button>
+    <button class="rp-tab" type="button" onclick="sbGo('sec-rtms')">주변 시세</button>
+    <button class="rp-tab" type="button" onclick="sbGo('sec-failDiag')">유찰 진단</button>
+    <button class="rp-tab" type="button" onclick="sbGo('sec-agents')">확인할 것</button>
   </nav>
   <div class="rp-hr" id="rpNavRight">
     <button class="rp-icon-btn heart" id="heartBtn" type="button" onclick="toggleHeart()" aria-label="관심물건 등록" aria-pressed="false">♥</button>
@@ -642,7 +650,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
       </div>
       <div class="rd-tags" id="rdTags"></div>
       <div class="rd-next" id="rdNext"></div>
-      <p class="rd-note">※ 물건의 좋고 나쁨이 아니라 <b>판단에 필요한 정보가 갖춰졌는지</b>를 표시합니다. 투자 추천이 아니며, 판정 근거는 위 태그로 모두 공개합니다.</p>
+      <details class="more rd-note"><summary>이 신호는 무슨 뜻인가</summary><div class="more-body">물건의 좋고 나쁨이 아니라 <b>판단에 필요한 정보가 갖춰졌는지</b>를 표시합니다. 투자 추천이 아니며, 판정 근거는 위 태그로 전부 공개합니다.</div></details>
     </section>
 
     <!-- ══════════════════════════════════════════════════════════════ -->
@@ -688,11 +696,11 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 
     <!-- ── Q0. 이번 회차에 팔릴까 ── -->
     <div class="q-group" data-q="0">
-    <div class="q-head"><span class="q-no">Q0</span><b>이번 회차에 팔릴까</b><span class="q-sub">가격을 따지기 전에, 이번에 낙찰될 물건인지</span></div>
+    <div class="q-head"><b>이번 회차에 팔릴까</b></div>
 
     <!-- 낙찰 가능성 — 봉인 예측(pred.soldProb). 근거 셀이 없으면 수치를 만들지 않는다. -->
     <section class="rp-section" id="sec-sold" style="display:none;">
-      <h2>이번 회차 낙찰 가능성 <span class="sec-tag" style="background:var(--green-soft);color:var(--green-deep);">개찰 전 봉인 · 실측 이력 기반</span></h2>
+      <h2>이번 회차에 팔릴까 <span class="sec-tag" style="background:var(--green-soft);color:var(--green-deep);">🔒 개찰 전 봉인</span></h2>
       <div class="card" id="soldCard"></div>
       <p style="font-size:11px;color:var(--mute);margin-top:10px;" id="soldNote"></p>
     </section>
@@ -700,11 +708,11 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 
     <!-- ── Q1. 얼마에 살 수 있나 ── -->
     <div class="q-group" data-q="1">
-    <div class="q-head"><span class="q-no">Q1</span><b>얼마에 살 수 있나</b><span class="q-sub">개찰 전에 봉인한 예상 구간과 경쟁 정도</span></div>
+    <div class="q-head"><b>얼마에 살 수 있나</b></div>
 
     <!-- AI 예상 낙찰가 (봉인 예측) -->
     <section class="rp-section" id="sec-ai">
-      <h2>AI 예상 낙찰가 <span class="sec-tag">챔피언·챌린저 병행 봉인</span></h2>
+      <h2>AI 예상 낙찰가 <span class="sec-tag">🔒 개찰 전 봉인</span></h2>
       <div class="ai-card">
         <div class="blur-wrap locked" id="aiBlur">
           <div class="ai-grid">
@@ -739,7 +747,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 
     <!-- ── Q2. 그게 싼 건가 ── -->
     <div class="q-group" data-q="2">
-    <div class="q-head"><span class="q-no">Q2</span><b>그게 싼 건가</b><span class="q-sub">주변 시세·인근 낙찰가율과 견줘 본 위치</span></div>
+    <div class="q-head"><b>그게 싼 건가</b></div>
 
     <!-- 주변 실거래 + 시세 밴드 + 마진 — 국토부 실거래가 (라이브 + 시군구 식별 시에만 표시) -->
     <section class="rp-section" id="sec-rtms" style="display:none;">
@@ -758,7 +766,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 
     <!-- ── Q3. 왜 아직 안 팔렸나 ── -->
     <div class="q-group" data-q="3">
-    <div class="q-head"><span class="q-no">Q3</span><b>왜 아직 안 팔렸나</b><span class="q-sub">유찰이 반복된 이유를 신호로 분해</span></div>
+    <div class="q-head"><b>왜 아직 안 팔렸나</b></div>
 
     <!-- 유찰 진단 — 규칙 기반 신호 정리 (라이브 물건 + 유찰 3회 이상일 때만 표시. LLM 미사용) -->
     <section class="rp-section" id="sec-failDiag" style="display:none;">
@@ -771,7 +779,7 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 
     <!-- ── Q4. 그럼 뭘 확인해야 하나 ── -->
     <div class="q-group" data-q="4">
-    <div class="q-head"><span class="q-no">Q4</span><b>그럼 뭘 확인해야 하나</b><span class="q-sub">입찰 전 직접 확인할 것 — 여기부터는 사람의 몫</span></div>
+    <div class="q-head"><b>그럼 뭘 확인해야 하나</b></div>
 
     <!-- AI 전문가 분석 — agents.js (실데이터 주입 생성, 물건당 1회 캐시). 라이브 물건에서만 표시 -->
     <section class="rp-section" id="sec-agents" style="display:none;">
@@ -1340,11 +1348,13 @@ async function loadSealedPred(){
     window.__ai.lo=p.lo; window.__ai.hi=p.hi; window.__ai.mid=p.mid; window.__ai.sealed=true;
     if(noteEl){
       const when=p.sealedAt?new Date(p.sealedAt).toLocaleString('ko-KR',{dateStyle:'medium',timeStyle:'short'}):'';
-      noteEl.innerHTML='※ 이 구간은 <b>'+escS(when)+'에 봉인</b>되어 이후 수정되지 않습니다'
+      noteEl.innerHTML='※ 통계 기반 <b>범위</b>이며 특정 낙찰가를 보장하지 않습니다.'
+        +'<details class="more"><summary>이 예측은 어떻게 만들어졌나</summary><div class="more-body">'
+        +'<b>'+escS(when)+'</b>에 봉인되어 이후 수정되지 않습니다'
         +(p.statBucket?` · 근거: 캠코 ${escS(p.statBucket)} 낙찰가율 통계${p.statPerd?`(${escS(p.statPerd)})`:''}`:'')
         +(p.modelV?` · 모델 ${escS(p.modelV)}`:'')
-        +'. 개찰 후 자동 채점되어 <a href="bidcast-lab.html">적중률 랩</a>에 전수 공개됩니다 — '
-        +'통계 기반 <b>범위</b>이며 특정 낙찰가를 보장하지 않습니다.';
+        +'. 개찰 후 자동 채점되어 <a href="bidcast-lab.html">적중률 랩</a>에 전수 공개됩니다.'
+        +'<span id="aiFitInline"></span></div></details>';
     }
   }else{
     // 봉인 없음 — 추정 숫자를 지운다. 없는 것을 있는 것처럼 보이게 하지 않는다.
@@ -1369,13 +1379,11 @@ async function loadSealedPred(){
   if(p){
     const ac=(liveItem.assetClass==='동산')?'동산':(liveItem.assetClass==='자동차'||it.type==='차량'||it.type==='자동차')?'자동차':'부동산';
     const fit=await aiFit(ac);
-    const el=document.getElementById('aiFitLine');
+    const el=document.getElementById('aiFitInline')||document.getElementById('aiFitLine');
     if(el&&fit){
-      el.innerHTML='<div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);font-size:11.5px;color:var(--sub);line-height:1.7;">'
-        +'📊 <b>이 예측 방식의 검증 성적</b> — '+escS(fit.asset)+' 개찰 <b>'+fit.n+'건</b> 채점 · 구간 적중 <b>'+fit.hitRate+'%</b>'
+      el.innerHTML='<br><br>📊 <b>이 방식의 검증 성적</b> — '+escS(fit.asset)+' 개찰 <b>'+fit.n+'건</b> 채점 · 구간 적중 <b>'+fit.hitRate+'%</b>'
         +(fit.avgAbsErrPct!=null?' · 중앙값 평균 오차 <b>'+fit.avgAbsErrPct+'%</b>':'')
-        +' <a href="bidcast-lab.html" style="color:var(--green-deep);font-weight:800;">근거 보기 →</a><br>'
-        +'<span style="color:var(--mute);">자산군마다 난이도가 달라 합산이 아니라 이 물건의 자산군 성적을 보여줍니다.</span></div>';
+        +'. 자산군마다 난이도가 달라 합산이 아니라 이 물건의 자산군 성적입니다.';
     }
   }
 }
@@ -1410,7 +1418,10 @@ function renderOutcome(p){
           ${v<35?'<b style="color:#8A2A2E;">이번에도 유찰될 가능성이 더 큽니다</b> — 유찰되면 다음 회차에 최저가가 더 내려갑니다(기다리는 것도 선택지입니다).'
                 :'유찰되면 다음 회차에 최저가가 내려가고, 그때 다시 봉인 예측이 만들어집니다.'}
         </div>`;
-      note.textContent='※ 이 확률은 개찰 전에 봉인되어 수정되지 않으며, 개찰 후 "이 확률대로 실제로 팔렸는지"로 채점됩니다(적중/불적중이 아니라 보정으로 측정). 낙찰가 적중률과는 별개 지표입니다.';
+      note.innerHTML='<details class="more"><summary>이 확률은 어떻게 만들고 채점하나</summary><div class="more-body">'
+        +'개찰 <b>전</b>에 봉인되어 이후 수정되지 않습니다. 개찰 후에는 "이 확률대로 실제로 팔렸는지"로 채점하는데, '
+        +'확률은 맞다·틀리다가 없으므로 적중률 대신 <b>보정</b>으로 잽니다 — <i>"70%라고 말한 물건들 중 실제로 몇 %가 팔렸나."</i> '
+        +'낙찰가 적중률과는 <b>별개 지표</b>입니다. <a href="bidcast-lab.html">성적 보기 →</a></div></details>';
       sec.style.display='';
     }else if(p){
       card.innerHTML='<div style="font-size:13px;color:var(--sub);line-height:1.7;">이 조합(자산군·용도·회차·가격대)은 과거 개찰 표본이 부족해 <b>낙찰 가능성을 계산하지 않았습니다.</b><br>근거 없는 확률을 지어내지 않기 위해 비워 둡니다 — 아래 이전 입찰내역과 유찰 진단을 대신 참고하세요.</div>';
@@ -1427,8 +1438,10 @@ function renderOutcome(p){
       const b=p.bidders;
       bidBox.innerHTML=`<div style="margin-top:10px;padding-top:9px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--sub);line-height:1.7;">
         🥊 <b>예상 경쟁</b> — 낙찰된다면 <b style="color:var(--ink)">${b.lo}~${b.hi}명</b>(중앙 ${b.mid}명)과 겨루게 될 가능성이 높습니다.
-        같은 조건 낙찰 <b>${esc(p.bidN||0)}건</b>의 유효 입찰자 수 분포 기준 · 개찰 전 봉인.
-        <br><span style="color:var(--mute);">입찰자가 많을수록 낙찰가가 예상 구간 위쪽에 붙는 경향이 있습니다. 특정 입찰가를 권하지 않습니다.</span></div>`;
+        <details class="more"><summary>근거와 주의</summary><div class="more-body">
+          같은 조건으로 낙찰된 과거 <b>${esc(p.bidN||0)}건</b>의 유효 입찰자 수 분포(하위 10%~상위 10%)이며 개찰 전에 봉인됩니다.
+          입찰자가 많을수록 낙찰가가 예상 구간 위쪽에 붙는 경향이 있습니다 — 다만 <b>특정 입찰가를 권하지 않습니다.</b>
+        </div></details></div>`;
     }else{ bidBox.innerHTML=''; }
   }
 }
@@ -1518,7 +1531,8 @@ function renderReadiness(){
   document.getElementById('rdSub').textContent=meta[2];
   document.getElementById('rdTags').innerHTML=r.tags.map(t=>`<span class="rd-tag ${t.l==='ok'?'':esc(t.l)}">${esc(t.t)}</span>`).join('');
   // 숨겨진 섹션으로 보내는 링크는 만들지 않는다(빈 곳으로 안내 금지).
-  const items=r.next.filter(n=>{const el=document.getElementById(n.id);return el&&el.style.display!=='none';});
+  // 안내는 최대 3개까지만 — 다 나열하면 그것도 "그래서 뭐?"가 된다.
+  const items=r.next.filter(n=>{const el=document.getElementById(n.id);return el&&el.style.display!=='none';}).slice(0,3);
   document.getElementById('rdNext').innerHTML=items.length
     ? '<b>다음 확인:</b><br>'+items.map((n,i)=>`${i+1}. ${esc(n.label)} <a href="#${esc(n.id)}" onclick="sbGo('${esc(n.id)}');return false;">바로가기 →</a>`).join('<br>')
     : '';

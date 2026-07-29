@@ -24,10 +24,12 @@ const html = fs.readFileSync(repoPath('bidcast-detail.html'), 'utf8');
 const qIdx = n => html.indexOf(`data-q="${n}"`);
 t('① Q1~Q4 묶음이 모두 존재', [1, 2, 3, 4].every(n => qIdx(n) > 0));
 t('① 질문이 순서대로 놓임', qIdx(1) < qIdx(2) && qIdx(2) < qIdx(3) && qIdx(3) < qIdx(4));
-t('① Q1 = 얼마에 살 수 있나', /Q1<\/span><b>얼마에 살 수 있나/.test(html));
-t('① Q2 = 그게 싼 건가', /Q2<\/span><b>그게 싼 건가/.test(html));
-t('① Q3 = 왜 아직 안 팔렸나', /Q3<\/span><b>왜 아직 안 팔렸나/.test(html));
-t('① Q4 = 그럼 뭘 확인해야 하나', /Q4<\/span><b>그럼 뭘 확인해야 하나/.test(html));
+// 제목은 사용자가 던지는 말 그대로. **Q번호는 화면에 내지 않는다**(내부 data-q로만 존재) —
+// 창업자 지시 2026-07-29: "Q0,1,2,3,4 어디에 해당되는지는 당신과 나만 알면 된다".
+t('① 제목이 사용자 질문 그대로', ['이번 회차에 팔릴까', '얼마에 살 수 있나', '그게 싼 건가', '왜 아직 안 팔렸나', '그럼 뭘 확인해야 하나']
+  .every(q => html.includes(`<div class="q-head"><b>${q}</b></div>`)));
+t('① 화면에 Q번호 배지 없음', !/class="q-no"/.test(html) && !/>Q[0-4]</.test(html));
+t('① 사이드바 탭도 사용자 어휘', !/>Q[0-4] /.test(html));
 
 // 섹션이 올바른 질문에 속하는가 (예측·경쟁 → Q1, 시세 → Q2, 유찰 → Q3, 전문가 → Q4)
 const at = id => html.indexOf(`id="${id}"`);
@@ -126,5 +128,13 @@ t('⑤ 표본 20건 미만이면 수치 미표기', /a\.n>=20/.test(html));
 t('⑤ 봉인 있을 때만 성적 각주', /if\(p\)\{[\s\S]{0,400}aiFit\(ac\)/.test(html));
 t('⑤ 자산군 난이도 차이를 문구로 밝힘', /자산군마다 난이도가 달라 합산이 아니라/.test(html));
 t('⑤ scoreboard fetch를 시세 각주와 공유(페이지당 1회)', (html.match(/window\.__mktFitP/g) || []).length >= 4);
+
+// ── ⑥ 화면은 결론만, 엔진 내부는 접는다 (창업자 지시 2026-07-29) ──
+// "굳이 사용자에게 알려줄 필요가 있다면 접었다 폈다 할 수 있게 — 저렇게 다 나열할 필요가 없어요"
+t('⑥ 접기 UI 존재', /\.more>summary\{/.test(html) && /<details class="more">/.test(html));
+t('⑥ 통계 출처·모델 버전은 접힘 안', /이 예측은 어떻게 만들어졌나[\s\S]{0,400}modelV/.test(html));
+t('⑥ 검증 성적도 접힘 안(aiFitInline)', /aiFitInline/.test(html));
+t('⑥ 준비도 설명도 접힘', /<details class="more rd-note">/.test(html));
+t('⑥ "다음 확인"은 최대 3개', /\.slice\(0,3\)/.test(html));
 
 done('decision-flow (질문의 순서 · 판단 준비도)');
