@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A static site deployed on Netlify for **신호등옥션 (구 낙찰예보/BidCast, 2026-07-19 리브랜딩)** — an Onbid public-auction price-prediction service. There is a minimal root package.json **only for Netlify Functions dependencies** (`@netlify/blobs` — the prediction-ledger store); the site itself has no build step, no test suite, and no linter. Each page is a single self-contained HTML file with all CSS and JavaScript inlined — keep it that way when editing; do not introduce bundlers, frameworks, or external JS files. (The repo previously also hosted the K-Map Linker/K-Buddy travel apps; those files were removed 2026-07-17.)
 
-**프로젝트 헌장**: `000_PROJECT_MANIFESTO.md`(2026-07-25) — 존재 이유·미션·데이터/AI/엔지니어링 철학·Golden Rules 10조·고정 결정 대장·ADR-000을 담은 최상위 문서. 여기 적힌 원칙(봉인 불변, 낙찰가 마스킹, 두 트랙 분리, 넓혀서 맞히기 금지 등)과 충돌하는 변경은 사람(창업자)의 헌장 개정 없이 금지. 원칙 변경 시 이 파일의 Appendix C(고정 결정 대장)에도 기록할 것.
+**프로젝트 헌장**: `000_PROJECT_MANIFESTO.md`(2026-07-29 개정) — 존재 이유·미션·데이터/AI/엔지니어링 철학·Golden Rules 10조·고정 결정 대장·ADR-000을 담은 최상위 문서. 여기 적힌 원칙(봉인 불변, 낙찰가 마스킹, 두 트랙 분리, 넓혀서 맞히기 금지 등)과 충돌하는 변경은 사람(창업자)의 헌장 개정 없이 금지. 원칙 변경 시 이 파일의 Appendix C(고정 결정 대장)에도 기록할 것. **2026-07-29 개정 3건**: ① **Golden Rule 12 신설 — "정직함만으로는 부족하다"** (모든 정직한 표시는 "이걸 본 사용자가 더 나은 판단을 하는가"를 통과해야 한다. 정직성과 유용성이 충돌하는 것처럼 보이면 대개 표시 단위·맥락을 잘못 잡은 것 — 단, GR1~11을 이기지는 못한다) ② **14절은 수치를 싣지 않는다** — 실측치 단일 출처는 `scoreboard`이고 헌장엔 "무엇을 증명했는가"라는 서사만 남긴다(옛 스냅샷 n=43이 실제 107건과 어긋나 있던 것이 계기) ③ **Appendix A/B 갱신**(함수 34·lib 5·예약 11·테스트 21, 시세/알림/예산 네임스페이스 추가). **`test/manifesto.test.js`가 헌장 ↔ 실제 코드를 기계 대조**하므로, 함수·lib·테스트를 추가하면 이 테스트가 실패한다 — 의도된 트립와이어이니 실패 메시지의 실제 값으로 헌장을 고칠 것.
 
 ## Files
 
