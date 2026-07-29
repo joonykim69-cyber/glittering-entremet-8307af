@@ -1209,7 +1209,12 @@ function galNav(dir){
   document.getElementById('galCount').textContent=`${galIdx+1}/${galPhotos.length}`;
 }
 
-// AI 예보
+// ── AI 예보 ──
+// ⚠️ 아래 lo/hi/rec는 **봉인 예측이 아니라** 화면 초기값(최저가 기반 임시 표시)이다.
+//   라이브 물건이면 바로 아래 loadSealedPred()가 봉인 장부(pred/*)를 조회해 진짜 봉인값으로
+//   교체하고, 봉인이 없으면 **수치를 지우고 "아직 봉인 전"이라고 밝힌다**.
+//   (2026-07-29 교정: 이전엔 이 임시값에 "개찰 전 봉인 · 수정 없음" 라벨이 붙어 있었다 —
+//    봉인된 적 없는 숫자에 봉인 라벨을 다는 것은 Golden Rule 1·6 위반이다.)
 const lo=Math.round(it.min*1.02),hi=Math.round(it.min*1.13),rec=Math.round(it.min*1.07);
 // "내 예측 봉인"이 물건 정보·AI 구간을 자동으로 채우도록 전역에 노출(만원 단위)
 // 라이브 물건은 온비드 물건 id(cltrMngNo+pbctCdtnNo)도 실어, 향후 개찰 결과 자동 채점의 매칭 키로 봉인 레코드에 저장한다.
@@ -1225,6 +1230,59 @@ if(isLive)setNaverAddr(it.title||'');
 document.getElementById('aiRange').textContent=`${fmt(lo)} ~ ${fmt(hi)}`;
 document.getElementById('aiRec').textContent=fmt(rec)+'원';
 document.getElementById('aiConf').textContent=it.fail>=2?'중간':'높음';
+
+// ── 봉인 장부 연결 — 화면에 뜨는 숫자와 우리가 채점받는 숫자를 같게 만든다 ──
+// 봉인 있음: 봉인값으로 교체 + 근거(통계 출처·모델·봉인 시각) 표기
+// 봉인 없음: 수치를 지우고 "아직 봉인 전"이라 밝힌다(추정값에 봉인 라벨을 붙이지 않는다)
+// 데모 물건(1~9)·조회 실패: 초기값 유지하되 라벨을 "참고 추정치"로 낮춘다
+async function loadSealedPred(){
+  const escS=v=>String(v==null?'':v).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  const noteEl=document.querySelector('#sec-ai .ai-note');
+  const lbl=document.querySelectorAll('#sec-ai .ai-cell .m');
+  const setLbl=(i,txt)=>{ if(lbl[i]) lbl[i].textContent=txt; };
+  if(!isLive||!liveItem||!liveItem.id||!liveItem.pbctCdtnNo){
+    setLbl(0,'참고 추정치 — 봉인 예측 아님');
+    return;
+  }
+  let p=null;
+  try{
+    const key=`${liveItem.id}_${liveItem.pbctCdtnNo}`;
+    const r=await fetch(`/.netlify/functions/scoreboard?pred=${encodeURIComponent(key)}`);
+    if(r.ok){ const d=await r.json(); p=(d&&d.pred&&d.pred.lo>0)?d.pred:null; }
+  }catch(e){ /* degrade — 아래에서 미확인으로 표기 */ }
+
+  if(p){
+    document.getElementById('aiRange').textContent=`${fmt(p.lo)} ~ ${fmt(p.hi)}`;
+    document.getElementById('aiRec').textContent=fmt(p.mid)+'원';
+    setLbl(0,'🔒 개찰 전 봉인 · 수정 없음');
+    setLbl(1,'봉인된 중앙값');
+    window.__ai.lo=p.lo; window.__ai.hi=p.hi; window.__ai.mid=p.mid; window.__ai.sealed=true;
+    if(noteEl){
+      const when=p.sealedAt?new Date(p.sealedAt).toLocaleString('ko-KR',{dateStyle:'medium',timeStyle:'short'}):'';
+      noteEl.innerHTML='※ 이 구간은 <b>'+escS(when)+'에 봉인</b>되어 이후 수정되지 않습니다'
+        +(p.statBucket?` · 근거: 캠코 ${escS(p.statBucket)} 낙찰가율 통계${p.statPerd?`(${escS(p.statPerd)})`:''}`:'')
+        +(p.modelV?` · 모델 ${escS(p.modelV)}`:'')
+        +'. 개찰 후 자동 채점되어 <a href="bidcast-lab.html">적중률 랩</a>에 전수 공개됩니다 — '
+        +'통계 기반 <b>범위</b>이며 특정 낙찰가를 보장하지 않습니다.';
+    }
+  }else{
+    // 봉인 없음 — 추정 숫자를 지운다. 없는 것을 있는 것처럼 보이게 하지 않는다.
+    document.getElementById('aiRange').textContent='봉인 전';
+    document.getElementById('aiRec').textContent='—';
+    document.getElementById('aiConf').textContent='—';
+    setLbl(0,'아직 예측이 봉인되지 않았습니다');
+    setLbl(1,'봉인 후 표시');
+    setLbl(2,'봉인 후 표시');
+    window.__ai.lo=0; window.__ai.hi=0; window.__ai.mid=0; window.__ai.sealed=false;
+    if(noteEl){
+      noteEl.innerHTML='※ 예측은 <b>개찰 전에 봉인</b>하고 이후 수정하지 않습니다. '
+        +'이 물건은 아직 봉인 대상 기간에 들어오지 않았거나 통계 근거가 부족해 예측을 만들지 않았습니다 — '
+        +'<b>추정값을 봉인인 것처럼 보여주지 않기 위해 비워 둡니다.</b> '
+        +'봉인되면 이 자리에 구간이 표시되고, 개찰 후 <a href="bidcast-lab.html">적중률 랩</a>에서 채점됩니다.';
+    }
+  }
+}
+window.__aiReady=loadSealedPred();
 
 // (적정가 그리드 제거 — 적정가 분석은 'AI 예상 낙찰가' 섹션 + 주변 실거래·시세 밴드로 통합됨)
 
@@ -1786,6 +1844,7 @@ function mktFit(kind) {
         const me=await fetch(`/.netlify/functions/market-est?${q}`).then(r=>r.ok?r.json():null);
         if(!me||!Array.isArray(me.trades)||!me.trades.length){console.log('[rtms] market-est 표본 0/응답 없음');return;}
         const scope=(me.filter&&me.filter.dongMode==='local')?emd:`${sgg} 전체`;
+        await (window.__aiReady||Promise.resolve()); // 봉인 조회가 끝난 뒤 __ai를 읽는다
         const ai=window.__ai||{};
         const aiLine=(ai.lo>0&&ai.hi>0)?`<div style="margin-top:8px;font-size:12.5px;color:var(--sub);">이 물건 AI 예상 낙찰 구간: <b style="color:var(--ink)">${fmtWon(ai.lo*10000)} ~ ${fmtWon(ai.hi*10000)}</b> — 주변 시세 대비 위치를 직접 비교해 보세요.</div>`:'';
         let band='';

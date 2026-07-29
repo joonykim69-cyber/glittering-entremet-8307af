@@ -110,6 +110,13 @@ exports.handler = async (event) => {
         summary,
         byTier: agg?.byTier || {},
         byUsage: agg?.byUsage || {},
+        // 예측 시점별 성적 — 봉인 창 확대(+14일)의 대가를 정직하게 드러낸다.
+        // 개찰 직전 예측이 먼 예측보다 정확한 게 정상이며, 그 차이를 숨기지 않는다.
+        byLead: Object.fromEntries(Object.entries(agg?.byLead || {}).map(([k, v]) => [k, {
+          n: v.n, hit: v.hit,
+          hitRate: v.n ? Math.round(v.hit / v.n * 1000) / 10 : null,
+          avgAbsErrPct: v.sumAbsErrPct != null && v.n ? Math.round(v.sumAbsErrPct / v.n * 10) / 10 : null,
+        }])),
         // 자산군별 성적 — 적중률·오차·구간폭을 함께 낸다(2026-07-29).
         // ⚠️ summary의 단일 수치는 **전 자산군 합산**이라 표본 구성에 좌우된다.
         //   화면에서는 이 byAsset을 주(主)로 쓰고, summary는 "합산"임을 밝혀 함께 보여줄 것.
