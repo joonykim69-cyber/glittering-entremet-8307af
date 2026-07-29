@@ -20,6 +20,16 @@ const CORS = { 'Access-Control-Allow-Origin': '*' };
 const MODEL_V = 'v0.1';
 const DEFAULT_W = 0.18;
 const CURATED_MAX = 24; // "오늘의 주목 물건" 저장 상한
+// 1회 실행 봉인 상한 — 함수 실행시간 보호용. 기존 800에서 상향(전수 봉인 보장, 2026-07-29).
+// 상한에 걸리면 마감 임박 순으로 우선 봉인한다. 환경변수로 조정 가능(SEAL_CAP).
+const SEAL_CAP = Math.max(100, Math.min(5000, parseInt(process.env.SEAL_CAP || '2500', 10) || 2500));
+
+// 청크 병렬 — 수천 건의 Blob 조회/저장을 순차로 하면 실행시간 한도를 넘는다(score-daily 선례).
+async function mapLimit(items, limit, fn) {
+  const out = [];
+  for (let i = 0; i < items.length; i += limit) out.push(...await Promise.all(items.slice(i, i + limit).map(fn)));
+  return out;
+}
 
 // 공통 팩트(온비드) → 실측 이력 셀 백오프 조회 (L3→L0, 표본 20+). 큐레이션 컨텍스트용.
 // 셀 키는 온비드 이력 기준 typeCd라 온비드 소스 전용 — 새 소스는 자기 셀 네임스페이스를 쓴다.
@@ -74,6 +84,7 @@ async function loadUsgStats(base) {
 // connectLambda(event)로 요청 이벤트의 Blobs 컨텍스트를 수동 연결해야 한다.
 // (MissingBlobsEnvironmentError 대응 — 2026-07-19 프로덕션 첫 실행에서 확인)
 async function openLedger(event) {
+  if (global.__FAKE_STORE__) return global.__FAKE_STORE__; // fixture 검증용(런타임 미사용)
   const blobs = await import('@netlify/blobs');
   try { if (event && typeof blobs.connectLambda === 'function') blobs.connectLambda(event); } catch (e) { /* 신형 런타임은 자동 구성 */ }
   try {
@@ -104,26 +115,57 @@ exports.handler = async (event) => {
     const start = ymd(kst());
     const end = ymd(new Date(kst().getTime() + 2 * 86400000));
     const q = `bidPrdYmdStart=${start}&bidPrdYmdEnd=${end}`;
+    // ── 전수 봉인 보장: 마지막 페이지까지 수집 (2026-07-29) ──
+    // 기존엔 자산군별 **단일 페이지**(부동산 700·동산 50·차량 50)만 조회해, 창 안에 물건이
+    // 그보다 많은 날에는 초과분이 **영영 봉인되지 않았다**(다음 날엔 창이 이동하므로 재기회 없음).
+    // 봉인은 물건당 1회(멱등)라 창을 넓혀도 표본이 늘지 않는다 — 실제 병목은 이 페이지 상한이었다.
+    // score-daily 전수 채점 수정과 같은 패턴: numOfRows=1000, batch<1000이면 종료, 안전 상한 유지.
+    const PAGE = 1000, MAX_PAGES = 5; // 자산군당 최대 5,000건(일일 쿼터 여유 내)
+    async function collectAll(fn) {
+      const out = [];
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        let d;
+        try { d = await fetchJson(`${base}/.netlify/functions/${fn}?numOfRows=${PAGE}&page=${page}&${q}`); }
+        catch (e) { break; } // 한 자산군 실패는 전체를 막지 않는다
+        const batch = Array.isArray(d && d.items) ? d.items : [];
+        out.push(...batch);
+        if (batch.length < PAGE) break; // 마지막 페이지
+      }
+      return out;
+    }
     const settled = await Promise.allSettled([
-      fetchJson(`${base}/.netlify/functions/onbid-search?numOfRows=700&${q}`),
-      fetchJson(`${base}/.netlify/functions/onbid-mvast-search?numOfRows=50&${q}`),
-      fetchJson(`${base}/.netlify/functions/onbid-vhcl-search?numOfRows=50&${q}`),
+      collectAll('onbid-search'),
+      collectAll('onbid-mvast-search'),
+      collectAll('onbid-vhcl-search'),
     ]);
     const items = [];
     settled.forEach(s => {
-      if (s.status === 'fulfilled' && Array.isArray(s.value.items)) items.push(...s.value.items);
+      if (s.status === 'fulfilled' && Array.isArray(s.value)) items.push(...s.value);
     });
 
     let sealed = 0, skipped = 0, noBasis = 0, sealedB = 0;
     const predMap = {}; // key → {lo,mid,hi} : 이번 실행에서 봉인한 챔피언 예측(큐레이션 저평가 여력 판단용)
     const endLimit = end + '2359';
+    // 마감 임박 순으로 정렬한 뒤 상한을 적용 — 상한에 걸리더라도 **개찰이 임박한 물건부터**
+    // 봉인되어 다음 실행에서 재기회가 없는 물건을 우선 잡는다(잘림이 생겨도 손실 최소화).
     const targets = items
       .filter(it => it.min > 0 && it.pbctCdtnNo && (!it.bidEnd || String(it.bidEnd) <= endLimit))
-      .slice(0, 800); // 1회 실행 상한 = 부동산 700 + 동산 50 + 차량 50 (전수 봉인 보장·실행시간 보호)
+      .sort((a, b) => String(a.bidEnd || '').localeCompare(String(b.bidEnd || '')))
+      .slice(0, SEAL_CAP);
+
+    // ── 기존 봉인 여부를 **청크 병렬로 선조회** (2026-07-29) ──
+    // 상한을 올리면서 순차 await를 그대로 두면 실행시간을 넘겨 봉인이 통째로 실패한다
+    // (score-daily가 같은 이유로 502를 냈던 선례). 조회/저장만 병렬화하고 **봉인 공식은 불변**.
+    const existsMap = new Map();
+    await mapLimit(targets, 40, async it => {
+      const key = `pred/${it.id}_${it.pbctCdtnNo}`;
+      try { existsMap.set(key, !!(await store.get(key))); } catch (e) { existsMap.set(key, true); } // 조회 실패 시 안전측(재봉인 안 함)
+    });
+    const writes = []; // {key, val} — 계산 후 한꺼번에 병렬 저장
 
     for (const it of targets) {
       const key = `pred/${it.id}_${it.pbctCdtnNo}`;
-      const exists = await store.get(key);
+      const exists = existsMap.get(key);
       if (exists) { skipped++; continue; } // 봉인 불변 원칙
 
       const st = stats && (stats.map[STAT_BUCKET[it.type]] || stats.map['전체']);
@@ -140,7 +182,7 @@ exports.handler = async (event) => {
       let hi = Math.round(Math.max(...anchors) * (1 + w));
       if (hi <= lo) hi = Math.round(lo * 1.05);
 
-      await store.setJSON(key, {
+      writes.push({ key, val: {
         id: it.id, pbctCdtnNo: it.pbctCdtnNo, title: it.title, type: it.type,
         assetClass: it.assetClass || '부동산',
         appr: it.appr, min: it.min, // 만원
@@ -150,7 +192,7 @@ exports.handler = async (event) => {
         round: Number(it.round) || 0, fail: Number(it.fail) || 0, // 공매차수·유찰수 실측(회차별 채점·분석용)
         bidEnd: it.bidEnd || '', modelV: MODEL_V,
         sealedAt: new Date().toISOString(),
-      });
+      } });
       predMap[key] = { lo, mid, hi };
       sealed++;
 
@@ -171,19 +213,22 @@ exports.handler = async (event) => {
             const bMid = Math.round(it.min * cell.lr.p50 / 100);
             let bHi = Math.round(it.min * cell.lr.p90 / 100);
             if (bHi <= bLo) bHi = Math.round(bLo * 1.05);
-            await store.setJSON(`predb/${it.id}_${it.pbctCdtnNo}`, {
+            writes.push({ key: `predb/${it.id}_${it.pbctCdtnNo}`, val: {
               id: it.id, pbctCdtnNo: it.pbctCdtnNo, type: it.type,
               lo: bLo, mid: bMid, hi: bHi, // 만원
               cellKey: ck, cellN: cell.n, modelV: 'v0.5-cells',
               round: rbN, roundReal, // 회차(pbctNsq 실측 여부 roundReal로 표시 — 근사면 false)
               sealedAt: new Date().toISOString(),
-            });
+            } });
             sealedB++;
             break;
           }
         }
       }
     }
+
+    // 계산이 끝난 봉인을 청크 병렬로 일괄 저장(공식·내용 불변, I/O만 배치화)
+    await mapLimit(writes, 40, async w => { await store.setJSON(w.key, w.val); });
 
     // ── 큐레이션 패스 — "오늘의 주목 물건" (봉인 로직과 분리·소스 중립 엔진) ──
     // 같은 마감 임박 물건을 소스 중립 공통 팩트로 바꿔 기회 점수를 매기고 상위 N건을 저장한다.
