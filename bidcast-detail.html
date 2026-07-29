@@ -1749,7 +1749,29 @@ if(isLive&&liveItem){
           a.setAttribute('href',h);
         });
       };
-      // 네이버 부동산 아웃바운드 링크 — 사용자가 호가와 직접 교차 검증(스크래핑 금지 원칙상 링크만).
+      // ── 시세 추정 정합도 조회 (과거 재현 walk-forward 실측) ──
+// "신뢰도 높음"은 표본 수에서 나온 **자기 평가**일 뿐이다. 사용자가 이 밴드를 믿어도 되는지
+// 판단하려면 "이 방식이 실제로 얼마나 맞았나"가 필요하다 — 그 값을 이미 2,000건 넘게
+// 측정해 두고 화면에 안 쓰고 있었다(헌장 GR12: 가진 걸 안 쓰면 사용자에게 도움이 안 된다).
+// scoreboard는 5분 CDN 캐시라 페이지당 1회만 부른다. 실패하면 조용히 생략(degrade).
+window.__mktFitP = null;
+function mktFit(kind) {
+  if (!window.__mktFitP) {
+    window.__mktFitP = fetch('/.netlify/functions/scoreboard')
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+      .catch(() => null);
+  }
+  return window.__mktFitP.then(d => {
+    const bt = d && d.marketBacktest;
+    if (!bt || !bt.overall || !(bt.observations > 0)) return null;
+    const k = bt.byKind && bt.byKind[kind];
+    // 유형별 표본이 충분할 때만 유형 수치를 쓰고, 아니면 전체로 물러난다(작은 표본 단정 금지).
+    if (k && k.n >= 100) return { hitRate: k.hitRate, medErrPct: k.medErrPct, n: k.n, scope: 'kind' };
+    return { hitRate: bt.overall.hitRate, medErrPct: bt.overall.medErrPct, n: bt.observations, scope: 'all' };
+  }).catch(() => null);
+}
+
+// 네이버 부동산 아웃바운드 링크 — 사용자가 호가와 직접 교차 검증(스크래핑 금지 원칙상 링크만).
       // 상세 API의 번지 주소(lotAddr)가 이미 도착했으면 그 지점으로 바로 이동, 아니면 동 단위 폴백.
       // (호·층은 네이버 검색이 못 받으므로 제거 — 지도 지오코딩과 동일한 정제 규칙.)
       // 검색어 폴백(시도 제거 "안성시 중리동") 확보 — 클릭 시 네이버 부동산 열기 + 검색어 자동 복사(온비드 공고보기와 동일 패턴)
@@ -1790,8 +1812,20 @@ if(isLive&&liveItem){
             ${esc(scope)} ${esc(svcName)} 추정 시세(㎡당) <b>${me.perM2.p25.toLocaleString()} ~ ${me.perM2.p75.toLocaleString()}만원</b>
             <span style="color:var(--sub);">(중앙 ${me.perM2.p50.toLocaleString()}만원 · 평당 약 ${Math.round(me.perM2.p50*3.3058).toLocaleString()}만원 · 표본 ${me.sample.n}건)</span>
             ${confChip}${me.adjust&&me.adjust.applied?`<div style="font-size:11.5px;color:var(--sub);margin-top:4px;">시점 보정: ${esc(me.adjust.basis||'부동산원 지수')}</div>`:''}
-            ${aiLine}${marginBox}</div>`;
+            <div id="mktFitLine"></div>${aiLine}${marginBox}</div>`;
           passSim(me.perM2.p50,`${scope} ${svcName} 추정 ㎡당 중앙값 ${Math.round(me.perM2.p50).toLocaleString()}만원 (신뢰도 ${me.confidence})`);
+          // 이 추정 방식이 과거 재현에서 실제로 얼마나 맞았는지 — 밴드 렌더를 막지 않고 뒤따라 채운다
+          mktFit(KIND).then(fit=>{
+            const el=document.getElementById('mktFitLine'); if(!el||!fit)return;
+            const scopeTxt=fit.scope==='kind'?`${svcName} 기준`:'전 주거유형 합산';
+            el.innerHTML=`<div style="font-size:11.5px;color:var(--green-deep);margin-top:6px;font-weight:700;">`
+              +`✅ 이 추정 방식의 검증 성적: <b>${fit.hitRate}%</b> 적중`
+              +(fit.medErrPct!=null?` · 중앙값 오차 <b>${fit.medErrPct}%</b>`:'')
+              +` <span style="color:var(--sub);font-weight:600;">(${esc(scopeTxt)} · 과거 ${fit.n.toLocaleString()}건 재현 검증 — `
+              +`그 달 이전 거래로만 추정해 다음 달 실거래로 채점)</span>`
+              +`<div style="color:var(--mute);font-weight:600;margin-top:2px;">※ 낙찰가 적중률과는 <b>별개 지표</b>입니다 — "지금 시세가 얼마인가"의 정확도입니다. `
+              +`<a href="bidcast-lab.html#mktSec" style="color:var(--green-deep);">근거 보기 →</a></div></div>`;
+          });
           fdSet({mkt:{scope,kind:svcName}}); // 유찰 진단 보강 — 시세 밴드 존재(감정가 적정성 대조 가능)
         }else{
           band=`<div style="padding:12px 14px;background:var(--line);border-radius:12px;margin-bottom:12px;font-size:13px;color:var(--sub);">표본이 적어 시세 범위를 제시하지 않습니다(정직성 원칙) — 아래 최근 거래만 참고하세요.</div>`;

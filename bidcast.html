@@ -1253,6 +1253,21 @@ loadLiveListings();
 // 봉인만 있고 채점 전이면 하단 각주로 봉인 현황만 알린다.
 // 장부가 비어 있거나 로드 실패면 목표치 예시 그대로 둔다.
 // ═══════════════════════════════════════
+// 시세 추정 한 줄 — 낙찰가와 **별개 지표**다(섞으면 둘 다 의미가 흐려진다).
+// 이미 수천 건으로 검증해 둔 값을 화면에 안 쓰고 있었다(GR12: 가진 걸 안 쓰면 도움이 안 된다).
+// 라이브 채점(market)이 시작되면 그쪽을 우선 쓰고, 그 전에는 과거 재현 정합도를 보여준다.
+function marketLine(bt, live) {
+  const src = (live && live.overall && live.overall.n > 0)
+    ? { hitRate: live.overall.hitRate, err: live.overall.avgErrPct, n: live.overall.n, label: '봉인한 시세 밴드 채점' }
+    : (bt && bt.overall && bt.observations > 0)
+      ? { hitRate: bt.overall.hitRate, err: bt.overall.medErrPct, n: bt.observations, label: '과거 재현 검증' }
+      : null;
+  if (!src) return '';
+  return `<div class="ledger-log-item">🏠 주변 시세 추정: <b>${src.hitRate}%</b> 적중`
+    + (src.err != null ? ` · 중앙값 오차 <b>${src.err}%</b>` : '')
+    + ` <span style="opacity:.7">(${escHtml(src.label)} ${src.n.toLocaleString()}건)</span>`
+    + ` — 위 낙찰가 지표와 <b>별개</b>입니다. <a href="bidcast-lab.html#mktSec" style="color:var(--green-deep);font-weight:800">근거 →</a></div>`;
+}
 // 자산군별 성적 한 줄 — 합산 숫자 하나만 보여주면 표본이 쏠린 자산군의 성적으로
 // 다른 자산군 사용자를 오도한다(부동산은 잘 맞는데 동산 표본이 대부분이라 전체가 나빠 보임).
 // 표본 20건 미만은 수치를 단정하지 않고 "표본 부족"으로 적는다.
@@ -1292,6 +1307,7 @@ async function loadLedger() {
           <div class="ledger-tile"><div class="v">${totalSeal.toLocaleString()}건</div><div class="k">누적 봉인 예측 (오늘 ${todaySeal.toLocaleString()}건)</div></div>
         </div>
         ${assetLine(d.byAsset)}
+        ${marketLine(d.marketBacktest, d.market)}
         ${(d.learningLog || []).slice(0, 2).map(l => `<div class="ledger-log-item">🧠 모델 학습: <b>${escHtml(l.usage)}</b> 구간 폭 ${escHtml(String(l.from))} → ${escHtml(String(l.to))} 보정 (표본 ${l.n}건 · 적중률 ${l.hitRate}%)</div>`).join('')}
         <div class="foot-note">예측은 개찰 전에 봉인되어 사후 수정이 불가능합니다 · 전수 대조 기준</div>`;
     } else {

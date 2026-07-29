@@ -32,6 +32,7 @@ node test/quota.test.js  # 파일 하나만 직접
 | `market-est` / `rtms-svc` | 실응답 형태 fixture로 파싱(과거 `{item:"<원시XML>"}` 버그 재발 방지) |
 | `news-dedup` | 재게재 보도 제거·다른 회차 보존 |
 | `mdlite` / `faildiag` | 임의 HTML 주입 차단·유찰 신호 판정 |
+| `market-surface` | 검증된 시세 정합도가 화면에 노출됨(GR12) + **시세·낙찰가 두 축 분리** 문구 동반 |
 | `manifesto` | **헌장이 사실인가** — Appendix A/B 인벤토리·스키마가 실제 파일·크론과 일치, GR12 존재, 낡은 수치 미포함 |
 
 ## `manifesto.test.js`가 일부러 깨지는 경우
