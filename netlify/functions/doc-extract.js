@@ -70,10 +70,8 @@ exports.handler = async (event) => {
   if (!isAllowedUrl(url)) {
     return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: { message: '온비드(onbid.co.kr) 문서 URL만 지원합니다.' } }) };
   }
-  // hwp/hwpx는 1단계 미지원 — 정직하게 안내(어설픈 파싱으로 오독 유발 금지)
-  if (/\.hwpx?([?#]|$)/i.test(url)) {
-    return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'unsupported', kind: 'hwp', message: 'HWP 문서는 아직 자동 정리를 지원하지 않습니다 — 온비드에서 원문을 열람하세요.' }) };
-  }
+  // (2026-07-29) HWP/HWPX 지원 추가 — 확장자로 미리 막지 않고 **매직 바이트**로 판정한다.
+  // 온비드 다운로드 URL은 확장자가 없는 경우가 많으므로 실제 내용으로 분기해야 한다.
 
   const hash = crypto.createHash('sha1').update(url).digest('hex');
   try {
@@ -98,9 +96,31 @@ exports.handler = async (event) => {
         if (ab.byteLength > MAX_BYTES) throw new Error('문서가 15MB를 초과합니다');
         buf = Buffer.from(ab);
       } finally { clearTimeout(timer); }
+      // ── PDF가 아니면 HWP/HWPX 경로 시도 (공매재산명세서가 주로 HWP) ──
       if (buf.slice(0, 5).toString('latin1') !== '%PDF-') {
-        return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'unsupported', kind: 'not-pdf', message: 'PDF가 아닌 문서입니다 — 온비드에서 원문을 열람하세요.' }) };
+        const hwp = require('./lib/hwp.js');
+        const fmt = hwp.sniff(buf);
+        if (fmt === 'hwp' || fmt === 'hwpx') {
+          const res = hwp.extractText(buf);
+          if (!res.ok) {
+            // 추출 실패는 추측하지 않고 정직하게 원문 안내(헌장: 어설픈 파싱 금지)
+            return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'unsupported', kind: 'hwp', message: `HWP 문서를 읽지 못했습니다(${res.reason}) — 온비드에서 원문을 열람하세요.` }) };
+          }
+          // PDF 경로와 같은 스키마로 저장(뒤쪽 스캔 판정·요약 로직이 그대로 동작하도록)
+          const hText = String(res.text || '');
+          const hKind = classifyKind(hText); // 텍스트가 사실상 없으면 'scan'과 동일 취급
+          doc = {
+            status: 'ok', kind: hKind, pages: 0, format: res.format,
+            chars: hText.replace(/\s+/g, ' ').trim().length,
+            text: hKind === 'text' ? hText.slice(0, SUMMARY_TEXT_CAP) : '',
+            at: new Date().toISOString(), url,
+          };
+          await store.setJSON(`doc/${hash}`, doc);
+        } else {
+          return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'unsupported', kind: 'not-pdf', message: 'PDF·HWP가 아닌 문서입니다 — 온비드에서 원문을 열람하세요.' }) };
+        }
       }
+      if (!doc) {
       // index.js가 아니라 lib를 직접 require — pdf-parse@1.1.1 index.js의 `!module.parent` 디버그 블록이
       // esbuild 번들에선 항상 참이 되어 './test/data/05-versions-space.pdf'를 읽다 ENOENT로 죽는 버그 우회
       // (프로덕션 실클릭에서 발견, 2026-07-27 — 감정평가서(등촌동).pdf).
@@ -115,10 +135,15 @@ exports.handler = async (event) => {
         at: new Date().toISOString(), url,
       };
       await store.setJSON(`doc/${hash}`, doc);
+      } // ← PDF 경로 끝 (HWP 경로에서 이미 doc이 채워졌으면 건너뜀)
     }
 
     if (doc.kind === 'scan') {
-      return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'scan', kind: 'scan', pages: doc.pages, message: '스캔본(이미지) 문서라 텍스트를 추출할 수 없습니다 — 온비드에서 원문을 직접 열람하세요.' }) };
+      // HWP는 "스캔본"이라 단정할 수 없다(본문이 이미지·표 객체로만 구성된 경우 등) — 형식별로 정직하게 표현
+      const scanMsg = (doc.format === 'hwp' || doc.format === 'hwpx')
+        ? '이 한글 문서에서는 읽을 수 있는 본문 텍스트를 찾지 못했습니다(이미지·표 개체로만 구성된 경우) — 온비드에서 원문을 직접 열람하세요.'
+        : '스캔본(이미지) 문서라 텍스트를 추출할 수 없습니다 — 온비드에서 원문을 직접 열람하세요.';
+      return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'scan', kind: 'scan', pages: doc.pages, format: doc.format || 'pdf', message: scanMsg }) };
     }
 
     if (!qs.summarize) {
