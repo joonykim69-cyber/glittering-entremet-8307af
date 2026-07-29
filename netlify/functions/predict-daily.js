@@ -15,6 +15,7 @@
 // 수동 실행: GET /.netlify/functions/predict-daily (테스트·백필용, 동작 동일)
 
 const { fromOnbid, scoreOpportunity } = require('./lib/curation');
+const quota = require('./lib/quota.js');
 
 const CORS = { 'Access-Control-Allow-Origin': '*' };
 const MODEL_V = 'v0.1';
@@ -121,10 +122,14 @@ exports.handler = async (event) => {
     // 봉인은 물건당 1회(멱등)라 창을 넓혀도 표본이 늘지 않는다 — 실제 병목은 이 페이지 상한이었다.
     // score-daily 전수 채점 수정과 같은 패턴: numOfRows=1000, batch<1000이면 종료, 안전 상한 유지.
     const PAGE = 1000, MAX_PAGES = 5; // 자산군당 최대 5,000건(일일 쿼터 여유 내)
+    // 봉인은 원장의 근간이라 예산으로 **막지 않는다**('critical' 티어) — 다만 사용량은 똑같이
+    // 기록해, 대량 수집기(collect-*)가 남은 예산을 계산할 때 이 호출까지 반영되게 한다.
+    const budget = await quota.openBudget(store, { service: 'onbid', tier: 'critical' });
     async function collectAll(fn) {
       const out = [];
       for (let page = 1; page <= MAX_PAGES; page++) {
         let d;
+        budget.note(1);
         try { d = await fetchJson(`${base}/.netlify/functions/${fn}?numOfRows=${PAGE}&page=${page}&${q}`); }
         catch (e) { break; } // 한 자산군 실패는 전체를 막지 않는다
         const batch = Array.isArray(d && d.items) ? d.items : [];
@@ -289,6 +294,7 @@ exports.handler = async (event) => {
 
     const summary = { ok: true, scanned: items.length, targets: targets.length, sealed, sealedB, skipped, noBasis, curated: curatedTop.length, statPerd: stats ? stats.perd : null, ...(qs.debug ? { window: { start, end } } : {}) };
     // 하트비트 — 매 실행마다 마지막 성공 시각·처리건수 기록(자가진단이 신선도로 죽음 감지)
+    await budget.flush();
     await store.setJSON('_run/predict-daily', { at: new Date().toISOString(), ok: true, sealed, sealedB, curated: curatedTop.length, targets: targets.length, noBasis });
     console.log('[predict-daily]', JSON.stringify(summary));
     return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify(summary) };
