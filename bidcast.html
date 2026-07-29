@@ -1098,6 +1098,32 @@ function statFor(it) {
   if (!USG_STATS) return null;
   return USG_STATS[STAT_BUCKET[it.type]] || USG_STATS['전체'] || null;
 }
+// ═══ 건물 키 — 같은 건물의 여러 호실이 목록을 도배하지 않도록 묶는 기준 ═══
+// 물건명 꼬리의 호수·층수·필지 표기를 반복 제거한다.
+// ⚠️ 접두 문자는 **ASCII만**(B110호 같은 표기) 허용하고 앞에 공백 경계를 요구할 것.
+//    한글 한 글자를 옵션으로 두면 "110동 104-2호"의 '동', "…생활시설 101호"의 '설'을
+//    잡아먹어 키가 갈라진다(프로덕션에서 군산 5건·고양 4건이 안 묶인 원인 — 2026-07-28 수정).
+function bldKeyL(it) {
+  let s = String((it && it.title) || '').trim(), prev;
+  do {
+    prev = s;
+    s = s.replace(/\s+(?:지하|지상|제)?(?:[A-Za-z]{1,2})?\d+(?:[-–~/]\d+)*\s*호(?=\s|$)[\s\S]*$/, '')
+         .replace(/\s+(?:지하|지상)?제?\s*\d+\s*층(?=\s|$)[\s\S]*$/, '')
+         .replace(/\s+외\s*\d+\s*(?:필지|개호|호|세대)(?=\s|$)[\s\S]*$/, '')
+         .trim();
+  } while (s !== prev && s.length);
+  return s.replace(/[\s,·\-–]+$/, '').trim() || String((it && it.id) || '');
+}
+// 같은 건물은 첫 물건만 남긴다(마감일까지 같을 때만 묶어 회차 혼동 방지).
+function dedupeBld(list) {
+  const seen = new Set(), out = [];
+  for (const it of (list || [])) {
+    const k = bldKeyL(it) + '|' + String((it && it.bidEnd) || '').slice(0, 8);
+    if (seen.has(k)) continue;
+    seen.add(k); out.push(it);
+  }
+  return out;
+}
 function liveCard(it) {
   const st = statFor(it);
   let lo, hi, chip, predLabel, predBase;
@@ -1155,7 +1181,7 @@ async function loadLiveListings() {
       if (lEl) lEl.textContent = '현재 진행 중 부동산 공매 물건 (실시간 온비드)';
     }
     // 같은 건물의 다른 호수는 하나만 골라 다양성 확보
-    const buildingKey = it => (it.title || '').replace(/\s*\d+\s*호(?:\s|$).*$/, '').replace(/\s*제?\d+층.*$/, '').trim() || String(it.id);
+    const buildingKey = bldKeyL;
     const seenBld = new Set();
     const pick = [];
     for (const it of data.items) {
@@ -1399,8 +1425,9 @@ async function loadHeroBoard() {
 
   let liveOk = false, gradedOk = false;
   // 라이브 온비드 물건 (마감일 순)
+  // 같은 건물 여러 호실이 히어로 칸반을 도배하지 않도록 건물 단위로 1건만 남긴다(2026-07-28).
   const live = (ob && Array.isArray(ob.items))
-    ? ob.items.filter(it => it.min > 0 && it.title).sort((a, b) => String(a.bidEnd || '').localeCompare(String(b.bidEnd || ''))) : [];
+    ? dedupeBld(ob.items.filter(it => it.min > 0 && it.title).sort((a, b) => String(a.bidEnd || '').localeCompare(String(b.bidEnd || '')))) : [];
   const winTotal = (ob && Number(ob.totalCount)) || live.length;
 
   // 관심 물건(사용자 실제 관심) 우선, 없으면 라이브 임박으로 대체
@@ -1553,7 +1580,8 @@ async function loadCurated() {
       && (!budget || (it.low > 0 && it.low <= budget));
     const hit = d.items.filter(match);
     const used = hit.length ? hit : d.items;
-    const sorted = used.slice().sort((a, b) => b.score - a.score);
+    // 같은 건물 여러 호실이 주목 물건을 채우지 않도록 건물당 1건만(점수 높은 쪽) — 2026-07-28
+    const sorted = dedupeBld(used.slice().sort((a, b) => b.score - a.score));
 
     // 자산군별로 묶어 3개 미리보기 + "더 보기"로 3개 추가(그룹당 최대 6개 — 2026-07-26 창업자 지시,
     // 전부 펼치면 압도되므로 상한. 전체 목록은 물건검색 페이지가 담당).
