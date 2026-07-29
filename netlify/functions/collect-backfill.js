@@ -19,9 +19,12 @@
 //   ?status=1 = 수집 없이 진행 상황만 / ?reset=1&confirm=1 = 커서 초기화.
 //
 // 커서 hist/_bfstate {cursorEnd}, 진행 hist/_bfmeta {records, windows, oldest, newest, done}
-// 쿼터: 6개월 census ≈ 250콜(부동산 ~1000/일 → 창당 페이지 수), data.go.kr 일일 1000 내.
+// 쿼터: **lib/quota.js 예산 가드('bulk' 티어)** 아래에서만 호출한다. data.go.kr 온비드 일일
+//   한도(1,000)에서 사용자 화면 몫(ONBID_LIVE_RESERVE)을 뺀 만큼이 이 수집기의 상한이며,
+//   예산이 떨어지면 실패가 아니라 **커서를 남기고 깨끗하게 중단**한다(다음 날 이어서 수집).
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' };
+const quota = require('./lib/quota.js');
 const WINDOW_DAYS = 7;
 const MAX_PAGES = 15;             // 창×자산군당 최대 페이지 (numOfRows=1000 census)
 const TIME_BUDGET_MS = 22000;     // 30초 함수 한도 안전 예산
@@ -48,6 +51,7 @@ async function fetchJson(url) {
 
 // Lambda 호환 함수는 Blobs 자동 구성이 안 되므로 connectLambda로 수동 연결 (다른 예약 함수와 동일 패턴)
 async function openLedger(event) {
+  if (global.__FAKE_STORE__) return global.__FAKE_STORE__;
   const blobs = await import('@netlify/blobs');
   try { if (event && typeof blobs.connectLambda === 'function') blobs.connectLambda(event); } catch (e) { /* 신형 런타임은 자동 구성 */ }
   try {
@@ -74,11 +78,13 @@ function splitRecord(r) {
   return { feat, win, key: `${r.id}_${r.pbctCdtnNo}` };
 }
 
-// 한 창×자산군을 페이지 끝까지 census 수집 → { feat[], winMap, calls }
-async function censusWindow(base, type, start, end) {
+// 한 창×자산군을 페이지 끝까지 census 수집 → { feat[], winMap, calls, budgetHit }
+// budget.take()가 false면 **호출하지 않고 즉시 멈춘다** — 사용자 화면 몫을 침범하지 않기 위해.
+async function censusWindow(base, type, start, end, budget) {
   const feat = [], winMap = {};
-  let calls = 0;
+  let calls = 0, budgetHit = false;
   for (let page = 1; page <= MAX_PAGES; page++) {
+    if (budget && !budget.take(1)) { budgetHit = true; break; }
     let d = null;
     try {
       d = await fetchJson(`${base}/.netlify/functions/onbid-bidresults?cltrTypeCd=${type}&numOfRows=1000&page=${page}&opbdDtStart=${start}&opbdDtEnd=${end}`);
@@ -93,7 +99,7 @@ async function censusWindow(base, type, start, end) {
     }
     if (batch.length < 1000) break; // 마지막 페이지
   }
-  return { feat, winMap, calls };
+  return { feat, winMap, calls, budgetHit };
 }
 
 exports.handler = async (event) => {
@@ -121,21 +127,35 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true, done: true, meta, note: '백필 완료 — 더 수집할 창이 없습니다.' }) };
     }
 
+    // 일일 API 예산('bulk' 티어) — 사용자 화면 몫을 남기고 남은 만큼만 수집한다.
+    const budget = await quota.openBudget(store, { service: 'onbid', tier: 'bulk' });
+
     const t0 = Date.now();
     const didWindows = [];
-    let totalCalls = 0;
+    let totalCalls = 0, budgetStopped = false;
     while (cursorEnd >= BF_START) {
       const start = maxStr(addDays(cursorEnd, -(WINDOW_DAYS - 1)), BF_START);
-      let winRows = 0;
+      // 창 하나를 온전히 끝낼 여유가 없으면 아예 시작하지 않는다 — 반쪽 창을 저장하고
+      // 커서를 넘기면 그 창의 나머지가 **영영 수집되지 않기 때문**(전수 보장 원칙).
+      if (budget.remaining() < 3) { budgetStopped = true; break; }
+
+      const pending = [];
+      let winRows = 0, aborted = false;
       for (const type of ['0001', '0002', '0003']) {
-        const { feat, winMap, calls } = await censusWindow(base, type, start, cursorEnd);
+        const { feat, winMap, calls, budgetHit } = await censusWindow(base, type, start, cursorEnd, budget);
         totalCalls += calls;
-        // 물리 분리 저장 — feat(낙찰가 없음) / win(낙찰가만)
-        await store.setJSON(`hist/feat/${start}_${cursorEnd}/${type}`, feat);
-        await store.setJSON(`hist/win/${start}_${cursorEnd}/${type}`, winMap);
-        meta.records += feat.length;
-        meta.featRecords += feat.length;
+        if (budgetHit) { aborted = true; break; }   // 예산 소진 — 이 창은 통째로 버린다
+        pending.push({ type, feat, winMap });
         winRows += Object.keys(winMap).length;
+      }
+      if (aborted) { budgetStopped = true; break; } // 커서 미전진 → 다음 실행이 이 창부터 다시
+
+      for (const p of pending) {
+        // 물리 분리 저장 — feat(낙찰가 없음) / win(낙찰가만)
+        await store.setJSON(`hist/feat/${start}_${cursorEnd}/${p.type}`, p.feat);
+        await store.setJSON(`hist/win/${start}_${cursorEnd}/${p.type}`, p.winMap);
+        meta.records += p.feat.length;
+        meta.featRecords += p.feat.length;
       }
       meta.windows += 1;
       if (!meta.oldest || start < meta.oldest) meta.oldest = start;
@@ -143,15 +163,17 @@ exports.handler = async (event) => {
       cursorEnd = addDays(start, -1);
       // 창마다 커서 즉시 저장 — 중간에 죽어도 다음 실행이 이어받아 소실 0
       await store.setJSON('hist/_bfstate', { cursorEnd });
+      await budget.flush();
       if (Date.now() - t0 > TIME_BUDGET_MS) break; // 시간 예산 소진 → 다음 실행으로
     }
+    await budget.flush();
 
     const done = cursorEnd < BF_START;
     meta.done = done;
     meta.cursorEnd = cursorEnd;
     meta.updatedAt = new Date().toISOString();
     await store.setJSON('hist/_bfmeta', meta);
-    await store.setJSON('_run/collect-backfill', { at: new Date().toISOString(), ok: true, done, records: meta.records, windowsThisRun: didWindows.length });
+    await store.setJSON('_run/collect-backfill', { at: new Date().toISOString(), ok: true, done, records: meta.records, windowsThisRun: didWindows.length, quotaStopped: budgetStopped });
 
     // 수집이 끝나면(done) hist-stats 셀을 재빌드해 수집한 1~6월 통계를 즉시 반영 —
     // 라이브 챌린저(predb)가 hist/_cells를 읽으므로 이 rebuild로 "학습 즉시 반영"이 성립.
@@ -166,9 +188,12 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         ok: true, done, cursorEnd, calls: totalCalls,
         windowsThisRun: didWindows, meta,
+        quota: budget.summary(),
         note: done
           ? `백필 완료 — ${BF_START}~${BF_END} 전수 수집됨(총 ${meta.records.toLocaleString()}건).`
-          : `진행 중 — 다음 실행은 ${cursorEnd} 이전 창부터 이어서 수집합니다.`,
+          : budgetStopped
+            ? `오늘의 API 예산(사용자 화면 몫 제외 ${budget.limit}회)을 다 써서 중단했습니다 — 커서(${cursorEnd})는 그대로이며 내일 이어서 수집합니다.`
+            : `진행 중 — 다음 실행은 ${cursorEnd} 이전 창부터 이어서 수집합니다.`,
       }),
     };
   } catch (e) {

@@ -17,11 +17,14 @@
 //   lr(최저가 대비 %), bd(유효 입찰자수), st(결과코드), opbd(개찰일 yyyymmdd),
 //   car(차량이면 연식만)
 //
-// 쿼터: 이 API의 일일 트래픽 1000건. 실행당 최대 6창×3자산군×5페이지 = 90콜 이내.
+// 쿼터: 이 API의 일일 트래픽 1000건. 실행당 최대 6창×3자산군×5페이지 = 90콜 이내이며,
+//   **lib/quota.js 예산 가드('bulk' 티어)** 아래에서만 호출한다 — 사용자 화면 몫
+//   (ONBID_LIVE_RESERVE)을 남기고, 예산이 떨어지면 커서를 남긴 채 깨끗하게 중단한다.
 // 수동 실행: GET /.netlify/functions/collect-history  (?windows=N 으로 창 수 조절)
 // 커서 리셋: ?reset=1&confirm=1 (처음부터 다시 수집 — 기존 창 데이터는 덮어씀)
 
 const CORS = { 'Access-Control-Allow-Origin': '*' };
+const quota = require('./lib/quota.js');
 const WINDOW_DAYS = 7;
 const MAX_PAGES = 5;      // 창×자산군당 최대 페이지 (100행/페이지)
 const DEFAULT_WINDOWS = 6;
@@ -82,6 +85,9 @@ exports.handler = async (event) => {
     const oldestTarget = addDays(ymd(kst()), -targetDays);
     const runWindows = [];
     let cursorEnd = state.cursorEnd;
+    // 일일 API 예산('bulk' 티어) — 사용자 화면 몫을 침범하지 않는 선에서만 수집.
+    const budget = await quota.openBudget(store, { service: 'onbid', tier: 'bulk' });
+    let budgetStopped = false;
 
     // 백필이 끝난 뒤에는 최근 7일 창을 매일 다시 수집해 신규 개찰분을 증분 유지한다.
     // **고정 키(hist/_inc/{type})로 매일 덮어쓴다**(2026-07-27 하우스키핑 수정): 과거엔 창 키가 매일
@@ -94,7 +100,9 @@ exports.handler = async (event) => {
       const start = addDays(end, -(WINDOW_DAYS - 1));
       for (const cltrTypeCd of ['0001', '0002', '0003']) {
         const rows = [];
+        let partial = false;
         for (let page = 1; page <= MAX_PAGES; page++) {
+          if (!budget.take(1)) { partial = true; budgetStopped = true; break; }
           let d = null;
           try {
             d = await fetchJson(`${base}/.netlify/functions/onbid-bidresults?cltrTypeCd=${cltrTypeCd}&numOfRows=100&page=${page}&opbdDtStart=${start}&opbdDtEnd=${end}`);
@@ -103,6 +111,8 @@ exports.handler = async (event) => {
           rows.push(...batch.filter(x => x.statCd === '0010' || x.statCd === '0011').map(toRecord));
           if (batch.length < 100) break;
         }
+        // 반쪽 수집분으로 기존 증분 스냅샷을 덮어쓰지 않는다 — 덮어쓰면 어제치까지 잃는다.
+        if (partial) break;
         await store.setJSON(`hist/_inc/${cltrTypeCd}`, rows); // 고정 키 덮어쓰기(누적 아님)
         incRows += rows.length;
         runWindows.push({ window: `_inc(${start}~${end})`, type: cltrTypeCd, rows: rows.length });
@@ -111,12 +121,18 @@ exports.handler = async (event) => {
 
     for (let w = 0; !backfillDone && w < windowsPerRun; w++) {
       if (cursorEnd <= oldestTarget) break; // 목표 기간까지 백필 완료
+      // 창 하나를 온전히 끝낼 여유가 없으면 시작하지 않는다 — 반쪽 창을 저장하고 커서를
+      // 넘기면 그 창의 나머지가 영영 수집되지 않는다(전수 보장 원칙).
+      if (budget.remaining() < 3) { budgetStopped = true; break; }
       const start = addDays(cursorEnd, -(WINDOW_DAYS - 1));
       const winStart = start < oldestTarget ? oldestTarget : start;
 
+      const pending = [];
+      let aborted = false;
       for (const cltrTypeCd of ['0001', '0002', '0003']) {
         const rows = [];
         for (let page = 1; page <= MAX_PAGES; page++) {
+          if (!budget.take(1)) { aborted = true; break; }
           let d = null;
           try {
             d = await fetchJson(`${base}/.netlify/functions/onbid-bidresults?cltrTypeCd=${cltrTypeCd}&numOfRows=100&page=${page}&opbdDtStart=${winStart}&opbdDtEnd=${cursorEnd}`);
@@ -126,12 +142,19 @@ exports.handler = async (event) => {
           rows.push(...batch.filter(x => x.statCd === '0010' || x.statCd === '0011').map(toRecord));
           if (batch.length < 100) break;
         }
-        await store.setJSON(`hist/${winStart}_${cursorEnd}/${cltrTypeCd}`, rows);
-        runWindows.push({ window: `${winStart}~${cursorEnd}`, type: cltrTypeCd, rows: rows.length });
+        if (aborted) break;                      // 예산 소진 — 이 창은 통째로 버린다
+        pending.push({ cltrTypeCd, rows });
+      }
+      if (aborted) { budgetStopped = true; break; } // 커서 미전진 → 다음 실행이 이 창부터 다시
+
+      for (const p of pending) {
+        await store.setJSON(`hist/${winStart}_${cursorEnd}/${p.cltrTypeCd}`, p.rows);
+        runWindows.push({ window: `${winStart}~${cursorEnd}`, type: p.cltrTypeCd, rows: p.rows.length });
       }
       cursorEnd = addDays(winStart, -1);
     }
 
+    await budget.flush();
     await store.setJSON('hist/_state', { cursorEnd });
 
     // 메타 갱신. 증분(고정 키 덮어쓰기)은 누적하지 않고 incRecords에 교체 기록(팽창 방지).
@@ -156,7 +179,7 @@ exports.handler = async (event) => {
 
     const doneBackfill = cursorEnd <= oldestTarget;
     // 하트비트 — 매 실행마다 마지막 성공 시각·수집건수·커서 기록(자가진단이 신선도로 죽음 감지)
-    await store.setJSON('_run/collect-history', { at: new Date().toISOString(), ok: true, added, windows: runWindows.length, cursorEnd, backfillComplete: doneBackfill });
+    await store.setJSON('_run/collect-history', { at: new Date().toISOString(), ok: true, added, windows: runWindows.length, cursorEnd, backfillComplete: doneBackfill, quotaStopped: budgetStopped });
     return {
       statusCode: 200,
       headers: { ...CORS, 'Content-Type': 'application/json' },
@@ -166,7 +189,10 @@ exports.handler = async (event) => {
         nextCursorEnd: cursorEnd,
         backfillComplete: doneBackfill,
         meta,
-        note: doneBackfill
+        quota: budget.summary(),
+        note: budgetStopped
+          ? `오늘의 API 예산(사용자 화면 몫 제외 ${budget.limit}회)을 다 써서 중단했습니다 — 커서(${cursorEnd})는 그대로이며 내일 이어서 수집합니다.`
+          : doneBackfill
           ? `백필 완료 — 목표 ${targetDays}일치 수집됨. 이후 실행은 증분 유지용.`
           : `백필 진행 중 — 다음 실행은 ${cursorEnd} 이전 창부터 이어서 수집합니다.`,
       }),

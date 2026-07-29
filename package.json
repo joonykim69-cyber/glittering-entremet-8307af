@@ -2,6 +2,9 @@
   "name": "traffic-light-auction",
   "private": true,
   "description": "신호등옥션 — Netlify Functions 의존성 전용 (사이트 자체는 빌드 없는 정적 HTML)",
+  "scripts": {
+    "test": "node test/run.js"
+  },
   "dependencies": {
     "@netlify/blobs": "^8.1.0",
     "pdf-parse": "^1.1.1"

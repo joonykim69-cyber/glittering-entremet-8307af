@@ -12,6 +12,7 @@
 // 수동 실행: GET /.netlify/functions/score-daily
 
 const CORS = { 'Access-Control-Allow-Origin': '*' };
+const quota = require('./lib/quota.js');
 const TARGET_LO = 0.95, TARGET_HI = 0.98;
 
 function kst() { return new Date(Date.now() + 9 * 3600 * 1000); }
@@ -60,9 +61,13 @@ exports.handler = async (event) => {
     const end = ymd(kst());
     const MAX_PAGES = 6;
     const results = [];
+    // 채점도 원장의 근간이라 예산으로 막지 않는다('critical') — 사용량만 기록해
+    // 대량 수집기가 남은 예산을 계산할 때 반영되게 한다.
+    const budget = await quota.openBudget(store, { service: 'onbid', tier: 'critical' });
     await Promise.all(['0001', '0002', '0003'].map(async cltrTypeCd => {
       for (let page = 1; page <= MAX_PAGES; page++) {
         let d = null;
+        budget.note(1);
         try {
           d = await fetchJson(`${base}/.netlify/functions/onbid-bidresults?cltrTypeCd=${cltrTypeCd}&numOfRows=1000&page=${page}&opbdDtStart=${start}&opbdDtEnd=${end}`);
         } catch (e) { break; }
@@ -291,6 +296,7 @@ exports.handler = async (event) => {
 
     const summary = { ok: true, fetched: results.length, graded, already, noPred, totals: { n: agg.n, hit: agg.hit }, challenger: { n: aggB.n, hit: aggB.hit, headToHead: aggB.headToHead } };
     // 하트비트 — 매 실행마다 마지막 성공 시각·채점건수 기록(자가진단이 신선도로 죽음 감지)
+    await budget.flush();
     await store.setJSON('_run/score-daily', { at: new Date().toISOString(), ok: true, graded, fetched: results.length, n: agg.n });
     console.log('[score-daily]', JSON.stringify(summary));
     return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify(summary) };

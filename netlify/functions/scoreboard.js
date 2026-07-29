@@ -9,6 +9,8 @@ const CORS = {
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
 };
 
+const quota = require('./lib/quota.js');
+
 // Lambda 호환(exports.handler) 함수에서는 Blobs 환경이 자동 구성되지 않아
 // connectLambda(event)로 요청 이벤트의 Blobs 컨텍스트를 수동 연결해야 한다.
 // (MissingBlobsEnvironmentError 대응 — 2026-07-19 프로덕션 첫 실행에서 확인)
@@ -75,6 +77,8 @@ exports.handler = async (event) => {
       store.get('_run/mkt-backtest', { type: 'json' }),
       store.get('mkt/rtms/_meta', { type: 'json' }),   // RTMS 수집 진행(1단계)
     ]);
+    // 외부 API 일일 호출 예산 사용량(온비드) — 수집기가 사용자 화면 몫을 침범하지 않는지 관측용.
+    const apiQuota = await quota.readUsage(store, 'onbid').catch(() => null);
 
     const n = agg?.n || 0;
     const summary = n ? {
@@ -134,6 +138,10 @@ exports.handler = async (event) => {
           mktSeal: runMktSeal || null,
           mktBacktest: runMktBt || null,
         },
+        // 외부 API 일일 호출 예산(온비드). used는 **예약 함수가 쏜 호출만** 집계한다 —
+        // 사용자 화면의 직접 조회는 포함되지 않으므로, reserve는 측정값이 아니라
+        // "사용자용으로 비워 두는 몫"이다(자세한 설명은 apiQuota.note).
+        apiQuota: apiQuota || null,
         // ── 시세 축(⑤) — 낙찰가 성적표와 **별개 지표**. UI에서 절대 섞지 말 것.
         //   market: 라이브 밴드 봉인·채점(결과 전 봉인·불변) {overall:{n,hitRate,avgErrPct,avgCoverage},byKind,byMonth}
         //   marketBacktest: 과거 nowcast 정합도(walk-forward, "학습곡선" 아님)
