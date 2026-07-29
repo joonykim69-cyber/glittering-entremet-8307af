@@ -72,40 +72,40 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 .day-row.today .d { color:var(--green-deep); font-weight:800; }
 .day-row.today .todaytag { display:inline-block; font-size:9.5px; font-weight:800; color:#fff; background:var(--green); border-radius:5px; padding:1px 6px; margin-left:6px; vertical-align:middle; }
 
-/* ═══ 진짜 달력 그리드 (2026-07-28 재디자인) ═══ */
-.cal-card { background:var(--surface); border:1px solid var(--line); border-radius:22px; padding:22px 22px 18px; box-shadow:0 10px 30px rgba(16,32,26,.05); }
-.cal-top { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
-.cal-title { font-size:20px; font-weight:900; letter-spacing:-0.02em; font-variant-numeric:tabular-nums; }
-.cal-title .yy { font-size:13px; font-weight:800; color:var(--mute); margin-right:6px; }
-.cal-nav { display:flex; gap:6px; margin-left:auto; }
-.cal-nav button { width:34px; height:34px; border-radius:10px; border:1px solid var(--line); background:var(--surface); cursor:pointer; font:inherit; font-size:14px; font-weight:900; color:var(--sub); display:grid; place-items:center; }
+/* ═══ 미니 달력 (2026-07-28 축소·재배치 — 목록 옆 좁은 레일) ═══ */
+/* 큰 달력이 첫 화면을 통째로 먹던 문제 → 셀을 날짜+건수 점 수준으로 압축하고
+   물건 목록 왼쪽에 붙였다(날짜 클릭 = 목록 필터라 나란히 두는 게 자연스러움). */
+.cal-split { display:grid; grid-template-columns:236px 1fr; gap:20px; align-items:start; }
+@media (max-width:820px) { .cal-split { grid-template-columns:1fr; gap:14px; } }
+.cal-mini { background:var(--bg); border:1px solid var(--line); border-radius:14px; padding:12px 12px 10px; position:sticky; top:76px; }
+@media (max-width:820px) { .cal-mini { position:static; } }
+.cal-top { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.cal-title { font-size:14px; font-weight:900; letter-spacing:-0.02em; font-variant-numeric:tabular-nums; }
+.cal-title .yy { font-size:10.5px; font-weight:800; color:var(--mute); margin-right:4px; }
+.cal-nav { display:flex; gap:3px; margin-left:auto; }
+.cal-nav button { width:22px; height:22px; border-radius:7px; border:1px solid var(--line); background:var(--surface); cursor:pointer; font:inherit; font-size:11px; font-weight:900; color:var(--sub); display:grid; place-items:center; padding:0; }
 .cal-nav button:hover { border-color:var(--green); color:var(--green-deep); background:var(--green-soft); }
-.cal-nav .today-btn { width:auto; padding:0 14px; font-size:12.5px; font-weight:800; }
-.cal-legend { display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-size:11.5px; color:var(--mute); font-weight:700; margin-bottom:10px; }
-.cal-legend i { display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:4px; vertical-align:-1px; }
-.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
-.cal-dow { text-align:center; font-size:11.5px; font-weight:900; color:var(--sub); padding:6px 0 8px; letter-spacing:.02em; }
+.cal-nav .today-btn { width:auto; padding:0 8px; font-size:10.5px; font-weight:800; }
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+.cal-dow { text-align:center; font-size:9.5px; font-weight:900; color:var(--mute); padding:2px 0 4px; }
 .cal-dow.sun { color:var(--red); } .cal-dow.sat { color:#3B7DD8; }
-.cal-day { position:relative; min-height:86px; border:1px solid var(--line); border-radius:12px; background:var(--surface); padding:7px 8px 8px; text-align:left; font:inherit; cursor:default; transition:transform .15s var(--ease), box-shadow .15s, border-color .15s; display:flex; flex-direction:column; gap:4px; }
-.cal-day.empty { background:transparent; border-color:transparent; }
-.cal-day .dnum { font-size:12.5px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums; }
+.cal-day { position:relative; aspect-ratio:1/1; min-height:0; border:1px solid transparent; border-radius:7px; background:transparent; padding:0; font:inherit; cursor:default; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; transition:background .15s, border-color .15s; }
+.cal-day.empty { visibility:hidden; }
+.cal-day .dnum { font-size:11px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; line-height:1; }
 .cal-day.sun .dnum { color:var(--red); } .cal-day.sat .dnum { color:#3B7DD8; }
-.cal-day.out .dnum { color:var(--mute); opacity:.55; }
-.cal-day.past { background:var(--bg); }
-.cal-day.past .dnum { color:var(--mute); }
-.cal-day.today { border-color:var(--green); box-shadow:0 0 0 2px rgba(0,168,107,.18); }
-.cal-day.today .dnum { color:#fff; background:var(--green); border-radius:7px; padding:1px 7px; display:inline-block; }
-.cal-day.has { cursor:pointer; }
-.cal-day.has:hover { transform:translateY(-2px); box-shadow:0 10px 22px rgba(16,32,26,.10); border-color:var(--green); }
-.cal-day.sel { border-color:var(--green-deep); background:var(--green-soft); box-shadow:0 0 0 2px rgba(0,116,75,.18); }
-.cal-cnt { font-size:15px; font-weight:900; color:var(--green-deep); line-height:1.1; font-variant-numeric:tabular-nums; }
-.cal-cnt span { font-size:10px; font-weight:800; color:var(--sub); margin-left:2px; }
-.cal-heat { height:5px; border-radius:3px; background:var(--green); opacity:.28; margin-top:auto; }
-.cal-heat.h2 { opacity:.5; } .cal-heat.h3 { opacity:.72; } .cal-heat.h4 { opacity:1; }
-.cal-tags { display:flex; flex-wrap:wrap; gap:3px; }
-.cal-tags b { font-size:9.5px; font-weight:800; color:var(--sub); background:var(--bg); border:1px solid var(--line); border-radius:5px; padding:0 4px; line-height:1.5; }
-.cal-foot { margin-top:12px; font-size:11.5px; color:var(--mute); line-height:1.6; }
-@media (max-width:640px) { .cal-day { min-height:64px; padding:5px 5px 6px; } .cal-cnt { font-size:13px; } .cal-tags { display:none; } .cal-card { padding:16px 12px 14px; border-radius:16px; } }
+.cal-day.past .dnum { color:var(--mute); opacity:.6; }
+.cal-day.today { border-color:var(--green); }
+.cal-day.today .dnum { color:var(--green-deep); font-weight:900; }
+.cal-day.has { cursor:pointer; background:var(--surface); border-color:var(--line); }
+.cal-day.has .dnum { font-weight:900; }
+.cal-day.has:hover { border-color:var(--green); background:var(--green-soft); }
+.cal-day.sel { border-color:var(--green-deep); background:var(--green-soft); box-shadow:0 0 0 1.5px rgba(0,116,75,.25); }
+/* 건수는 숫자 대신 히트 점 — 좁은 셀에서 가독성 우선(정확한 건수는 툴팁·선택 시 헤더에) */
+.cal-heat { width:14px; height:3px; border-radius:2px; background:var(--green); opacity:.3; }
+.cal-heat.h2 { opacity:.55; } .cal-heat.h3 { opacity:.78; } .cal-heat.h4 { opacity:1; }
+.cal-cnt, .cal-tags { display:none; }  /* 미니 달력에선 숨김(공간 절약) */
+.cal-foot { margin-top:8px; font-size:10.5px; color:var(--sub); line-height:1.5; font-weight:700; }
+.cal-foot.dim { color:var(--mute); font-weight:600; margin-top:4px; }
 
 /* 월별 캘린더 그래프 */
 .month-grid { display:grid; grid-template-columns:repeat(9,1fr); gap:8px; margin-top:24px; }
@@ -253,26 +253,6 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 
 <section class="section">
   <div class="wrap">
-    <!-- ═══ 진짜 달력 — 월 그리드. 날짜 클릭 시 아래 물건 목록이 그 날짜로 필터됨 ═══ -->
-    <div class="cal-card" id="calCard" style="margin-bottom:20px;">
-      <div class="cal-top">
-        <div class="cal-title"><span class="yy" id="calYear">—</span><span id="calMonthLbl">—</span></div>
-        <div class="cal-nav">
-          <button type="button" id="calPrev" aria-label="이전 달">‹</button>
-          <button type="button" class="today-btn" id="calToday">오늘</button>
-          <button type="button" id="calNext" aria-label="다음 달">›</button>
-        </div>
-      </div>
-      <div class="cal-legend">
-        <span><i style="background:var(--green);opacity:.28"></i>적음</span>
-        <span><i style="background:var(--green);opacity:.72"></i>보통</span>
-        <span><i style="background:var(--green)"></i>많음</span>
-        <span style="margin-left:auto" id="calScope">불러오는 중…</span>
-      </div>
-      <div class="cal-grid" id="calGrid"></div>
-      <p class="cal-foot" id="calFoot"></p>
-    </div>
-
     <div class="two-col">
       <div class="panel">
         <h3>🟢 다가오는 경매 7일</h3>
@@ -293,7 +273,24 @@ h1,h2,h3,h4{font-family:var(--font-head)}
         </div>
       </div>
       <p class="sortnote" id="calSortNote">마감이 가까운 순서입니다. <b>주목순</b>으로 바꾸면 할인 폭·유찰 누적·개찰 임박을 종합해 <b>분석해 볼 만한 물건</b>을 먼저 보여드립니다.</p>
-      <div id="schedList"></div>
+      <!-- 달력을 목록 옆 좁은 레일로 배치 — 날짜 클릭이 곧 이 목록의 필터라 나란히 두는 게 자연스럽다.
+           (2026-07-28 창업자 지시: 큰 달력은 공간 낭비 → 대폭 축소 + 적절한 위치로 재배치) -->
+      <div class="cal-split">
+        <aside class="cal-mini" id="calCard">
+          <div class="cal-top">
+            <div class="cal-title"><span class="yy" id="calYear">—</span><span id="calMonthLbl">—</span></div>
+            <div class="cal-nav">
+              <button type="button" id="calPrev" aria-label="이전 달">‹</button>
+              <button type="button" class="today-btn" id="calToday">오늘</button>
+              <button type="button" id="calNext" aria-label="다음 달">›</button>
+            </div>
+          </div>
+          <div class="cal-grid" id="calGrid"></div>
+          <p class="cal-foot" id="calScope">불러오는 중…</p>
+          <p class="cal-foot dim" id="calFoot"></p>
+        </aside>
+        <div id="schedList"></div>
+      </div>
     </div>
 
     <div class="panel" style="margin-top:20px;">
@@ -484,10 +481,11 @@ function renderCalendar() {
     const isToday = ymdS === todayYmd;
     const isPast = ymdS < todayYmd;
     const cls = ['cal-day', dow===0?'sun':dow===6?'sat':'', isToday?'today':'', isPast?'past':'', info?'has':'', calSelDay===ymdS?'sel':''].filter(Boolean).join(' ');
-    const tags = info ? Object.entries(info.types).sort((a,b)=>b[1]-a[1]).slice(0,2).map(([k,v])=>`<b>${escH(k)} ${v}</b>`).join('') : '';
-    html += `<div class="${cls}"${info?` data-ymd="${ymdS}" role="button" tabindex="0"`:''}>
+    // 미니 달력: 셀 안엔 날짜 + 히트 점만. 정확한 건수·유형은 툴팁(title)과 선택 시 헤더에.
+    const tip = info ? `${M}월 ${d}일 마감 ${info.n}건 · ` + Object.entries(info.types).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([k,v])=>`${k} ${v}`).join(', ') : '';
+    html += `<div class="${cls}"${info?` data-ymd="${ymdS}" role="button" tabindex="0" title="${escH(tip)}" aria-label="${escH(tip)}"`:''}>
       <span class="dnum">${d}</span>
-      ${info?`<span class="cal-cnt">${info.n}<span>건</span></span><span class="cal-tags">${tags}</span><span class="cal-heat ${heat(info.n)}"></span>`:''}
+      ${info?`<span class="cal-heat ${heat(info.n)}"></span>`:''}
     </div>`;
   }
   grid.innerHTML = html;
@@ -498,12 +496,15 @@ function renderCalendar() {
   });
 
   const marked = Object.keys(byDay).length;
-  document.getElementById('calScope').textContent = all.length
-    ? (calSelDay ? `${+calSelDay.slice(4,6)}월 ${+calSelDay.slice(6,8)}일 선택됨 — 다시 클릭하면 해제` : `마감 예정 ${all.length.toLocaleString()}건 · ${marked}일에 분포`)
+  const selN = calSelDay && byDay[calSelDay] ? byDay[calSelDay].n : 0;
+  document.getElementById('calScope').innerHTML = all.length
+    ? (calSelDay
+        ? `📌 <b>${+calSelDay.slice(4,6)}.${+calSelDay.slice(6,8)}</b> 마감 <b>${selN}건</b>만 보는 중 <span style="color:var(--mute);font-weight:600">(다시 클릭 해제)</span>`
+        : `마감 예정 <b>${all.length.toLocaleString()}건</b> · ${marked}일에 분포`)
     : '실시간 데이터 불러오는 중…';
-  document.getElementById('calFoot').innerHTML = all.length
-    ? '※ 날짜별 건수는 <b>오늘~+30일 마감 창</b>에서 조회한 실시간 온비드 물건 기준입니다(그 창 밖의 달은 표시되지 않습니다) · 날짜를 클릭하면 아래 목록이 그 날짜로 좁혀집니다.'
-    : '※ 실시간 물건을 불러오면 마감일별 건수가 표시됩니다.';
+  document.getElementById('calFoot').textContent = all.length
+    ? '날짜를 누르면 옆 목록이 그날로 좁혀집니다 · 오늘~+30일 마감 창 기준'
+    : '실시간 물건을 불러오면 마감일이 표시됩니다.';
 }
 // ═══ 분석 큐레이션 — "그냥 나열"이 아니라 우리가 파악한 정보로 걸러 보여준다 ═══
 // 두 겹으로 동작한다(라벨로 출처를 구분):
