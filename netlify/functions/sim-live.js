@@ -19,7 +19,7 @@
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' };
 const MIN_N = 20;                 // 챌린저 셀 자격 최소 표본 (라이브·백테스트와 동일)
-const SIM_VERSION = 'sim-v0.5-1'; // 방식 변경 시 올려 자동 재실행
+const SIM_VERSION = 'sim-v0.5-2'; // 방식 변경 시 올려 자동 재실행 (v2: 최저가 0 → noBasis 스킵)
 const REC_PER_MONTH = 60;         // 월별 보존 per-item 샘플 상한(과녁 점 대표성 + 블롭 크기 억제)
 
 async function openLedger(event) {
@@ -98,6 +98,10 @@ function buildCells(records) {
 // ── 예측: 개찰 전 값만 받는다 (win 없음 — 미래 차단) ──
 // feat = {type, usage, round, low}. 낙찰가·lr는 인자에 존재하지 않는다.
 function predictOne(cells, feat) {
+  // 최저가가 없으면 예측하지 않는다(null = noBasis). 이 모델은 "최저가 × 낙찰가율 분위수"라
+  // 최저가가 0이면 [0,0,0]을 내놓는데, 그건 예측이 아니라 근거 없음이다. 그걸 빗나감으로
+  // 집계하면 성적이 왜곡된다 — 챔피언의 noBasis 규율과 같은 처리(2026-07-29 교정).
+  if (!(Number(feat.low) > 0)) return null;
   for (const k of keysFor(feat.type, feat.usage, roundBucket(feat.round), tierOf(feat.low))) {
     const c = cells[k];
     if (c && c.n >= MIN_N && c.lr) {
@@ -156,12 +160,14 @@ exports.handler = async (event) => {
     const testRecs = await loadRange(store, featKeys, firstDay(ym), lastDay(ym));
     const sold = testRecs.filter(r => r.st === '0010' && r.win > 0);
 
-    let n = 0, hit = 0, sumErr = 0, sumWidth = 0;
+    let n = 0, hit = 0, sumErr = 0, sumWidth = 0, noBasis = 0;
     const recs = [];
     for (const item of sold) {
       const feat = { type: item.type, usage: item.usage, round: item.round, low: item.low }; // win 없음(GR11)
       const pred = predictOne(cells, feat);
-      if (!pred) continue;
+      // 예측 못 한 건은 조용히 사라지지 않게 센다 — 커버리지가 성적만큼 중요한 지표다
+      // (근거 없어 안 낸 것과 내서 틀린 것은 다른 문제이므로 분리해 기록한다).
+      if (!pred) { noBasis++; continue; }
       const win = item.win; // 채점 시점에만 꺼냄
       const isHit = win >= pred.lo && win <= pred.hi;
       const errPct = Math.round((pred.mid - win) / win * 1000) / 10;
@@ -171,7 +177,8 @@ exports.handler = async (event) => {
     }
 
     const monthResult = {
-      ym, trainN: trainRecs.length, testSold: sold.length, n,
+      ym, trainN: trainRecs.length, testSold: sold.length, n, noBasis,
+      coverage: sold.length ? Math.round(n / sold.length * 1000) / 10 : null,
       hitRate: n ? Math.round(hit / n * 1000) / 10 : null,
       avgAbsErrPct: n ? Math.round(sumErr / n * 10) / 10 : null,
       avgWidthPct: n ? Math.round(sumWidth / n * 10) / 10 : null,

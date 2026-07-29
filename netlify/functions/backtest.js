@@ -36,7 +36,7 @@ const GB = require('./lib/gbtree'); // 차세대 v0.8 — 순수 JS 분위수 �
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' };
 const MIN_N = 20;              // 챌린저 셀 자격 최소 표본 (라이브와 동일)
-const BT_VERSION = 'v4-gbtree'; // 모델/방식 변경 시 올려 자동 재실행 (v0.8 등록)
+const BT_VERSION = 'v5-nobasis'; // 모델/방식 변경 시 올려 자동 재실행 (v5: 최저가 0 → noBasis 스킵)
 // v0.8 성능 가드 — 100k행 census를 30초 함수 안에서 학습하려면 서브샘플·트리수 제한 필요.
 const V08_NMAX = 12000;                                     // 학습 표본 상한(초과 시 균등 서브샘플)
 const V08_OPTS = { nTrees: 40, maxDepth: 3, minLeaf: 30, lr: 0.15 };
@@ -164,6 +164,9 @@ function findCellByKeys(cells, keys) {
 // 공통 예측 공식(폭 확대 없음): [최저가×lr.p10, 최저가×lr.p90], 중심 최저가×lr.p50.
 // 모델 차이는 "어느 셀을 먼저 찾느냐"(키 체인)뿐 — 밴드를 넓혀 적중률을 사는 길을 구조로 막는다.
 function predictFromChain(cells, item, keys) {
+  // 최저가가 없으면 예측하지 않는다(null = noBasis) — 최저가×분위수 모델이라 0이면
+  // [0,0,0]이 나오는데 그건 예측이 아니라 근거 없음이다(2026-07-29 교정, sim-live와 동일).
+  if (!(Number(item.low) > 0)) return null;
   const c = findCellByKeys(cells, keys);
   if (!c) return null;
   const lo = Math.round(item.low * c.lr.p10 / 100);
@@ -206,6 +209,7 @@ function trainV08(records) {
 // 예측: it엔 개찰 전 값만(win 없음 — GR11). lr 분위수 → it.low로 환산.
 function predictV08(model, it) {
   if (!model || !model.gb) return null;
+  if (!(Number(it.low) > 0)) return null;   // 최저가 없으면 예측 안 함(v0.5와 동일 규율)
   const b = GB.predictBands(model.gb, encodeV08(it, model.enc)); // lr 분위수
   const lo = Math.round(it.low * b.lo / 100), mid = Math.round(it.low * b.mid / 100);
   let hi = Math.round(it.low * b.hi / 100);
