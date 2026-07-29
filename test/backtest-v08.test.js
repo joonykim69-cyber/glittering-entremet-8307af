@@ -83,7 +83,7 @@ let n=0,bad=0; const t=(k,c,x)=>{n++;if(!c){bad++;console.log('FAIL:',k,x!=null?
 
   // 정적: BT_VERSION 범프 + require gbtree + GR11 feat(win 없음)
   const src=require('fs').readFileSync(BT,'utf8');
-  t('BT_VERSION 범프(v4-gbtree)', src.includes("BT_VERSION = 'v4-gbtree'"));
+  t('BT_VERSION 범프(v5-nobasis — 최저가 0 noBasis 반영)', src.includes("BT_VERSION = 'v5-nobasis'"));
   t('lib/gbtree require', src.includes("require('./lib/gbtree')"));
   t('score feat win 없음(GR11)', /const feat = \{ type: item\.type, usage: item\.usage, round: item\.round, low: item\.low, apsl: item\.apsl \};/.test(src));
   t('성능 가드(서브샘플·트리수)', src.includes('V08_NMAX = 12000')&&src.includes('nTrees: 40'));
