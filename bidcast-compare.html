@@ -263,15 +263,15 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 // 예시 물건 데이터셋 (데모) — id는 bidcast-list.html ITEMS / bidcast-detail.html DETAILS와 일치
 // ═══════════════════════════════════════
 let ITEMS = {
-  1: { type:'아파트', title:'서울 강남구 역삼동 아파트 24평', court:'서울중앙지방법원', appr:65000, min:52000, fail:1, status:'진행', thumb:'🏢', period:'~ 7.23(수)' },
-  2: { type:'토지', title:'경기 시흥시 배곧동 대지 152㎡', court:'수원지방법원', appr:84000, min:84000, fail:0, status:'진행', thumb:'🏞️', period:'~ 7.30(수)' },
-  3: { type:'상가', title:'서울 서대문구 충정로 상가 1층', court:'서울동부지방법원', appr:41000, min:41000, fail:0, status:'낙찰', thumb:'🏬', period:'마감' },
-  4: { type:'차량', title:'5톤 카고트럭 (2021년식)', court:'인천지방법원', appr:2800, min:2240, fail:1, status:'진행', thumb:'🚗', period:'~ 7.24(목)' },
-  5: { type:'기계장비', title:'CNC 머시닝센터 외 3점', court:'서울중앙지방법원', appr:8200, min:4510, fail:3, status:'진행', thumb:'🏭', period:'~ 7.31(목)' },
-  6: { type:'유가증권', title:'비상장주식 A사 지분 3%', court:'서울중앙지방법원', appr:9800, min:9800, fail:0, status:'진행', thumb:'📈', period:'~ 8.6(목)' },
-  7: { type:'아파트', title:'부산 해운대구 우동 아파트 32평', court:'부산지방법원', appr:98000, min:78400, fail:1, status:'진행', thumb:'🏢', period:'~ 7.25(금)' },
-  8: { type:'토지', title:'인천 서구 청라동 임야 890㎡', court:'인천지방법원', appr:56000, min:56000, fail:0, status:'진행', thumb:'🏞️', period:'~ 8.7(금)' },
-  9: { type:'차량', title:'승용차 그랜저 (2020년식)', court:'서울동부지방법원', appr:2310, min:1850, fail:0, status:'낙찰', thumb:'🚗', period:'마감' },
+  1: { type:'아파트', title:'서울 강남구 역삼동 아파트 24평', court:'한국자산관리공사 서울지역본부', appr:65000, min:52000, fail:1, status:'진행', thumb:'🏢', period:'~ 7.23(수)' },
+  2: { type:'토지', title:'경기 시흥시 배곧동 대지 152㎡', court:'한국자산관리공사 경기지역본부', appr:84000, min:84000, fail:0, status:'진행', thumb:'🏞️', period:'~ 7.30(수)' },
+  3: { type:'상가', title:'서울 서대문구 충정로 상가 1층', court:'코리아신탁(주)', appr:41000, min:41000, fail:0, status:'낙찰', thumb:'🏬', period:'마감' },
+  4: { type:'차량', title:'5톤 카고트럭 (2021년식)', court:'한국자산관리공사 인천지역본부', appr:2800, min:2240, fail:1, status:'진행', thumb:'🚗', period:'~ 7.24(목)' },
+  5: { type:'기계장비', title:'CNC 머시닝센터 외 3점', court:'한국자산관리공사 서울지역본부', appr:8200, min:4510, fail:3, status:'진행', thumb:'🏭', period:'~ 7.31(목)' },
+  6: { type:'유가증권', title:'비상장주식 A사 지분 3%', court:'한국자산관리공사 서울지역본부', appr:9800, min:9800, fail:0, status:'진행', thumb:'📈', period:'~ 8.6(목)' },
+  7: { type:'아파트', title:'부산 해운대구 우동 아파트 32평', court:'한국자산관리공사 부산지역본부', appr:98000, min:78400, fail:1, status:'진행', thumb:'🏢', period:'~ 7.25(금)' },
+  8: { type:'토지', title:'인천 서구 청라동 임야 890㎡', court:'한국자산관리공사 인천지역본부', appr:56000, min:56000, fail:0, status:'진행', thumb:'🏞️', period:'~ 8.7(금)' },
+  9: { type:'차량', title:'승용차 그랜저 (2020년식)', court:'코리아신탁(주)', appr:2310, min:1850, fail:0, status:'낙찰', thumb:'🚗', period:'마감' },
 };
 
 // 라이브 관심물건(bidcast:likesnap) 병합 — 실물건도 비교 대상으로. cltrMngNo를 키로 사용.
