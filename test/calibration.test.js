@@ -20,6 +20,8 @@
 //   ⑥ 적중률이 목표 상한을 넘으면 좁힌다 (기존 동작 보존)
 //   ⑦ 봉인된 예측은 보정이 어떻게 되든 불변
 //   ⑧ resetCalib는 confirm 없이는 실행되지 않는다
+//   ⑨ **편향이면 중심(k)을 옮긴다** — 폭이 아니라 중심이 처방이라면, 진단만 하고 끝내지 않는다
+//   ⑩ 창업자 지시 1회 초기화가 정확히 한 번만 일어난다
 
 'use strict';
 
@@ -79,7 +81,9 @@ async function seal(store, id, { lo, mid, hi, type }) {
     eq('⑤ 양쪽으로 고르게 빗나가면 넓힌다(레버는 살아 있다)', calib.byUsage['대칭용도'].w, 0.19);
 
     const chron = (await store.get('chronicle')) || [];
-    t('④ 넓히지 않은 이유가 기록에 남는다', chron.some(c => c.kind === 'bias' && /편향 진단/.test(c.title)),
+    // 폭을 넓히지 않았다는 사실 + 대신 무엇을 했는지가 반드시 기록에 남아야 한다.
+    // (표본·데드밴드에 따라 'center'로 옮기거나, 아직 못 옮기면 'bias'로 진단만 남긴다.)
+    t('④ 넓히지 않은 이유가 기록에 남는다', chron.some(c => c.kind === 'bias' || c.kind === 'center'),
       JSON.stringify(chron.map(c => c.kind)));
     t('⑤ 넓힌 것도 기록에 남는다', chron.some(c => c.kind === 'calib' && /대칭용도/.test(c.title)));
 
@@ -102,7 +106,7 @@ async function seal(store, id, { lo, mid, hi, type }) {
     // 이미 최근 창이 차 있고 적중률이 낮은 상태를 직접 심는다
     await store.setJSON('agg', { n: 30, hit: 3, sumAbsErrPct: 0, byTier: {}, daily: {},
       byUsage: { '기계장비': { n: 30, hit: 3, recent: Array.from({ length: 30 }, (_, i) => (i % 10 === 0 ? 1 : (i % 2 ? 2 : 3))) } } });
-    await store.setJSON('calib', { byUsage: { '기계장비': { w: 0.27, n: 30 } } });
+    await store.setJSON('calib', { v: 'v2-center', byUsage: { '기계장비': { w: 0.27, n: 30 } } });
 
     mockFetch([[/onbid-bidresults/, { results: [] }]]); // 개찰 결과 0건
     const res = await run(store);
@@ -119,7 +123,7 @@ async function seal(store, id, { lo, mid, hi, type }) {
     const recent = Array.from({ length: 50 }, () => 1); // 최근 50건 전부 적중(100% > 98%)
     await store.setJSON('agg', { n: 1000, hit: 50, sumAbsErrPct: 0, byTier: {}, daily: {},
       byUsage: { '차량': { n: 1000, hit: 50, recent } } });
-    await store.setJSON('calib', { byUsage: { '차량': { w: 0.24, n: 1000 } } });
+    await store.setJSON('calib', { v: 'v2-center', byUsage: { '차량': { w: 0.24, n: 1000 } } });
     await seal(store, 'X1', { lo: 90, mid: 100, hi: 110, type: '차량' });
 
     mockFetch([[/onbid-bidresults/, { results: [result('X1', 100, opbd(today))] }]]);
@@ -154,7 +158,7 @@ async function seal(store, id, { lo, mid, hi, type }) {
     ];
     await store.setJSON('agg', { n: 36, hit: 12, sumAbsErrPct: 0, byTier: {}, daily: {},
       byUsage: { '기계장비': { n: 36, hit: 12, recent } } });
-    await store.setJSON('calib', { byUsage: { '기계장비': { w: 0.27, n: 36 } } });
+    await store.setJSON('calib', { v: 'v2-center', byUsage: { '기계장비': { w: 0.27, n: 36 } } });
     await seal(store, 'P1', { lo: 20, mid: 18, hi: 27, type: '기계장비' }); // 실측 물건(음향랙)
 
     mockFetch([[/onbid-bidresults/, { results: [result('P1', 32, opbd(today))] }]]); // 실낙찰 32만
@@ -168,10 +172,95 @@ async function seal(store, id, { lo, mid, hi, type }) {
     t('실측 재현: 상한 0.35로 기어가지 않는다', c.w < 0.35);
   }
 
+  // ══ ⑨ 편향이면 중심(k)을 옮긴다 ══
+  // ④가 "넓히지 않는다"까지였다면, 여기는 "그럼 무엇을 하는가"다. 실제가 예측의 2배로
+  // 나오는 상황을 심고, k가 그 방향으로(과보정 없이) 이동하는지 본다.
+  {
+    const store = makeStore();
+    const results = [];
+    for (let i = 0; i < 24; i++) {
+      const id = `C${i}`;
+      await seal(store, id, { lo: 90, mid: 100, hi: 110, type: '저평가용도' });
+      results.push(result(id, 200, opbd(today))); // 실제 200 = 예측 중앙값의 2배
+    }
+    mockFetch([[/onbid-bidresults/, { results }]]);
+    await run(store);
+
+    const c = (await store.get('calib')).byUsage['저평가용도'];
+    eq('⑨ 폭은 그대로 둔다', c.w, 0.18);
+    t('⑨ 중심 k가 위로 이동', c.k > 1, JSON.stringify(c));
+    // 비율 중앙값 2.0 → 제곱근만큼(√2 ≈ 1.414) 이동한다(과보정 방지)
+    eq('⑨ 한 번에 다 옮기지 않고 제곱근만큼', c.k, 1.414);
+    const chron = (await store.get('chronicle')) || [];
+    t('⑨ 중심 이동이 기록에 남는다', chron.some(x => x.kind === 'center' && /중심 보정/.test(x.title)),
+      JSON.stringify(chron.map(x => x.kind)));
+
+    // k가 봉인에 실제로 적용되는지 — predict-daily 쪽 계약
+    // 앵커에 곱하므로 mid는 k배가 되고 **폭 비율은 변하지 않는다**(GR4).
+    const c2 = (await store.get('calib')).byUsage['저평가용도'];
+    t('⑨ k 상·하한 안에 머문다', c2.k >= 0.4 && c2.k <= 3.0, String(c2.k));
+  }
+
+  // ══ ⑨-b 중심 보정이 봉인에 반영되고, 폭은 넓어지지 않는다 ══
+  // predict-daily가 k를 앵커에 곱하는지 직접 확인한다. k=2면 mid·lo·hi가 모두 2배가 되고
+  // (lo는 최저가 바닥에 걸리지 않는 한), **hi/lo 비율은 그대로**여야 한다.
+  {
+    const mk = async (k) => {
+      const st = makeStore();
+      global.__FAKE_STORE__ = st;
+      if (k !== 1) await st.setJSON('calib', { v: 'v2-center', byUsage: { '아파트': { w: 0.18, k } } });
+      const d = new Date(Date.now() + 9 * 3600 * 1000);
+      const ymd = x => `${x.getUTCFullYear()}${String(x.getUTCMonth() + 1).padStart(2, '0')}${String(x.getUTCDate()).padStart(2, '0')}`;
+      mockFetch([
+        [/onbid-search/, { items: [{ id: 'K1', pbctCdtnNo: '1', title: 'x', appr: 10000, min: 200,
+          usage: '아파트', type: '아파트', bidEnd: ymd(new Date(d.getTime() + 86400000)) + '1700',
+          failCount: 0, round: 1, assetClass: '부동산' }] }],
+        [/onbid-mvast-search/, { items: [] }], [/onbid-vhcl-search/, { items: [] }],
+        [/onbid-svc\?svc=stat_usg/, { items: [{ clsCdNm: '아파트', scfbAmtRto1: 80, scfbAmtRto2: 95 }] }],
+        [/hist-stats/, { status: 'empty' }],
+      ]);
+      delete require.cache[require.resolve(fnPath('predict-daily.js'))];
+      await require(fnPath('predict-daily.js')).handler({ queryStringParameters: {} });
+      return st.get('pred/K1_1');
+    };
+    const base = await mk(1), moved = await mk(2);
+    // 앵커 = [감정가 10000×0.80, 최저가 200×0.95] = [8000, 190] → mid = 4095
+    eq('⑨-b k=1이면 기존 공식과 동일(중심)', base.mid, 4095);
+    eq('⑨-b k=2면 중심이 정확히 2배', moved.mid, base.mid * 2);
+    eq('⑨-b hi도 2배', moved.hi, base.hi * 2);
+    // **중심만 옮기고 넓히지 않았다**는 증거 — 상단 폭 비율(hi/mid)이 그대로다.
+    // (lo는 "낙찰가 ≥ 최저가"라는 실제 제약이 바닥으로 걸릴 수 있어 비율 비교 대상이 아니다.)
+    const r1 = base.hi / base.mid, r2 = moved.hi / moved.mid;
+    t('⑨-b 구간 폭 비율 불변(넓히지 않았다)', Math.abs(r1 - r2) < 1e-6, `${r1} vs ${r2}`);
+    eq('⑨-b 봉인 레코드에 k 기록', moved.k, 2);
+  }
+
+  // ══ ⑩ 창업자 지시 1회 초기화 ══
+  {
+    const store = makeStore();
+    // 버전 태그가 없는 = 옛 규칙이 부풀려 놓은 상태
+    await store.setJSON('calib', { byUsage: { '기계장비': { w: 0.27, n: 36 }, '차량': { w: 0.24, n: 76 } } });
+    mockFetch([[/onbid-bidresults/, { results: [] }]]);
+    await run(store);
+
+    const c = await store.get('calib');
+    eq('⑩ 부풀려진 폭이 비워짐', c.byUsage, {});
+    eq('⑩ 되돌린 값을 감사 추적용으로 보존', c.resetFrom['기계장비'].w, 0.27);
+    eq('⑩ 스키마 버전 태그', c.v, 'v2-center');
+    const chron = (await store.get('chronicle')) || [];
+    t('⑩ 초기화 사실이 연혁에 남는다', chron.some(x => x.kind === 'calib-reset'), JSON.stringify(chron.map(x => x.kind)));
+
+    // 두 번째 실행에서는 다시 초기화되지 않는다(1회만)
+    await store.setJSON('calib', { ...(await store.get('calib')), byUsage: { '차량': { w: 0.19, k: 1.2 } } });
+    mockFetch([[/onbid-bidresults/, { results: [] }]]);
+    await run(store);
+    eq('⑩ 재실행 시 다시 초기화되지 않는다', (await store.get('calib')).byUsage['차량'].w, 0.19);
+  }
+
   // ══ ⑧ resetCalib 안전장치 ══
   {
     const store = makeStore();
-    await store.setJSON('calib', { byUsage: { '차량': { w: 0.24 } } });
+    await store.setJSON('calib', { v: 'v2-center', byUsage: { '차량': { w: 0.24 } } });
     const bad = await run(store, { resetCalib: '1' });
     eq('⑧ confirm 없으면 거부', bad.statusCode, 400);
     eq('⑧ 거부되면 값도 그대로', (await store.get('calib')).byUsage['차량'].w, 0.24);

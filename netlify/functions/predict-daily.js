@@ -230,10 +230,20 @@ exports.handler = async (event) => {
         : null;
       if (bidders && bidders.hi <= bidders.lo) bidders.hi = bidders.lo + 1;
 
-      const w = (calib.byUsage[it.type] && calib.byUsage[it.type].w) || DEFAULT_W;
-      const mid = Math.round(anchors.reduce((s, v) => s + v, 0) / anchors.length);
-      const lo = Math.round(Math.max(it.min, Math.min(...anchors) * (1 - w)));
-      let hi = Math.round(Math.max(...anchors) * (1 + w));
+      const cal = calib.byUsage[it.type] || {};
+      const w = cal.w || DEFAULT_W;
+      // ── 중심 보정 계수 k (2026-07-30 신설) ──
+      // 캠코 용도별 낙찰가율은 압류재산 부동산 기준이라, 그대로 동산·차량에 쓰면 앵커가
+      // 체계적으로 낮게 잡힌다(실측: 최근 20건 중 19건이 "실제가 예측보다 높음", 평균 −39.5%).
+      // 이때 필요한 것은 구간 확대가 아니라 **중심 이동**이다. score-daily가 채점 결과에서
+      // 실제/예측 비율의 중앙값을 재어 k를 조정하고, 여기서 두 앵커에 함께 곱한다 —
+      // 앵커에 곱하므로 mid·lo·hi가 같은 비율로 움직이고 **구간 폭은 넓어지지 않는다**(GR4).
+      // k가 없으면 1(무보정)이라 기존 봉인 공식과 완전히 동일하다.
+      const k = cal.k || 1;
+      const anc = anchors.map(v => v * k);
+      const mid = Math.round(anc.reduce((s, v) => s + v, 0) / anc.length);
+      const lo = Math.round(Math.max(it.min, Math.min(...anc) * (1 - w)));
+      let hi = Math.round(Math.max(...anc) * (1 + w));
       if (hi <= lo) hi = Math.round(lo * 1.05);
 
       writes.push({ key, val: {
@@ -244,7 +254,7 @@ exports.handler = async (event) => {
         assetClass: it.assetClass || '부동산',
         appr: it.appr, min: it.min, // 만원
         lo, mid, hi,                // 만원
-        w, statBucket: st ? String(st.clsCdNm).trim() : '',
+        w, k, statBucket: st ? String(st.clsCdNm).trim() : '',
         statPerd: stats ? stats.perd : '',
         round: Number(it.round) || 0, fail: Number(it.fail) || 0, // 공매차수·유찰수 실측(회차별 채점·분석용)
         bidEnd: it.bidEnd || '', modelV: MODEL_V,
