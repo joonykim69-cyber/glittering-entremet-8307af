@@ -107,6 +107,8 @@ exports.handler = async (event) => {
           d = await fetchJson(`${base}/.netlify/functions/onbid-bidresults?cltrTypeCd=${cltrTypeCd}&numOfRows=1000&page=${page}&opbdDtStart=${start}&opbdDtEnd=${end}`);
         } catch (e) { break; }
         const batch = Array.isArray(d && d.results) ? d.results : [];
+        // 어느 자산군에서 온 결과인지 표시해 둔다 — 아래 진단(byType)의 근거.
+        for (const b of batch) b._t = cltrTypeCd;
         results.push(...batch);
         if (batch.length < 1000) break; // 마지막 페이지
       }
@@ -163,6 +165,16 @@ exports.handler = async (event) => {
     const recent = (await store.get('recent', { type: 'json' })) || [];
 
     let graded = 0, noPred = 0, already = 0;
+    // ── 자산군별 채점 진단 (2026-07-30 신설) ──
+    // 실측에서 채점 152건 중 부동산이 1건뿐이었다. 원인이 둘 중 무엇인지 데이터로 가른다:
+    //   (a) 부동산 개찰 결과 자체가 적게 온다        → fetched가 작다
+    //   (b) 결과는 오는데 봉인을 못 찾는다(조인 실패) → fetched는 큰데 noPred가 크다
+    // (b)라면 유력한 원인은 목록 프록시의 회차 중복 제거다 — 온비드는 같은 물건을
+    // 공매조건(회차)별 행으로 주는데 우리는 **첫 행만** 남긴다. 부동산은 유찰이 반복돼
+    // 회차가 8개까지 가므로, 첫 행의 pbctCdtnNo가 실제 개찰 회차와 어긋날 수 있다.
+    // 추측으로 고치지 않고 먼저 잰다.
+    const byType = {};
+    const bump = (t, k) => { const o = byType[t] = byType[t] || { fetched: 0, graded: 0, noPred: 0, already: 0 }; o[k]++; };
     const today = ymd(kst());
     // scored/* 마커는 루프 중이 아니라 agg 저장과 "같은 마지막 배치"에서 기록한다.
     // (과거 버그: 루프 중 마커를 쓰고 마지막 agg 저장 전에 함수가 죽으면, 그 물건들은
@@ -246,8 +258,8 @@ exports.handler = async (event) => {
     };
 
     for (const { r, key, scored, pred, predB, pick } of enriched) {
-      if (scored) { already++; continue; }
-      if (seenInRun.has(key)) { already++; continue; }
+      if (scored) { already++; bump(r._t || '?', 'already'); continue; }
+      if (seenInRun.has(key)) { already++; bump(r._t || '?', 'already'); continue; }
       seenInRun.add(key);
       const scoredKey = `scored/${key}`;
 
@@ -260,7 +272,7 @@ exports.handler = async (event) => {
         }
         continue;
       }
-      if (!pred) { noPred++; continue; }
+      if (!pred) { noPred++; bump(r._t || '?', 'noPred'); continue; }
 
       tallyOutcome(pred, true, Number(r.bidderCnt) || 0); // 낙찰 = "팔림" + 실제 유효 입찰자 수
       const winMan = Math.round(r.winAmt / 10000); // 원 → 만원 (pred와 단위 통일)
@@ -357,7 +369,7 @@ exports.handler = async (event) => {
 
       tallyCurated(pick, r, hit); // 주목 물건이 낙찰로 종결 — 낙찰/낙찰가율/구간 적중 집계
       markers.push({ key: scoredKey, value: { outcome: 'graded', hit, errPct, ...(bCmp ? { b: bCmp } : {}), at: new Date().toISOString() } });
-      graded++;
+      graded++; bump(r._t || '?', 'graded');
     }
 
     // ── 보정(calibration): 최근 창의 적중률 + **빗나간 방향**으로 구간 폭 w 조정 ──
@@ -494,10 +506,11 @@ exports.handler = async (event) => {
     ]);
     await mapLimit(markers, 40, m => store.setJSON(m.key, m.value));
 
-    const summary = { ok: true, fetched: results.length, graded, already, noPred, totals: { n: agg.n, hit: agg.hit }, challenger: { n: aggB.n, hit: aggB.hit, headToHead: aggB.headToHead } };
+    for (const r of results) bump(r._t || '?', 'fetched');
+    const summary = { ok: true, fetched: results.length, graded, already, noPred, byType, totals: { n: agg.n, hit: agg.hit }, challenger: { n: aggB.n, hit: aggB.hit, headToHead: aggB.headToHead } };
     // 하트비트 — 매 실행마다 마지막 성공 시각·채점건수 기록(자가진단이 신선도로 죽음 감지)
     await budget.flush();
-    await store.setJSON('_run/score-daily', { at: new Date().toISOString(), ok: true, graded, fetched: results.length, n: agg.n });
+    await store.setJSON('_run/score-daily', { at: new Date().toISOString(), ok: true, graded, fetched: results.length, n: agg.n, byType });
     console.log('[score-daily]', JSON.stringify(summary));
     return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify(summary) };
   } catch (e) {

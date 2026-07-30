@@ -257,6 +257,36 @@ async function seal(store, id, { lo, mid, hi, type }) {
     eq('⑩ 재실행 시 다시 초기화되지 않는다', (await store.get('calib')).byUsage['차량'].w, 0.19);
   }
 
+  // ══ ⑪ 자산군별 채점 진단 (부동산 1건 미스터리를 데이터로 가른다) ══
+  // 실측에서 채점 152건 중 부동산이 1건뿐이었다. 원인 후보가 둘인데 지금은 구분이 안 된다:
+  //   (a) 부동산 개찰 결과 자체가 적게 온다        → fetched가 작다
+  //   (b) 결과는 오는데 봉인을 못 찾는다(조인 실패) → fetched는 큰데 noPred가 크다
+  // 추측으로 고치지 않기 위해 먼저 재는 계측이다. 여기서는 (b) 상황을 만들어 확인한다.
+  {
+    const store = makeStore();
+    await seal(store, 'RE1', { lo: 90, mid: 100, hi: 110, type: '아파트' });
+    // 부동산(0001)은 5건 오는데 봉인은 1건뿐 → noPred 4 / graded 1
+    // 동산(0003)은 2건 오고 봉인 없음 → noPred 2
+    const byT = {
+      '0001': [result('RE1', 100, opbd(today)), result('RE2', 100, opbd(today)), result('RE3', 100, opbd(today)),
+               result('RE4', 100, opbd(today)), result('RE5', 100, opbd(today))],
+      '0003': [result('MV1', 50, opbd(today)), result('MV2', 50, opbd(today))],
+    };
+    mockFetch([[/onbid-bidresults/, (u) => {
+      const m = u.match(/cltrTypeCd=(\d+)/);
+      return { results: byT[m && m[1]] || [] };
+    }]]);
+    const res = await run(store);
+    const b = JSON.parse(res.body);
+    t('⑪ 자산군별 진단이 응답에 있다', !!b.byType, res.body);
+    eq('⑪ 부동산 개찰 결과 건수', b.byType['0001'].fetched, 5);
+    eq('⑪ 부동산 채점 건수', b.byType['0001'].graded, 1);
+    eq('⑪ 부동산 봉인 못 찾음(조인 실패 후보)', b.byType['0001'].noPred, 4);
+    eq('⑪ 동산은 전부 봉인 없음', b.byType['0003'].noPred, 2);
+    const hb = await store.get('_run/score-daily');
+    t('⑪ 하트비트에도 남는다(다음 날 바로 확인 가능)', !!(hb && hb.byType && hb.byType['0001']), JSON.stringify(hb));
+  }
+
   // ══ ⑧ resetCalib 안전장치 ══
   {
     const store = makeStore();
