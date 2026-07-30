@@ -190,7 +190,7 @@ exports.handler = async (event) => {
     const log = (await store.get('log', { type: 'json' })) || [];
     const recent = (await store.get('recent', { type: 'json' })) || [];
 
-    let graded = 0, noPred = 0, already = 0;
+    let graded = 0, noPred = 0, already = 0, noWin = 0;
     // ── 자산군별 채점 진단 (2026-07-30 신설) ──
     // 실측에서 채점 152건 중 부동산이 1건뿐이었다. 원인이 둘 중 무엇인지 데이터로 가른다:
     //   (a) 부동산 개찰 결과 자체가 적게 온다        → fetched가 작다
@@ -200,7 +200,7 @@ exports.handler = async (event) => {
     // 회차가 8개까지 가므로, 첫 행의 pbctCdtnNo가 실제 개찰 회차와 어긋날 수 있다.
     // 추측으로 고치지 않고 먼저 잰다.
     const byType = {};
-    const bump = (t, k) => { const o = byType[t] = byType[t] || { fetched: 0, graded: 0, noPred: 0, already: 0 }; o[k]++; };
+    const bump = (t, k) => { const o = byType[t] = byType[t] || { fetched: 0, graded: 0, noPred: 0, already: 0, noWin: 0 }; o[k]++; };
     const today = ymd(kst());
     // scored/* 마커는 루프 중이 아니라 agg 저장과 "같은 마지막 배치"에서 기록한다.
     // (과거 버그: 루프 중 마커를 쓰고 마지막 agg 저장 전에 함수가 죽으면, 그 물건들은
@@ -290,6 +290,12 @@ exports.handler = async (event) => {
       const scoredKey = `scored/${key}`;
 
       if (r.statCd !== '0010' || !(r.winAmt > 0)) {
+        // ⚠️ "낙찰(0010)인데 금액이 없다" = 상위 API의 낙찰금액 필드(scfbAmt)가 바뀌었거나
+        //    비어 있다는 뜻이다. 마커를 쓰지 않고 넘어가므로 필드가 복구되면 다시 채점된다
+        //    (영구 소실 없음 — 그 설계는 맞다). 다만 **세지 않으면 보이지 않는다**:
+        //    graded만 0으로 떨어지고 이유는 어디에도 안 남는다. 이 프로젝트가 n:0으로
+        //    185일을 보낸 것이 정확히 그런 침묵이었다. 그래서 이름을 붙여 노출한다.
+        if (r.statCd === '0010') { noWin++; bump(r._t || '?', 'noWin'); }
         // 유찰은 다음 회차가 새 공매조건으로 다시 봉인되므로, 이 조건은 종결 처리
         if (r.statCd === '0011' || r.statCd === '0012') {
           if (r.statCd === '0011') tallyOutcome(pred, false, 0); // 유찰 = "안 팔림"으로 확률 해소(취소는 제외)
@@ -533,10 +539,10 @@ exports.handler = async (event) => {
     await mapLimit(markers, 40, m => store.setJSON(m.key, m.value));
 
     for (const r of results) bump(r._t || '?', 'fetched');
-    const summary = { ok: true, fetched: results.length, graded, already, noPred, byType, totals: { n: agg.n, hit: agg.hit }, challenger: { n: aggB.n, hit: aggB.hit, headToHead: aggB.headToHead } };
+    const summary = { ok: true, fetched: results.length, graded, already, noPred, noWin, byType, totals: { n: agg.n, hit: agg.hit }, challenger: { n: aggB.n, hit: aggB.hit, headToHead: aggB.headToHead } };
     // 하트비트 — 매 실행마다 마지막 성공 시각·채점건수 기록(자가진단이 신선도로 죽음 감지)
     await budget.flush();
-    await store.setJSON('_run/score-daily', { at: new Date().toISOString(), ok: true, graded, fetched: results.length, n: agg.n, byType });
+    await store.setJSON('_run/score-daily', { at: new Date().toISOString(), ok: true, graded, fetched: results.length, n: agg.n, noWin, byType });
     console.log('[score-daily]', JSON.stringify(summary));
     return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify(summary) };
   } catch (e) {

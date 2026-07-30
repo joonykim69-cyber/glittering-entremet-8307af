@@ -315,6 +315,37 @@ async function seal(store, id, { lo, mid, hi, type }) {
     t('⑫ 끝나면 락 해제', !lk.at, JSON.stringify(lk));
   }
 
+  // ══ ⑬ "낙찰인데 금액 없음"은 조용히 사라지지 않는다 ══
+  // 상위 API가 낙찰금액 필드(scfbAmt)를 바꾸면 모든 낙찰 행이 이 경로로 빠진다.
+  // 설계는 맞다 — 마커를 안 쓰므로 필드가 복구되면 다시 채점된다(영구 소실 없음).
+  // 하지만 세지 않으면 graded만 0으로 떨어지고 이유가 안 보인다. 이 프로젝트가
+  // n:0으로 185일을 보낸 것이 정확히 그런 침묵이었다.
+  {
+    const store = makeStore();
+    await seal(store, 'NW1', { lo: 90, mid: 100, hi: 110, type: '아파트' });
+    await seal(store, 'NW2', { lo: 90, mid: 100, hi: 110, type: '아파트' });
+    mockFetch([[/onbid-bidresults/, { results: [
+      { id: 'NW1', pbctCdtnNo: '1', statCd: '0010', winAmt: 0, opbdDt: opbd(today) },      // 금액 없음
+      { id: 'NW2', pbctCdtnNo: '1', statCd: '0010', opbdDt: opbd(today) },                 // 필드 자체가 없음
+    ] }]]);
+    const r = await run(store);
+    const b = JSON.parse(r.body);
+    eq('⑬ 채점은 하지 않는다', b.graded, 0);
+    eq('⑬ 이름 붙여 노출한다(noWin)', b.noWin, 2);
+    t('⑬ 마커를 남기지 않는다 — 필드 복구 시 재채점 가능', store.keys('scored/').length === 0,
+      store.keys('scored/').join(','));
+    const hb = await store.get('_run/score-daily');
+    t('⑬ 하트비트에도 남는다', hb && hb.noWin === 2, JSON.stringify(hb));
+
+    // 복구되면 실제로 다시 채점되는지 — "영구 소실 없음"의 실증
+    await store.setJSON('_lock/score-daily', { at: null });
+    mockFetch([[/onbid-bidresults/, { results: [
+      { id: 'NW1', pbctCdtnNo: '1', statCd: '0010', winAmt: 100 * 10000, opbdDt: opbd(today) },
+    ] }]]);
+    const r2 = await run(store);
+    eq('⑬ 필드가 복구되면 다시 채점된다', JSON.parse(r2.body).graded, 1);
+  }
+
   // ══ ⑧ resetCalib 안전장치 ══
   {
     const store = makeStore();
