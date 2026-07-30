@@ -31,7 +31,8 @@
 // 공통 팩트만 읽는다. 새 소스(법원경매·신탁·NPL)는 어댑터 하나만 추가하면 된다.
 //   { source, id, cdtn, assetClass, type, usage, title, region,
 //     apsl, low,          // 감정가 · 최저가 (만원)
-//     area,               // 건물 전용면적 ㎡ (없으면 0 — margin 트랙 제외)
+//     area,               // 온비드 목록의 건물면적 ㎡ (없으면 0 — margin 트랙 제외)
+//                         // ⚠️ **전용면적인지 연면적인지 미확정**(2026-07-30 점검). 아래 참조.
 //     failCount, round, bidEnd }
 
 // ── 1단 필터: 실제 입찰 수요가 있는 분류 ──
@@ -85,7 +86,15 @@ function fromOnbid(it) {
     region: it.region || '',
     apsl: Number(it.appr) || 0,
     low: Number(it.min) || 0,
-    area: Number(it.bldgAr) || 0,      // 온비드 목록 실측 건물면적(㎡)
+    // ⚠️ 면적 단위 미확정 (2026-07-30 자체 점검에서 발견 — 창업자 확인 대기)
+    //   시세 밴드(mkt/seal)는 RTMS 실거래의 **전용면적**(excluUseAr) 기준 ㎡당 단가다.
+    //   여기 area는 온비드 목록의 bldSqms인데 **전용면적인지 연면적인지 확인되지 않았다.**
+    //   연면적이라면 `밴드 × area`가 가치를 통째로 부풀리고(아파트는 통상 30~40%),
+    //   그러면 이 트랙의 전제인 "보수 가정으로만 차익을 낸다"가 깨진다.
+    //   상세 페이지는 이 불확실성을 이미 알고 있다 — 마진 위젯을 bldgAr로 자동 채우되
+    //   "전용면적이 다르면 수정하세요"라고 사용자에게 판단을 넘긴다. 큐레이션엔 그 탈출구가 없다.
+    //   확인 방법: 실물건 하나에서 온비드 공고의 전용면적 vs 우리 목록 bldgAr 대조(1분).
+    area: Number(it.bldgAr) || 0,
     failCount: Number(it.fail) || 0,
     round: Number(it.round) || 0,
     bidEnd: it.bidEnd || '',
@@ -154,7 +163,9 @@ function selectItem(f, ctx) {
         track: (dday != null && dday >= 0 && dday <= 1) ? 'closing' : 'margin',
         score: Math.min(100, Math.round(pct)),
         reasons, flags, dday,
-        margin: { netMan: net, pct, valueMan: value, costMan: cost, bandLo: ctx.band.lo, area: f.area, bandN: ctx.band.n || 0 },
+        margin: { netMan: net, pct, valueMan: value, costMan: cost, bandLo: ctx.band.lo, area: f.area, bandN: ctx.band.n || 0,
+          // 면적 출처를 산출물에 남긴다 — 나중에 "이 차익이 어떤 면적으로 계산됐나"를 되물을 수 있어야 한다
+          areaSrc: 'onbid-list:bldSqms', areaBasis: 'unverified' },
       };
     }
     return null; // 보수 기준으로 여지가 없으면 차익 트랙에 올리지 않는다(찍지 않는다)
