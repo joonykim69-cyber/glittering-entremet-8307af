@@ -55,8 +55,21 @@ node test/quota.test.js  # 파일 하나만 직접
 
 ## 아직 덮지 못한 것 (정직하게)
 
-- **클라이언트 HTML 페이지** — 렌더 검증은 브라우저(Playwright)가 필요해 이 스위트에 없다.
-  페이지 변경은 여전히 인라인 스크립트 문법 검사 + 수동 확인에 의존한다.
+- **클라이언트 HTML 페이지** — 렌더 검증은 브라우저가 필요한데, Playwright를 devDependency로
+  들이면 "의존성 0"이 깨진다. 그래서 스위트 밖에서 **환경에 이미 있는 Chromium**으로 돌린다.
+
+  표준 절차(2026-07-30 정립 — 두 번 돌려 유효 확인):
+  1. `python3 -m http.server 8799` (file://은 fetch가 막혀 반드시 http로 띄운다)
+  2. `scoreboard`를 **두 가지 모양**으로 목킹해 각각 렌더 → `document.body.innerText`에서
+     `null` / `undefined` / `NaN` 을 찾고, `pageerror`를 센다.
+     - **빈 상태**: 모든 집계 필드 null (배포 직후·채점 전)
+     - **부분 데이터**: 값과 null이 섞인 **실제 프로덕션 모양**
+       (실측 예: `byAsset.부동산 = {n:1, hitRate:100, avgAbsErrPct:null}`)
+       ← 빈 상태만 보면 이 경우를 놓친다. 헌장 GR6("null%" 금지)가 걸리는 자리가 여기다.
+  3. 나머지 서버리스 함수는 전부 `abort` — 함수 미배포 상황에서 degrade가 도는지 함께 본다.
+
+  대상은 scoreboard를 소비하는 `bidcast.html` · `bidcast-lab.html` · `bidcast-my.html`.
+  새 지표·새 chronicle 종류를 추가하면 이 절차를 다시 돌릴 것.
 - **실 외부 API** — 이 개발환경은 프로덕션 도메인으로 나가는 egress가 막혀 있어 라이브 호출을
   검증할 수 없다. fixture는 **실제 응답 구조를 그대로 재현한 것**을 쓰되(내 가정대로 만든
   목킹이 rtms-svc 파서 버그를 놓친 전례가 있다), 라이브 확인은 배포 후 창업자 몫으로 남는다.
