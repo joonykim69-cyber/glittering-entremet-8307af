@@ -287,6 +287,34 @@ async function seal(store, id, { lo, mid, hi, type }) {
     t('⑪ 하트비트에도 남는다(다음 날 바로 확인 가능)', !!(hb && hb.byType && hb.byType['0001']), JSON.stringify(hb));
   }
 
+  // ══ ⑫ 실행 겹침 방지 — 두 실행이 집계를 서로 덮어쓰지 않는다 ══
+  // 프로덕션에서 이 함수가 같은 날 25초 간격으로 두 번 도는 것이 확인됐다. 저장 순서가
+  // agg → 마커라, 겹치면 **마커는 남고 집계만 사라진다**(다음 실행은 already로 건너뛰므로
+  // 그 채점은 영구 소실). scoreboard n이 185일 0으로 굳었던 것과 같은 양상이다.
+  {
+    const store = makeStore();
+    await seal(store, 'LK1', { lo: 90, mid: 100, hi: 110, type: '아파트' });
+    // 진행 중인 락을 심는다(방금 잡힌 것처럼)
+    await store.setJSON('_lock/score-daily', { at: new Date().toISOString() });
+    mockFetch([[/onbid-bidresults/, { results: [result('LK1', 100, opbd(today))] }]]);
+    const r = await run(store);
+    const b = JSON.parse(r.body);
+    eq('⑫ 락이 잡혀 있으면 건너뛴다', b.skipped, 'locked');
+    t('⑫ 건너뛴 실행은 집계를 만들지 않는다', !(await store.get('agg')), JSON.stringify(await store.get('agg')));
+    t('⑫ 마커도 남기지 않는다', store.keys('scored/').length === 0);
+
+    // 오래된 락(TTL 초과)은 무시하고 정상 진행한다 — 죽은 실행이 영구히 막으면 안 된다
+    await store.setJSON('_lock/score-daily', { at: new Date(Date.now() - 10 * 60 * 1000).toISOString() });
+    mockFetch([[/onbid-bidresults/, { results: [result('LK1', 100, opbd(today))] }]]);
+    const r2 = await run(store);
+    const b2 = JSON.parse(r2.body);
+    eq('⑫ TTL 지난 락은 무시하고 진행', b2.graded, 1);
+
+    // 정상 종료 후에는 락을 놓아 준다(다음 정규 실행이 막히면 안 된다)
+    const lk = await store.get('_lock/score-daily');
+    t('⑫ 끝나면 락 해제', !lk.at, JSON.stringify(lk));
+  }
+
   // ══ ⑧ resetCalib 안전장치 ══
   {
     const store = makeStore();

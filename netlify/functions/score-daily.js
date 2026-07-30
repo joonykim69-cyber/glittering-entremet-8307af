@@ -87,6 +87,32 @@ exports.handler = async (event) => {
       body: JSON.stringify({ ok: true, reset: true, from: before.byUsage || {} }) };
   }
 
+  // ── 실행 겹침 방지 (2026-07-30) ──
+  // 프로덕션 로그에서 이 함수가 **같은 날 20~30초 간격으로 두 번** 도는 것이 확인됐다
+  // (07-28 10:31:06/10:31:28, 07-29 10:34:02/10:34:30 — Netlify가 마무리 직전 실패를
+  // 재시도한 것으로 보인다). 그런데 저장 순서가 `agg` → `scored/*` 마커라, 두 실행이
+  // 겹치면 이렇게 된다:
+  //     A: agg₀ 읽음 → … → agg_A 저장 → 마커_A 저장
+  //     B:        agg₀ 읽음(A 미저장 시점) → … → agg_B 저장  ← A의 집계를 덮어씀
+  // **마커는 남고 집계만 사라진다.** 다음 실행은 마커를 보고 `already`로 건너뛰므로
+  // 그 물건들의 채점은 영구 소실된다 — scoreboard `n`이 185일간 0으로 굳었던 그
+  // 실패 양상과 정확히 같다(그때는 마커를 루프 중에 쓴 것이 원인이었다).
+  //
+  // Blobs에는 진짜 뮤텍스가 없으므로 완전한 상호배제는 불가능하다. 다만 관측된 간격이
+  // 25초라 **check-and-set + 짧은 TTL**로 충분히 닫힌다. 함수가 타임아웃으로 죽으면
+  // finally가 안 돌지만, 그때는 TTL이 알아서 풀어 준다(그게 맞는 동작이다 —
+  // 죽은 실행이 잡은 락을 즉시 놓아 주면 재시도가 다시 겹친다).
+  const LOCK_KEY = '_lock/score-daily';
+  const LOCK_TTL_MS = 5 * 60 * 1000;
+  const held = await store.get(LOCK_KEY, { type: 'json' }).catch(() => null);
+  if (held && held.at && Date.now() - new Date(held.at).getTime() < LOCK_TTL_MS) {
+    const body = { ok: true, skipped: 'locked', lockedAt: held.at,
+      note: '다른 실행이 진행 중이라 건너뜁니다 — 겹쳐 돌면 집계를 서로 덮어씁니다.' };
+    console.log('[score-daily]', JSON.stringify(body));
+    return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+  }
+  await store.setJSON(LOCK_KEY, { at: new Date().toISOString() });
+
   try {
     // 최근 3일 개찰 결과 수집 — 전수 채점 보장: 자산군별로 마지막 페이지까지 수집한다.
     // (과거 버그: 자산군×2페이지=200건 상한이라, 개찰이 많은 3일 창에선 초과분이 영영 채점 안 돼
@@ -517,5 +543,9 @@ exports.handler = async (event) => {
     console.log('[score-daily] 실패:', e.message);
     try { await store.setJSON('_run/score-daily', { at: new Date().toISOString(), ok: false, error: e.message }); } catch (_) { /* 하트비트 실패는 무시 */ }
     return { statusCode: 500, headers: CORS, body: JSON.stringify({ ok: false, error: e.message }) };
+  } finally {
+    // 정상·예외 모두 놓아 준다. 이 함수는 마지막 배치에서만 쓰므로 중간에 죽었다면
+    // 아무것도 저장되지 않았고, 곧바로 재시도해도 안전하다.
+    try { await store.setJSON(LOCK_KEY, { at: null, releasedAt: new Date().toISOString() }); } catch (_) { /* TTL이 처리 */ }
   }
 };
