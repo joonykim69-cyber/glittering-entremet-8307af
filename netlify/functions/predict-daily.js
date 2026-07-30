@@ -171,7 +171,8 @@ exports.handler = async (event) => {
       if (s.status === 'fulfilled' && Array.isArray(s.value)) items.push(...s.value);
     });
 
-    let sealed = 0, skipped = 0, noBasis = 0, sealedB = 0;
+    // noBasisB = 챌린저를 봉인하지 못한 건수(셀 없음 또는 L0뿐) — 스킵이 조용히 사라지지 않게 센다
+    let sealed = 0, skipped = 0, noBasis = 0, sealedB = 0, noBasisB = 0;
     const predMap = {}; // key → {lo,mid,hi} : 이번 실행에서 봉인한 챔피언 예측(큐레이션 저평가 여력 판단용)
     const endLimit = end + '2359';
     // 마감 임박 순으로 정렬한 뒤 상한을 적용 — 상한에 걸리더라도 **개찰이 임박한 물건부터**
@@ -261,7 +262,15 @@ exports.handler = async (event) => {
       // ── v0.5 챌린저 봉인 (predb/*) — 같은 물건을 실측 이력 분위수로 병행 예측 ──
       // 셀 조회는 hist-stats와 동일한 백오프(L3→L0, 표본 20+).
       // 회차는 온비드 공매차수(pbctNsq, it.round) 실측을 우선 사용하고, 없을 때만 유찰수+1로 근사한다.
-      if (cell) {
+      //
+      // ⚠️ L0(자산군만) 셀로는 **가격 구간을 봉인하지 않는다** (2026-07-30).
+      //    실측 채점에서 L0의 평균 구간 폭이 334.8%로 L1(88.6%)·L3(93.5%)의 3.6배였다
+      //    (scoreboard.challenger.byLevel). L0은 용도를 못 찾아 자산군 전체로 물러선 셀이라
+      //    "중고 오븐"과 "폐기물 2,376점"이 한 칸에 섞인다 — 분위수가 벌어지는 게 당연하고,
+      //    그렇게 넓힌 구간으로 맞히는 것은 헌장 GR4가 금지한 바로 그 방식이다. 근거가 그
+      //    정도뿐이면 **예측하지 않는다**(GR6 — 근거 없으면 미산출).
+      //    낙찰 확률·입찰자 수는 비율이라 폭 문제와 무관하므로 L0 셀에서도 계속 쓴다.
+      if (cell && !cellKey.startsWith('L0|')) {
         const bLo = Math.round(it.min * cell.lr.p10 / 100);
         const bMid = Math.round(it.min * cell.lr.p50 / 100);
         let bHi = Math.round(it.min * cell.lr.p90 / 100);
@@ -274,6 +283,8 @@ exports.handler = async (event) => {
           sealedAt: new Date().toISOString(),
         } });
         sealedB++;
+      } else {
+        noBasisB++;
       }
     }
 
@@ -388,10 +399,10 @@ exports.handler = async (event) => {
     meta.lastSealAt = new Date().toISOString();
     await store.setJSON('meta', meta);
 
-    const summary = { ok: true, scanned: items.length, targets: targets.length, sealed, sealedB, skipped, noBasis, curated: curatedTop.length, statPerd: stats ? stats.perd : null, ...(qs.debug ? { window: { start, end } } : {}) };
+    const summary = { ok: true, scanned: items.length, targets: targets.length, sealed, sealedB, noBasisB, skipped, noBasis, curated: curatedTop.length, statPerd: stats ? stats.perd : null, ...(qs.debug ? { window: { start, end } } : {}) };
     // 하트비트 — 매 실행마다 마지막 성공 시각·처리건수 기록(자가진단이 신선도로 죽음 감지)
     await budget.flush();
-    await store.setJSON('_run/predict-daily', { at: new Date().toISOString(), ok: true, sealed, sealedB, curated: curatedTop.length, targets: targets.length, noBasis });
+    await store.setJSON('_run/predict-daily', { at: new Date().toISOString(), ok: true, sealed, sealedB, noBasisB, curated: curatedTop.length, targets: targets.length, noBasis });
     console.log('[predict-daily]', JSON.stringify(summary));
     return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify(summary) };
   } catch (e) {

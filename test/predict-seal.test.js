@@ -110,6 +110,51 @@ const routes = [
   const usage = await quota.readUsage(store2, 'onbid');
   t('critical 호출도 예산 카운터에 집계', usage.used > 0, usage.used);
 
+  // ══ ⑤ 챌린저는 L0(자산군만) 셀로 가격 구간을 봉인하지 않는다 (2026-07-30) ══
+  // 실측 채점에서 L0의 평균 구간 폭이 334.8%로 L1(88.6%)·L3(93.5%)의 3.6배였다.
+  // L0은 용도를 못 찾아 자산군 전체로 물러선 셀이라 "중고 오븐"과 "폐기물 2,376점"이 한 칸에
+  // 섞인다 — 그렇게 벌어진 분위수로 맞히는 건 헌장 GR4가 금지한 "넓혀서 맞히기"다.
+  // 근거가 그 정도뿐이면 예측하지 않는다(GR6). 단, 낙찰 확률·입찰자 수는 비율이라 계속 쓴다.
+  {
+    const store3 = makeStore();
+    global.__FAKE_STORE__ = store3;
+    const k = new Date(Date.now() + 9 * 3600 * 1000);
+    const ymd2 = d => `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`;
+    const be = ymd2(new Date(k.getTime() + 86400000)) + '1700';
+    const it = (id, usage) => ({ id, pbctCdtnNo: '1', title: `물건${id}`, appr: 10000, min: 7000,
+      usage, type: '아파트', bidEnd: be, failCount: 0, round: 1, assetClass: '부동산' });
+
+    await store3.setJSON('hist/_cells', { srcUpdatedAt: 'x', cells: {
+      // 용도가 맞는 L1 셀이 있는 물건 → 봉인돼야 한다
+      'L1|0001|정상용도': { n: 100, lr: { p10: 100, p50: 120, p90: 150 },
+        outcomeN: 200, soldRate: 60, bidN: 80, bidders: { p10: 2, p50: 5, p90: 9 } },
+      // 용도 셀이 없어 L0로만 물러서는 물건 → 가격 구간은 봉인 금지, 확률·입찰자는 유지
+      'L0|0001': { n: 5000, lr: { p10: 90, p50: 200, p90: 900 },
+        outcomeN: 900, soldRate: 41, bidN: 500, bidders: { p10: 1, p50: 3, p90: 12 } },
+    } });
+    mockFetch([
+      [/onbid-search/, { items: [it('OK1', '정상용도'), it('L0ONLY', '없는용도')] }],
+      [/onbid-mvast-search/, { items: [] }],
+      [/onbid-vhcl-search/, { items: [] }],
+      [/onbid-svc\?svc=stat_usg/, { items: [{ clsCdNm: '아파트', scfbAmtRto1: 80, scfbAmtRto2: 95 }] }],
+      [/hist-stats/, { status: 'ok' }],
+    ]);
+    delete require.cache[require.resolve(fnPath('predict-daily.js'))];
+    const r5 = await require(fnPath('predict-daily.js')).handler({ queryStringParameters: {} });
+    const s5 = JSON.parse(r5.body);
+
+    t('⑤ L1 셀 물건은 챌린저 봉인됨', !!(await store3.get('predb/OK1_1')));
+    t('⑤ L0뿐인 물건은 챌린저 미봉인', !(await store3.get('predb/L0ONLY_1')));
+    eq('⑤ 스킵이 조용히 사라지지 않는다(noBasisB)', s5.noBasisB, 1);
+    eq('⑤ 봉인된 챌린저는 1건', s5.sealedB, 1);
+    // 챔피언(가격)은 두 건 다 봉인된다 — L0 규칙은 챌린저에만 적용된다
+    t('⑤ 챔피언 봉인은 영향 없음', !!(await store3.get('pred/L0ONLY_1')));
+    // 확률·입찰자 수는 L0 셀에서도 계속 쓴다(비율이라 폭 문제와 무관)
+    const l0 = await store3.get('pred/L0ONLY_1');
+    eq('⑤ L0에서도 낙찰 확률은 봉인', l0.soldProb, 41);
+    t('⑤ L0에서도 입찰자 수는 봉인', !!l0.bidders, JSON.stringify(l0.bidders));
+  }
+
   delete global.__FAKE_STORE__;
-  done('predict-seal (봉인 전수·불변·공식)');
+  done('predict-seal (봉인 전수·불변·공식 · 챌린저 L0 차단)');
 })().catch(e => { console.log('THROW', e); process.exit(1); });

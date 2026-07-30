@@ -5,15 +5,26 @@
 //   - 구간 적중: lo ≤ 실제 낙찰가 ≤ hi
 //   - 중앙값 오차: (mid - 낙찰가) / 낙찰가 — %와 원화 절대값 병기
 //   - 가격대별(1억 미만/1~5억/5~10억/10억+) 분해 집계
-// 채점 결과로 용도별 구간 폭 w를 보정한다(목표 적중률 95~98%):
-//   표본 20건 이상에서 적중률 <95% → w +0.01 (최대 0.35) / >98% → w -0.005 (최소 0.06)
-//   보정이 일어나면 학습 로그(log)에 기록 — 랜딩의 "모델이 학습하는 모습"의 원천.
+// 채점 결과로 용도별 구간 폭 w를 보정한다(목표 적중률 95~98%). 2026-07-30 교정 후 규칙:
+//   - **새로 채점한 물건이 있을 때만**, 그리고 **하루 한 번만** 발동한다.
+//   - 판단 근거는 누적이 아니라 **용도별 최근 50건 창**(과거 실패가 영원히 w를 밀어 올리지 않게).
+//   - 최근 창 적중률 >98% → w -0.005(최소 0.06) / <95% → w +0.01(최대 0.35)
+//   - 단, **빗나감이 한쪽으로 70% 이상 쏠렸으면 넓히지 않는다** — 폭이 아니라 중심 문제이며,
+//     이때 넓히는 것은 헌장 GR4(넓혀서 맞히기 금지) 위반이다. 대신 편향을 진단으로 기록한다.
+//   보정·편향 진단은 학습 로그(log)와 chronicle에 남는다 — "모델이 학습하는 모습"의 원천.
 //
 // 수동 실행: GET /.netlify/functions/score-daily
+// 보정값 초기화(수동 전용): GET /.netlify/functions/score-daily?resetCalib=1&confirm=1
 
 const CORS = { 'Access-Control-Allow-Origin': '*' };
 const quota = require('./lib/quota.js');
 const TARGET_LO = 0.95, TARGET_HI = 0.98;
+// 보정 파라미터 (2026-07-30 교정 — 아래 보정 블록의 주석에 근거를 적어 두었다)
+const W_MAX = 0.35;          // 구간 폭 상한
+const RECENT_MAX = 50;       // 용도별 "최근 창" 길이 — 보정은 누적이 아니라 이 창으로 판단한다
+const CALIB_MIN_N = 20;      // 창이 이만큼 차기 전에는 조정하지 않는다
+const BIAS_SKEW_PCT = 70;    // 빗나감의 이 %가 한쪽이면 "폭 문제 아님(편향)"으로 본다
+const BIAS_MIN_MISS = 10;    // 편향을 말하려면 빗나간 표본이 최소 이만큼은 있어야 한다
 
 function kst() { return new Date(Date.now() + 9 * 3600 * 1000); }
 function ymd(d) { return `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`; }
@@ -51,6 +62,23 @@ async function openLedger(event) {
 exports.handler = async (event) => {
   const store = await openLedger(event);
   const base = process.env.URL || '';
+  const qs = (event && event.queryStringParameters) || {};
+
+  // ── 보정값 초기화 (수동 전용 — 자동 실행 없음) ──
+  // 위 버그로 부풀려진 w는 **증거가 아니라 산물**이다(채점 0건인 날에도 오른 값). 그렇다고
+  // 코드가 임의로 되돌리면 그것도 사람 몰래 모델을 바꾸는 것이라, 창업자가 URL로 한 번
+  // 눌러야 실행된다(헌장: 채택은 사람이 한다). 봉인된 예측은 건드리지 않는다 — 불변.
+  //   GET /.netlify/functions/score-daily?resetCalib=1&confirm=1
+  if (qs.resetCalib === '1') {
+    if (qs.confirm !== '1') {
+      return { statusCode: 400, headers: { ...CORS, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ok: false, need: 'confirm=1', note: '용도별 구간 폭 w를 기본값 0.18로 되돌립니다. 봉인된 예측은 변경되지 않습니다.' }) };
+    }
+    const before = (await store.get('calib', { type: 'json' })) || { byUsage: {} };
+    await store.setJSON('calib', { byUsage: {}, resetAt: new Date().toISOString(), resetFrom: before.byUsage || {} });
+    return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ok: true, reset: true, from: before.byUsage || {} }) };
+  }
 
   try {
     // 최근 3일 개찰 결과 수집 — 전수 채점 보장: 자산군별로 마지막 페이지까지 수집한다.
@@ -225,8 +253,15 @@ exports.handler = async (event) => {
       agg.sumWidthPct = (agg.sumWidthPct || 0) + widthPct;
       agg.byTier[tier] = agg.byTier[tier] || { n: 0, hit: 0 };
       agg.byTier[tier].n++; if (hit) agg.byTier[tier].hit++;
-      agg.byUsage[usage] = agg.byUsage[usage] || { n: 0, hit: 0 };
-      agg.byUsage[usage].n++; if (hit) agg.byUsage[usage].hit++;
+      // 빗나갔다면 **어느 쪽으로** 빗나갔는지 함께 남긴다 — 보정의 핵심 입력.
+      // 구간이 좁아서 놓친 것과 중심이 치우쳐서 놓친 것은 처방이 정반대다(폭 확대 vs 중심 이동).
+      const missDir = hit ? 0 : (winMan > pred.hi ? 2 : 3); // 1=적중 2=우리가 낮게 봄 3=높게 봄
+      const us = agg.byUsage[usage] = agg.byUsage[usage] || { n: 0, hit: 0 };
+      us.n++; if (hit) us.hit++;
+      // 최근 창(누적이 아니라) — 과거 실패가 영원히 남아 보정을 상한까지 밀어 올리는 것을 막는다
+      us.recent = us.recent || [];
+      us.recent.push(hit ? 1 : missDir);
+      while (us.recent.length > RECENT_MAX) us.recent.shift();
       agg.daily[today] = agg.daily[today] || { n: 0, hit: 0 };
       agg.daily[today].n++; if (hit) agg.daily[today].hit++;
       // 랩 오차 분포(중앙값 오차 절대값의 누적 버킷) + 자산군별 적중률 실측화
@@ -296,24 +331,66 @@ exports.handler = async (event) => {
       graded++;
     }
 
-    // ── 보정(calibration): 용도별 적중률로 구간 폭 w 조정 ──
-    for (const [usage, s] of Object.entries(agg.byUsage)) {
-      if (s.n < 20) continue;
-      const rate = s.hit / s.n;
-      const cur = calib.byUsage[usage] || { w: 0.18 };
-      let next = cur.w;
-      if (rate < TARGET_LO) next = Math.min(0.35, Math.round((cur.w + 0.01) * 1000) / 1000);
-      else if (rate > TARGET_HI) next = Math.max(0.06, Math.round((cur.w - 0.005) * 1000) / 1000);
-      if (next !== cur.w) {
+    // ── 보정(calibration): 최근 창의 적중률 + **빗나간 방향**으로 구간 폭 w 조정 ──
+    //
+    // ⚠️ 2026-07-30 교정 — 실측(scoreboard)에서 드러난 결함 넷을 함께 고쳤다.
+    //   ① **증거 없이 발동했다** — 이 루프가 graded 가드 밖에 있어, 새로 채점한 물건이 0건인
+    //      날에도 매 실행 w가 +0.01씩 올랐다(07-30 실측: graded:0인데 세 용도 전부 상승).
+    //   ② **하루 두 번 발동했다** — 같은 날 20~30초 간격 재실행이 각각 한 번씩 올렸다
+    //      (07-28 10:31:06 / 10:31:28, 07-29 10:34:02 / 10:34:30 — n·적중률이 동일한 중복 기록).
+    //   ③ **누적 적중률로 판단했다** — 과거 실패가 영원히 남아 w를 상한 0.35까지 밀어 올린다.
+    //   ④ 그리고 가장 중요한 것 — **빗나간 방향이 한쪽으로 쏠려도 넓히기만 했다.**
+    //
+    // ④가 핵심이다. 구간을 대칭으로 넓혀도 치우친 쪽 절반은 애초에 답이 없는 자리에 버려진다.
+    // 실측 7일간 기계장비 w를 0.18→0.27로 50% 넓혔는데 적중률은 17.9%→33.3%에 그쳤고,
+    // 차량은 오히려 70.4%→39.5%로 떨어졌다. 같은 시점 recent 20건 중 19건이 "실제가 예측보다
+    // 높음"(평균 −39.5%) 한 방향이었다 — 폭 문제가 아니라 **중심의 계통 편향**이라는 뜻이다.
+    // 이 상태에서 폭을 계속 넓히는 것은 헌장 Golden Rule 4(넓혀서 맞히기 금지)를 엔진이
+    // 매일 자동으로 위반하는 것이다. 그래서 편향이 잡히면 **넓히지 않고 진단만 기록한다.**
+    const calibDay = ymd(kst());
+    if (graded > 0 && calib.lastDay !== calibDay) {
+      calib.lastDay = calibDay;
+      for (const [usage, s] of Object.entries(agg.byUsage)) {
+        const win = s.recent || [];
+        if (win.length < CALIB_MIN_N) continue; // 최근 창이 찰 때까지 조정하지 않는다
+        const cnt = v => win.reduce((a, x) => a + (x === v ? 1 : 0), 0);
+        const hits = cnt(1), over = cnt(2), under = cnt(3), misses = over + under;
+        const rate = hits / win.length;
         const hitRatePct = Math.round(rate * 1000) / 10;
-        log.unshift({ at: new Date().toISOString(), usage, from: cur.w, to: next, n: s.n, hitRate: hitRatePct });
-        calib.byUsage[usage] = { w: next, n: s.n };
-        chronicle.push({
-          kind: 'calib', at: new Date().toISOString(),
-          title: `보정: ${usage} 구간 폭 ${cur.w} → ${next}`,
-          detail: { usage, from: cur.w, to: next, basisN: s.n, hitRate: hitRatePct,
-            reason: hitRatePct < 95 ? `적중률 ${hitRatePct}% < 목표 하한 95% → 구간 확대` : `적중률 ${hitRatePct}% > 목표 상한 98% → 구간 축소` },
-        });
+        const cur = calib.byUsage[usage] || { w: 0.18 };
+
+        // 편향 판정 — 빗나감이 한쪽으로 쏠려 있으면 폭 문제가 아니다.
+        // dir 'low' = 우리 예측이 실제보다 낮다(실제가 hi 위로 나감).
+        const skewPct = misses ? Math.round(Math.max(over, under) / misses * 100) : 0;
+        const biased = misses >= BIAS_MIN_MISS && skewPct >= BIAS_SKEW_PCT;
+        const dir = over >= under ? 'low' : 'high';
+
+        let next = cur.w;
+        if (rate > TARGET_HI) next = Math.max(0.06, Math.round((cur.w - 0.005) * 1000) / 1000);
+        else if (rate < TARGET_LO && !biased) next = Math.min(W_MAX, Math.round((cur.w + 0.01) * 1000) / 1000);
+
+        const hadBias = !!(cur.bias && cur.bias.dir === dir);
+        calib.byUsage[usage] = { w: next, n: win.length,
+          ...(biased ? { bias: { dir, skewPct, misses, hitRate: hitRatePct, at: new Date().toISOString() } } : {}) };
+
+        if (next !== cur.w) {
+          log.unshift({ at: new Date().toISOString(), usage, from: cur.w, to: next, n: win.length, hitRate: hitRatePct });
+          chronicle.push({
+            kind: 'calib', at: new Date().toISOString(),
+            title: `보정: ${usage} 구간 폭 ${cur.w} → ${next}`,
+            detail: { usage, from: cur.w, to: next, basisN: win.length, hitRate: hitRatePct, window: `최근 ${win.length}건`,
+              reason: rate < TARGET_LO ? `최근 ${win.length}건 적중률 ${hitRatePct}% < 목표 하한 95% → 구간 확대`
+                                       : `최근 ${win.length}건 적중률 ${hitRatePct}% > 목표 상한 98% → 구간 축소` },
+          });
+        } else if (biased && !hadBias) {
+          // 넓히지 **않은** 이유를 남긴다 — 아무 일도 안 한 게 아니라 진단한 것이다.
+          chronicle.push({
+            kind: 'bias', at: new Date().toISOString(),
+            title: `편향 진단: ${usage} — 빗나감의 ${skewPct}%가 ${dir === 'low' ? '예측보다 높은 쪽' : '예측보다 낮은 쪽'}`,
+            detail: { usage, dir, skewPct, misses, basisN: win.length, hitRate: hitRatePct, w: cur.w,
+              reason: '빗나감이 한쪽으로 쏠려 있어 구간 확대를 멈춘다 — 처방은 폭이 아니라 중심이다(GR4 넓혀서 맞히기 금지).' },
+          });
+        }
       }
     }
 

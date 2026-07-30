@@ -93,7 +93,12 @@ eq('마감일 불명은 제외', alerts.stageFor('', NOW), null);
   // ══ alert-daily: 키 없으면 pending, 마커 미기록 ══
   const store2 = makeStore();
   global.__FAKE_STORE__ = store2;
-  store2.seed('sub/t9', { token: 't9', email: 'x@example.com', items: [item('A', '20260729' + '1700')] });
+  // ⚠️ alert-daily는 고정 NOW가 아니라 **실제 시계**로 단계를 판정한다. 고정 날짜를 심으면
+  //    그 날이 지나는 순간 물건이 "마감 지남"으로 걸러져 plans=0이 되고, 이 단언은 조용히
+  //    무의미해진다(실제로 2026-07-30에 터졌다). 그래서 오늘(KST) 마감으로 계산해 심는다.
+  const kstNow = new Date(Date.now() + 9 * 3600 * 1000);
+  const todayKst = `${kstNow.getUTCFullYear()}${String(kstNow.getUTCMonth() + 1).padStart(2, '0')}${String(kstNow.getUTCDate()).padStart(2, '0')}`;
+  store2.seed('sub/t9', { token: 't9', email: 'x@example.com', items: [item('A', todayKst + '2359')] });
   delete process.env.RESEND_API_KEY;
   const daily = require(fnPath('alert-daily.js'));
   r = await daily.handler({ queryStringParameters: {} });
