@@ -86,8 +86,20 @@ exports.handler = async (event) => {
       if (dry) { pending += plan.items.length; detail.push({ to: plan.email.replace(/^(.).*(@)/, '$1***$2'), subject: mail.subject, items: plan.items.length, dry: true }); continue; }
       const res = await sendEmail({ to: plan.email, subject: mail.subject, html: mail.html, text: mail.text });
       if (res.sent) {
-        // 발송 성공한 건만 마커 기록 — 실패분은 다음 실행에서 재시도된다
-        for (const it of plan.items) await store.setJSON(it.sentKey, { at: new Date().toISOString(), stage: it.stage });
+        // 발송 성공한 건만 마커 기록 — 실패분은 다음 실행에서 재시도된다.
+        //
+        // ⚠️ **병렬로 한 번에 쓴다** (2026-07-30 교정). 이전엔 물건마다 순차 await였는데,
+        //    구독당 물건 50건 × 발송 상한 200건 = 최악 1만 번의 순차 Blob 왕복이라
+        //    실행시간 한도를 넘긴다(score-daily·predict-daily가 같은 패턴으로 502를 낸 전례).
+        //    여기서 중간에 죽으면 더 나쁘다 — **이메일은 갔는데 마커는 일부만 남아**,
+        //    다음 실행이 같은 사용자에게 "나머지 물건만" 담은 두 번째 메일을 보낸다.
+        //    한 통의 메일이 덮은 물건은 한 번에 표시해 그 창을 최소화한다.
+        //
+        // 순서(발송 → 마커)는 그대로 둔다. 반대로 하면 마커만 남고 메일이 안 가는 경우가
+        // 생기는데, **마감 알림에서 못 받는 것이 중복으로 받는 것보다 훨씬 나쁘다**
+        // (마감을 놓치면 그걸로 끝이다). 중복 위험을 남기는 쪽이 의도된 선택이다.
+        const at = new Date().toISOString();
+        await Promise.all(plan.items.map(it => store.setJSON(it.sentKey, { at, stage: it.stage })));
         sent += plan.items.length;
       } else if (res.reason === 'no_key') {
         pending += plan.items.length;                    // 키 없음 — 보낸 척하지 않음

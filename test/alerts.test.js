@@ -93,7 +93,12 @@ eq('마감일 불명은 제외', alerts.stageFor('', NOW), null);
   // ══ alert-daily: 키 없으면 pending, 마커 미기록 ══
   const store2 = makeStore();
   global.__FAKE_STORE__ = store2;
-  store2.seed('sub/t9', { token: 't9', email: 'x@example.com', items: [item('A', '20260729' + '1700')] });
+  // ⚠️ alert-daily는 고정 NOW가 아니라 **실제 시계**로 단계를 판정한다. 고정 날짜를 심으면
+  //    그 날이 지나는 순간 물건이 "마감 지남"으로 걸러져 plans=0이 되고, 이 단언은 조용히
+  //    무의미해진다(실제로 2026-07-30에 터졌다). 그래서 오늘(KST) 마감으로 계산해 심는다.
+  const kstNow = new Date(Date.now() + 9 * 3600 * 1000);
+  const todayKst = `${kstNow.getUTCFullYear()}${String(kstNow.getUTCMonth() + 1).padStart(2, '0')}${String(kstNow.getUTCDate()).padStart(2, '0')}`;
+  store2.seed('sub/t9', { token: 't9', email: 'x@example.com', items: [item('A', todayKst + '2359')] });
   delete process.env.RESEND_API_KEY;
   const daily = require(fnPath('alert-daily.js'));
   r = await daily.handler({ queryStringParameters: {} });
@@ -103,6 +108,38 @@ eq('마감일 불명은 제외', alerts.stageFor('', NOW), null);
   t('② 키 없음을 정직하게 안내', /RESEND_API_KEY 미설정/.test(b.note || ''), b.note);
   const hb = await store2.get('_run/alert-daily');
   t('하트비트 기록', hb && hb.ok === true);
+
+  // ══ 한 통의 메일이 덮은 물건은 한 번에 표시한다 ══
+  // 이전엔 물건마다 순차 await로 마커를 썼다. 구독당 50건 × 발송 상한 200건 = 최악
+  // 1만 번의 순차 Blob 왕복이라 실행시간 한도를 넘고, 중간에 죽으면 **메일은 갔는데
+  // 마커는 일부만** 남아 다음 실행이 "나머지 물건만" 담은 두 번째 메일을 보낸다.
+  {
+    const store3 = makeStore();
+    global.__FAKE_STORE__ = store3;
+    process.env.RESEND_API_KEY = 'test-key';
+    const kn = new Date(Date.now() + 9 * 3600 * 1000);
+    const today3 = `${kn.getUTCFullYear()}${String(kn.getUTCMonth() + 1).padStart(2, '0')}${String(kn.getUTCDate()).padStart(2, '0')}`;
+    const many = Array.from({ length: 12 }, (_, i) => item('M' + i, today3 + '2359'));
+    store3.seed('sub/tm', { token: 'tm', email: 'many@example.com', items: many });
+
+    let calls = 0;
+    global.fetch = async () => { calls++; return { ok: true, status: 200, json: async () => ({ id: 'x' }), text: async () => '{}' }; };
+    delete require.cache[require.resolve(fnPath('alert-daily.js'))];
+    const rm = await require(fnPath('alert-daily.js')).handler({ queryStringParameters: {} });
+    const bm = JSON.parse(rm.body);
+
+    eq('12건이 메일 한 통으로 나간다', calls, 1);
+    eq('12건 전부 발송 처리', bm.sent, 12);
+    eq('마커도 12건 전부 기록', store3.keys('alertsent/').length, 12);
+
+    // 재실행 — 같은 물건·같은 단계는 다시 보내지 않는다(부분 중복도 없어야 한다)
+    calls = 0;
+    delete require.cache[require.resolve(fnPath('alert-daily.js'))];
+    const rm2 = await require(fnPath('alert-daily.js')).handler({ queryStringParameters: {} });
+    eq('재실행 시 추가 발송 0', calls, 0);
+    eq('재실행 시 sent 0', JSON.parse(rm2.body).sent, 0);
+    delete process.env.RESEND_API_KEY;
+  }
 
   delete global.__FAKE_STORE__;
   done('alerts (마감 알림)');

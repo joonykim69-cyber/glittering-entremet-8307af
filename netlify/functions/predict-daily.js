@@ -171,13 +171,32 @@ exports.handler = async (event) => {
       if (s.status === 'fulfilled' && Array.isArray(s.value)) items.push(...s.value);
     });
 
-    let sealed = 0, skipped = 0, noBasis = 0, sealedB = 0;
+    // noBasisB = 챌린저를 봉인하지 못한 건수(셀 없음 또는 L0뿐) — 스킵이 조용히 사라지지 않게 센다
+    let sealed = 0, skipped = 0, noBasis = 0, sealedB = 0, noBasisB = 0;
     const predMap = {}; // key → {lo,mid,hi} : 이번 실행에서 봉인한 챔피언 예측(큐레이션 저평가 여력 판단용)
     const endLimit = end + '2359';
-    // 마감 임박 순으로 정렬한 뒤 상한을 적용 — 상한에 걸리더라도 **개찰이 임박한 물건부터**
-    // 봉인되어 다음 실행에서 재기회가 없는 물건을 우선 잡는다(잘림이 생겨도 손실 최소화).
+    const startLimit = start + '0000';
+    // ── 창 필터는 **양쪽**을 본다 (2026-07-30 교정) ──
+    // 이전엔 상한(`<= endLimit`)만 검사해 **마감이 이미 지난 물건이 그대로 통과**했다.
+    // 평소엔 onbid-search를 창으로 질의하니 드러나지 않지만, 2차 방어선이 방어를 안 하고
+    // 있었던 것이고 실제로 세 가지가 걸린다:
+    //   ① 정렬이 bidEnd 오름차순이라 **지난 물건이 맨 앞으로 와 SEAL_CAP을 먼저 먹는다** —
+    //      정작 임박한 물건이 밀려나고, 밀려난 물건은 다음 날 창이 이동해 영영 봉인되지 않는다.
+    //   ② 개찰이 끝난 물건을 봉인하면 결과가 이미 공개됐을 수 있다 → **GR11(시점 정직성) 위반**.
+    //      게다가 봉인은 불변이라 사후에 되돌릴 수도 없다.
+    //   ③ 상위 API가 창 밖 행을 섞어 주면(회차별 행 반환 등 전례 있음) 그대로 새어 들어온다.
+    // 날짜 단위로만 본다 — 시각까지 따지면 07:00 실행이 당일 마감 물건을 놓칠 수 있고,
+    // 그건 정확히 우리가 막으려는 유실이다.
+    // (검증: 시계를 +180일로 돌린 회귀 — 그때 지난 물건 2,370건이 전부 통과했다.)
+    let expired = 0;
     const targets = items
-      .filter(it => it.min > 0 && it.pbctCdtnNo && (!it.bidEnd || String(it.bidEnd) <= endLimit))
+      .filter(it => {
+        if (!(it.min > 0) || !it.pbctCdtnNo) return false;
+        if (!it.bidEnd) return true; // 마감 정보가 없으면 판정 불가 — 상위 질의 창을 신뢰
+        const b = String(it.bidEnd);
+        if (b < startLimit) { expired++; return false; }
+        return b <= endLimit;
+      })
       .sort((a, b) => String(a.bidEnd || '').localeCompare(String(b.bidEnd || '')))
       .slice(0, SEAL_CAP);
 
@@ -229,10 +248,20 @@ exports.handler = async (event) => {
         : null;
       if (bidders && bidders.hi <= bidders.lo) bidders.hi = bidders.lo + 1;
 
-      const w = (calib.byUsage[it.type] && calib.byUsage[it.type].w) || DEFAULT_W;
-      const mid = Math.round(anchors.reduce((s, v) => s + v, 0) / anchors.length);
-      const lo = Math.round(Math.max(it.min, Math.min(...anchors) * (1 - w)));
-      let hi = Math.round(Math.max(...anchors) * (1 + w));
+      const cal = calib.byUsage[it.type] || {};
+      const w = cal.w || DEFAULT_W;
+      // ── 중심 보정 계수 k (2026-07-30 신설) ──
+      // 캠코 용도별 낙찰가율은 압류재산 부동산 기준이라, 그대로 동산·차량에 쓰면 앵커가
+      // 체계적으로 낮게 잡힌다(실측: 최근 20건 중 19건이 "실제가 예측보다 높음", 평균 −39.5%).
+      // 이때 필요한 것은 구간 확대가 아니라 **중심 이동**이다. score-daily가 채점 결과에서
+      // 실제/예측 비율의 중앙값을 재어 k를 조정하고, 여기서 두 앵커에 함께 곱한다 —
+      // 앵커에 곱하므로 mid·lo·hi가 같은 비율로 움직이고 **구간 폭은 넓어지지 않는다**(GR4).
+      // k가 없으면 1(무보정)이라 기존 봉인 공식과 완전히 동일하다.
+      const k = cal.k || 1;
+      const anc = anchors.map(v => v * k);
+      const mid = Math.round(anc.reduce((s, v) => s + v, 0) / anc.length);
+      const lo = Math.round(Math.max(it.min, Math.min(...anc) * (1 - w)));
+      let hi = Math.round(Math.max(...anc) * (1 + w));
       if (hi <= lo) hi = Math.round(lo * 1.05);
 
       writes.push({ key, val: {
@@ -243,7 +272,7 @@ exports.handler = async (event) => {
         assetClass: it.assetClass || '부동산',
         appr: it.appr, min: it.min, // 만원
         lo, mid, hi,                // 만원
-        w, statBucket: st ? String(st.clsCdNm).trim() : '',
+        w, k, statBucket: st ? String(st.clsCdNm).trim() : '',
         statPerd: stats ? stats.perd : '',
         round: Number(it.round) || 0, fail: Number(it.fail) || 0, // 공매차수·유찰수 실측(회차별 채점·분석용)
         bidEnd: it.bidEnd || '', modelV: MODEL_V,
@@ -261,7 +290,15 @@ exports.handler = async (event) => {
       // ── v0.5 챌린저 봉인 (predb/*) — 같은 물건을 실측 이력 분위수로 병행 예측 ──
       // 셀 조회는 hist-stats와 동일한 백오프(L3→L0, 표본 20+).
       // 회차는 온비드 공매차수(pbctNsq, it.round) 실측을 우선 사용하고, 없을 때만 유찰수+1로 근사한다.
-      if (cell) {
+      //
+      // ⚠️ L0(자산군만) 셀로는 **가격 구간을 봉인하지 않는다** (2026-07-30).
+      //    실측 채점에서 L0의 평균 구간 폭이 334.8%로 L1(88.6%)·L3(93.5%)의 3.6배였다
+      //    (scoreboard.challenger.byLevel). L0은 용도를 못 찾아 자산군 전체로 물러선 셀이라
+      //    "중고 오븐"과 "폐기물 2,376점"이 한 칸에 섞인다 — 분위수가 벌어지는 게 당연하고,
+      //    그렇게 넓힌 구간으로 맞히는 것은 헌장 GR4가 금지한 바로 그 방식이다. 근거가 그
+      //    정도뿐이면 **예측하지 않는다**(GR6 — 근거 없으면 미산출).
+      //    낙찰 확률·입찰자 수는 비율이라 폭 문제와 무관하므로 L0 셀에서도 계속 쓴다.
+      if (cell && !cellKey.startsWith('L0|')) {
         const bLo = Math.round(it.min * cell.lr.p10 / 100);
         const bMid = Math.round(it.min * cell.lr.p50 / 100);
         let bHi = Math.round(it.min * cell.lr.p90 / 100);
@@ -274,6 +311,8 @@ exports.handler = async (event) => {
           sealedAt: new Date().toISOString(),
         } });
         sealedB++;
+      } else {
+        noBasisB++;
       }
     }
 
@@ -388,10 +427,10 @@ exports.handler = async (event) => {
     meta.lastSealAt = new Date().toISOString();
     await store.setJSON('meta', meta);
 
-    const summary = { ok: true, scanned: items.length, targets: targets.length, sealed, sealedB, skipped, noBasis, curated: curatedTop.length, statPerd: stats ? stats.perd : null, ...(qs.debug ? { window: { start, end } } : {}) };
+    const summary = { ok: true, scanned: items.length, targets: targets.length, expired, sealed, sealedB, noBasisB, skipped, noBasis, curated: curatedTop.length, statPerd: stats ? stats.perd : null, ...(qs.debug ? { window: { start, end } } : {}) };
     // 하트비트 — 매 실행마다 마지막 성공 시각·처리건수 기록(자가진단이 신선도로 죽음 감지)
     await budget.flush();
-    await store.setJSON('_run/predict-daily', { at: new Date().toISOString(), ok: true, sealed, sealedB, curated: curatedTop.length, targets: targets.length, noBasis });
+    await store.setJSON('_run/predict-daily', { at: new Date().toISOString(), ok: true, sealed, sealedB, noBasisB, curated: curatedTop.length, targets: targets.length, expired, noBasis });
     console.log('[predict-daily]', JSON.stringify(summary));
     return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify(summary) };
   } catch (e) {

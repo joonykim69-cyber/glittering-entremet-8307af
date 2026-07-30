@@ -806,6 +806,21 @@ document.addEventListener('keydown', (e) => {
       if (c.kind === 'calib') {
         return `${esc(x.reason || '')}<div class="chron-kv"><span>용도: ${esc(x.usage || '')}</span><span>w ${esc(String(x.from))} → <b>${esc(String(x.to))}</b></span><span>근거 표본 ${x.basisN || 0}건</span><span>당시 적중률 ${x.hitRate}%</span></div>`;
       }
+      if (c.kind === 'center') {
+        // 폭이 아니라 중심을 옮긴 기록 — 2026-07-30에 추가된 두 번째 보정 레버.
+        return `${esc(x.reason || '')}<div class="chron-kv"><span>용도: ${esc(x.usage || '')}</span><span>중심 ${esc(String(x.from))} → <b>${esc(String(x.to))}</b>배</span><span>실제/예측 비율 중앙값 ${esc(String(x.ratioMed))}</span><span>근거 표본 ${x.basisN || 0}건</span><span>당시 적중률 ${x.hitRate}%</span></div>
+          <span style="color:var(--sub);font-size:12px;">앵커에 곱하므로 구간 폭은 넓어지지 않습니다 — 넓혀서 맞히지 않는다는 원칙 그대로입니다.</span>`;
+      }
+      if (c.kind === 'bias') {
+        // "아무 일도 안 한 것"이 아니라 "넓히지 않기로 판단한 것"임을 보이는 항목.
+        return `${esc(x.reason || '')}<div class="chron-kv"><span>용도: ${esc(x.usage || '')}</span><span>쏠림 ${x.skewPct}%(${x.misses}건)</span><span>현재 폭 ±${Math.round((x.w || 0) * 100)}%</span><span>당시 적중률 ${x.hitRate}%</span></div>`;
+      }
+      if (c.kind === 'calib-reset') {
+        const from = x.from || {};
+        const items = Object.keys(from).map(u => `<span>${esc(u)} ±${Math.round((from[u].w || 0) * 100)}%</span>`).join('');
+        return `${esc(x.reason || '')}<div class="chron-kv">${items}</div>
+          <span style="color:var(--sub);font-size:12px;">되돌린 값은 감사 추적용으로 보존합니다. 이미 봉인된 예측은 변경되지 않습니다.</span>`;
+      }
       if (c.kind === 'daily') {
         return `오늘 ${x.gradedToday}건 채점 → 누적 <b>${x.cumN}건</b> 중 적중 ${x.cumHit}건 (<b>${x.cumHitRate}%</b>) · 누적 평균 오차 <b>${x.cumAvgAbsErrPct}%</b>${x.challenger ? `<br/>챌린저 v0.5: 누적 ${x.challenger.cumN}건 적중률 ${x.challenger.cumHitRate}% · 상대전적 ${x.challenger.headToHead.bWins}/${x.challenger.headToHead.n}` : ''}`;
       }
