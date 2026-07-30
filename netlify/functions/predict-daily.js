@@ -175,10 +175,28 @@ exports.handler = async (event) => {
     let sealed = 0, skipped = 0, noBasis = 0, sealedB = 0, noBasisB = 0;
     const predMap = {}; // key → {lo,mid,hi} : 이번 실행에서 봉인한 챔피언 예측(큐레이션 저평가 여력 판단용)
     const endLimit = end + '2359';
-    // 마감 임박 순으로 정렬한 뒤 상한을 적용 — 상한에 걸리더라도 **개찰이 임박한 물건부터**
-    // 봉인되어 다음 실행에서 재기회가 없는 물건을 우선 잡는다(잘림이 생겨도 손실 최소화).
+    const startLimit = start + '0000';
+    // ── 창 필터는 **양쪽**을 본다 (2026-07-30 교정) ──
+    // 이전엔 상한(`<= endLimit`)만 검사해 **마감이 이미 지난 물건이 그대로 통과**했다.
+    // 평소엔 onbid-search를 창으로 질의하니 드러나지 않지만, 2차 방어선이 방어를 안 하고
+    // 있었던 것이고 실제로 세 가지가 걸린다:
+    //   ① 정렬이 bidEnd 오름차순이라 **지난 물건이 맨 앞으로 와 SEAL_CAP을 먼저 먹는다** —
+    //      정작 임박한 물건이 밀려나고, 밀려난 물건은 다음 날 창이 이동해 영영 봉인되지 않는다.
+    //   ② 개찰이 끝난 물건을 봉인하면 결과가 이미 공개됐을 수 있다 → **GR11(시점 정직성) 위반**.
+    //      게다가 봉인은 불변이라 사후에 되돌릴 수도 없다.
+    //   ③ 상위 API가 창 밖 행을 섞어 주면(회차별 행 반환 등 전례 있음) 그대로 새어 들어온다.
+    // 날짜 단위로만 본다 — 시각까지 따지면 07:00 실행이 당일 마감 물건을 놓칠 수 있고,
+    // 그건 정확히 우리가 막으려는 유실이다.
+    // (검증: 시계를 +180일로 돌린 회귀 — 그때 지난 물건 2,370건이 전부 통과했다.)
+    let expired = 0;
     const targets = items
-      .filter(it => it.min > 0 && it.pbctCdtnNo && (!it.bidEnd || String(it.bidEnd) <= endLimit))
+      .filter(it => {
+        if (!(it.min > 0) || !it.pbctCdtnNo) return false;
+        if (!it.bidEnd) return true; // 마감 정보가 없으면 판정 불가 — 상위 질의 창을 신뢰
+        const b = String(it.bidEnd);
+        if (b < startLimit) { expired++; return false; }
+        return b <= endLimit;
+      })
       .sort((a, b) => String(a.bidEnd || '').localeCompare(String(b.bidEnd || '')))
       .slice(0, SEAL_CAP);
 
@@ -409,10 +427,10 @@ exports.handler = async (event) => {
     meta.lastSealAt = new Date().toISOString();
     await store.setJSON('meta', meta);
 
-    const summary = { ok: true, scanned: items.length, targets: targets.length, sealed, sealedB, noBasisB, skipped, noBasis, curated: curatedTop.length, statPerd: stats ? stats.perd : null, ...(qs.debug ? { window: { start, end } } : {}) };
+    const summary = { ok: true, scanned: items.length, targets: targets.length, expired, sealed, sealedB, noBasisB, skipped, noBasis, curated: curatedTop.length, statPerd: stats ? stats.perd : null, ...(qs.debug ? { window: { start, end } } : {}) };
     // 하트비트 — 매 실행마다 마지막 성공 시각·처리건수 기록(자가진단이 신선도로 죽음 감지)
     await budget.flush();
-    await store.setJSON('_run/predict-daily', { at: new Date().toISOString(), ok: true, sealed, sealedB, noBasisB, curated: curatedTop.length, targets: targets.length, noBasis });
+    await store.setJSON('_run/predict-daily', { at: new Date().toISOString(), ok: true, sealed, sealedB, noBasisB, curated: curatedTop.length, targets: targets.length, expired, noBasis });
     console.log('[predict-daily]', JSON.stringify(summary));
     return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify(summary) };
   } catch (e) {

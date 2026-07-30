@@ -16,15 +16,21 @@ process.env.SEAL_CAP = '2500';
 
 // 3자산군 × 여러 페이지. 부동산은 2,300건(1000/1000/300) — 과거 단일 페이지 구현이면 유실됐을 양.
 const RE = 2300, MV = 40, VH = 30;
+// ⚠️ 마감일은 **실제 시계 기준 상대값**으로 만든다. 고정 날짜를 심으면 그 날이 지나는 순간
+//    봉인 창 밖으로 밀려나 targets가 0이 되고, 이 파일의 단언이 통째로 무의미해진다
+//    (alerts.test.js가 정확히 그렇게 조용히 죽었다 — 2026-07-30).
+const _k = new Date(Date.now() + 9 * 3600 * 1000);
+const _ymd = d => `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`;
+const D_TODAY = _ymd(_k), D_TMRW = _ymd(new Date(_k.getTime() + 86400000));
 function mkItems(prefix, n, from) {
   return Array.from({ length: n }, (_, i) => ({
     id: `${prefix}${from + i}`, pbctCdtnNo: '0001',
     title: `${prefix} 물건 ${from + i}`,
     appr: 10000, min: 7000,   // 만원 단위(온비드 매핑과 동일)
     usage: '아파트', type: '아파트',
-    // 앞쪽 600건은 오늘(30일) 마감, 나머지는 내일(31일) 마감.
+    // 앞쪽 600건은 오늘 마감, 나머지는 내일 마감.
     // 상한이 걸리면 **오늘 마감분이 먼저** 봉인돼야 한다(내일 것은 내일 기회가 있다).
-    bidEnd: (i < 600 ? '20260730' : '20260731') + '1700',
+    bidEnd: (i < 600 ? D_TODAY : D_TMRW) + '1700',
     failCount: 0, round: 1,
   }));
 }
@@ -98,7 +104,7 @@ const routes = [
   // 정렬 없이 잘린 것이고, 그 경우 오늘 개찰되는 물건이 영영 봉인되지 않는다.
   const ends = [];
   for (const k of capped) ends.push((await store2.get(k)).bidEnd);
-  const late = ends.filter(e => e >= '202607311700').length;
+  const late = ends.filter(e => e >= D_TMRW + '1700').length;
   eq('④ 상한에 걸려도 마감 임박 순 우선(늦은 물건 0건)', late, 0);
 
   // 하트비트
@@ -155,6 +161,45 @@ const routes = [
     t('⑤ L0에서도 입찰자 수는 봉인', !!l0.bidders, JSON.stringify(l0.bidders));
   }
 
+  // ══ ⑥ 창 필터는 양쪽을 본다 — 마감이 지난 물건은 봉인하지 않는다 (2026-07-30) ══
+  // 발견 경위: 테스트 시계를 +180일로 돌렸더니 마감이 6개월 지난 2,370건이 **전부**
+  // targets를 통과했다. 필터가 상한(<= endLimit)만 보고 하한이 없었다.
+  // 이게 왜 위험한가:
+  //   ① 정렬이 bidEnd 오름차순 → 지난 물건이 맨 앞에서 SEAL_CAP을 먹고 임박한 물건을 밀어낸다
+  //   ② 개찰이 끝난 물건 봉인 = 결과가 이미 공개됐을 수 있다(GR11 위반) + 봉인은 불변이라 회수 불가
+  //   ③ 상위 API가 창 밖 행을 섞어 주면 그대로 새어 들어온다
+  {
+    const store4 = makeStore();
+    global.__FAKE_STORE__ = store4;
+    process.env.SEAL_CAP = '2500';
+    const k = new Date(Date.now() + 9 * 3600 * 1000);
+    const ymd3 = d => `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`;
+    const mkI = (id, bidEnd) => ({ id, pbctCdtnNo: '1', title: id, appr: 10000, min: 7000,
+      usage: '아파트', type: '아파트', bidEnd, failCount: 0, round: 1 });
+    const past = ymd3(new Date(k.getTime() - 30 * 86400000)) + '1700';   // 30일 전 마감
+    const today = ymd3(k) + '1700';                                      // 오늘 마감
+    const soon = ymd3(new Date(k.getTime() + 7 * 86400000)) + '1700';    // 7일 뒤
+    const far = ymd3(new Date(k.getTime() + 40 * 86400000)) + '1700';    // 창 밖(+40일)
+    mockFetch([
+      [/onbid-search/, { items: [mkI('PAST', past), mkI('TODAY', today), mkI('SOON', soon), mkI('FAR', far), mkI('NOEND', '')] }],
+      [/onbid-mvast-search/, { items: [] }], [/onbid-vhcl-search/, { items: [] }],
+      [/onbid-svc\?svc=stat_usg/, { items: [{ clsCdNm: '아파트', scfbAmtRto1: 80, scfbAmtRto2: 95 }] }],
+      [/hist-stats/, { status: 'empty' }],
+    ]);
+    delete require.cache[require.resolve(fnPath('predict-daily.js'))];
+    const r6 = await require(fnPath('predict-daily.js')).handler({ queryStringParameters: {} });
+    const s6 = JSON.parse(r6.body);
+
+    t('⑥ 마감 지난 물건은 봉인하지 않는다', !(await store4.get('pred/PAST_1')));
+    eq('⑥ 걸러낸 건수를 조용히 버리지 않는다(expired)', s6.expired, 1);
+    t('⑥ 오늘 마감은 봉인한다(07:00 실행이 당일 물건을 놓치면 안 된다)', !!(await store4.get('pred/TODAY_1')));
+    t('⑥ 창 안(+7일)은 봉인한다', !!(await store4.get('pred/SOON_1')));
+    t('⑥ 창 밖(+40일)은 봉인하지 않는다', !(await store4.get('pred/FAR_1')));
+    t('⑥ 마감 정보 없는 물건은 상위 질의 창을 신뢰해 통과', !!(await store4.get('pred/NOEND_1')));
+    const hb6 = await store4.get('_run/predict-daily');
+    t('⑥ 하트비트에도 expired 기록', hb6 && hb6.expired === 1, JSON.stringify(hb6));
+  }
+
   delete global.__FAKE_STORE__;
-  done('predict-seal (봉인 전수·불변·공식 · 챌린저 L0 차단)');
+  done('predict-seal (봉인 전수·불변·공식 · L0 차단 · 창 양방향)');
 })().catch(e => { console.log('THROW', e); process.exit(1); });
