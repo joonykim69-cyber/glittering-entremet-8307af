@@ -354,6 +354,13 @@ async function seal(store, id, { lo, mid, hi, type }) {
     eq('⑧ confirm 없으면 거부', bad.statusCode, 400);
     eq('⑧ 거부되면 값도 그대로', (await store.get('calib')).byUsage['차량'].w, 0.24);
 
+    // 채점이 도는 중이면 거부한다 — 지금 초기화해도 그 실행이 끝나면서 옛 값으로 되돌린다
+    await store.setJSON('_lock/score-daily', { at: new Date().toISOString() });
+    const busy = await run(store, { resetCalib: '1', confirm: '1' });
+    eq('⑧ 채점 진행 중이면 409로 거부', busy.statusCode, 409);
+    eq('⑧ 거부 시 값 그대로', (await store.get('calib')).byUsage['차량'].w, 0.24);
+    await store.setJSON('_lock/score-daily', { at: null });
+
     const ok = await run(store, { resetCalib: '1', confirm: '1' });
     eq('⑧ confirm=1이면 초기화', ok.statusCode, 200);
     eq('⑧ 보정값이 비워짐', (await store.get('calib')).byUsage, {});

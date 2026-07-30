@@ -71,6 +71,13 @@ exports.handler = async (event) => {
   const base = process.env.URL || '';
   const qs = (event && event.queryStringParameters) || {};
 
+  const LOCK_KEY = '_lock/score-daily';
+  const LOCK_TTL_MS = 5 * 60 * 1000;
+  const lockHeld = async () => {
+    const h = await store.get(LOCK_KEY, { type: 'json' }).catch(() => null);
+    return (h && h.at && Date.now() - new Date(h.at).getTime() < LOCK_TTL_MS) ? h : null;
+  };
+
   // ── 보정값 초기화 (수동 전용 — 자동 실행 없음) ──
   // 위 버그로 부풀려진 w는 **증거가 아니라 산물**이다(채점 0건인 날에도 오른 값). 그렇다고
   // 코드가 임의로 되돌리면 그것도 사람 몰래 모델을 바꾸는 것이라, 창업자가 URL로 한 번
@@ -80,6 +87,14 @@ exports.handler = async (event) => {
     if (qs.confirm !== '1') {
       return { statusCode: 400, headers: { ...CORS, 'Content-Type': 'application/json' },
         body: JSON.stringify({ ok: false, need: 'confirm=1', note: '용도별 구간 폭 w와 중심 보정 k를 기본값(0.18 / 1.0)으로 되돌립니다. 봉인된 예측은 변경되지 않습니다.' }) };
+    }
+    // ⚠️ 채점이 도는 중에 초기화하면 **조용히 취소된다** — 그 실행은 이미 옛 calib을 읽어
+    //    두었고, 끝날 때 자기가 읽은 값 기준으로 다시 써 버리기 때문이다. 그래서 락을 존중한다.
+    const busy = await lockHeld();
+    if (busy) {
+      return { statusCode: 409, headers: { ...CORS, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ok: false, error: 'busy', lockedAt: busy.at,
+          note: '채점이 진행 중입니다. 지금 초기화하면 그 실행이 끝나면서 옛 값으로 되돌려 놓습니다. 몇 분 뒤 다시 시도하세요.' }) };
     }
     const before = (await store.get('calib', { type: 'json' })) || { byUsage: {} };
     await store.setJSON('calib', { v: CALIB_V, byUsage: {}, resetAt: new Date().toISOString(), resetFrom: before.byUsage || {} });
@@ -102,10 +117,8 @@ exports.handler = async (event) => {
   // 25초라 **check-and-set + 짧은 TTL**로 충분히 닫힌다. 함수가 타임아웃으로 죽으면
   // finally가 안 돌지만, 그때는 TTL이 알아서 풀어 준다(그게 맞는 동작이다 —
   // 죽은 실행이 잡은 락을 즉시 놓아 주면 재시도가 다시 겹친다).
-  const LOCK_KEY = '_lock/score-daily';
-  const LOCK_TTL_MS = 5 * 60 * 1000;
-  const held = await store.get(LOCK_KEY, { type: 'json' }).catch(() => null);
-  if (held && held.at && Date.now() - new Date(held.at).getTime() < LOCK_TTL_MS) {
+  const held = await lockHeld();
+  if (held) {
     const body = { ok: true, skipped: 'locked', lockedAt: held.at,
       note: '다른 실행이 진행 중이라 건너뜁니다 — 겹쳐 돌면 집계를 서로 덮어씁니다.' };
     console.log('[score-daily]', JSON.stringify(body));
