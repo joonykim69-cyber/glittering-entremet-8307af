@@ -86,14 +86,18 @@ function fromOnbid(it) {
     region: it.region || '',
     apsl: Number(it.appr) || 0,
     low: Number(it.min) || 0,
-    // ⚠️ 면적 단위 미확정 (2026-07-30 자체 점검에서 발견 — 창업자 확인 대기)
-    //   시세 밴드(mkt/seal)는 RTMS 실거래의 **전용면적**(excluUseAr) 기준 ㎡당 단가다.
-    //   여기 area는 온비드 목록의 bldSqms인데 **전용면적인지 연면적인지 확인되지 않았다.**
-    //   연면적이라면 `밴드 × area`가 가치를 통째로 부풀리고(아파트는 통상 30~40%),
-    //   그러면 이 트랙의 전제인 "보수 가정으로만 차익을 낸다"가 깨진다.
-    //   상세 페이지는 이 불확실성을 이미 알고 있다 — 마진 위젯을 bldgAr로 자동 채우되
-    //   "전용면적이 다르면 수정하세요"라고 사용자에게 판단을 넘긴다. 큐레이션엔 그 탈출구가 없다.
-    //   확인 방법: 실물건 하나에서 온비드 공고의 전용면적 vs 우리 목록 bldgAr 대조(1분).
+    // 면적 기준 = **전용면적** (2026-07-31 실데이터로 확인, 이전의 '미확정' 표기를 해소).
+    //   시세 밴드(mkt/seal)는 RTMS 실거래의 전용면적(excluUseAr) 기준 ㎡당 단가라, 여기 area가
+    //   연면적이면 `밴드 × area`가 가치를 30~40% 부풀려 "보수 가정으로만 차익을 낸다"는
+    //   이 트랙의 전제가 깨진다. 그래서 확인이 필요했다.
+    //   확인 방법: 한국 아파트의 전용면적은 값 자체가 지문이다(국민평형 84.9x㎡ / 25평형 59.8x㎡).
+    //   라이브 재고 4,683건에서 아파트·오피스텔 343건을 뽑으니 당진 84.95 · 파주 84.942 ·
+    //   부산 84.9959처럼 **지역이 다른 물건들이 84.9x에 0.06㎡ 안쪽으로 모였다**(59.8x도 동일).
+    //   공급면적이었다면 국민평형이 110~114로 찍혀야 한다. 보조 근거: 같은 건물 5개 호실의
+    //   bldgAr이 제각각이라(94.1/72.3/81.1/66.5/86.0) 건물 전체 연면적이 아니고, landAr도
+    //   호실마다 달라 대지권 지분으로 보인다 — 구분건물의 전유면적 + 대지권 조합.
+    //   ⚠️ 확인 범위는 **집합건물(아파트·오피스텔·연립다세대)** 이다. 단독주택(sh)은 전용 개념이
+    //   없어 같은 근거로 묶을 수 없다(별도 확인 대상).
     area: Number(it.bldgAr) || 0,
     failCount: Number(it.fail) || 0,
     round: Number(it.round) || 0,
@@ -128,8 +132,20 @@ function selectItem(f, ctx) {
   }
 
   // ── 2단 배제 ──
-  // 신탁·특수매각: 최저가 ≥ 감정가는 할인이 아니라 구조가 다른 것 → 별도 트랙으로 분리
-  const isTrust = f.apsl > 0 && f.low >= f.apsl;
+  // 신탁·특수매각: 최저가가 감정가를 넘는 것은 할인이 아니라 구조가 다른 것 → 별도 트랙으로 분리.
+  //
+  // ⚠️ 판정을 두 군데 좁혔다 (2026-07-31 실데이터 교정). 원래 조건은 `apsl > 0 && low >= apsl`
+  //    이었는데, 프로덕션 랜딩의 trust 트랙 8건이 **전부 차량·동산이고 전부 저가율 100%** 였다
+  //    (기아 스포티지R 243/243, 르노 SM3 83/83, 정선경찰서 습득물 귀금속 275/275,
+  //    창림저상슬로프장애인차 400/400 ×5). "신탁·특수매각"이라 써 놓고 SM3를 보여준 셈이다.
+  //
+  //   ① **부동산에만 적용한다.** 신탁공매는 부동산 개념이다(신탁계약에 따른 공매). 차량·동산은
+  //      1회차에 최저가 = 감정가가 정상이라(아직 안 깎였다) 같은 조건을 걸면 **모든 신건
+  //      차량·동산이 신탁으로 분류된다.** 걸러진 물건들은 아래 (b) 트랙에서 낙찰률로 평가된다.
+  //   ② **등호를 뺀다.** 부동산도 1회차는 최저가 = 감정가라, 등호를 두면 신건 아파트가 전부
+  //      신탁으로 찍힌다. 진짜 신탁 신호는 최저가가 감정가를 **넘는** 경우다
+  //      (실례: 물건 2022-0100-002855 감정 2.56억 < 최저 3.73억).
+  const isTrust = f.assetClass === '부동산' && f.apsl > 0 && f.low > f.apsl;
   if (isTrust) {
     return {
       track: 'trust', score: 0,
@@ -164,8 +180,9 @@ function selectItem(f, ctx) {
         score: Math.min(100, Math.round(pct)),
         reasons, flags, dday,
         margin: { netMan: net, pct, valueMan: value, costMan: cost, bandLo: ctx.band.lo, area: f.area, bandN: ctx.band.n || 0,
-          // 면적 출처를 산출물에 남긴다 — 나중에 "이 차익이 어떤 면적으로 계산됐나"를 되물을 수 있어야 한다
-          areaSrc: 'onbid-list:bldSqms', areaBasis: 'unverified' },
+          // 면적 출처·기준을 산출물에 남긴다 — "이 차익이 어떤 면적으로 계산됐나"를 되물을 수 있어야 한다.
+          // sh(단독주택)만 아직 미확인이라 기준을 따로 표기한다(위 fromOnbid 주석 참조).
+          areaSrc: 'onbid-list:bldSqms', areaBasis: kind === 'sh' ? 'unverified' : 'exclusive' },
       };
     }
     return null; // 보수 기준으로 여지가 없으면 차익 트랙에 올리지 않는다(찍지 않는다)
@@ -192,7 +209,36 @@ function selectItem(f, ctx) {
   return null;
 }
 
+// ── 동일 물건 묶기 (동산·차량) ──
+// 부동산은 같은 건물 여러 호실을 랜딩·캘린더가 건물 키로 묶지만(같은 건물 외 N건), 동산·차량엔
+// 그 장치가 없었다. 실제로 랜딩 trust 트랙 8칸 중 5칸을 **완전히 같은** "창림저상슬로프장애인차
+// 2199cc"가 차지했다(감정 400·최저 400 동일). 트랙 상한이 8이라 중복 하나가 다른 물건 하나를
+// 밀어낸다.
+//
+// 키를 **제목 원문 + 감정가 + 최저가 완전 일치**로 잡는다. 제목을 정규화해 느슨하게 묶으면
+// 서로 다른 차량이 합쳐질 수 있다("불용 2019년 쏘나타순찰차 … 102두7045"처럼 차량번호로만
+// 갈리는 제목이 있다) — 랜딩은 정밀도가 중요한 자리라 **애매하면 안 묶는다**.
+// 부동산은 여기서 건드리지 않는다(건물 키 판정은 클라이언트 소관).
+function dupKeyOf(c) {
+  if (!c || (c.assetClass !== '동산' && c.assetClass !== '자동차')) return null;
+  return `${c.assetClass}|${String(c.title || '').trim()}|${c.apsl || 0}|${c.low || 0}`;
+}
+
+// 대표 1건만 남기고 나머지는 접는다. 남는 대표에 dupCount(총 몇 건인지)를 달아
+// 소비 측이 "외 N건"으로 표시할 수 있게 한다 — 재고를 숨기지 않고 접어서 보여주는 방식.
+function dedupeMovable(list) {
+  const seen = new Map(), out = [];
+  for (const c of list || []) {
+    const k = dupKeyOf(c);
+    if (!k) { out.push(c); continue; }
+    const hit = seen.get(k);
+    if (hit) { hit.dupCount = (hit.dupCount || 1) + 1; continue; }
+    seen.set(k, c); out.push(c);
+  }
+  return out;
+}
+
 module.exports = {
-  fromOnbid, selectItem, ddayOf, mvDemandCat, acqCostMan,
+  fromOnbid, selectItem, ddayOf, mvDemandCat, acqCostMan, dupKeyOf, dedupeMovable,
   RESIDENTIAL, MV_DEMAND, SOLD_MIN, FAIL_MAX,
 };

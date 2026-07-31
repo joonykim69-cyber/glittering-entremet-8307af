@@ -93,7 +93,61 @@ let n=0,bad=0; const t=(k,c,x)=>{n++;if(!c){bad++;console.log('FAIL:',k,x!=null?
   r=await mod.handler({queryStringParameters:{status:'1'}}); b=JSON.parse(r.body);
   t('status=1 조회만(fetch 0)', fetchCalls===fc2&&b.meta!=null);
 
+  // ── 전국 확장 (2026-07-31) ──
+  // 랜딩 차익 트랙이 0건이던 원인이 "시세 밴드가 서울에만 있음"이라 대상을 전국으로 넓혔다.
+  t('전국 목록은 lib/lawd 단일 출처', Array.isArray(T.ALL_LAWDS)&&T.ALL_LAWDS.length>200, T.ALL_LAWDS&&T.ALL_LAWDS.length);
+  t('전국 목록에 중복 없음', new Set(T.ALL_LAWDS).size===T.ALL_LAWDS.length);
+  t('전국 목록이 서울 25구를 포함', ['11110','11680','11740'].every(c=>T.ALL_LAWDS.includes(c)));
+  t('전국 목록이 서울 밖도 포함(안성·당진·경산)', ['41550','44270','47290'].every(c=>T.ALL_LAWDS.includes(c)));
+  t('env로 좁히면 그 목록만', T.LAWDS.length===2, T.LAWDS.join(','));
+
+  // ── 실패는 "거래 없음"과 다르다 ──
+  // 전국 확장으로 호출이 10배가 되면 일일 쿼터 소진이 현실적 위험이다. 실패한 셀을 조용히
+  // 넘기면(예전 동작) 그 지점 이후가 통째로 비는데, meta.done은 true가 되어 "완료"라고 말한다.
+  const s2=makeStore(); global.__FAKE_STORE__=s2;
+  let failMode=true;
+  global.fetch=async(url)=>{
+    const u=new URL(url); const svc=u.searchParams.get('svc');
+    if (failMode && svc==='rh_trade') throw new Error('HTTP 429'); // 쿼터 소진 흉내
+    const items=[{dealAmount:'100000',excluUseAr:'84.9',dealDay:'3',floor:'5',umdNm:'동',buildYear:'2000',aptNm:'A'}];
+    return { ok:true, json:async()=>({ svc, items, totalCount:items.length }) };
+  };
+  // 작업 순서는 월×구×(apt,offi,rh,sh) → 인덱스 2가 첫 rh(실패 지점)
+  r=await mod.handler(ev); b=JSON.parse(r.body);
+  let st=await s2.get('mkt/rtms/_state');
+  t('실패 지점 앞까지만 전진(건너뛰지 않음)', st.idx===2, st&&st.idx);
+  t('실패를 보고한다', !!b.lastError, b.lastError);
+  t('실패했으면 done 아님', b.done!==true);
+  // 같은 지점에서 계속 실패하면 MAX_STUCK 뒤에 한 칸 건너뛴다(영구 정지 방지) — 단, 조용히는 아니다
+  for (let i=0;i<T.MAX_STUCK-1;i++) { r=await mod.handler(ev); }
+  b=JSON.parse(r.body); st=await s2.get('mkt/rtms/_state');
+  t('반복 실패 시 한 칸 건너뜀', st.idx===3, st&&st.idx);
+  t('건너뛴 셀을 기록한다', b.skipped>0||(b.meta&&b.meta.skipped>0), JSON.stringify(b.skipped));
+  // 실패가 걷히면 이어서 정상 수집
+  failMode=false;
+  r=await mod.handler(ev); b=JSON.parse(r.body);
+  t('실패 해소 후 이어서 수집', b.addedThisRun>0&&!b.lastError, b.addedThisRun);
+
+  // ── 수집 범위가 바뀌면 커서를 버린다 ──
+  // 커서는 작업목록 배열의 인덱스라, 서울 25구(2,400) → 전국(24,288)으로 넓히면 같은 idx가
+  // 전혀 다른 작업을 가리킨다. 이어받으면 앞쪽 달의 새 지역이 영영 수집되지 않는다.
+  const beforeScope=(await s2.get('mkt/rtms/_state')).scope;
+  process.env.MKT_RTMS_LAWD='11680,11110,41550'; // 안성 추가 = 범위 확장
+  delete require.cache[require.resolve(F)];
+  const mod2=require(F);
+  t('범위가 바뀌면 지문도 바뀐다', mod2._test.SCOPE!==beforeScope);
+  r=await mod2.handler(ev); b=JSON.parse(r.body);
+  st=await s2.get('mkt/rtms/_state');
+  t('범위 변경 시 커서 초기화 보고', b.rescoped===true);
+  t('범위 변경 시 처음부터 재수집', st.idx>0&&st.scope===mod2._test.SCOPE&&b.meta.records>0);
+  t('범위 변경 시 meta도 새로 시작', b.meta.rescopedAt!=null);
+  // 같은 범위로 다시 돌리면 초기화하지 않는다(매 실행 리셋은 영원히 안 끝난다는 뜻)
+  const idxAfter=st.idx;
+  r=await mod2.handler(ev); b=JSON.parse(r.body);
+  st=await s2.get('mkt/rtms/_state');
+  t('같은 범위면 초기화 없이 이어감', b.rescoped!==true&&st.idx>=idxAfter, `${idxAfter}→${st.idx}`);
+
   delete global.__FAKE_STORE__; delete global.fetch;
-  console.log(`\n[collect-rtms fixture] ${n-bad}/${n} pass  (records=${meta.records}, cells=${meta.cellMonths}, worklist=24)`);
+  console.log(`\n[collect-rtms fixture] ${n-bad}/${n} pass  (records=${meta.records}, cells=${meta.cellMonths}, 전국=${T.ALL_LAWDS.length}곳)`);
   process.exit(bad?1:0);
 })().catch(e=>{console.log('THROW',e);process.exit(1);});

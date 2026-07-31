@@ -14,7 +14,7 @@
 //
 // 수동 실행: GET /.netlify/functions/predict-daily (테스트·백필용, 동작 동일)
 
-const { fromOnbid, selectItem, RESIDENTIAL } = require('./lib/curation');
+const { fromOnbid, selectItem, dedupeMovable, RESIDENTIAL } = require('./lib/curation');
 const { lawdOf } = require('./lib/lawd');
 const quota = require('./lib/quota.js');
 
@@ -369,10 +369,14 @@ exports.handler = async (event) => {
         pred: p, // {lo,mid,hi,soldProb,bidders} 만원 (없으면 null)
       });
     }
+    // 완전히 같은 동산·차량은 대표 1건으로 접는다(2026-07-31). 트랙 상한이 8이라 중복 하나가
+    // 다른 물건 하나를 밀어낸다 — 실제로 같은 장애인차 5건이 trust 8칸 중 5칸을 먹고 있었다.
+    const curatedDeduped = dedupeMovable(curated);
+
     // 트랙별로 나눠 각자의 잣대로 정렬한다(한 점수로 줄 세우지 않는다).
     //   margin  차익률 높은 순 · demand 낙찰률 높은 순 · closing 마감 임박 순 · trust 마감 임박 순
     const byTrack = { margin: [], demand: [], closing: [], trust: [] };
-    for (const c of curated) (byTrack[c.track] || byTrack.demand).push(c);
+    for (const c of curatedDeduped) (byTrack[c.track] || byTrack.demand).push(c);
     const byEnd = (a, b) => String(a.bidEnd || '').localeCompare(String(b.bidEnd || ''));
     byTrack.margin.sort((a, b) => b.score - a.score);
     byTrack.demand.sort((a, b) => b.score - a.score || byEnd(a, b));
@@ -388,7 +392,7 @@ exports.handler = async (event) => {
     const curatedTop = [...tracks.margin, ...tracks.demand, ...tracks.closing, ...tracks.trust].slice(0, CURATED_MAX);
     await store.setJSON('curated/latest', {
       at: new Date().toISOString(), window: { start, end }, v: 2,
-      scanned: targets.length, scored: curated.length, count: curatedTop.length,
+      scanned: targets.length, scored: curated.length, deduped: curatedDeduped.length, count: curatedTop.length,
       bands: Object.keys(bandMap).length,
       tracks,
       items: curatedTop, // 하위호환 — 구형 클라이언트가 읽던 평면 목록
