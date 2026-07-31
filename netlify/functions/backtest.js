@@ -1,12 +1,20 @@
 // netlify/functions/backtest.js
 // 과거 학습 4단계 — "walk-forward 백테스트 하니스" (3단계 성장 곡선 + 모델 비교).
 //
-// 목적: 마스킹 수집한 1~6월 개찰 이력으로, 엔진이 "학습할수록 좋아지는지"를
-//   훔쳐보기 0의 정직한 시험으로 측정한다. 확장 창(expanding window):
-//     1단계: 1월 학습 → 2·3월 예측·채점
-//     2단계: 1~3월 학습 → 4·5월 예측·채점
-//     3단계: 1~5월 학습 → 6월 예측·채점
-//   각 단계는 미래 블록을 예측하므로 자기/미래 낙찰가 누수 0.
+// 목적: 마스킹 수집한 개찰 이력으로, 엔진이 "학습할수록 좋아지는지"를
+//   훔쳐보기 0의 정직한 시험으로 측정한다. 확장 창(expanding window)으로
+//   학습 구간을 늘려 가며 그 **직후** 달을 예측·채점한다(자기/미래 낙찰가 누수 0).
+//
+// 단계는 수집 범위를 따라간다(2026-07-31): 예전엔 STAGES가 2026년 1~6월로 하드코딩돼
+//   있어, collect-backfill이 2025년까지 범위를 넓혀도 이 하니스는 6개월만 돌았다. 이제
+//   `hist/feat/*` 창 키에서 온전한 달을 읽어 lib/histrange가 단계를 만든다 — 절단점이
+//   N의 1/6·1/2·5/6이라 **N=6이면 기존과 정확히 같은 1월/1~3월/1~5월 학습**이고,
+//   범위가 18개월로 늘면 3·9·15개월 학습으로 자동으로 함께 늘어난다.
+//
+// 한 실행 = 한 달: 학습 구간이 길어지면 한 번에 수십 MB의 창 블롭을 읽게 되어 30초
+//   한도를 넘는다. 그래서 학습은 **달 단위로 누적**한다(`bt/_acc`) — 단계들의 학습 구간이
+//   서로 포함 관계(m1..c1 ⊂ m1..c2 ⊂ m1..c3)라, 누적기를 이어 쓰면 각 실행은 새로 늘어난
+//   한 달만 읽으면 된다. 범위가 아무리 길어져도 실행당 작업량은 일정하다.
 //
 // 모델 비교 — 레지스트리 구조(2026-07-26, AIOS 모듈 원칙): 아래 MODELS 배열에 후보를
 //   등록하면 같은 물건을 모든 모델로 나란히 채점한다. 새 모델 추가 = 등록 한 줄 + BT_VERSION 범프.
@@ -28,24 +36,23 @@
 //
 // 라이브 불변: 결과는 bt/* 네임스페이스에만 쓴다(pred/predb/agg/scoreboard 무관).
 //
-// 실행: 일반 함수(30초). 단계당 2페이즈(train 셀 빌드 → score)로 나눠 재개(bt/_state).
-//   BT_VERSION이 바뀌면 자동 초기화·재실행. backfill 완료 전 no-op, 3단계 완료 후 no-op.
-//   ?status=1 진행 조회 / ?reset=1&confirm=1 초기화.
+// 실행: 일반 함수(30초). 학습은 달 단위 누적(한 실행 = 한 달), 그 뒤 score 1회로 재개(bt/_state).
+//   BT_VERSION이나 **수집 범위**가 바뀌면 자동 초기화·재실행. backfill 완료 전 no-op, 완료 후 no-op.
+//   ?status=1 진행 조회(파생된 범위·단계 계획 포함) / ?reset=1&confirm=1 초기화.
 
 const GB = require('./lib/gbtree'); // 차세대 v0.8 — 순수 JS 분위수 그래디언트 부스팅
+const HR = require('./lib/histrange'); // 수집 범위 → 온전한 달 → 단계 계획
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' };
 const MIN_N = 20;              // 챌린저 셀 자격 최소 표본 (라이브와 동일)
-const BT_VERSION = 'v5-nobasis'; // 모델/방식 변경 시 올려 자동 재실행 (v5: 최저가 0 → noBasis 스킵)
+const BT_VERSION = 'v6-autorange'; // 모델/방식 변경 시 올려 자동 재실행 (v6: 수집 범위 자동 추종 + 달 단위 누적 학습)
 // v0.8 성능 가드 — 100k행 census를 30초 함수 안에서 학습하려면 서브샘플·트리수 제한 필요.
 const V08_NMAX = 12000;                                     // 학습 표본 상한(초과 시 균등 서브샘플)
 const V08_OPTS = { nTrees: 40, maxDepth: 3, minLeaf: 30, lr: 0.15 };
-
-const STAGES = [
-  { key: 's1', vlabel: '1개월 학습 (1월)', testLabel: '2·3월', train: ['20260101', '20260131'], test: ['20260201', '20260331'] },
-  { key: 's2', vlabel: '3개월 학습 (1~3월)', testLabel: '4·5월', train: ['20260101', '20260331'], test: ['20260401', '20260531'] },
-  { key: 's3', vlabel: '5개월 학습 (1~5월)', testLabel: '6월', train: ['20260101', '20260531'], test: ['20260601', '20260630'] },
-];
+// 셀당 보존 표본 상한 — 누적기가 수십 MB로 불어나면 매 실행의 읽기·쓰기가 시간 한도를 먹는다.
+// n(관측 수)은 전수를 유지하므로 MIN_N 자격 판정은 표본이 아니라 진짜 관측 수로 한다.
+const ACC_CELL_CAP = 1500;
+const TEST_MONTHS = 2;         // 단계당 시험 블록 상한(개월) — N=6이면 기존 계획과 동일
 
 async function openLedger(event) {
   if (global.__FAKE_STORE__) return global.__FAKE_STORE__; // fixture 검증용(런타임 미사용)
@@ -132,23 +139,34 @@ async function loadRange(store, featKeys, start, end) {
   return recs;
 }
 
-// train 레코드 → 셀. lr(최저가 대비 낙찰가율)과 wr(감정가 대비 낙찰가율) 분위수 둘 다. 낙찰(0010)만.
-// L4(저가율 조건) 셀도 같은 패스에서 함께 집계 — v0.5는 L3~L0만, v0.7은 L4부터 조회.
-function buildCells(records) {
-  const acc = {};
+// ── 달 단위 누적 학습기 ──
+// 한 달치 레코드를 누적기에 접어 넣는다(낙찰 0010만). 단계들의 학습 구간이 포함 관계라
+// 누적기를 이어 쓰면 각 실행은 새로 늘어난 한 달만 읽으면 된다 — 범위가 길어져도 실행당
+// 작업량이 일정하다. L4(저가율 조건) 셀도 같은 패스에서 모은다(v0.7 비교 기록 유지).
+// wr(감정가 대비 낙찰가율)은 **어떤 모델도 읽지 않아** 모으지 않는다(누적기 절반 절약).
+function foldMonth(acc, records) {
   for (const r of records) {
     if (r.st !== '0010' || !(r.win > 0)) continue;
-    for (const k of keysForV07(r.type, r.usage, roundBucket(r.round), tierOf(r.low), discBand(r.low, r.apsl))) {
-      const c = acc[k] || (acc[k] = { lr: [], wr: [] });
-      if (r.lr > 0) c.lr.push(r.lr);
-      if (r.wr > 0) c.wr.push(r.wr);
+    if (r.lr > 0) {
+      for (const k of keysForV07(r.type, r.usage, roundBucket(r.round), tierOf(r.low), discBand(r.low, r.apsl))) {
+        HR.reservoirPush(acc.cells[k] || (acc.cells[k] = { n: 0, s: [] }), r.lr, ACC_CELL_CAP);
+      }
+      // v0.8 GBDT용 원본 행 저수지 — 어차피 V08_NMAX로 서브샘플되므로 그만큼만 들고 다닌다.
+      if (r.low > 0) HR.reservoirPush(acc.v08, { type: r.type, usage: r.usage, round: r.round, low: r.low, apsl: r.apsl, lr: r.lr, st: '0010' }, V08_NMAX);
     }
   }
+  acc.records += records.length;
+  return acc;
+}
+function newAccumulator(range) { return { version: BT_VERSION, range, through: null, records: 0, cells: {}, v08: { n: 0, s: [] } }; }
+// 누적기 → 셀(분위수). n은 전수 관측 수, 분위수는 보존 표본에서 — 상한을 넘긴 큰 셀에서도
+// p10/p50/p90은 사실상 같은 값이 나온다(표본 1,500이면 분위수는 이미 수렴).
+function cellsFromAcc(acc) {
   const cells = {};
-  for (const [k, c] of Object.entries(acc)) {
-    if (c.lr.length < 3) continue;
-    c.lr.sort((a, b) => a - b); c.wr.sort((a, b) => a - b);
-    cells[k] = { n: c.lr.length, lr: quantiles(c.lr), wr: c.wr.length >= 3 ? quantiles(c.wr) : null };
+  for (const [k, a] of Object.entries(acc.cells || {})) {
+    if (!a.s || a.s.length < 3) continue;
+    const s = a.s.slice().sort((x, y) => x - y);
+    cells[k] = { n: a.n, lr: quantiles(s) };
   }
   return cells;
 }
@@ -261,40 +279,69 @@ exports.handler = async (event) => {
   const store = await openLedger(event);
 
   try {
+    // 수집 범위는 **디스크에 실제로 있는 창**에서 읽는다(메타는 낡을 수 있다).
+    const listing = await store.list({ prefix: 'hist/feat/' });
+    const featKeys = (listing && listing.blobs ? listing.blobs : []).map(b => b.key).filter(k => /^hist\/feat\/\d{8}_\d{8}\/\d+$/.test(k));
+    const { months, dataStart, dataEnd } = HR.monthsFromKeys(featKeys);
+    const STAGES = HR.planStages(months, { testMonths: TEST_MONTHS });
+    const rangeKey = months.length ? `${months[0]}~${months[months.length - 1]}` : '';
+    const plan = { range: rangeKey, months: months.length, dataStart, dataEnd, stages: STAGES.map(s => ({ key: s.key, train: s.vlabel, test: s.testLabel })) };
+
     if (qs.status === '1') {
       const [state, summary] = await Promise.all([store.get('bt/_state', { type: 'json' }), store.get('bt/summary', { type: 'json' })]);
-      return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true, version: BT_VERSION, state: state || null, summary: summary || null }) };
+      return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true, version: BT_VERSION, plan, state: state || null, summary: summary || null }) };
     }
     if (qs.reset === '1' && qs.confirm === '1') {
-      await store.setJSON('bt/_state', { stageIdx: 0, phase: 'train', version: BT_VERSION });
-      return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true, note: '백테스트 상태 초기화됨.' }) };
+      await Promise.all([
+        store.setJSON('bt/_state', { stageIdx: 0, phase: 'train', version: BT_VERSION, range: rangeKey }),
+        store.setJSON('bt/_acc', newAccumulator(rangeKey)),
+      ]);
+      return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true, plan, note: '백테스트 상태 초기화됨.' }) };
     }
 
     const bf = await store.get('hist/_bfmeta', { type: 'json' });
     if (!bf || !bf.done) {
-      return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true, waiting: true, note: '백필(1~6월 수집) 완료 후 백테스트가 시작됩니다.', backfill: bf || null }) };
+      return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true, waiting: true, note: '백필(과거 마스킹 수집) 완료 후 백테스트가 시작됩니다.', backfill: bf || null }) };
+    }
+    if (!STAGES.length) {
+      return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true, waiting: true, plan, note: '온전한 달이 2개 미만이라 walk-forward 단계를 만들 수 없습니다.' }) };
     }
 
     let state = await store.get('bt/_state', { type: 'json' });
-    if (state && state.version !== BT_VERSION) state = null; // 모델 버전 바뀌면 처음부터 재실행
-    if (!state) { state = { stageIdx: 0, phase: 'train', version: BT_VERSION }; await store.setJSON('bt/_state', state); }
+    // 모델 버전이 바뀌었거나 **수집 범위가 넓어졌으면** 처음부터 다시 — 옛 상태를 이어받으면
+    // 단계 인덱스가 새 계획과 어긋나 엉뚱한 달을 채점하게 된다.
+    if (state && (state.version !== BT_VERSION || state.range !== rangeKey)) state = null;
+    if (!state) { state = { stageIdx: 0, phase: 'train', version: BT_VERSION, range: rangeKey }; await store.setJSON('bt/_state', state); }
     if (state.stageIdx >= STAGES.length) {
-      return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true, done: true, version: BT_VERSION, note: '3단계 백테스트 완료.' }) };
+      return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true, done: true, version: BT_VERSION, plan, note: `${STAGES.length}단계 백테스트 완료.` }) };
     }
 
-    const listing = await store.list({ prefix: 'hist/feat/' });
-    const featKeys = (listing && listing.blobs ? listing.blobs : []).map(b => b.key).filter(k => /^hist\/feat\/\d{8}_\d{8}\/\d+$/.test(k));
     const stage = STAGES[state.stageIdx];
 
     if (state.phase === 'train') {
-      const trainRecs = await loadRange(store, featKeys, stage.train[0], stage.train[1]);
-      const cells = buildCells(trainRecs);          // v05/v07용 셀
-      const gb08 = trainV08(trainRecs);             // v0.8 GBDT 학습(표본 부족·서브샘플 내장, 없으면 null)
-      // art = {cells, gb08} — 두 단계(train/score) 사이 재개를 위해 blob에 저장.
-      await store.setJSON(`bt/_traincells_${stage.key}`, { cells, gb08, trainN: trainRecs.length, cellCount: Object.keys(cells).length, gb08N: gb08 ? gb08.n : 0 });
-      await store.setJSON('bt/_state', { stageIdx: state.stageIdx, phase: 'score', version: BT_VERSION });
-      await store.setJSON('_run/backtest', { at: new Date().toISOString(), ok: true, stage: stage.key, phase: 'trained', trainN: trainRecs.length, cells: Object.keys(cells).length, gb08N: gb08 ? gb08.n : 0 });
-      return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true, stage: stage.key, phase: 'trained', trainRecords: trainRecs.length, cellCount: Object.keys(cells).length, gb08N: gb08 ? gb08.n : 0, note: '다음 실행에서 테스트 블록을 채점합니다.' }) };
+      // 누적기는 단계를 가로질러 이어진다(학습 구간이 포함 관계이므로). 범위·버전이 바뀌면 새로 시작.
+      let acc = await store.get('bt/_acc', { type: 'json' });
+      if (!acc || acc.version !== BT_VERSION || acc.range !== rangeKey) acc = newAccumulator(rangeKey);
+      const lastTrain = stage.trainMonths[stage.trainMonths.length - 1];
+      const nextYm = acc.through ? HR.nextMonth(acc.through) : stage.trainMonths[0];
+
+      if (nextYm <= lastTrain) {
+        // 한 실행 = 한 달. 아직 학습할 달이 남았으면 그 달만 읽어 접어 넣고 끝낸다.
+        const recs = await loadRange(store, featKeys, HR.firstDayOf(nextYm), HR.lastDayOf(nextYm));
+        foldMonth(acc, recs);
+        acc.through = nextYm;
+        await store.setJSON('bt/_acc', acc);
+        await store.setJSON('_run/backtest', { at: new Date().toISOString(), ok: true, stage: stage.key, phase: 'training', ym: nextYm, through: acc.through, accRecords: acc.records });
+        return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true, stage: stage.key, phase: 'training', ym: nextYm, monthRecords: recs.length, accRecords: acc.records, until: lastTrain, note: `학습 누적 중 — ${lastTrain}까지 달마다 한 번씩 이어서 읽습니다.` }) };
+      }
+
+      // 학습 구간이 다 찼다 → 셀·GBDT를 만들어 이번 단계의 학습 산출물로 봉인
+      const cells = cellsFromAcc(acc);               // v05/v07용 셀
+      const gb08 = trainV08(acc.v08.s || []);        // v0.8 GBDT 학습(표본 부족 시 null)
+      await store.setJSON(`bt/_traincells_${stage.key}`, { cells, gb08, trainN: acc.records, cellCount: Object.keys(cells).length, gb08N: gb08 ? gb08.n : 0 });
+      await store.setJSON('bt/_state', { stageIdx: state.stageIdx, phase: 'score', version: BT_VERSION, range: rangeKey });
+      await store.setJSON('_run/backtest', { at: new Date().toISOString(), ok: true, stage: stage.key, phase: 'trained', trainN: acc.records, cells: Object.keys(cells).length, gb08N: gb08 ? gb08.n : 0 });
+      return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true, stage: stage.key, phase: 'trained', trainRecords: acc.records, cellCount: Object.keys(cells).length, gb08N: gb08 ? gb08.n : 0, note: '다음 실행에서 테스트 블록을 채점합니다.' }) };
     }
 
     // score — 레지스트리의 모든 모델 병행 채점 (예측 입력엔 개찰 전 값만). art={cells,gb08}.
@@ -329,17 +376,21 @@ exports.handler = async (event) => {
     await store.setJSON(`bt/${stage.key}`, result);
 
     const summary = (await store.get('bt/summary', { type: 'json' })) || {};
-    summary.stages = (summary.version === BT_VERSION && Array.isArray(summary.stages)) ? summary.stages.filter(s => s.key !== stage.key) : [];
+    // 버전이나 수집 범위가 달라진 옛 요약은 버린다 — 다른 범위로 낸 단계와 섞이면
+    // 표에 나란히 놓인 세 줄이 서로 다른 시험이 되어 "학습할수록"이라는 비교가 깨진다.
+    summary.stages = (summary.version === BT_VERSION && summary.range === rangeKey && Array.isArray(summary.stages)) ? summary.stages.filter(s => s.key !== stage.key) : [];
     summary.stages.push(result);
     summary.stages.sort((a, b) => a.key.localeCompare(b.key));
     summary.version = BT_VERSION;
     summary.method = 'walk-forward (확장 창) · 낙찰가 마스킹 · bt/* 격리';
     summary.models = Object.fromEntries(MODELS.map(m => [m.key, m.label]));
+    summary.range = rangeKey;          // 어느 수집 범위로 돌린 결과인지 — 범위가 늘면 이 값이 바뀐다
+    summary.dataMonths = months.length;
     const nextIdx = state.stageIdx + 1;
     summary.done = nextIdx >= STAGES.length;
     summary.updatedAt = new Date().toISOString();
     await store.setJSON('bt/summary', summary);
-    await store.setJSON('bt/_state', { stageIdx: nextIdx, phase: 'train', version: BT_VERSION });
+    await store.setJSON('bt/_state', { stageIdx: nextIdx, phase: 'train', version: BT_VERSION, range: rangeKey });
     const hb = { at: new Date().toISOString(), ok: true, stage: stage.key, phase: 'scored', done: summary.done };
     for (const m of MODELS) hb[m.key] = perModel[m.key].hitRate;
     await store.setJSON('_run/backtest', hb);

@@ -171,6 +171,11 @@ exports.handler = async (event) => {
     const done = cursorEnd < BF_START;
     meta.done = done;
     meta.cursorEnd = cursorEnd;
+    // range/newest는 meta가 처음 만들어질 때 한 번만 쓰여, 목표 구간을 넓혀도(2026→2025)
+    // 옛 값이 그대로 남아 있었다 — scoreboard가 2025를 수집하는 중에도 "20260101~20260630"을
+    // 보여주고 있었다. 매 실행 현재 목표로 덮어써 진행 상황이 거짓말하지 않게 한다.
+    meta.range = `${BF_START}~${BF_END}`;
+    meta.newest = BF_END;
     meta.updatedAt = new Date().toISOString();
     await store.setJSON('hist/_bfmeta', meta);
     await store.setJSON('_run/collect-backfill', { at: new Date().toISOString(), ok: true, done, records: meta.records, windowsThisRun: didWindows.length, quotaStopped: budgetStopped });

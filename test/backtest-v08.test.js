@@ -67,9 +67,16 @@ let n=0,bad=0; const t=(k,c,x)=>{n++;if(!c){bad++;console.log('FAIL:',k,x!=null?
   t('GR11: predictV08 win 무시', base&&withWin&&base.lo===withWin.lo&&base.hi===withWin.hi);
   t('예측 밴드 단조·양수', base.lo>0&&base.lo<=base.mid&&base.mid<=base.hi);
 
-  // 통합: 하니스 train→score 2페이즈 실행 → bt/s1에 v08 포함
-  let r=await bt.handler({queryStringParameters:{}}); let b=JSON.parse(r.body); // s1 train
-  t('s1 train 단계', b.phase==='trained' && b.gb08N>0, JSON.stringify({phase:b.phase,gb08N:b.gb08N}));
+  // 수집 범위 자동 추종: 창 키(1·2·3월)에서 단계가 파생된다 — STAGES 하드코딩 없음
+  let r=await bt.handler({queryStringParameters:{status:'1'}}); let b=JSON.parse(r.body);
+  t('범위 자동 파생(3개월)', b.plan && b.plan.months===3 && b.plan.range==='202601~202603', JSON.stringify(b.plan));
+  t('달이 3개면 단계는 2개(없는 시험 블록을 만들지 않음)', b.plan.stages.length===2, JSON.stringify(b.plan.stages));
+
+  // 통합: 학습은 달 단위 누적(한 실행 = 한 달) → trained → score
+  let guard=0, trainedB=null;
+  do { r=await bt.handler({queryStringParameters:{}}); b=JSON.parse(r.body); if(b.phase==='trained') trainedB=b; } while(b.phase==='training' && ++guard<10);
+  t('s1 train 단계', trainedB && trainedB.phase==='trained' && trainedB.gb08N>0, JSON.stringify({phase:b.phase,gb08N:b.gb08N}));
+  t('학습이 달 단위로 누적됨(누적 레코드 = 1월 900건)', trainedB && trainedB.trainRecords===900, trainedB&&trainedB.trainRecords);
   r=await bt.handler({queryStringParameters:{}}); b=JSON.parse(r.body); // s1 score
   t('s1 score 단계', b.phase==='scored');
   const s1=await store.get('bt/s1');
@@ -83,7 +90,7 @@ let n=0,bad=0; const t=(k,c,x)=>{n++;if(!c){bad++;console.log('FAIL:',k,x!=null?
 
   // 정적: BT_VERSION 범프 + require gbtree + GR11 feat(win 없음)
   const src=require('fs').readFileSync(BT,'utf8');
-  t('BT_VERSION 범프(v5-nobasis — 최저가 0 noBasis 반영)', src.includes("BT_VERSION = 'v5-nobasis'"));
+  t('BT_VERSION 범프(v6-autorange — 수집 범위 자동 추종 반영)', src.includes("BT_VERSION = 'v6-autorange'"));
   t('lib/gbtree require', src.includes("require('./lib/gbtree')"));
   t('score feat win 없음(GR11)', /const feat = \{ type: item\.type, usage: item\.usage, round: item\.round, low: item\.low, apsl: item\.apsl \};/.test(src));
   t('성능 가드(서브샘플·트리수)', src.includes('V08_NMAX = 12000')&&src.includes('nTrees: 40'));
