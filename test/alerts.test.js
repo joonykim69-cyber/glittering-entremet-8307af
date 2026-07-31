@@ -141,6 +141,51 @@ eq('마감일 불명은 제외', alerts.stageFor('', NOW), null);
     delete process.env.RESEND_API_KEY;
   }
 
+  // ── 관측 가능성 (2026-07-31) ──
+  // alert-daily는 예약 함수라 HTTP로 찔러볼 수 없다(403). 그래서 "키가 들어갔는지"도
+  // "실제로 보내졌는지"도 볼 방법이 없었다 — 발송 기능이 통째로 블랙박스였다.
+  // 자가진단(integrations-status)과 성적표(scoreboard)가 그 둘을 각각 드러내야 한다.
+  {
+    const isPath = fnPath('integrations-status.js');
+    const load = async () => {
+      delete require.cache[require.resolve(isPath)];
+      const r = await require(isPath).handler({ httpMethod: 'GET' });
+      const d = JSON.parse(r.body);
+      return d.integrations.find(i => i.key === 'resend');
+    };
+
+    delete process.env.RESEND_API_KEY; delete process.env.ALERT_FROM;
+    let re = await load();
+    t('자가진단이 resend를 추적한다', !!re);
+    eq('키 없으면 미설정으로 보고', re.configured, false);
+    t('키 없을 때 "보낸 척 안 함"을 설명', /보낸 척하지 않고|pending/.test(re.note), re.note);
+
+    // 키만 있는 상태 — 발송은 되지만 계정 소유자에게만 배달된다.
+    // **보내고 있다고 착각하기 가장 쉬운 상태**라 configured=true이면서도 구분이 드러나야 한다.
+    process.env.RESEND_API_KEY = 'rs_test';
+    re = await load();
+    eq('키만 있으면 발송은 활성', re.configured, true);
+    eq('배달 범위 = 계정 소유자만', re.deliversTo, 'account_owner_only');
+    eq('발신 도메인 미인증', re.senderVerified, false);
+    t('그 위험을 말로 설명한다', /계정 소유자에게만/.test(re.note), re.note);
+
+    process.env.ALERT_FROM = '신호등옥션 <alert@example.com>';
+    re = await load();
+    eq('ALERT_FROM 설정 시 전원 발송', re.deliversTo, 'all');
+    eq('발신 도메인 인증됨', re.senderVerified, true);
+    delete process.env.RESEND_API_KEY; delete process.env.ALERT_FROM;
+
+    // scoreboard가 알림 하트비트를 노출하는가 — 없으면 발송 실패를 영영 모른다.
+    const store = global.__FAKE_STORE__;
+    await store.setJSON('_run/alert-daily', { at: '2026-07-31T23:00:00.000Z', ok: true, sent: 2, failed: 0, pending: 0, subs: 1 });
+    const sbPath = fnPath('scoreboard.js');
+    delete require.cache[require.resolve(sbPath)];
+    const sb = JSON.parse((await require(sbPath).handler({ httpMethod: 'GET', queryStringParameters: {} })).body);
+    t('scoreboard.runs.alert 노출', sb.runs && sb.runs.alert != null);
+    eq('발송 건수가 보인다', sb.runs.alert.sent, 2);
+    eq('구독자 수가 보인다', sb.runs.alert.subs, 1);
+  }
+
   delete global.__FAKE_STORE__;
-  done('alerts (마감 알림)');
+  done('alerts (마감 알림 · 관측 가능성)');
 })().catch(e => { console.log('THROW', e); process.exit(1); });
