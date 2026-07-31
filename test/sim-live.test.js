@@ -51,13 +51,23 @@ let n=0,bad=0; const t=(k,c)=>{n++;if(!c){bad++;console.log('FAIL:',k);}};
   let r=await mod.handler({queryStringParameters:{}}); let b=JSON.parse(r.body);
   t('백필 미완 → waiting', b.ok&&b.waiting);
 
-  // 전체 재생: 월당 1회 호출, 5개월 → done
+  // 전체 재생: 한 실행 = 한 달(학습 누적 1회 + 채점 5회), 5개월 재생 → done
   seed(store); global.__FAKE_STORE__=store;
-  let calls=0, lastYm=null;
-  for(let i=0;i<7;i++){ r=await mod.handler({queryStringParameters:{}}); b=JSON.parse(r.body);
-    if(b.done){ break; } if(b.ym){ calls++; lastYm=b.ym; } }
-  t('월당 1회씩 5개월 처리', calls===5);
+  let scored=0, trained=0, lastYm=null;
+  for(let i=0;i<12;i++){ r=await mod.handler({queryStringParameters:{}}); b=JSON.parse(r.body);
+    if(b.done){ break; }
+    if(b.phase==='training'){ trained++; continue; }
+    if(b.month){ scored++; lastYm=b.ym; } }
+  t('월당 1회씩 5개월 채점', scored===5, 'scored='+scored);
+  t('학습 누적 부트스트랩 1회(202601)', trained===1, 'trained='+trained);
   t('마지막 월 202606', lastYm==='202606');
+  // 수집 범위 자동 추종: env 없이도 창 키에서 재생 구간이 나온다
+  r=await mod.handler({queryStringParameters:{status:'1'}}); const st0=JSON.parse(r.body);
+  t('범위 자동 파생(202601 학습 출발 · 202602~202606 재생)',
+    st0.plan && st0.plan.trainFrom==='202601' && st0.plan.range==='202602~202606', JSON.stringify(st0.plan));
+  // GR11: 누적기는 항상 "현재 달보다 이전"까지만 — 마지막 채점 뒤에도 through는 마지막 재생 월
+  const acc0=await store.get('bt/sim/_acc');
+  t('누적기 through = 마지막 재생 월(GR11 경계)', acc0 && acc0.through==='202606', acc0&&acc0.through);
   r=await mod.handler({queryStringParameters:{}}); b=JSON.parse(r.body);
   t('완료 후 done:true', b.done===true);
 

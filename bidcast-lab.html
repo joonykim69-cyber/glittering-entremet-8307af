@@ -753,6 +753,10 @@ document.addEventListener('keydown', (e) => {
       const modelOf = (s, k) => s.models ? s.models[k] : s[k];
       const mkLabel = k => 'v' + String(k).replace(/^v/, '').replace(/^0*(\d)(\d)$/, '$1.$2');
       const hasCmp = bt.stages.some(s => modelKeys(s));
+      // 단계는 수집 범위를 따라 자동으로 늘어난다 — 어느 범위로 낸 결과인지 함께 밝힌다
+      // (범위가 다르면 학습량이 달라 다른 시험이 된다).
+      const ymD = v => /^\d{6}$/.test(v) ? `${v.slice(0, 4)}.${v.slice(4)}` : v;
+      const rangeNote = bt.range ? ` 학습 데이터 범위 <b>${e0(bt.range.split('~').map(ymD).join(' ~ '))}</b>${bt.dataMonths ? `(${bt.dataMonths}개월)` : ''} — 수집이 넓어지면 단계도 함께 늘어납니다.` : '';
       const metrics = m => td((m.n || 0).toLocaleString() + '건', false) +
         td(m.coverage != null ? m.coverage + '%' : '—', false) +
         td(m.hitRate != null ? `<b style="color:var(--green-deep)">${m.hitRate}%</b>` : '—', true) +
@@ -774,7 +778,7 @@ document.addEventListener('keydown', (e) => {
         const mv = bt.models || {};
         const legend = Object.keys(mv).map(k => `<b>${mkLabel(k)}</b> ${e0(mv[k])}`).join(' · ');
         document.getElementById('btNote').innerHTML =
-          `${bt.done ? '✅ 3단계 완료' : '⏳ 진행 중'} — walk-forward(확장 창) · 낙찰가 마스킹 · 라이브 공식 성적표와 분리된 과거 검증.<br/>${legend || ''} — 같은 물건을 모든 후보 모델로 나란히 채점(적중률↑·오차↓, 폭은 함께 감시).`;
+          `${bt.done ? `✅ ${bt.stages.length}단계 완료` : '⏳ 진행 중'} — walk-forward(확장 창) · 낙찰가 마스킹 · 라이브 공식 성적표와 분리된 과거 검증.${rangeNote}<br/>${legend || ''} — 같은 물건을 모든 후보 모델로 나란히 채점(적중률↑·오차↓, 폭은 함께 감시).`;
       } else {
         rows = bt.stages.map((s, i) =>
           `<tr style="border-bottom:1px solid var(--line);">` +
@@ -783,7 +787,7 @@ document.addEventListener('keydown', (e) => {
         document.getElementById('btTable').innerHTML =
           `<tr style="border-bottom:2px solid var(--line);">` + th('단계 · 학습량') + th('예측 대상') + th('표본') + th('커버리지') + th('구간 적중률') + th('중앙값 오차') + th('평균 구간폭') + `</tr>` + rows;
         document.getElementById('btNote').innerHTML =
-          `${bt.done ? '✅ 3단계 완료' : '⏳ 진행 중'} — walk-forward(확장 창) · 낙찰가 마스킹 · 라이브 공식 성적표와 분리된 과거 검증. <b>커버리지</b> = 근거 있는 셀로 예측할 수 있었던 비율 · <b>구간 적중률</b> = 실제 낙찰가가 예측 구간 안에 든 비율.`;
+          `${bt.done ? `✅ ${bt.stages.length}단계 완료` : '⏳ 진행 중'} — walk-forward(확장 창) · 낙찰가 마스킹 · 라이브 공식 성적표와 분리된 과거 검증.${rangeNote} <b>커버리지</b> = 근거 있는 셀로 예측할 수 있었던 비율 · <b>구간 적중률</b> = 실제 낙찰가가 예측 구간 안에 든 비율.`;
       }
       document.getElementById('btSec').style.display = '';
     }
