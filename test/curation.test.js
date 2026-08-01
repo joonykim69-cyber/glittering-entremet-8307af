@@ -15,7 +15,7 @@
 'use strict';
 
 const { t, eq, done, repoPath } = require('./_harness');
-const { fromOnbid, selectItem, ddayOf, mvDemandCat, acqCostMan, SOLD_MIN, FAIL_MAX } =
+const { fromOnbid, selectItem, ddayOf, mvDemandCat, acqCostMan, dupKeyOf, dedupeMovable, SOLD_MIN, FAIL_MAX } =
   require(repoPath('netlify/functions/lib/curation'));
 const { lawdOf, LAWD } = require(repoPath('netlify/functions/lib/lawd'));
 
@@ -128,4 +128,56 @@ eq('lawd: 미등록은 빈 문자열', lawdOf('알수없는곳 어딘가'), '');
   }
 }
 
-done('curation v2 (수요 분류 · 낙찰률 배제 · 보수 차익 · 신탁 분리)');
+// ── ⑥ 신탁 판정 교정 (2026-07-31 실데이터) ──
+// 프로덕션 랜딩의 trust 트랙 8건이 전부 차량·동산이었고 전부 저가율 100%였다.
+// 원인: 판정이 `low >= apsl`이라 **1회차라 아직 안 깎인 물건**을 전부 신탁으로 분류했다.
+// (차량·동산은 1회차 최저가 = 감정가가 정상이고, 부동산 신건도 마찬가지다.)
+const carCtx = { pred: { lo: 200, mid: 230, hi: 260, soldProb: 65 }, nowKst };
+const carNew = { ...base, assetClass: '자동차', type: '차량', usage: '차량',
+  title: '기아 중형차 스포티지R 1995cc', apsl: 243, low: 243, area: 0 };
+eq('⑥ 차량 신건(최저=감정)은 신탁이 아니다', selectItem(carNew, carCtx).track, 'demand');
+t('⑥ 그 차량은 낙찰률로 평가된다', /낙찰률/.test(selectItem(carNew, carCtx).reasons[0].tag));
+
+const mvNew = { ...base, assetClass: '동산', type: '기타동산', usage: '귀금속',
+  title: '정선경찰서 습득물(귀금속)', apsl: 275, low: 275, area: 0 };
+eq('⑥ 동산 신건(최저=감정)도 신탁이 아니다', selectItem(mvNew, carCtx).track, 'demand');
+
+// 저가율이 100%를 넘는 이상 데이터라도 차량·동산은 신탁으로 부르지 않는다(신탁은 부동산 개념).
+t('⑥ 차량은 최저>감정이어도 trust 아님',
+  selectItem({ ...carNew, apsl: 200, low: 260 }, carCtx).track !== 'trust');
+
+// 부동산: 신건(등호)은 신탁이 아니고, 최저가가 감정가를 **넘을 때만** 신탁이다.
+t('⑥ 부동산 신건(최저=감정)은 신탁 아님',
+  selectItem({ ...base, apsl: 62000, low: 62000 }, ctxOK).track !== 'trust');
+eq('⑥ 부동산 최저>감정 → 신탁 유지',
+  selectItem({ ...base, apsl: 50000, low: 53000 }, ctxOK).track, 'trust');
+
+// ── ⑦ 동일 동산·차량 묶기 ──
+// 같은 장애인차 5건이 trust 8칸 중 5칸을 먹고 있었다 — 중복 하나가 다른 물건 하나를 밀어낸다.
+const van = (id) => ({ id, cdtn: '1', assetClass: '자동차', title: '창림저상슬로프장애인차 2199cc', apsl: 400, low: 400 });
+const ded = dedupeMovable([van('V1'), van('V2'), van('V3'),
+  { id: 'C1', cdtn: '1', assetClass: '자동차', title: '르노 준중형차 SM3 1598cc', apsl: 83, low: 83 }]);
+eq('⑦ 완전히 같은 차량은 1건으로', ded.length, 2);
+eq('⑦ 대표에 총 건수(dupCount) 표기', ded[0].dupCount, 3);
+eq('⑦ 다른 차량은 그대로 남는다', ded[1].id, 'C1');
+
+// 느슨하게 묶지 않는다 — 제목·감정가·최저가가 하나라도 다르면 다른 물건이다.
+eq('⑦ 최저가가 다르면 안 묶는다',
+  dedupeMovable([van('V1'), { ...van('V2'), low: 380 }]).length, 2);
+eq('⑦ 제목이 다르면 안 묶는다',
+  dedupeMovable([van('V1'), { ...van('V2'), title: '창림저상슬로프장애인차 2199cc 2호' }]).length, 2);
+
+// 부동산은 여기서 건드리지 않는다(건물 키 판정은 클라이언트 소관 — 같은 건물 다른 호실을
+// 제목 일치로 묶으려 하면 오히려 잘못 묶는다).
+const re = [{ id: 'R1', cdtn: '1', assetClass: '부동산', title: '같은동 101호', apsl: 100, low: 90 },
+  { id: 'R2', cdtn: '1', assetClass: '부동산', title: '같은동 101호', apsl: 100, low: 90 }];
+eq('⑦ 부동산은 묶지 않는다', dedupeMovable(re).length, 2);
+eq('⑦ 부동산은 dup 키를 만들지 않는다', dupKeyOf(re[0]), null);
+
+// ── ⑧ 면적 기준 표기 (2026-07-31 확인) ──
+// 집합건물은 전용면적으로 확인됐고(84.9x·59.8x 지문), 단독주택만 미확인으로 남긴다.
+eq('⑧ 아파트 면적 기준 = 전용', selectItem(base, ctxOK).margin.areaBasis, 'exclusive');
+eq('⑧ 단독주택은 미확인 유지',
+  selectItem({ ...base, type: '단독주택' }, ctxOK).margin.areaBasis, 'unverified');
+
+done('curation v2 (수요 분류 · 낙찰률 배제 · 보수 차익 · 신탁 분리 · 동일물건 묶기)');

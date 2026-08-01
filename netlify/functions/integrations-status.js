@@ -30,7 +30,22 @@ exports.handler = async (event) => {
     { key: 'kakaoMap', label: '상세 페이지 실지도', envs: ['KAKAO_MAP_KEY'], stage: 'ready' },
     { key: 'ecos', label: '거시·금리 워처 에이전트', envs: ['ECOS_API_KEY'], stage: 'ready' },
     { key: 'rone', label: '부동산원 주택가격지수(지역 전문가 에이전트)', envs: ['RONE_API_KEY'], stage: 'ready', note: 'RONE_STATBL_ID(통계표 ID)도 설정 필요 — rone-svc?list=아파트 로 조회' },
+    // 관심물건 마감 이메일 알림 — 이 자가진단의 사각지대였다(2026-07-31).
+    // alert-daily는 예약 함수라 HTTP로 찔러볼 수 없어서(403), 키가 들어갔는지 확인할 방법이
+    // 아예 없었다. 발송 여부는 scoreboard `runs.alert` 하트비트로 함께 본다.
+    { key: 'resend', label: '관심물건 마감 이메일 알림', envs: ['RESEND_API_KEY'], stage: 'ready' },
   ];
+
+  // ALERT_FROM은 "보내지느냐"가 아니라 "누구에게 닿느냐"를 가른다 — 그래서 configured에 넣지
+  // 않는다(넣으면 키만 있는 상태가 '미설정'으로 보이는데, 그 상태에서도 발송은 된다).
+  // 대신 어느 상태인지 말로 알려준다. 이 구분이 중요한 이유: 키만 있으면 Resend 테스트
+  // 주소로 나가 **계정 소유자에게만** 배달되는데, 보내고 있다고 착각하기 가장 쉬운 상태다.
+  const fromSet = has('ALERT_FROM');
+  const resendNote = (key) => key
+    ? (fromSet
+      ? '자체 도메인 발신 — 구독자 전원에게 발송됩니다.'
+      : 'ALERT_FROM 미설정 → Resend 테스트 주소로 발송되어 **계정 소유자에게만** 배달됩니다. 단독 테스트에는 충분하지만, 다른 사용자에게 보내려면 자체 도메인 인증(SPF/DKIM) 후 ALERT_FROM 설정이 필요합니다.')
+    : 'RESEND_API_KEY 미설정 — alert-daily가 보낸 척하지 않고 pending으로 보고하며 발송 마커도 남기지 않습니다(키를 넣는 즉시 정상 발송).';
 
   const integrations = defs.map(d => ({
     key: d.key,
@@ -38,7 +53,9 @@ exports.handler = async (event) => {
     configured: has(...d.envs),
     envs: d.envs,
     stage: d.stage,
-    ...(d.note ? { note: d.note } : {}),
+    ...(d.key === 'resend'
+      ? { note: resendNote(has('RESEND_API_KEY')), senderVerified: fromSet, deliversTo: fromSet ? 'all' : 'account_owner_only' }
+      : d.note ? { note: d.note } : {}),
   }));
 
   const activeNow = integrations.filter(i => i.configured && i.stage === 'ready').map(i => i.key);

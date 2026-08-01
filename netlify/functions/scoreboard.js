@@ -78,6 +78,9 @@ exports.handler = async (event) => {
       store.get('_run/mkt-backtest', { type: 'json' }),
       store.get('mkt/rtms/_meta', { type: 'json' }),   // RTMS 수집 진행(1단계)
     ]);
+    // 관심물건 마감 이메일 알림 하트비트 — 예약 함수라 HTTP로 찔러볼 수 없어(403) 발송이
+    // 실제로 되고 있는지 볼 방법이 없었다. 다른 예약 함수와 같은 규율로 노출한다.
+    const runAlert = await store.get('_run/alert-daily', { type: 'json' }).catch(() => null);
     // 외부 API 일일 호출 예산 사용량(온비드) — 수집기가 사용자 화면 몫을 침범하지 않는지 관측용.
     const apiQuota = await quota.readUsage(store, 'onbid').catch(() => null);
 
@@ -184,6 +187,9 @@ exports.handler = async (event) => {
           sim: runSim || null,
           mktSeal: runMktSeal || null,
           mktBacktest: runMktBt || null,
+          // {at, ok, sent, pending, failed, subs} — pending은 RESEND_API_KEY 미설정으로 보내지
+          // 않은 건수다(보낸 척하지 않으며 마커도 남기지 않아 키를 넣는 즉시 발송된다).
+          alert: runAlert || null,
         },
         // 외부 API 일일 호출 예산(온비드). used는 **예약 함수가 쏜 호출만** 집계한다 —
         // 사용자 화면의 직접 조회는 포함되지 않으므로, reserve는 측정값이 아니라
