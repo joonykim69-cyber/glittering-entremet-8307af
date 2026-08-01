@@ -64,6 +64,14 @@ async function openLedger(event) {
   }
 }
 
+// 수의계약가능(0009) — 학습 표본이 아니라 **별도 관측 축**.
+// 왜 따로 담나: 부동산 개찰 이벤트의 18.7%가 이 상태로 빠지는데(자동차·동산은 1% 미만)
+// 지금까지 수집기가 통째로 버려서 이 채널을 **영원히 측정할 수 없는 상태**였다(2026-08-01 발견).
+// 그렇다고 hist/feat에 섞으면 진행 중인 모델 비교(backtest·sim-live)의 coverage 분모와
+// hist-stats 셀 표본 수가 함께 흔들린다 — 관측을 늘리려다 성적을 흔드는 건 맞바꿀 게 아니다.
+// 그래서 `hist/pvct/*`에 따로 쌓고, 학습·채점 경로는 한 줄도 건드리지 않는다.
+const PVCT_ST = '0009';
+
 // onbid-bidresults 결과 1건 → 마스킹 분리: feat(개찰 전) / win(개찰 결과)
 // 낙찰(0010)·유찰(0011)만 학습 표본. win엔 낙찰가/비율/입찰자수만, feat엔 나머지.
 function splitRecord(r) {
@@ -81,7 +89,7 @@ function splitRecord(r) {
 // 한 창×자산군을 페이지 끝까지 census 수집 → { feat[], winMap, calls, budgetHit }
 // budget.take()가 false면 **호출하지 않고 즉시 멈춘다** — 사용자 화면 몫을 침범하지 않기 위해.
 async function censusWindow(base, type, start, end, budget) {
-  const feat = [], winMap = {};
+  const feat = [], winMap = {}, pvct = [];
   let calls = 0, budgetHit = false;
   for (let page = 1; page <= MAX_PAGES; page++) {
     if (budget && !budget.take(1)) { budgetHit = true; break; }
@@ -92,6 +100,7 @@ async function censusWindow(base, type, start, end, budget) {
     calls++;
     const batch = Array.isArray(d && d.results) ? d.results : [];
     for (const r of batch) {
+      if (r.statCd === PVCT_ST) { pvct.push(splitRecord(r).feat); continue; } // 별도 축(위 주석)
       if (r.statCd !== '0010' && r.statCd !== '0011') continue;
       const s = splitRecord(r);
       feat.push(s.feat);
@@ -99,7 +108,7 @@ async function censusWindow(base, type, start, end, budget) {
     }
     if (batch.length < 1000) break; // 마지막 페이지
   }
-  return { feat, winMap, calls, budgetHit };
+  return { feat, winMap, pvct, calls, budgetHit };
 }
 
 exports.handler = async (event) => {
@@ -142,10 +151,10 @@ exports.handler = async (event) => {
       const pending = [];
       let winRows = 0, aborted = false;
       for (const type of ['0001', '0002', '0003']) {
-        const { feat, winMap, calls, budgetHit } = await censusWindow(base, type, start, cursorEnd, budget);
+        const { feat, winMap, pvct, calls, budgetHit } = await censusWindow(base, type, start, cursorEnd, budget);
         totalCalls += calls;
         if (budgetHit) { aborted = true; break; }   // 예산 소진 — 이 창은 통째로 버린다
-        pending.push({ type, feat, winMap });
+        pending.push({ type, feat, winMap, pvct });
         winRows += Object.keys(winMap).length;
       }
       if (aborted) { budgetStopped = true; break; } // 커서 미전진 → 다음 실행이 이 창부터 다시
@@ -154,6 +163,11 @@ exports.handler = async (event) => {
         // 물리 분리 저장 — feat(낙찰가 없음) / win(낙찰가만)
         await store.setJSON(`hist/feat/${start}_${cursorEnd}/${p.type}`, p.feat);
         await store.setJSON(`hist/win/${start}_${cursorEnd}/${p.type}`, p.winMap);
+        // 수의계약가능은 비어 있으면 저장하지 않는다(자동차·동산은 1% 미만이라 대개 빈다).
+        if (p.pvct && p.pvct.length) {
+          await store.setJSON(`hist/pvct/${start}_${cursorEnd}/${p.type}`, p.pvct);
+          meta.pvctRecords = (meta.pvctRecords || 0) + p.pvct.length;
+        }
         meta.records += p.feat.length;
         meta.featRecords += p.feat.length;
       }

@@ -489,6 +489,8 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
             <label class="qs-opt"><input type="checkbox" class="qsPrpt" value="0010"> 국유재산</label>
             <label class="qs-opt"><input type="checkbox" class="qsPrpt" value="0004"> 불용품</label>
             <label class="qs-opt"><input type="checkbox" class="qsPrpt" value="0002,0003,0005,0006,0008,0011,0013"> 기타재산</label>
+            <div class="qs-k" style="margin-top:10px;">수의계약</div>
+            <label class="qs-opt"><input type="checkbox" id="qsPvct"> 수의계약 대상만 보기</label>
           </div>
           <div class="qs-col">
             <div class="qs-k">지역</div>
@@ -955,15 +957,16 @@ function resetFilters() {
   activeMode = 'search';
   document.querySelectorAll('#modeTabs button').forEach(b => b.classList.toggle('on', b.dataset.mode==='search'));
   // 온비드式 빠른검색 패널 초기화(자산군 전체·용도/재산유형 전체·지역 전체)
-  const hadPrpt = QS.prptCodes !== '';
-  QS.ac = ''; QS.sgg = ''; QS.prptCodes = '';
+  const hadPrpt = QS.prptCodes !== '' || QS.pvct; // 둘 다 서버 파라미터 — 걸려 있었으면 재조회해야 한다
+  QS.ac = ''; QS.sgg = ''; QS.prptCodes = ''; QS.pvct = false;
+  const pv = document.getElementById('qsPvct'); if (pv) pv.checked = false;
   document.querySelectorAll('#qsTabs button').forEach(b => b.classList.toggle('on', (b.dataset.ac || '') === ''));
   ['qsUseRe','qsUseMv','qsPrpt'].forEach(cls => document.querySelectorAll('.' + cls).forEach(x => { x.checked = x.value === ''; }));
   const qsS = document.getElementById('qsSido'); if (qsS) qsS.value = '';
   const qsG = document.getElementById('qsSgg'); if (qsG) qsG.innerHTML = '<option value="">시/군/구 전체</option>';
   const reC = document.getElementById('qsUsageColRe'); if (reC) reC.style.display = '';
   const mvC = document.getElementById('qsUsageColMv'); if (mvC) mvC.style.display = 'none';
-  if (hadPrpt && liveMode) loadRealItems({}); // 재산유형 서버 필터가 걸려 있었으면 전체로 재조회
+  if (hadPrpt && liveMode) loadRealItems({}); // 서버 필터(재산유형·수의계약)가 걸려 있었으면 전체로 재조회
   applyFilters();
 }
 
@@ -1050,7 +1053,11 @@ function normalizeTypeFilter(t) {
 // ═══════════════════════════════════════
 // 온비드式 빠른검색 (2026-07-26) — 자산군 탭·처분방식·용도 그룹·재산유형(prptDivCd 서버 필터)·지역 2단
 // ═══════════════════════════════════════
-const QS = { ac: '', prptCodes: '', sgg: '' };
+// pvct — 수의계약 대상(유찰을 거쳐 입찰 없이 살 수 있는 상태)만 조회할지.
+// 온비드 목록 API는 pvctTrgtYn Y/N 중 하나만 받으므로 "둘 다"는 없다. 기본은 N(경쟁입찰)이고
+// 사용자가 켜면 Y로 재조회한다. **찾을 수 있게 하는 것과 추천하는 것은 다르다** —
+// 이 재고는 유찰 중앙값 9회(42.7%가 10회 이상)라 큐레이션에는 올리지 않는다.
+const QS = { ac: '', prptCodes: '', sgg: '', pvct: false };
 // 물건의 자산군 판정 — 라이브는 assetClass 태그, 데모·부동산은 type으로 유추
 function assetClassOf(it) {
   if (it.assetClass === '동산') return '동산';
@@ -1122,6 +1129,13 @@ document.querySelectorAll('#qsTabs button').forEach(btn => btn.addEventListener(
 })();
 qsExclusive('qsUseRe'); qsExclusive('qsUseMv'); qsExclusive('qsPrpt');
 
+// 수의계약 대상 배지 — "입찰 없이 살 수 있는 상태"는 기회이자 경고다.
+// 이 재고는 유찰 중앙값 9회(42.7%가 10회 이상)로, 시장이 여러 번 거절한 물건이다.
+// 그래서 초록(권유)이 아니라 **중립 경고색**으로 달고 유찰 횟수를 함께 읽게 한다.
+function pvctBadge(it) {
+  return it && it.pvct ? '<span style="background:#FFF4E0;color:#8A6D00;border-color:#F0DCB0;">수의계약 가능</span>' : '';
+}
+
 // [물건 보기] — 용도 그룹→activeTypes, 재산유형→prptDivCd 서버 재조회, 지역 반영
 function qsApply() {
   // ① 용도 그룹 → activeTypes 재구성 (자산군 탭 범위 밖 유형은 유지해 교차 오염 방지)
@@ -1143,8 +1157,12 @@ function qsApply() {
   const sido = document.getElementById('qsSido').value;
   QS.sgg = document.getElementById('qsSgg').value;
 
-  const needRequery = liveMode && (newPrpt !== QS.prptCodes || sido !== F.region);
+  // ④ 수의계약 대상 — 서버 파라미터(pvctTrgtYn)라 바뀌면 재조회해야 한다.
+  const newPvct = !!(document.getElementById('qsPvct') || {}).checked;
+
+  const needRequery = liveMode && (newPrpt !== QS.prptCodes || sido !== F.region || newPvct !== QS.pvct);
   QS.prptCodes = newPrpt;
+  QS.pvct = newPvct;
   if (sido !== F.region) {
     F.region = sido;
     const t = document.querySelector('#cdRegion .cd-trig-text');
@@ -1213,7 +1231,7 @@ function renderCard(it) {
     <span class="item-kind"><span class="src-badge">🏛 공매</span> ${it.court} · ${statusBadge(it)}</span>
     <div class="item-title"><a href="bidcast-detail.html?id=${encodeURIComponent(it.id)}" onclick="stashDetail('${String(it.id).replace(/[^0-9A-Za-z\-_.]/g,'')}')">${it.title}</a></div>
     <div class="item-meta">${it.pbctCdtnNo?String(it.id):it.caseNo} · ${it.address}</div>
-    <div class="item-tags">${it.tags.map(t=>`<span>${t}</span>`).join('')}</div>
+    <div class="item-tags">${pvctBadge(it)}${it.tags.map(t=>`<span>${t}</span>`).join('')}</div>
     <div class="item-prices">
       <div class="item-price-cell">감정가<b>${fmtWon(it.appr)}</b></div>
       ${it.win > 0
@@ -1243,7 +1261,7 @@ function renderRow(it) {
       <div class="item-row-kind"><span class="src-badge">🏛 공매</span> ${it.court} ${statusBadge(it)}</div>
       <div class="item-row-title"><a href="bidcast-detail.html?id=${encodeURIComponent(it.id)}" onclick="stashDetail('${String(it.id).replace(/[^0-9A-Za-z\-_.]/g,'')}')">${it.title}</a></div>
       <div class="item-row-meta">${it.pbctCdtnNo?String(it.id):it.caseNo} · ${it.address}</div>
-      <div class="item-row-tags">${it.tags.map(t=>`<span>${t}</span>`).join('')}</div>
+      <div class="item-row-tags">${pvctBadge(it)}${it.tags.map(t=>`<span>${t}</span>`).join('')}</div>
     </div>
     <div class="item-row-price">
       <div class="lbl">감정가</div>
@@ -1848,6 +1866,8 @@ async function loadRealItems(opts = {}) {
     // 온비드式 빠른검색 재산유형(압류/국유/불용품 등) — 부동산 목록 API의 prptDivCd 서버 필터.
     // 동산·차량 프록시는 이 파라미터를 무시하므로 공용 쿼리에 실어도 무해.
     if (QS.prptCodes) p.set('prptDivCd', QS.prptCodes);
+    // 수의계약 대상 조회(부동산 전용 파라미터 — 동산·차량 프록시는 무시하므로 공용 쿼리에 실어도 무해)
+    if (QS.pvct) p.set('pvctTrgtYn', 'Y');
     // 부동산 + 동산 + 차량을 병렬 요청 — 동산/차량 프록시는 미연동·경로오류 시
     // 5xx를 반환하므로 실패해도 부동산 목록만으로 정상 동작 (degrade-gracefully)
     const [rlstRes, mvastRes, vhclRes] = await Promise.allSettled([

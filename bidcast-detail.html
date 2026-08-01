@@ -1371,7 +1371,18 @@ function renderOutcome(p){
   if(sec&&card){
     if(p&&p.soldProb!=null){
       const v=p.soldProb;
-      const tone=v>=60?['var(--green-deep)','높은 편']:v>=35?['#8A6D00','보통']:['#8A2A2E','낮은 편'];
+      // ── 기준점 없는 % 는 오도한다 (2026-08-01 실측 교정) ──
+      // 회차당 낙찰률은 자산군마다 45배 벌어진다: 자동차 72.6% · 동산 44.5% · **부동산 1.6%**.
+      // 옛 코드는 절대 문턱(60/35)으로 색을 칠해서, 부동산은 사실상 **모든 물건**이 "낮은 편"에
+      // "이번에도 유찰될 가능성이 더 큽니다"를 달았다. 틀린 말은 아니지만 모든 물건에 똑같이
+      // 뜨면 정보가 아니라 소음이고, 부동산 사용자에겐 서비스가 통째로 쓸모없어 보인다(GR12).
+      // 그래서 **같은 자산군 기준선(봉인 시점 값 p.soldBaseline) 대비**로 읽는다.
+      // 기준선이 없는 옛 봉인은 예전 절대 문턱으로 물러난다(하위호환).
+      const bl=(typeof p.soldBaseline==='number'&&p.soldBaseline>0)?p.soldBaseline:null;
+      const tone=bl!=null
+        ?(v>=bl*2?['var(--green-deep)','같은 유형 평균보다 높음']:v>=bl?['#8A6D00','같은 유형 평균 수준']:['#8A2A2E','같은 유형 평균보다 낮음'])
+        :(v>=60?['var(--green-deep)','높은 편']:v>=35?['#8A6D00','보통']:['#8A2A2E','낮은 편']);
+      const below=bl!=null?(v<bl):(v<35);
       card.innerHTML=`<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;">
           <div style="font-size:30px;font-weight:900;color:${tone[0]};line-height:1.1;">${v}%</div>
           <div style="font-size:13px;font-weight:800;color:${tone[0]};">${tone[1]}</div>
@@ -1383,7 +1394,8 @@ function renderOutcome(p){
         </div>
         <div style="margin-top:11px;font-size:12.5px;color:var(--sub);line-height:1.75;">
           같은 조건(자산군·용도·회차·가격대)의 과거 개찰 <b>${esc(p.outcomeN||0)}건</b> 중 이 비율이 낙찰됐습니다.
-          ${v<35?'<b style="color:#8A2A2E;">이번에도 유찰될 가능성이 더 큽니다</b> — 유찰되면 다음 회차에 최저가가 더 내려갑니다(기다리는 것도 선택지입니다).'
+          ${bl!=null?`이 자산군은 <b>한 회차에 ${esc(bl)}%</b>가 낙찰됩니다 — 공매는 여러 회차에 걸쳐 팔리므로 낮은 수치가 정상이고, 중요한 건 <b>같은 유형과 견줘 어디쯤인가</b>입니다.`:''}
+          ${below?'<b style="color:#8A2A2E;">같은 유형 중에서도 덜 팔리는 조건입니다</b> — 유찰되면 다음 회차에 최저가가 더 내려갑니다(기다리는 것도 선택지입니다).'
                 :'유찰되면 다음 회차에 최저가가 내려가고, 그때 다시 봉인 예측이 만들어집니다.'}
         </div>`;
       note.innerHTML='<details class="more"><summary>이 확률은 어떻게 만들고 채점하나</summary><div class="more-body">'

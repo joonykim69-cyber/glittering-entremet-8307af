@@ -180,4 +180,30 @@ eq('⑧ 아파트 면적 기준 = 전용', selectItem(base, ctxOK).margin.areaBa
 eq('⑧ 단독주택은 미확인 유지',
   selectItem({ ...base, type: '단독주택' }, ctxOK).margin.areaBasis, 'unverified');
 
-done('curation v2 (수요 분류 · 낙찰률 배제 · 보수 차익 · 신탁 분리 · 동일물건 묶기)');
+// ── ⑨ 배제 문턱은 자산군마다 다르다 (2026-08-01 실측 교정) ──
+// 실측 회차당 낙찰률: 자동차 72.6% · 동산 44.5% · **부동산 1.6%**.
+// 옛 코드는 SOLD_MIN=25를 셋에 똑같이 적용해 **부동산이 구조적으로 전부 탈락**했다
+// (부동산 공매 서비스 랜딩에 부동산이 0건이었던 진짜 원인).
+const reCtx = (soldRate, baseline) => ({
+  pred: { lo: 66000, mid: 71000, hi: 78000, soldProb: soldRate },
+  band: ctxOK.band, soldBaseline: baseline, nowKst,
+});
+t('⑨ 부동산 2%는 기준선 1.6% 위 → 통과', selectItem(base, reCtx(2, 1.6)) != null);
+t('⑨ 부동산 1%는 기준선 1.6% 아래 → 배제', selectItem(base, reCtx(1, 1.6)) === null);
+// 같은 2%라도 자산군이 다르면 뜻이 정반대다 — 이 대비가 이번 교정의 핵심이다.
+const carAt = (soldRate, baseline) => selectItem(
+  { ...base, assetClass: '자동차', type: '차량', usage: '차량', area: 0 },
+  { pred: { lo: 200, mid: 230, hi: 260, soldProb: soldRate }, soldBaseline: baseline, nowKst });
+t('⑨ 자동차 2%는 기준선 72.6% 아래 → 배제', carAt(2, 72.6) === null);
+t('⑨ 자동차 80%는 기준선 위 → 통과', carAt(80, 72.6) != null);
+// 옛 절대 문턱이었다면 부동산 2%는 무조건 탈락했다 — 그 회귀를 고정한다.
+t('⑨ 기준선 없으면 옛 상수(25%)로 폴백',
+  selectItem(base, { pred: { lo: 66000, mid: 71000, hi: 78000, soldProb: 2 }, band: ctxOK.band, nowKst }) === null);
+t('⑨ 기준선 없고 낙찰률 높으면 통과',
+  selectItem(base, { pred: { lo: 66000, mid: 71000, hi: 78000, soldProb: 40 }, band: ctxOK.band, nowKst }) != null);
+// 기준선이 0이면(그 자산군이 아예 안 팔림) 문턱도 0 — 배제하지 않고 다른 근거로 판단한다.
+t('⑨ 기준선 0이면 낙찰률로 배제하지 않는다', selectItem(base, reCtx(0, 0)) != null);
+eq('⑨ 셀 낙찰률도 기준선과 견준다',
+  selectItem(base, { pred: { lo: 66000, mid: 71000, hi: 78000 }, cell: { soldRate: 2 }, band: ctxOK.band, soldBaseline: 1.6, nowKst }).track, 'margin');
+
+done('curation v2 (수요 분류 · 자산군별 낙찰률 문턱 · 보수 차익 · 신탁 분리 · 동일물건 묶기)');

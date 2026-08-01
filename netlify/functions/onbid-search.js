@@ -116,6 +116,10 @@ function mapOnbidItem(raw, idx) {
     min: fmtManwon(minWon),
     fail: failCount,
     round: Number(raw.pbctNsq) || 0, // 공매차수(회차) 실측 — 예측 엔진 회차 셀 매칭에 사용(없으면 0 → 소비 측이 유찰수+1로 근사)
+    // 수의계약 대상 여부 — 유찰을 거쳐 "입찰 없이 살 수 있는" 상태가 된 물건.
+    // 부동산 재고의 14,459건(18.6%)이 여기 해당하는데 우리 조회가 pvctTrgtYn='N' 고정이라
+    // **한 건도 노출되지 않았다**(2026-08-01 발견). 배지로 구분해 표시하려고 매핑에 싣는다.
+    pvct: String(raw.pvctTrgtYn || '').toUpperCase() === 'Y',
     status: raw.pbctStatCd === '0010' ? '낙찰' : '진행',
     tags: failCount > 0 ? ['#재매각'] : ['#신건'],
     views: 0, // 온비드 API에 조회수 필드 없음 — 프론트엔드 표시용 기본값
