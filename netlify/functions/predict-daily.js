@@ -39,9 +39,23 @@ async function mapLimit(items, limit, fn) {
 
 // 공통 팩트(온비드) → 실측 이력 셀 백오프 조회 (L3→L0, 표본 20+). 큐레이션 컨텍스트용.
 // 셀 키는 온비드 이력 기준 typeCd라 온비드 소스 전용 — 새 소스는 자기 셀 네임스페이스를 쓴다.
+function typeCdOf(f) {
+  return f.assetClass === '동산' ? '0003' : f.assetClass === '자동차' ? '0002' : '0001';
+}
+
+// 자산군 실측 기준선(L0 셀 낙찰률) — 큐레이션 배제 문턱의 근거.
+// 자산군마다 회차당 낙찰률이 45배까지 벌어져서(자동차 72.6% vs 부동산 1.6%) 하나의 절대
+// 문턱을 셋에 같이 쓸 수 없다. 자세한 배경은 lib/curation.js의 SOLD_MIN 주석 참조.
+// L0은 자산군 전체 셀이라 표본이 크고(부동산 37만) 늘 존재한다 — 없으면 null로 폴백.
+function soldBaselineFor(cellsData, f) {
+  if (!cellsData || !cellsData.cells) return null;
+  const c = cellsData.cells[`L0|${typeCdOf(f)}`];
+  return (c && typeof c.soldRate === 'number') ? c.soldRate : null;
+}
+
 function cellFor(cellsData, f) {
   if (!cellsData || !cellsData.cells) return null;
-  const typeCd = f.assetClass === '동산' ? '0003' : f.assetClass === '자동차' ? '0002' : '0001';
+  const typeCd = typeCdOf(f);
   const rbN = f.round > 0 ? f.round : (f.failCount + 1);
   const rb = rbN >= 4 ? '4+' : String(rbN);
   const tier = f.low < 10000 ? 'lt1' : f.low < 50000 ? 't1to5' : f.low < 100000 ? 't5to10' : 'gte10';
@@ -279,6 +293,12 @@ exports.handler = async (event) => {
         leadDays: leadDaysOf(it.bidEnd), // 봉인일 → 마감일 간격(일). 먼 예측일수록 어렵다는 걸 채점에서 분리해 본다.
         // 결과 예보(2026-07-29) — 근거 없으면 null. 있으면 채점 대상이다.
         soldProb, bidders,
+        // 자산군 기준선(같은 자산군 전체의 회차당 낙찰률). 봉인 시점 값을 함께 남기는 이유:
+        // soldProb 하나만으로는 화면에서 뜻이 서지 않는다 — 부동산 2%는 자산군 평균이 1.6%라
+        // **평균보다 높은** 것이고, 자동차 2%는 평균이 72.6%라 처참한 것이다. 기준선 없이
+        // 절대 문턱(35%)으로 색을 칠하면 모든 부동산에 "유찰 가능성이 더 큽니다"가 뜬다
+        // (정직하지만 쓸모없다 — 헌장 GR12). 봉인과 함께 남겨야 나중에도 같은 기준으로 읽힌다.
+        soldBaseline: soldBaselineFor(cellsData, { assetClass: it.assetClass || '부동산' }),
         outcomeCell: (soldProb != null || bidders) ? cellKey : '',
         outcomeN: cell ? (cell.outcomeN || 0) : 0,
         bidN: cell ? (cell.bidN || 0) : 0,
@@ -353,6 +373,7 @@ exports.handler = async (event) => {
         pred: predMap[`pred/${it.id}_${it.pbctCdtnNo}`] || null,
         band: (kind && lawd) ? (bandMap[`${lawd}_${kind}`] || null) : null,
         cell: cellFor(cellsData, f),
+        soldBaseline: soldBaselineFor(cellsData, f),
         nowKst: kst(),
       });
       if (!res) continue;

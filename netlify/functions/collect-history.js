@@ -99,7 +99,7 @@ exports.handler = async (event) => {
       const end = ymd(kst());
       const start = addDays(end, -(WINDOW_DAYS - 1));
       for (const cltrTypeCd of ['0001', '0002', '0003']) {
-        const rows = [];
+        const rows = [], pvctRows = [];
         let partial = false;
         for (let page = 1; page <= MAX_PAGES; page++) {
           if (!budget.take(1)) { partial = true; budgetStopped = true; break; }
@@ -109,11 +109,16 @@ exports.handler = async (event) => {
           } catch (e) { break; }
           const batch = Array.isArray(d && d.results) ? d.results : [];
           rows.push(...batch.filter(x => x.statCd === '0010' || x.statCd === '0011').map(toRecord));
+          // 수의계약가능(0009)은 **별도 키**에 담는다 — 부동산 개찰의 18.7%가 이 상태인데
+          // 지금까지 버려서 채널 자체를 측정할 수 없었다. hist/_inc(학습 표본)에 섞으면
+          // hist-stats 셀 표본이 흔들리므로 분리한다. 자세한 배경은 collect-backfill 주석.
+          pvctRows.push(...batch.filter(x => x.statCd === '0009').map(toRecord));
           if (batch.length < 100) break;
         }
         // 반쪽 수집분으로 기존 증분 스냅샷을 덮어쓰지 않는다 — 덮어쓰면 어제치까지 잃는다.
         if (partial) break;
         await store.setJSON(`hist/_inc/${cltrTypeCd}`, rows); // 고정 키 덮어쓰기(누적 아님)
+        await store.setJSON(`hist/_incpvct/${cltrTypeCd}`, pvctRows); // 수의계약 관측(같은 규율)
         incRows += rows.length;
         runWindows.push({ window: `_inc(${start}~${end})`, type: cltrTypeCd, rows: rows.length });
       }

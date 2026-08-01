@@ -25,6 +25,8 @@ let n=0,bad=0;const t=(k,c)=>{n++;if(!c){bad++;console.log('FAIL:',k);}};
     if(u.pathname.includes('onbid-bidresults')){
       const cd=u.searchParams.get('cltrTypeCd');
       const results=[]; for(let i=0;i<5;i++) results.push({ id:cd+'-'+i, pbctCdtnNo:'1', statCd:'0010', winAmt:300000000, winRate:100, lowstRate:110, apslAmt:350000000, lowstAmt:270000000, usage:'아파트', round:1, opbdDt:'20260726', bidderCnt:2 });
+      // 수의계약가능(0009) — 실제 부동산 개찰의 18.7%가 이 상태다. 학습 표본에 섞이면 안 된다.
+      for(let i=0;i<3;i++) results.push({ id:cd+'-pv'+i, pbctCdtnNo:'1', statCd:'0009', winAmt:0, apslAmt:200000000, lowstAmt:70000000, usage:'오피스텔', round:9, opbdDt:'20260726' });
       return { ok:true, json:async()=>({results, totalCount:5}) };
     }
     return { ok:true, json:async()=>({}) };
@@ -62,6 +64,34 @@ let n=0,bad=0;const t=(k,c)=>{n++;if(!c){bad++;console.log('FAIL:',k);}};
   t('정적: 증분 고정키 쓰기', chSrc.includes('`hist/_inc/${cltrTypeCd}`'));
   t('정적: 날짜 이동 증분키 제거', !chSrc.includes('await store.setJSON(`hist/${start}_${end}/${cltrTypeCd}`, rows)'));
   t('정적: hist-stats incKeys 스캔', hsSrc.includes("/^hist\\/_inc\\/\\d+$/")&&hsSrc.includes('oldKeys.concat(incKeys)'));
+
+  // ── 수의계약(0009) 관측 축 — 학습 표본과 물리 분리 (2026-08-01) ──
+  // 부동산 개찰의 18.7%가 이 상태인데 지금까지 통째로 버려서 채널을 측정할 수 없었다.
+  // 다만 hist/_inc(학습 표본)에 섞으면 hist-stats 셀 표본과 backtest coverage가 함께 흔들린다 —
+  // 관측을 늘리려다 진행 중인 모델 비교를 흔드는 건 맞바꿀 게 아니라 별도 키에 담는다.
+  {
+    const keys=[...store._m.keys()];
+    const inc=keys.filter(k=>/^hist\/_inc\/\d+$/.test(k));
+    const pv=keys.filter(k=>/^hist\/_incpvct\/\d+$/.test(k));
+    t('수의계약 별도 키 생성', pv.length>0, pv.join(','));
+    if(pv.length){
+      const rows=await store.get(pv[0]);
+      t('수의계약 키에 0009만', Array.isArray(rows)&&rows.length>0&&rows.every(r=>r.st==='0009'), JSON.stringify((rows||[]).map(r=>r.st)));
+    }
+    if(inc.length){
+      const rows=await store.get(inc[0]);
+      t('학습 표본에 0009 미혼입', Array.isArray(rows)&&rows.every(r=>r.st!=='0009'), JSON.stringify((rows||[]).map(r=>r.st)));
+    }
+    // 새 키가 hist-stats의 기존 스캔 정규식에 걸리면 셀이 오염된다 — 구조적으로 막혔는지 확인.
+    const oldRe=/^hist\/\d{8}_\d{8}\/\d+$/, incRe=/^hist\/_inc\/\d+$/, featRe=/^hist\/feat\/\d{8}_\d{8}\/\d+$/;
+    const probes=['hist/_incpvct/0001','hist/pvct/20250101_20250107/0001'];
+    t('새 키가 hist-stats 스캔에 안 걸림',
+      probes.every(k=>!oldRe.test(k)&&!incRe.test(k)&&!featRe.test(k)));
+    // 백필 쪽도 같은 규율인지 정적 확인(수집 경로가 둘이라 한쪽만 고치면 반쪽이 된다)
+    const bfSrc=require('fs').readFileSync(__dirname+'/../netlify/functions/collect-backfill.js','utf8');
+    t('정적: 백필도 0009를 hist/pvct로 분리', bfSrc.includes('hist/pvct/')&&bfSrc.includes("PVCT_ST = '0009'"));
+    t('정적: 백필 학습 표본은 0010/0011만', bfSrc.includes("r.statCd !== '0010' && r.statCd !== '0011'"));
+  }
 
   delete global.__FAKE_STORE__; delete global.fetch;
   console.log(`[fixture] ${n-bad}/${n} pass`);
