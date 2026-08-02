@@ -30,7 +30,7 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 .logo-mark { width:36px; height:36px; border-radius:11px; background:#00744B; display:grid; place-items:center; color:#fff; font-size:20px; font-weight:900; box-shadow:0 0 14px rgba(0,200,127,.55); }
 .nav-links { display:flex; gap:20px; list-style:none; }
 .nav-links a { text-decoration:none; color:var(--sub); font-size:14px; font-weight:600; }
-.nav-links a.on, .nav-links a:hover { color:var(--green-deep); }
+.nav-links a.on, .nav-links a:hover { color:var(--brand-deep); }
 .nav-right { display:flex; align-items:center; gap:10px; }
 .nav-login { background:none; border:1px solid var(--line); color:var(--sub); cursor:pointer; font:inherit; font-size:13.5px; font-weight:700; padding:8px 16px; border-radius:999px; }
 .nav-cta { background:var(--grad); color:#fff; border:none; cursor:pointer; font:inherit; font-size:13.5px; font-weight:700; padding:9px 18px; border-radius:999px; }
@@ -44,9 +44,9 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 .mobile-nav { display:none; flex-direction:column; gap:2px; padding:10px; background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:0 16px 36px rgba(16,32,26,.14); position:absolute; top:calc(100% + 8px); left:16px; right:16px; z-index:150; }
 .mobile-nav.open { display:flex; }
 .mobile-nav a { text-decoration:none; color:var(--sub); font-size:14.5px; font-weight:700; padding:12px 14px; border-radius:10px; }
-.mobile-nav a.on, .mobile-nav a:hover { background:var(--green-soft); color:var(--green-deep); }
+.mobile-nav a.on, .mobile-nav a:hover { background:var(--brand-soft); color:var(--brand-deep); }
 
-.eyebrow { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:700; letter-spacing:.1em; color:var(--green); text-transform:uppercase; margin-bottom:12px; }
+.eyebrow { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:700; letter-spacing:.1em; color:var(--brand); text-transform:uppercase; margin-bottom:12px; }
 .eyebrow::before { content:''; width:20px; height:2px; background:var(--grad); border-radius:2px; }
 h1.title { font-size:clamp(28px,4vw,40px); font-weight:900; letter-spacing:-0.03em; line-height:1.2; }
 p.lead { color:var(--sub); font-size:15px; margin-top:12px; max-width:460px; }
@@ -60,7 +60,7 @@ p.lead { color:var(--sub); font-size:15px; margin-top:12px; max-width:460px; }
   background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:13px 16px;
   transition:all .2s;
 }
-.preset-list button:hover { border-color:var(--green); background:var(--green-soft); }
+.preset-list button:hover { border-color:var(--brand); background:var(--brand-soft); }
 
 .chat-window { background:var(--surface); border:1px solid var(--line); border-radius:24px; overflow:hidden; display:flex; flex-direction:column; height:560px; box-shadow:0 20px 50px rgba(16,32,26,.08); }
 .chat-head { background:var(--bg); padding:16px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px; }
@@ -74,11 +74,11 @@ p.lead { color:var(--sub); font-size:15px; margin-top:12px; max-width:460px; }
 .msg .av2 { width:28px; height:28px; border-radius:50%; background:var(--bg); display:grid; place-items:center; font-size:13px; flex:none; }
 .msg .bubble { font-size:13.5px; line-height:1.6; padding:12px 15px; border-radius:16px; }
 .msg.bot .bubble { background:var(--bg); border:1px solid var(--line); border-top-left-radius:4px; }
-.msg.user .bubble { background:var(--green); color:#fff; border-top-right-radius:4px; }
+.msg.user .bubble { background:var(--brand-deep); color:#fff; border-top-right-radius:4px; }
 .msg .bubble b { font-weight:800; }
 .chat-input { display:flex; gap:8px; padding:14px 16px; border-top:1px solid var(--line); }
 .chat-input input { flex:1; font:inherit; font-size:13.5px; background:var(--bg); border:1.5px solid var(--line); border-radius:12px; padding:11px 14px; outline:none; }
-.chat-input input:focus { border-color:var(--green); }
+.chat-input input:focus { border-color:var(--brand); }
 .chat-input button { font:inherit; font-size:13px; font-weight:800; cursor:pointer; background:var(--grad); color:#fff; border:none; border-radius:12px; padding:0 20px; }
 .typing { display:flex; gap:4px; padding:4px 0; }
 .typing span { width:6px; height:6px; border-radius:50%; background:var(--mute); animation:blink 1.2s infinite; }
@@ -108,11 +108,11 @@ p.lead { color:var(--sub); font-size:15px; margin-top:12px; max-width:460px; }
 
 footer { border-top:1px solid var(--line); background:var(--surface); padding:44px 0 32px; }
 footer .cols { display:grid; grid-template-columns:2fr 1fr 1fr; gap:32px; }
-footer .brand { font-weight:900; font-size:16px; } footer .brand span { color:var(--green); }
+footer .brand { font-weight:900; font-size:16px; } footer .brand span { color:var(--brand); }
 footer h5 { font-size:12px; font-weight:800; margin-bottom:10px; }
 footer ul { list-style:none; display:grid; gap:7px; }
 footer ul a { text-decoration:none; font-size:12.5px; color:var(--sub); }
-footer ul a:hover { color:var(--green-deep); }
+footer ul a:hover { color:var(--brand-deep); }
 footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
 @media (max-width:700px) { footer .cols { grid-template-columns:1fr 1fr; } }
 
@@ -314,9 +314,9 @@ const ctxItem = ITEM_DB[ctxId];
 if (ctxItem) {
   const chip = document.createElement('div');
   chip.className = 'msg bot';
-  chip.innerHTML = `<span class="av2">📌</span><div class="bubble" style="background:var(--green-soft);border:1px solid #C4EBD8;">
+  chip.innerHTML = `<span class="av2">📌</span><div class="bubble" style="background:var(--brand-soft);border:1px solid #C7EBE7;">
     지금 보는 물건: <b>${ctxItem.thumb} ${ctxItem.title}</b><br/>
-    <a href="bidcast-detail.html?id=${ctxId}" style="color:var(--green-deep);font-weight:800;">물건 상세로 돌아가기 →</a></div>`;
+    <a href="bidcast-detail.html?id=${ctxId}" style="color:var(--brand-deep);font-weight:800;">물건 상세로 돌아가기 →</a></div>`;
   chatBody.appendChild(chip);
   const lo = fmtWon(Math.round(ctxItem.min * 1.02)), hi = fmtWon(Math.round(ctxItem.min * 1.13)), rec = fmtWon(Math.round(ctxItem.min * 1.07));
   const failTxt = ctxItem.fail > 0
@@ -342,9 +342,9 @@ if (liveCtx) {
   const escT = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const chip = document.createElement('div');
   chip.className = 'msg bot';
-  chip.innerHTML = `<span class="av2">📡</span><div class="bubble" style="background:var(--green-soft);border:1px solid #C4EBD8;">
+  chip.innerHTML = `<span class="av2">📡</span><div class="bubble" style="background:var(--brand-soft);border:1px solid #C7EBE7;">
     지금 보는 실물건: <b>${escT(liveCtx.title || '')}</b> <span style="font-size:11px;color:var(--green-deep);font-weight:800;">실시간 온비드</span><br/>
-    <a href="bidcast-detail.html?id=${encodeURIComponent(String(liveCtx.id))}" style="color:var(--green-deep);font-weight:800;">물건 상세로 돌아가기 →</a></div>`;
+    <a href="bidcast-detail.html?id=${encodeURIComponent(String(liveCtx.id))}" style="color:var(--brand-deep);font-weight:800;">물건 상세로 돌아가기 →</a></div>`;
   chatBody.appendChild(chip);
   const apprWon = (Number(liveCtx.appr) || 0) * 10000, minWon = (Number(liveCtx.min) || 0) * 10000;
   const failTxt = (liveCtx.fail || 0) > 0
@@ -430,7 +430,7 @@ function renderBotAbilities() {
     { min: 3, unlock: '5등급', t: '전문가 에이전트 분석(권리·매각조건 등)' },
   ];
   const list = rows.map(r => `<div style="display:flex;gap:6px;align-items:baseline;font-size:12px;margin-top:5px;color:${tier >= r.min ? 'var(--ink)' : 'var(--mute)'}">${tier >= r.min ? '✅' : '🔒'}<span>티어${r.min} · ${r.t}${tier < r.min ? ` <span style="font-size:10.5px">(${r.unlock}에서 열림)</span>` : ''}</span></div>`).join('');
-  el.innerHTML = `<div style="background:var(--green-soft);border:1px solid #C4EBD8;border-radius:14px;padding:13px 15px;margin-bottom:14px">
+  el.innerHTML = `<div style="background:var(--brand-soft);border:1px solid #C7EBE7;border-radius:14px;padding:13px 15px;margin-bottom:14px">
     <div style="font-size:13px;font-weight:800;color:${GRADE_COLORS[g - 1]}">● 내 등급 · ${g}등급 ${GRADE_NAMES[g - 1]}</div>
     <div style="font-size:11px;color:var(--sub);margin-top:2px">예언자 등급이 오르면 예보봇 능력이 자동으로 열립니다</div>${list}</div>`;
 }
@@ -445,7 +445,7 @@ function renderAgentPresets() {
 }
 const AGENT_KO = { rights: '권리분석', sale_risk: '매각조건 리스크', expert: '종합 분석', region: '지역 분석', competition: '경쟁 강도', news: '뉴스·정보' };
 async function runBotAgent(agent) {
-  if (!liveCtx) { appendMsgHTML('이 기능은 실시간 온비드 물건에서 이용할 수 있어요. <a href="bidcast-list.html" style="color:var(--green-deep);font-weight:800;">물건 검색</a>에서 물건을 열어보세요.', 'bot'); return; }
+  if (!liveCtx) { appendMsgHTML('이 기능은 실시간 온비드 물건에서 이용할 수 있어요. <a href="bidcast-list.html" style="color:var(--brand-deep);font-weight:800;">물건 검색</a>에서 물건을 열어보세요.', 'bot'); return; }
   appendMsg(`이 물건 ${AGENT_KO[agent] || agent} 분석 부탁해요`, 'user');
   const t = appendTyping();
   try {
@@ -509,7 +509,7 @@ async function sendChat() {
   } catch (e) {
     t.remove();
     chatHistory.pop(); // 실패한 user 턴 제거 — 다음 호출의 messages 정합성 유지
-    appendMsgHTML(`"<b>${escapeHtml(text)}</b>"에 대해 답변드리려면 조금 더 구체적인 물건관리번호나 물건 조건이 필요해요. <a href="bidcast-list.html" style="color:var(--green-deep);font-weight:800;">물건 검색</a>에서 해당 물건을 찾아 리포트를 확인하시거나, 자주 묻는 질문 중 비슷한 항목을 참고해 보세요.`, 'bot');
+    appendMsgHTML(`"<b>${escapeHtml(text)}</b>"에 대해 답변드리려면 조금 더 구체적인 물건관리번호나 물건 조건이 필요해요. <a href="bidcast-list.html" style="color:var(--brand-deep);font-weight:800;">물건 검색</a>에서 해당 물건을 찾아 리포트를 확인하시거나, 자주 묻는 질문 중 비슷한 항목을 참고해 보세요.`, 'bot');
     console.info('[bidcast] 예보봇 실 AI 연동 실패, 예시 응답으로 폴백:', e.message);
   } finally {
     sending = false;
