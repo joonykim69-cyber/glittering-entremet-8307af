@@ -37,10 +37,10 @@
 :root{--bg:#F6FAF7;--surface:#FFFFFF;--ink:#10201A;--sub:#55655D;--mute:#697A70;--line:#E1EAE4;--green:#00A86B;--green-deep:#00744B;--green-soft:#E4F7EE;--red:#E5484D;--red-soft:#FDEBEB;--yellow:#F5B90F;--yellow-soft:#FDF4D7;--grad:linear-gradient(120deg,#00C87F 0%,#00A86B 55%,#009E8A 100%);--glow:0 0 0 4px rgba(0,200,127,.14), 0 10px 34px rgba(0,168,107,.35);--radius:20px;--ease:cubic-bezier(.16,1,.3,1);--font:'Poppins','Noto Sans KR',-apple-system,'Malgun Gothic',sans-serif;--font-head:'Nunito','Noto Sans KR',-apple-system,'Malgun Gothic',sans-serif}
 *{box-sizing:border-box}
 body{margin:0;font-family:var(--font);color:var(--ink);background:var(--bg);word-break:keep-all;line-height:1.6}
-a{color:var(--green-deep);text-decoration:none}
-a:hover{color:var(--green)}
-:focus-visible{outline:2px solid var(--green);outline-offset:2px;border-radius:4px}
-.skip-link{position:absolute;left:12px;top:-48px;z-index:300;background:var(--green-deep);color:#fff;font-weight:800;font-size:13px;padding:10px 16px;border-radius:0 0 10px 10px;transition:top .2s var(--ease)}
+a{color:var(--brand-deep);text-decoration:none}
+a:hover{color:var(--brand-hover)}
+:focus-visible{outline:2px solid var(--info);outline-offset:2px;border-radius:4px}
+.skip-link{position:absolute;left:12px;top:-48px;z-index:300;background:var(--brand-deep);color:#fff;font-weight:800;font-size:13px;padding:10px 16px;border-radius:0 0 10px 10px;transition:top .2s var(--ease)}
 .skip-link:focus{top:0;color:#fff}
 h1,h2,h3,p{margin:0}
 h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:var(--font-head)}
@@ -55,7 +55,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .chip-green{background:var(--green-soft);color:var(--green-deep)}
 .chip-yellow{background:var(--yellow-soft);color:#8a6d00}
 .chip-red{background:var(--red-soft);color:var(--red)}
-.kicker{font-size:13px;font-weight:800;color:var(--green-deep);letter-spacing:.08em}
+.kicker{font-size:13px;font-weight:800;color:var(--brand-deep);letter-spacing:.08em}
 
 /* ═══ 오늘의 주목 물건 — 트랙별 색·큰 사진·큰 숫자 (2026-07-29 디자인 교정) ═══
    창업자 지적 "너무 평범하고 임팩트가 없다". 원인은 카드가 전부 같은 크기·같은 무게였고
@@ -185,7 +185,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .mp-field{margin-top:13px}
 .mp-field label{display:block;font-size:12.5px;font-weight:700;margin-bottom:5px}
 .mp-field input{width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;font:inherit;font-size:14px;box-sizing:border-box}
-.mp-field input:focus{outline:none;border-color:var(--green)}
+.mp-field input:focus{outline:none;border-color:var(--brand)}
 .mp-row{display:flex;gap:10px}.mp-row>div{flex:1}
 .mp-hint{font-size:11.5px;color:var(--mute);margin-top:5px}
 .auth-title{font-family:var(--font-head);font-size:20px;font-weight:900;letter-spacing:-.02em}
@@ -194,7 +194,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .mobile-nav{display:none;flex-direction:column;gap:2px;padding:10px;background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:0 16px 36px rgba(16,32,26,.14);position:absolute;top:calc(100% + 10px);left:0;right:0;z-index:150}
 .mobile-nav.open{display:flex}
 .mobile-nav a{color:var(--sub);font-size:14.5px;font-weight:700;padding:12px 14px;border-radius:12px}
-.mobile-nav a:hover{background:var(--green-soft);color:var(--green-deep)}
+.mobile-nav a:hover{background:var(--brand-soft);color:var(--brand-deep)}
 /* hero */
 .hero{padding:76px 0 60px;text-align:center}
 .hero-inner{display:flex;flex-direction:column;align-items:center;gap:24px}
@@ -226,7 +226,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .mcard .tags{display:flex;gap:5px;flex-wrap:wrap}
 .meter{display:flex;align-items:center;gap:6px}
 .meter .bar{flex:1;height:5px;border-radius:3px;background:var(--line)}
-.meter .bar i{display:block;height:5px;border-radius:3px;background:var(--green)}
+.meter .bar i{display:block;height:5px;border-radius:3px;background:var(--brand)}
 .meter .bar i.warn{background:var(--yellow)}
 .meter span{font-size:11px;color:var(--mute);font-weight:700}
 .mcard .foot{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--mute)}
@@ -240,7 +240,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .lab-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding-top:6px;padding-bottom:0}
 .metric{text-align:center;padding:0 12px;border-left:1px solid var(--line)}
 .metric:first-child{border-left:none}
-.metric b{display:block;font-size:32px;font-weight:900;letter-spacing:-.02em;color:var(--green-deep);white-space:nowrap}
+.metric b{display:block;font-size:32px;font-weight:900;letter-spacing:-.02em;color:var(--brand-deep);white-space:nowrap}
 .metric span{font-size:13px;color:var(--sub)}
 /* steps */
 .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
@@ -256,7 +256,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .step h3{font-size:22px;font-weight:900;letter-spacing:-.02em}
 .step .d{font-size:13px;color:var(--mute);margin-top:4px}
 .tool{display:flex;gap:12px;align-items:flex-start}
-.tool .ic{width:36px;height:36px;border-radius:50%;background:var(--green-soft);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--green-deep);font-size:15px}
+.tool .ic{width:36px;height:36px;border-radius:50%;background:var(--brand-soft);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--brand-deep);font-size:15px}
 .tool b{font-size:14px;font-weight:700;display:block}
 .tool span{font-size:13px;color:var(--sub);line-height:1.6}
 .tool a{color:inherit}
@@ -271,7 +271,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .fcard.live:hover{transform:translateY(-3px);box-shadow:0 14px 34px rgba(16,32,26,.1)}
 .range-box{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
 .range-box .lab{font-size:12px;color:var(--mute)}
-.range-box .val{font-size:24px;font-weight:900;letter-spacing:-.02em;color:var(--green-deep);margin:4px 0 10px}
+.range-box .val{font-size:24px;font-weight:900;letter-spacing:-.02em;color:var(--brand-deep);margin:4px 0 10px}
 .range-track{height:6px;border-radius:3px;background:var(--line);position:relative}
 .range-track i{position:absolute;height:6px;border-radius:3px;background:var(--grad)}
 .range-ends{display:flex;justify-content:space-between;font-size:11px;color:var(--mute);margin-top:6px}
@@ -280,7 +280,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .split{display:flex;gap:56px;align-items:center}
 .split>.txt{flex:1;display:flex;flex-direction:column;gap:20px}
 .pointrow{display:flex;gap:12px;align-items:baseline}
-.pointrow b{font-size:16px;font-weight:900;color:var(--green-deep);width:92px;flex-shrink:0;white-space:nowrap}
+.pointrow b{font-size:16px;font-weight:900;color:var(--brand-deep);width:92px;flex-shrink:0;white-space:nowrap}
 .pointrow span{font-size:14px;color:var(--sub)}
 .labcard{width:500px;flex-shrink:0;padding:32px 30px;display:flex;flex-direction:column;gap:16px}
 .labcard .cap{font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -292,10 +292,10 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .foot-note{font-size:11px;color:var(--mute)}
 .ledger-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .ledger-tile{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
-.ledger-tile .v{font-size:22px;font-weight:900;letter-spacing:-.02em;color:var(--green-deep);font-family:var(--font-head)}
+.ledger-tile .v{font-size:22px;font-weight:900;letter-spacing:-.02em;color:var(--brand-deep);font-family:var(--font-head)}
 .ledger-tile .v.waiting{color:var(--mute);font-size:16px}
 .ledger-tile .k{font-size:11.5px;color:var(--sub);margin-top:4px;line-height:1.5}
-.ledger-log-item{font-size:12px;color:var(--sub);background:var(--green-soft);border-radius:10px;padding:8px 12px}
+.ledger-log-item{font-size:12px;color:var(--sub);background:var(--brand-soft);border-radius:10px;padding:8px 12px}
 /* ═══ 엔진 자가진단 섹션 ═══ */
 .es-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:26px}
 @media (max-width:760px){.es-grid{grid-template-columns:1fr}}
@@ -321,7 +321,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .es-badge.wait{background:var(--yellow-soft);color:#8A6100} .es-badge.wait .es-dot{background:var(--yellow)}
 .es-badge.err{background:var(--red-soft);color:var(--red)} .es-badge.err .es-dot{background:var(--red)}
 .es-detail{font-size:12.5px;color:var(--sub);line-height:1.55}
-.es-detail b{color:var(--green-deep);font-weight:800}
+.es-detail b{color:var(--brand-deep);font-weight:800}
 .es-sub{font-size:11px;color:var(--mute);line-height:1.5}
 .es-note{margin-top:16px;font-size:11.5px;color:var(--mute);text-align:center;line-height:1.6}
 .es-skel{height:96px;border-radius:16px;background:linear-gradient(90deg,var(--bg),var(--surface),var(--bg));border:1px solid var(--line)}
@@ -330,7 +330,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .simrow b{font-size:22px;font-weight:900;letter-spacing:-.02em}
 .checks{display:flex;flex-direction:column;gap:10px}
 .checks span{font-size:14px;color:var(--sub);display:flex;gap:9px;align-items:center}
-.checks i{width:6px;height:6px;border-radius:3px;background:var(--green);flex-shrink:0}
+.checks i{width:6px;height:6px;border-radius:3px;background:var(--brand);flex-shrink:0}
 /* faq */
 .faq{max-width:760px;margin:0 auto}
 .faq-item{border-bottom:1px solid var(--line)}
@@ -344,7 +344,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .final h2{font-size:clamp(21px,3vw,26px);font-weight:900;letter-spacing:-.02em;line-height:1.35;color:#fff}
 .final p{font-size:13.5px;color:rgba(255,255,255,.88);max-width:460px;margin:0 auto;line-height:1.65}
 .final .inner{position:relative;display:flex;flex-direction:column;gap:14px;align-items:center}
-.final .btn-cta{background:#fff;color:var(--green-deep);box-shadow:0 6px 18px rgba(0,0,0,.2);font-size:13.5px;padding:11px 24px}
+.final .btn-cta{background:#fff;color:var(--brand-deep);box-shadow:0 6px 18px rgba(0,0,0,.2);font-size:13.5px;padding:11px 24px}
 /* footer */
 .footer{background:var(--surface);border-top:1px solid var(--line);padding:56px 0 40px}
 .foot-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr 1.4fr;gap:36px}
@@ -366,7 +366,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .auth-head p{font-size:12.5px;color:var(--sub);margin-top:4px}
 .auth-tabs{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:5px;margin-bottom:20px}
 .auth-tabs button{flex:1;font:inherit;font-size:14px;font-weight:700;cursor:pointer;background:none;border:none;color:var(--sub);padding:10px;border-radius:10px;transition:all .2s}
-.auth-tabs button.on{background:var(--surface);color:var(--green-deep);box-shadow:0 2px 10px rgba(16,32,26,.08)}
+.auth-tabs button.on{background:var(--surface);color:var(--brand-deep);box-shadow:0 2px 10px rgba(16,32,26,.08)}
 .sns-btns{display:grid;gap:10px}
 .sns-btn{display:flex;align-items:center;gap:12px;width:100%;font:inherit;font-size:14.5px;font-weight:700;cursor:pointer;border:none;border-radius:14px;padding:13px 18px;transition:transform .15s var(--ease),box-shadow .2s}
 .sns-btn:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(16,32,26,.12)}
@@ -382,21 +382,21 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .auth-sep span{font-size:11.5px;font-weight:700;color:var(--mute);letter-spacing:.06em}
 .auth-field label{display:block;font-size:12.5px;font-weight:700;color:var(--sub);margin-bottom:7px}
 .auth-field input{width:100%;font:inherit;font-size:15px;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:13px;padding:13px 16px;outline:none;transition:border-color .2s,box-shadow .2s}
-.auth-field input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(0,200,127,.15)}
+.auth-field input:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(34,199,184,.15)}
 .auth-field .hint{font-size:11.5px;color:var(--mute);margin-top:6px}
 .auth-field .err{font-size:12px;color:var(--red);font-weight:700;margin-top:6px;display:none}
 .auth-submit{width:100%;margin-top:14px;font:inherit;font-size:15px;font-weight:800;cursor:pointer;background:var(--grad);color:#fff;border:none;border-radius:14px;padding:14px;transition:transform .2s var(--ease),box-shadow .2s}
 .auth-submit:hover{transform:translateY(-1px);box-shadow:var(--glow)}
 .auth-agree{display:flex;gap:8px;align-items:flex-start;margin-top:14px;cursor:pointer}
-.auth-agree input{margin-top:3px;accent-color:var(--green)}
+.auth-agree input{margin-top:3px;accent-color:var(--brand-deep)}
 .auth-agree span{font-size:11.5px;color:var(--sub);line-height:1.55}
 .code-boxes{display:flex;gap:8px;justify-content:center;margin:18px 0 6px}
 .code-boxes input{width:46px;height:54px;text-align:center;font:inherit;font-size:22px;font-weight:800;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:12px;outline:none;transition:border-color .2s,box-shadow .2s}
-.code-boxes input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(0,200,127,.15)}
+.code-boxes input:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(34,199,184,.15)}
 .auth-back{background:none;border:none;cursor:pointer;font:inherit;font-size:13px;font-weight:700;color:var(--sub);padding:4px 0;margin-bottom:10px;display:inline-flex;align-items:center;gap:6px}
-.auth-back:hover{color:var(--green-deep)}
+.auth-back:hover{color:var(--brand-deep)}
 .auth-center{text-align:center;padding:26px 0 10px}
-.auth-spinner{width:52px;height:52px;margin:0 auto 18px;border-radius:50%;border:4px solid var(--green-soft);border-top-color:var(--green);animation:spin 0.9s linear infinite}
+.auth-spinner{width:52px;height:52px;margin:0 auto 18px;border-radius:50%;border:4px solid var(--brand-soft);border-top-color:var(--brand);animation:spin 0.9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
 .auth-center h4{font-size:17px;font-weight:800}
@@ -1008,7 +1008,7 @@ function renderGrowth() {
   if (asBox) {
     if (liveUnscored > 0) {
       asBox.style.display = '';
-      asBox.innerHTML = `<button class="btn btn-sm" type="button" id="gwAutoBtn" onclick="autoScoreLive()" style="width:100%;background:var(--green-soft);color:var(--green-deep);border:1px solid #C4EBD8;font-weight:800;cursor:pointer">🎯 온비드 개찰 결과로 자동 채점 (라이브 봉인 ${liveUnscored}건)</button><div id="gwAutoMsg" style="font-size:11.5px;color:var(--mute);margin-top:5px"></div>`;
+      asBox.innerHTML = `<button class="btn btn-sm" type="button" id="gwAutoBtn" onclick="autoScoreLive()" style="width:100%;background:var(--brand-soft);color:var(--brand-deep);border:1px solid #C7EBE7;font-weight:800;cursor:pointer">🎯 온비드 개찰 결과로 자동 채점 (라이브 봉인 ${liveUnscored}건)</button><div id="gwAutoMsg" style="font-size:11.5px;color:var(--mute);margin-top:5px"></div>`;
     } else {
       asBox.style.display = 'none'; asBox.innerHTML = '';
     }
@@ -1340,7 +1340,7 @@ function marketLine(bt, live) {
   return `<div class="ledger-log-item">🏠 주변 시세 추정: <b>${src.hitRate}%</b> 적중`
     + (src.err != null ? ` · 중앙값 오차 <b>${src.err}%</b>` : '')
     + ` <span style="opacity:.7">(${escHtml(src.label)} ${src.n.toLocaleString()}건)</span>`
-    + ` — 위 낙찰가 지표와 <b>별개</b>입니다. <a href="bidcast-lab.html#mktSec" style="color:var(--green-deep);font-weight:800">근거 →</a></div>`;
+    + ` — 위 낙찰가 지표와 <b>별개</b>입니다. <a href="bidcast-lab.html#mktSec" style="color:var(--brand-deep);font-weight:800">근거 →</a></div>`;
 }
 // 자산군별 성적 한 줄 — 합산 숫자 하나만 보여주면 표본이 쏠린 자산군의 성적으로
 // 다른 자산군 사용자를 오도한다(부동산은 잘 맞는데 동산 표본이 대부분이라 전체가 나빠 보임).
@@ -1353,7 +1353,7 @@ function assetLine(byAsset) {
     const thin = s.n < 20;
     return `<b>${escHtml(name)}</b> ${thin ? '표본 ' + s.n + '건(부족)' : rate + '% <span style="opacity:.7">(' + s.n.toLocaleString() + '건)</span>'}`;
   });
-  return `<div class="ledger-log-item">📊 자산군별: ${parts.join(' · ')} — 자산군마다 난이도가 크게 다릅니다. <a href="bidcast-lab.html#assetAccGrid" style="color:var(--green-deep);font-weight:800">자세히 →</a></div>`;
+  return `<div class="ledger-log-item">📊 자산군별: ${parts.join(' · ')} — 자산군마다 난이도가 크게 다릅니다. <a href="bidcast-lab.html#assetAccGrid" style="color:var(--brand-deep);font-weight:800">자세히 →</a></div>`;
 }
 async function loadLedger() {
   try {
@@ -1826,7 +1826,7 @@ async function loadCurated() {
       const filtered = (types.length || region || budget);
       foot.innerHTML = `엔진이 마감 임박 <b>${(d.scanned || 0).toLocaleString()}건</b>을 훑어 기준을 통과한 <b>${hitN}건</b>을 골랐습니다`
         + (filtered ? ' (내 관심 기준 적용)' : '')
-        + `. 차익은 <b>보수 가정</b>으로만 계산하며 <b>수익을 보장하지 않습니다</b>. 이 선별의 사후 성적은 <a href="bidcast-lab.html" style="color:var(--green-deep);font-weight:700">적중률 랩</a>에서 공개합니다.`
+        + `. 차익은 <b>보수 가정</b>으로만 계산하며 <b>수익을 보장하지 않습니다</b>. 이 선별의 사후 성적은 <a href="bidcast-lab.html" style="color:var(--brand-deep);font-weight:700">적중률 랩</a>에서 공개합니다.`
         + (at ? ' · ' + at.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' 갱신' : '');
     }
   }
