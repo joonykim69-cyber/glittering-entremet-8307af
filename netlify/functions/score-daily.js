@@ -160,7 +160,38 @@ exports.handler = async (event) => {
     };
     let calib = (await store.get('calib', { type: 'json' })) || { byUsage: {} };
     // v0.5 챌린저(predb/*) 비교 집계 — 챔피언과 같은 물건에서만 채점되므로 공정 비교가 된다
-    const aggB = (await store.get('aggB', { type: 'json' })) || { n: 0, hit: 0, sumAbsErrPct: 0, headToHead: { n: 0, bWins: 0 } };
+    // ── 모델별 분리 (2026-08-02, 챌린저 v0.5 → v0.8 교체) ──
+    // 챌린저 모델이 바뀌면 성적을 **섞으면 안 된다** — 헌장의 승격 체크포인트(비교 100·300건
+    // 시점 승률)는 한 모델의 성적이어야 의미가 있다. v0.5로 봉인된 물건은 교체 후에도 최대
+    // 14일(봉인 창) 동안 개찰이 도착하므로, 채점 시점에 predb.modelV를 보고 갈라 담는다:
+    //   · 현재 모델(aggB.modelV)과 같으면 → aggB (공식 비교 기록)
+    //   · 다르면(구모델의 늦은 개찰) → aggB_archive_{modelV} (기록은 완결하되 비교는 오염 안 함)
+    // 새 모델(v0.8)의 첫 채점에서 기존 aggB를 아카이브로 옮기고 0부터 재시작한다(1회, 멱등).
+    let aggB = (await store.get('aggB', { type: 'json' })) || { n: 0, hit: 0, sumAbsErrPct: 0, headToHead: { n: 0, bWins: 0 } };
+    const aggBArchives = {}; // modelV → 아카이브 집계(이번 실행에서 만진 것만 마지막에 저장)
+    async function aggBFor(modelV) {
+      const mv = modelV || 'v0.5-cells'; // 초기 봉인분엔 modelV가 없다 — 전부 v0.5였다
+      if (!aggB.modelV) aggB.modelV = 'v0.5-cells'; // 레거시 집계에 이름표
+      if (mv === aggB.modelV) return aggB;
+      if (mv === 'v0.8-gbdt') {
+        // 새 모델의 첫 채점 — 기존 집계를 아카이브하고 공식 비교를 0부터 재시작.
+        aggBArchives[aggB.modelV] = aggB;
+        chronicle.push({
+          kind: 'model', at: new Date().toISOString(),
+          title: `챌린저 비교 재시작 — ${aggB.modelV} 성적 ${aggB.n}건은 보관, v0.8-gbdt 0건부터`,
+          detail: { modelV: 'v0.8-gbdt', prev: { modelV: aggB.modelV, n: aggB.n, hit: aggB.hit, headToHead: aggB.headToHead },
+            note: '모델이 바뀌면 성적을 섞지 않는다 — 승격 체크포인트(100·300건)는 새 모델 기준으로 다시 센다.' },
+        });
+        aggB = { modelV: mv, n: 0, hit: 0, sumAbsErrPct: 0, sumWidthPct: 0, headToHead: { n: 0, bWins: 0 }, byLevel: {}, roundReal: { real: 0, approx: 0 } };
+        return aggB;
+      }
+      // 구모델의 늦은 개찰 — 아카이브에 담는다(공식 비교는 건드리지 않는다).
+      if (!aggBArchives[mv]) {
+        aggBArchives[mv] = (await store.get(`aggB_archive_${mv}`, { type: 'json' })) ||
+          { modelV: mv, n: 0, hit: 0, sumAbsErrPct: 0, sumWidthPct: 0, headToHead: { n: 0, bWins: 0 }, byLevel: {}, roundReal: { real: 0, approx: 0 } };
+      }
+      return aggBArchives[mv];
+    }
     // 관측 계측(2026-07-27): 챌린저 폭 원인 진단용 — 백오프 레벨별(L0~L3) 건수·적중·폭 누적 +
     // 회차 실측(pbctNsq) vs 근사(유찰+1) 비율. 폭 335% 진단의 "어느 레벨에서 오나"를 데이터로 노출.
     aggB.byLevel = aggB.byLevel || {};
@@ -396,19 +427,22 @@ exports.handler = async (event) => {
       // ── v0.5 챌린저 채점 (있을 때만) — 같은 낙찰가로 구간 적중·오차를 병행 기록 (predB는 위에서 병렬 선조회) ──
       let bCmp = null;
       if (predB && predB.lo) {
+        const tgt = await aggBFor(predB.modelV); // 모델별 분리(위 주석) — 채점 수식은 불변
         const bHit = winMan >= predB.lo && winMan <= predB.hi;
         const bErrPct = Math.round((predB.mid - winMan) / winMan * 1000) / 10;
         const bWidthPct = Math.round((predB.hi - predB.lo) / winMan * 1000) / 10;
-        aggB.n++; if (bHit) aggB.hit++;
-        aggB.sumAbsErrPct += Math.abs(bErrPct);
-        aggB.sumWidthPct = (aggB.sumWidthPct || 0) + bWidthPct;
-        aggB.headToHead.n++;
-        if (Math.abs(bErrPct) <= Math.abs(errPct)) aggB.headToHead.bWins++;
-        // 관측: 백오프 레벨별(폭 원인 진단) + 회차 실측/근사 비율
-        const lvl = String(predB.cellKey || '').split('|')[0] || '?';
-        const lc = aggB.byLevel[lvl] || (aggB.byLevel[lvl] = { n: 0, hit: 0, sumWidthPct: 0 });
+        tgt.n++; if (bHit) tgt.hit++;
+        tgt.sumAbsErrPct += Math.abs(bErrPct);
+        tgt.sumWidthPct = (tgt.sumWidthPct || 0) + bWidthPct;
+        tgt.headToHead.n++;
+        if (Math.abs(bErrPct) <= Math.abs(errPct)) tgt.headToHead.bWins++;
+        // 관측: 백오프 레벨별(v0.5 전용 — v0.8은 cellKey가 없어 'GB'로 묶인다) + 회차 실측/근사
+        const lvl = predB.cellKey ? (String(predB.cellKey).split('|')[0] || '?') : 'GB';
+        tgt.byLevel = tgt.byLevel || {};
+        const lc = tgt.byLevel[lvl] || (tgt.byLevel[lvl] = { n: 0, hit: 0, sumWidthPct: 0 });
         lc.n++; if (bHit) lc.hit++; lc.sumWidthPct += bWidthPct;
-        if (predB.roundReal) aggB.roundReal.real++; else aggB.roundReal.approx++;
+        tgt.roundReal = tgt.roundReal || { real: 0, approx: 0 };
+        if (predB.roundReal) tgt.roundReal.real++; else tgt.roundReal.approx++;
         bCmp = { hit: bHit, errPct: bErrPct, modelV: predB.modelV, cellKey: predB.cellKey };
       }
 
@@ -544,6 +578,7 @@ exports.handler = async (event) => {
       store.setJSON('chronicle', chronicle),
       store.setJSON('agg', agg),
       store.setJSON('aggB', aggB),
+      ...Object.entries(aggBArchives).map(([mv, a]) => store.setJSON(`aggB_archive_${mv}`, a)),
       store.setJSON('calib', calib),
       store.setJSON('log', log),
       store.setJSON('recent', recent),

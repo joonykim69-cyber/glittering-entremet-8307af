@@ -26,7 +26,60 @@
 const CORS = { 'Access-Control-Allow-Origin': '*' };
 const quota = require('./lib/quota.js');
 const WINDOW_DAYS = 7;
-const MAX_PAGES = 5;      // 창×자산군당 최대 페이지 (100행/페이지)
+const MAX_PAGES = 5;      // 백필 창×자산군당 최대 페이지 (100행/페이지)
+// ── 증분 경로 (2026-08-02 복구) ──
+// 이 함수는 **하트비트도 hist/_meta도 한 번도 남기지 못한 채** 조용히 죽어 있었다.
+// 조기 반환 경로가 없으므로 마지막 두 쓰기에 도달하기 전에 죽는다는 뜻이고, 원인은
+// 자산군 3개 × 최대 5페이지를 **순차**로 도는 구조다 — 15번의 순차 HTTP가 우리 프록시를
+// 거쳐 data.go.kr까지 갔다 오면 30초 함수 한도에 정확히 부딪힌다.
+// (score-daily·predict-daily가 같은 이유로 502를 냈고 같은 방식으로 살아났다.)
+//   ① 페이지 크기 100 → 1000: 부동산 7일치가 약 6,000건인데 100×5면 500건까지밖에 못 봤다.
+//   ② 자산군 3개를 병렬로.
+//   ③ 시간 예산을 두고 넘으면 그 자산군만 접는다 — **끝까지 못 갔어도 하트비트는 남긴다.**
+const INC_ROWS = 1000;
+const INC_PAGES = 12;         // 1000×12 (실측: 부동산 7일 창 8,711건 = 9페이지)
+const INC_CONC = 4;           // 페이지 동시 조회 수
+const INC_BUDGET_MS = 20000;  // 30초 함수에서 마지막 쓰기 몫으로 10초를 남긴다
+
+// 한 자산군의 7일 창을 수집한다. **첫 페이지로 totalCount를 받아 필요한 페이지 수를 알아낸 뒤
+// 나머지를 병렬로** 가져온다 — 페이지를 순차로 돌면 부동산 9페이지 × 3.2초 ≈ 29초로 벽을 넘는다.
+// (실측 2026-08-02: 상위 호출 0.82~6.48초, 평균 3.2초 / 부동산 8,711건·자동차 220·동산 868)
+async function collectIncOne(base, cltrTypeCd, start, end, budget, t0) {
+  const rows = [], pvctRows = [];
+  const url = (page) => `${base}/.netlify/functions/onbid-bidresults?cltrTypeCd=${cltrTypeCd}&numOfRows=${INC_ROWS}&page=${page}&opbdDtStart=${start}&opbdDtEnd=${end}`;
+  const push = (batch) => {
+    rows.push(...batch.filter(x => x.statCd === '0010' || x.statCd === '0011').map(toRecord));
+    // 수의계약가능(0009)은 **별도 키**에 담는다 — 부동산 개찰의 18.7%가 이 상태인데 지금까지
+    // 버려서 채널 자체를 측정할 수 없었다. hist/_inc(학습 표본)에 섞으면 셀 표본이 흔들린다.
+    pvctRows.push(...batch.filter(x => x.statCd === '0009').map(toRecord));
+  };
+  const over = () => Date.now() - t0 > INC_BUDGET_MS;
+
+  if (!budget.take(1)) return { cltrTypeCd, rows, pvctRows, partial: true, reason: 'quota' };
+  let first;
+  try { first = await fetchJson(url(1)); } catch (e) { return { cltrTypeCd, rows, pvctRows, partial: true, reason: 'fetch' }; }
+  const batch1 = Array.isArray(first && first.results) ? first.results : [];
+  push(batch1);
+  const total = Number(first && first.totalCount) || batch1.length;
+  const pages = Math.min(INC_PAGES, Math.max(1, Math.ceil(total / INC_ROWS)));
+  if (pages <= 1) return { cltrTypeCd, rows, pvctRows, partial: false, pages: 1, total };
+
+  // 남은 페이지를 병렬로(동시 INC_CONC). 하나라도 못 받으면 **반쪽이므로 덮어쓰지 않는다.**
+  let partial = pages > INC_PAGES ? true : false;
+  const nums = [];
+  for (let i = 2; i <= pages; i++) nums.push(i);
+  for (let i = 0; i < nums.length; i += INC_CONC) {
+    if (over()) { partial = true; break; }
+    const chunk = nums.slice(i, i + INC_CONC).filter(() => budget.take(1) || (partial = true, false));
+    if (!chunk.length) break;
+    const got = await Promise.all(chunk.map(async (pg) => {
+      try { const d = await fetchJson(url(pg)); return Array.isArray(d && d.results) ? d.results : []; }
+      catch (e) { partial = true; return null; }
+    }));
+    for (const b of got) { if (b === null) continue; push(b); }
+  }
+  return { cltrTypeCd, rows, pvctRows, partial, pages, total };
+}
 const DEFAULT_WINDOWS = 6;
 
 function kst() { return new Date(Date.now() + 9 * 3600 * 1000); }
@@ -93,35 +146,28 @@ exports.handler = async (event) => {
     // **고정 키(hist/_inc/{type})로 매일 덮어쓴다**(2026-07-27 하우스키핑 수정): 과거엔 창 키가 매일
     // 이동해(hist/{start}_{end}/{type}) 6일씩 겹치는 블롭이 무한 누적되고 meta.records가 팽창했다.
     // 고정 키 롤링이면 자산군당 블롭 1개만 유지되고 hist-stats가 id_cdtn 중복제거로 백필과 조인한다.
-    let incRows = 0;
+    let incRows = 0, incPvct = 0, incMs = 0, incTimeHit = false;
+    const incSkipped = [];
     const backfillDone = cursorEnd <= oldestTarget;
     if (backfillDone) {
       const end = ymd(kst());
       const start = addDays(end, -(WINDOW_DAYS - 1));
-      for (const cltrTypeCd of ['0001', '0002', '0003']) {
-        const rows = [], pvctRows = [];
-        let partial = false;
-        for (let page = 1; page <= MAX_PAGES; page++) {
-          if (!budget.take(1)) { partial = true; budgetStopped = true; break; }
-          let d = null;
-          try {
-            d = await fetchJson(`${base}/.netlify/functions/onbid-bidresults?cltrTypeCd=${cltrTypeCd}&numOfRows=100&page=${page}&opbdDtStart=${start}&opbdDtEnd=${end}`);
-          } catch (e) { break; }
-          const batch = Array.isArray(d && d.results) ? d.results : [];
-          rows.push(...batch.filter(x => x.statCd === '0010' || x.statCd === '0011').map(toRecord));
-          // 수의계약가능(0009)은 **별도 키**에 담는다 — 부동산 개찰의 18.7%가 이 상태인데
-          // 지금까지 버려서 채널 자체를 측정할 수 없었다. hist/_inc(학습 표본)에 섞으면
-          // hist-stats 셀 표본이 흔들리므로 분리한다. 자세한 배경은 collect-backfill 주석.
-          pvctRows.push(...batch.filter(x => x.statCd === '0009').map(toRecord));
-          if (batch.length < 100) break;
-        }
+      const t0 = Date.now();
+      // 자산군 3개도 병렬 — 자동차·동산은 각 1페이지라 부동산과 같이 흐르면 사실상 공짜다.
+      const parts = await Promise.all(['0001', '0002', '0003']
+        .map(cd => collectIncOne(base, cd, start, end, budget, t0)));
+      for (const p of parts) {
+        if (p.reason === 'quota') budgetStopped = true;
         // 반쪽 수집분으로 기존 증분 스냅샷을 덮어쓰지 않는다 — 덮어쓰면 어제치까지 잃는다.
-        if (partial) break;
-        await store.setJSON(`hist/_inc/${cltrTypeCd}`, rows); // 고정 키 덮어쓰기(누적 아님)
-        await store.setJSON(`hist/_incpvct/${cltrTypeCd}`, pvctRows); // 수의계약 관측(같은 규율)
-        incRows += rows.length;
-        runWindows.push({ window: `_inc(${start}~${end})`, type: cltrTypeCd, rows: rows.length });
+        if (p.partial) { incSkipped.push(p.cltrTypeCd); continue; }
+        await store.setJSON(`hist/_inc/${p.cltrTypeCd}`, p.rows); // 고정 키 덮어쓰기(누적 아님)
+        await store.setJSON(`hist/_incpvct/${p.cltrTypeCd}`, p.pvctRows); // 수의계약 관측(같은 규율)
+        incRows += p.rows.length;
+        incPvct += p.pvctRows.length;
+        runWindows.push({ window: `_inc(${start}~${end})`, type: p.cltrTypeCd, rows: p.rows.length });
       }
+      if (incSkipped.length) incTimeHit = true;
+      incMs = Date.now() - t0;
     }
 
     for (let w = 0; !backfillDone && w < windowsPerRun; w++) {
@@ -183,8 +229,16 @@ exports.handler = async (event) => {
     await store.setJSON('hist/_meta', meta);
 
     const doneBackfill = cursorEnd <= oldestTarget;
-    // 하트비트 — 매 실행마다 마지막 성공 시각·수집건수·커서 기록(자가진단이 신선도로 죽음 감지)
-    await store.setJSON('_run/collect-history', { at: new Date().toISOString(), ok: true, added, windows: runWindows.length, cursorEnd, backfillComplete: doneBackfill, quotaStopped: budgetStopped });
+    // 하트비트 — 매 실행마다 마지막 성공 시각·수집건수·커서 기록(자가진단이 신선도로 죽음 감지).
+    // **실행시간(incMs)을 함께 남긴다** — 이 함수는 시간 한도에 부딪혀 조용히 죽었는데,
+    // 하트비트에 소요시간이 없으면 "다시 벽에 가까워지고 있다"를 아무도 못 본다.
+    // incSkipped는 반쪽이라 덮어쓰지 않은 자산군이다(조용히 사라지는 스킵은 없다).
+    await store.setJSON('_run/collect-history', {
+      at: new Date().toISOString(), ok: true, added, windows: runWindows.length, cursorEnd,
+      backfillComplete: doneBackfill, quotaStopped: budgetStopped,
+      incRows, incPvct, incMs, ...(incTimeHit ? { incTimeHit: true } : {}),
+      ...(incSkipped.length ? { incSkipped } : {}),
+    });
     return {
       statusCode: 200,
       headers: { ...CORS, 'Content-Type': 'application/json' },

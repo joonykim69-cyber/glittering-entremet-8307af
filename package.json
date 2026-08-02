@@ -3,7 +3,8 @@
   "private": true,
   "description": "신호등옥션 — Netlify Functions 의존성 전용 (사이트 자체는 빌드 없는 정적 HTML)",
   "scripts": {
-    "test": "node test/run.js"
+    "test": "node test/run.js",
+    "selfcheck": "node test/selfcheck.js"
   },
   "dependencies": {
     "@netlify/blobs": "^8.1.0",

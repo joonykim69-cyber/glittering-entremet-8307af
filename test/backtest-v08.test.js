@@ -93,7 +93,10 @@ let n=0,bad=0; const t=(k,c,x)=>{n++;if(!c){bad++;console.log('FAIL:',k,x!=null?
   t('BT_VERSION 범프(v6-autorange — 수집 범위 자동 추종 반영)', src.includes("BT_VERSION = 'v6-autorange'"));
   t('lib/gbtree require', src.includes("require('./lib/gbtree')"));
   t('score feat win 없음(GR11)', /const feat = \{ type: item\.type, usage: item\.usage, round: item\.round, low: item\.low, apsl: item\.apsl \};/.test(src));
-  t('성능 가드(서브샘플·트리수)', src.includes('V08_NMAX = 12000')&&src.includes('nTrees: 40'));
+  // 상수는 lib/v08.js 단일 출처로 이사(2026-08-02, 라이브 챌린저 채택) — 그쪽에서 확인한다.
+  const v08src = require('fs').readFileSync(__dirname+'/../netlify/functions/lib/v08.js','utf8');
+  t('성능 가드(서브샘플·트리수)', v08src.includes('V08_NMAX = 12000')&&v08src.includes('nTrees: 40'));
+  t('백테스트가 lib를 단일 출처로 쓴다', src.includes("require('./lib/v08.js')"));
 
   delete global.__FAKE_STORE__;
   console.log(`[bt v08 fixture] ${n-bad}/${n} pass  (v08 s1: n=${s1&&s1.models&&s1.models.v08&&s1.models.v08.n}, hit=${s1&&s1.models&&s1.models.v08&&s1.models.v08.hitRate}%, width=${s1&&s1.models&&s1.models.v08&&s1.models.v08.avgWidthPct}% | v05 hit=${s1&&s1.models&&s1.models.v05&&s1.models.v05.hitRate}%)`);
