@@ -75,7 +75,8 @@ let n=0,bad=0;const t=(k,c)=>{n++;if(!c){bad++;console.log('FAIL:',k);}};
   const src=require('fs').readFileSync(path,'utf8');
   t('정적: 200 상한 제거', !src.includes("numOfRows=100&page="));
   t('정적: numOfRows=1000 페이지네이션', src.includes('numOfRows=1000&page=')&&src.includes('batch.length < 1000'));
-  t('정적: byLevel/roundReal 배선', src.includes('aggB.byLevel[lvl]')&&src.includes('predB.roundReal'));
+  // 챌린저 교체(2026-08-02)로 tally 대상이 모델별 집계(tgt)가 됐다 — 배선 자체는 그대로 확인한다.
+  t('정적: byLevel/roundReal 배선', src.includes('tgt.byLevel[lvl]')&&src.includes('predB.roundReal'));
 
   // scoreboard 노출 정적
   const sb=require('fs').readFileSync(__dirname + '/../netlify/functions/scoreboard.js','utf8');

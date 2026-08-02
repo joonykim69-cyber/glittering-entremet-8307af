@@ -34,7 +34,7 @@ const hours = (t) => t ? (Date.now() - new Date(t).getTime()) / 3600000 : Infini
   // ── ① 예약 함수가 살아 있는가 ──
   // 하트비트가 **없는 것**이 가장 위험하다 — ok:false는 보이지만 없는 건 "확인 불가"로 묻힌다.
   // collect-history가 정확히 그렇게 죽어 있었다(2026-08-02).
-  const EXPECT = { predict: 30, score: 30, collect: 30, mktSeal: 30, alert: 30 };
+  const EXPECT = { predict: 30, score: 30, collect: 30, mktSeal: 30, alert: 30, trainGb: 30 };
   for (const [k, maxH] of Object.entries(EXPECT)) {
     const r = sb && sb.runs && sb.runs[k];
     if (!r) add('🔴', `runs.${k}`, '하트비트 없음 — 한 번도 끝까지 못 갔거나 실행되지 않음');
@@ -93,6 +93,10 @@ const hours = (t) => t ? (Date.now() - new Date(t).getTime()) / 3600000 : Infini
     if (/\|\|/.test(tag)) add('🔴', 'hist-stats', 'hist/_meta 없음 — 증분 수집기가 완주하지 못함', tag);
     if (hours(hs.builtAt) > 48) add('🟡', 'hist-stats', `셀이 ${Math.round(hours(hs.builtAt) / 24)}일째 재빌드 안 됨`);
   }
+
+  // v0.8 학습 실패는 봉인을 멈추지 않는다(어제 모델로 계속) — 그래서 더 조용히 낡는다.
+  const tg = sb && sb.runs && sb.runs.trainGb;
+  if (tg && tg.ok === false) add('🟡', 'runs.trainGb', 'v0.8 학습 실패 — 어제 아티팩트로 봉인 중', tg.error);
 
   // ── ⑤ 예산 ──
   const q = sb && sb.apiQuota;

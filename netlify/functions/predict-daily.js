@@ -16,6 +16,7 @@
 
 const { fromOnbid, selectItem, dedupeMovable, RESIDENTIAL } = require('./lib/curation');
 const { lawdOf } = require('./lib/lawd');
+const { predictV08 } = require('./lib/v08.js');
 const quota = require('./lib/quota.js');
 
 const CORS = { 'Access-Control-Allow-Origin': '*' };
@@ -137,6 +138,12 @@ exports.handler = async (event) => {
     // v0.5 챌린저 준비 — collect-history가 만든 실측 이력 셀(hist/_cells).
     // 데이터가 없으면 null → 챌린저 봉인은 조용히 생략된다 (챔피언 v0.1만 봉인).
     const cellsData = (await store.get('hist/_cells', { type: 'json' })) || null;
+    // ── 라이브 챌린저 = v0.8 GBDT (2026-08-02 창업자 결정) ──
+    // walk-forward 백테스트 3단계 × 3지표(적중률·오차·폭) 전승으로 채택. train-gb(매일 20:40 KST)가
+    // 학습해 둔 아티팩트를 읽기만 한다 — 여기서 학습하면 봉인이 30초 한도를 학습과 나눠 쓰게 된다.
+    // 아티팩트가 없으면(첫 학습 전·학습 실패) **v0.5 셀 경로로 폴백**해 챌린저가 어두워지지 않게
+    // 한다 — 어느 모델로 봉인했는지는 predb.modelV가 말하고, 채점은 모델별로 분리 집계된다.
+    const gb08 = (await store.get('hist/_gb08', { type: 'json' })) || null;
 
     // 마감 임박 물건 수집: 부동산 + 동산 + 차량 (입찰기간 검색 창: 오늘~+2일)
     // 수집 상한(사용자 지정 2026-07-22): 부동산 700(일반 500 + 토지 200 — 토지는 온비드에서
@@ -318,7 +325,23 @@ exports.handler = async (event) => {
       //    그렇게 넓힌 구간으로 맞히는 것은 헌장 GR4가 금지한 바로 그 방식이다. 근거가 그
       //    정도뿐이면 **예측하지 않는다**(GR6 — 근거 없으면 미산출).
       //    낙찰 확률·입찰자 수는 비율이라 폭 문제와 무관하므로 L0 셀에서도 계속 쓴다.
-      if (cell && !cellKey.startsWith('L0|')) {
+      // v0.8: 셀 백오프가 필요 없다(피처로 일반화). 최저가만 있으면 예측한다.
+      const v8 = gb08 ? predictV08(gb08, {
+        type: typeCdOf({ assetClass: it.assetClass || '부동산' }),
+        usage: String(it.usage || it.type || '기타').trim() || '기타',
+        round: cellRbN, low: it.min, apsl: it.appr,
+      }) : null;
+      if (v8) {
+        writes.push({ key: `predb/${it.id}_${it.pbctCdtnNo}`, val: {
+          id: it.id, pbctCdtnNo: it.pbctCdtnNo, type: it.type,
+          lo: v8.lo, mid: v8.mid, hi: v8.hi, // 만원
+          modelV: 'v0.8-gbdt', gbN: gb08.n, gbTrainedAt: gb08.trainedAt,
+          round: cellRbN, roundReal: cellRoundReal, // 회차(pbctNsq 실측 여부 — 근사면 false)
+          sealedAt: new Date().toISOString(),
+        } });
+        sealedB++;
+      } else if (cell && !cellKey.startsWith('L0|')) {
+        // 폴백 v0.5 — 아티팩트가 아직 없을 때만. L0 차단(2026-07-30)은 그대로다.
         const bLo = Math.round(it.min * cell.lr.p10 / 100);
         const bMid = Math.round(it.min * cell.lr.p50 / 100);
         let bHi = Math.round(it.min * cell.lr.p90 / 100);
@@ -327,7 +350,7 @@ exports.handler = async (event) => {
           id: it.id, pbctCdtnNo: it.pbctCdtnNo, type: it.type,
           lo: bLo, mid: bMid, hi: bHi, // 만원
           cellKey, cellN: cell.n, modelV: 'v0.5-cells',
-          round: cellRbN, roundReal: cellRoundReal, // 회차(pbctNsq 실측 여부 — 근사면 false)
+          round: cellRbN, roundReal: cellRoundReal,
           sealedAt: new Date().toISOString(),
         } });
         sealedB++;
@@ -426,7 +449,23 @@ exports.handler = async (event) => {
       apsl: c.apsl, low: c.low, reasons: (c.reasons || []).map(x => x.tag), at: new Date().toISOString(),
     })));
 
-    // 챌린저 봉인이 처음 시작된 날을 모델 연혁(chronicle)에 1회 기록
+    // 챌린저 v0.8 교체가 처음 봉인된 날을 모델 연혁(chronicle)에 1회 기록 (추가 전용 장부)
+    if (sealedB > 0 && gb08) {
+      const chronicle = (await store.get('chronicle', { type: 'json' })) || [];
+      if (!chronicle.some(c => c.kind === 'model' && c.detail && c.detail.modelV === 'v0.8-gbdt')) {
+        chronicle.push({
+          kind: 'model', at: new Date().toISOString(),
+          title: '챌린저 교체 v0.5 → v0.8 (GBDT) — 백테스트 3단계 전승으로 채택',
+          detail: {
+            modelV: 'v0.8-gbdt',
+            formula: '순수 JS 분위수 그래디언트 부스팅(p10/p50/p90) — 피처: 자산군·용도·회차·최저가·감정가·저가율, 예측 = 최저가 × lr 분위수',
+            note: '백테스트 3·9·15개월 학습 전 단계에서 v0.5 대비 적중률·오차·폭 모두 우위(폭이 좁아지며 이긴 것 — GR4 위반 아님). 창업자 결정 2026-08-02. 비교 채점은 0부터 재시작하며 승격 체크포인트(100·300건)는 새 모델 기준으로 다시 센다.',
+          },
+        });
+        await store.setJSON('chronicle', chronicle);
+      }
+    }
+    // (기존 v0.5 시작 기록 — 최초 배포 시절의 멱등 기록, 그대로 둔다)
     if (sealedB > 0) {
       const chronicle = (await store.get('chronicle', { type: 'json' })) || [];
       if (!chronicle.some(c => c.kind === 'model' && c.detail && c.detail.modelV === 'v0.5-cells')) {

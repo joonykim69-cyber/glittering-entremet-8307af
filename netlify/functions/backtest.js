@@ -47,8 +47,8 @@ const CORS = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/
 const MIN_N = 20;              // 챌린저 셀 자격 최소 표본 (라이브와 동일)
 const BT_VERSION = 'v6-autorange'; // 모델/방식 변경 시 올려 자동 재실행 (v6: 수집 범위 자동 추종 + 달 단위 누적 학습)
 // v0.8 성능 가드 — 100k행 census를 30초 함수 안에서 학습하려면 서브샘플·트리수 제한 필요.
-const V08_NMAX = 12000;                                     // 학습 표본 상한(초과 시 균등 서브샘플)
-const V08_OPTS = { nTrees: 40, maxDepth: 3, minLeaf: 30, lr: 0.15 };
+// v0.8 상수는 lib/v08.js 단일 출처(라이브 학습기와 같은 값이어야 apples-to-apples).
+const V08_NMAX = require('./lib/v08.js').V08_NMAX;
 // 셀당 보존 표본 상한 — 누적기가 수십 MB로 불어나면 매 실행의 읽기·쓰기가 시간 한도를 먹는다.
 // n(관측 수)은 전수를 유지하므로 MIN_N 자격 판정은 표본이 아니라 진짜 관측 수로 한다.
 const ACC_CELL_CAP = 1500;
@@ -194,46 +194,11 @@ function predictFromChain(cells, item, keys) {
   return { lo, mid, hi };
 }
 
-// ── v0.8 (GBDT) — 피처 인코딩 + 학습/예측 ──
-// 예측 대상은 v0.5와 동일하게 낙찰가율 lr(최저가 대비 %) — [lo,mid,hi]는 it.low로 환산해 apples-to-apples.
-// 피처: 자산군 원핫(3) + 용도 top-12 원핫 + other(13) + 회차·최저가log·감정가log·저가율(4).
-function buildEncoderV08(sold, K) {
-  const cnt = {};
-  for (const r of sold) cnt[r.usage] = (cnt[r.usage] || 0) + 1;
-  const usages = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]).slice(0, K || 12);
-  return { usages };
-}
-function encodeV08(rec, enc) {
-  const v = [rec.type === '0001' ? 1 : 0, rec.type === '0002' ? 1 : 0, rec.type === '0003' ? 1 : 0];
-  let matched = 0;
-  for (const u of enc.usages) { const m = (String(rec.usage) === u) ? 1 : 0; v.push(m); matched |= m; }
-  v.push(matched ? 0 : 1); // other
-  const low = Number(rec.low) || 0, apsl = Number(rec.apsl) || 0, round = Number(rec.round) || 1;
-  v.push(Math.min(round, 10));                               // 회차(상한)
-  v.push(low > 0 ? Math.log10(low) : 0);                     // 최저가 로그
-  v.push(apsl > 0 ? Math.log10(apsl) : 0);                   // 감정가 로그
-  v.push(apsl > 0 ? Math.max(0, Math.min(2, low / apsl)) : 0); // 저가율(최저가/감정가)
-  return v;
-}
-// 학습: 낙찰(0010)·lr>0만. 서브샘플로 성능 가드. win/lr을 x에 안 넣음(y=lr만 목표).
-function trainV08(records) {
-  let sold = records.filter(r => r.st === '0010' && r.lr > 0 && r.low > 0);
-  if (sold.length < 50) return null; // 표본 부족 → v0.8 해당 스테이지 생략
-  if (sold.length > V08_NMAX) { const step = sold.length / V08_NMAX, s = []; for (let i = 0; i < V08_NMAX; i++) s.push(sold[Math.floor(i * step)]); sold = s; }
-  const enc = buildEncoderV08(sold, 12);
-  const X = sold.map(r => encodeV08(r, enc)), y = sold.map(r => r.lr);
-  return { enc, gb: GB.trainQuantileBands(X, y, V08_OPTS), n: sold.length };
-}
-// 예측: it엔 개찰 전 값만(win 없음 — GR11). lr 분위수 → it.low로 환산.
-function predictV08(model, it) {
-  if (!model || !model.gb) return null;
-  if (!(Number(it.low) > 0)) return null;   // 최저가 없으면 예측 안 함(v0.5와 동일 규율)
-  const b = GB.predictBands(model.gb, encodeV08(it, model.enc)); // lr 분위수
-  const lo = Math.round(it.low * b.lo / 100), mid = Math.round(it.low * b.mid / 100);
-  let hi = Math.round(it.low * b.hi / 100);
-  if (hi <= lo) hi = Math.round(lo * 1.05);
-  return { lo, mid, hi };
-}
+// ── v0.8 (GBDT) — 인코딩·학습·예측은 lib/v08.js 단일 출처 ──
+// 라이브 챌린저 채택(2026-08-02)으로 백테스트·일일 학습기(train-gb)·봉인(predict-daily)이
+// 같은 인코딩을 써야 해서 lib로 옮겼다(본문 무수정 이사 — 백테스트 결과 불변).
+const V08 = require('./lib/v08.js');
+const { buildEncoderV08, encodeV08, trainV08, predictV08 } = V08;
 
 // ═══ 모델 레지스트리 — 새 후보는 여기 등록 한 줄 + BT_VERSION 범프 ═══
 // predict(art, item)의 item엔 개찰 전 값만 들어온다(win 없음 — 마스킹 구조 보장).

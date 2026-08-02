@@ -81,6 +81,7 @@ exports.handler = async (event) => {
     // 관심물건 마감 이메일 알림 하트비트 — 예약 함수라 HTTP로 찔러볼 수 없어(403) 발송이
     // 실제로 되고 있는지 볼 방법이 없었다. 다른 예약 함수와 같은 규율로 노출한다.
     const runAlert = await store.get('_run/alert-daily', { type: 'json' }).catch(() => null);
+    const runTrainGb = await store.get('_run/train-gb', { type: 'json' }).catch(() => null); // v0.8 일일 학습(2026-08-02)
     // 외부 API 일일 호출 예산 사용량(온비드) — 수집기가 사용자 화면 몫을 침범하지 않는지 관측용.
     const apiQuota = await quota.readUsage(store, 'onbid').catch(() => null);
 
@@ -190,6 +191,9 @@ exports.handler = async (event) => {
           // {at, ok, sent, pending, failed, subs} — pending은 RESEND_API_KEY 미설정으로 보내지
           // 않은 건수다(보낸 척하지 않으며 마커도 남기지 않아 키를 넣는 즉시 발송된다).
           alert: runAlert || null,
+          // {at, ok, trained, n, totalRows, ms} — 챌린저 v0.8 일일 학습. ok:false면 아티팩트가
+          // 갱신되지 않았고 predict-daily는 어제 모델(또는 v0.5 폴백)로 봉인 중이라는 뜻.
+          trainGb: runTrainGb || null,
         },
         // 외부 API 일일 호출 예산(온비드). used는 **예약 함수가 쏜 호출만** 집계한다 —
         // 사용자 화면의 직접 조회는 포함되지 않으므로, reserve는 측정값이 아니라
@@ -213,7 +217,8 @@ exports.handler = async (event) => {
         modelV: 'v0.1',
         // v0.5 챌린저 비교 성적 (predb 채점분) — 데이터 없으면 n:0
         challenger: (aggB && aggB.n) ? {
-          modelV: 'v0.5-cells', n: aggB.n, hit: aggB.hit,
+          // modelV는 집계에 붙은 이름표를 그대로 — 챌린저 교체(v0.8) 후 하드코딩이 거짓말이 된다
+          modelV: aggB.modelV || 'v0.5-cells', n: aggB.n, hit: aggB.hit,
           hitRate: Math.round(aggB.hit / aggB.n * 1000) / 10,
           avgAbsErrPct: Math.round(aggB.sumAbsErrPct / aggB.n * 10) / 10,
           avgWidthPct: aggB.sumWidthPct ? Math.round(aggB.sumWidthPct / aggB.n * 10) / 10 : null,
