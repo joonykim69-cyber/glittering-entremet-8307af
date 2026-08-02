@@ -692,6 +692,19 @@ a{color:inherit;text-decoration:none;}
       <div class="card" id="soldCard"></div>
       <p style="font-size:11px;color:var(--mute);margin-top:10px;" id="soldNote"></p>
     </section>
+
+    <!-- 기다리면 얼마까지 내려가나 — 창업자 방향 전환(2026-08-01).
+         우리가 답하던 질문 "이번 회차에 얼마에 낙찰될까"는 부동산 개찰 이벤트의 **1.5%**에서만
+         일어나는 일이라, 나머지 98.5%의 사용자에게는 답이 없는 질문이었다(실측: 부동산 회차당
+         낙찰률 1.6~2.6%, 자동차 66.8% / 동산 48.9%와 45배 차이).
+         유찰이 기본값인 시장에서 실제 의사결정은 **"몇 회차 더 기다리면 얼마까지 내려가나"** 다.
+         그리고 그 답은 예측이 아니라 **사실**이다 — 온비드가 회차별 최저가와 마감일을 미리
+         공표한다(cseqBidInfClgList). 이미 받아오던 데이터라 추가 API 호출 0. -->
+    <section class="rp-section" id="sec-ladder" style="display:none;">
+      <h2>기다리면 얼마까지 내려가나 <span class="sec-tag" style="background:#EEF2F6;color:#41525E;">온비드 공고 일정</span></h2>
+      <div class="card" id="ladderCard"></div>
+      <p style="font-size:11px;color:var(--mute);margin-top:10px;" id="ladderNote"></p>
+    </section>
     </div><!-- /Q0 -->
 
     <!-- ── Q1. 얼마에 살 수 있나 ── -->
@@ -1360,6 +1373,78 @@ window.__aiReady=loadSealedPred();
 // ═══ 결과 예보 — Q0 "이번에 팔릴까" + Q1 "몇 명과 붙나" (2026-07-29) ═══
 // 낙찰가 예측만으로는 사용자의 첫 질문에 답하지 못한다. 유찰 8회 물건에 "예상 낙찰가 1.2억"만
 // 보여주면서 "이번에도 안 팔릴 가능성이 높다"는 말을 안 하는 게 지금까지의 상태였다.
+// ── 가격 사다리: "몇 회차 더 기다리면 얼마까지" (2026-08-01) ──
+// LADDER-START
+// 이 섹션이 다루는 숫자는 **예측이 아니라 사실**이다 — 온비드가 회차별 최저가와 마감일을
+// 미리 공표한다(cseqBidInfClgList). 그래서 봉인·채점 대상이 아니고, 라벨도 "온비드 공고 일정"이다.
+// 우리가 더하는 것은 값이 아니라 **틀**이다: 남은 회차만 추려 "지금 대비 얼마나 더 싸지는가"로 읽게 한다.
+// 이미 받아온 데이터를 다시 쓰므로 추가 API 호출은 0.
+function ladderRows(sched, pastMap, curNsq, apprWon, todayYmd){
+  // ⚠️ **회차 번호로 과거와 조인하면 안 된다** (2026-08-01 실데이터에서 발견).
+  //    pbctNsq는 공고(campaign) 안의 순번이라 **공고가 바뀌면 재사용된다**. 실물건
+  //    2022-04172-001의 prcnBidClgList에는 017회차가 2023년(최저 7,050만)과 2024년(최저
+  //    3,525만)에 각각 있고, cseqBidInfClgList에 없는 044·045·048도 있으며, 이미 낙찰된
+  //    회차(026·030·037)까지 섞여 있다 — 이 물건은 2022·2023·2024·2026년에 걸쳐 여러 공고를
+  //    거쳤다. 번호로 조인하면 **다른 공고의 회차를 지웠다고 착각**한다(실제로 040이 2024년
+  //    취소 기록에 걸려 빠지고 039·041만 남는 엉뚱한 사다리가 나왔다).
+  //
+  //    남은 회차의 판정 기준은 **마감일**이다 — 모호하지 않고 공고가 몇 번 바뀌었든 성립한다.
+  const today = String(todayYmd || '');
+  const rows = (sched || [])
+    .map(s => ({ nsq: String((s && s.pbctNsq) || ''), low: Number(s && s.lowstBidPrcIndctCont) || 0,
+                 end: String((s && s.cltrBidEndDt) || '').slice(0, 8) }))
+    .filter(r => r.low > 0)
+    // 마감일이 유효하고 오늘 이후인 회차만. placeholder(2999…)는 일정 미정이라 제외한다 —
+    // 날짜를 모르면 "언제까지 기다리면"에 답할 수 없다.
+    .filter(r => /^\d{8}$/.test(r.end) && r.end < '29990000' && (!today || r.end >= today))
+    .sort((a, b) => a.end.localeCompare(b.end));
+  // "지금"은 가장 가까운 남은 회차다(회차 번호가 아니라 날짜로 정한다).
+  const curLow = rows.length ? rows[0].low : 0;
+  return rows.map((r, i) => ({
+    ...r,
+    isCur: i === 0,
+    apprPct: apprWon > 0 ? Math.round(r.low / apprWon * 1000) / 10 : null,
+    // 지금 회차 대비 얼마나 더 싸지나 — 기다림의 대가를 금액으로 보여 준다.
+    dropWon: curLow > 0 ? Math.max(0, curLow - r.low) : 0,
+    dropPct: curLow > 0 ? Math.round((curLow - r.low) / curLow * 1000) / 10 : null,
+  }));
+}
+
+function renderLadder(sched, apprWon){
+  const sec=document.getElementById('sec-ladder'),card=document.getElementById('ladderCard'),note=document.getElementById('ladderNote');
+  if(!sec||!card) return;
+  const kst=new Date(Date.now()+9*3600*1000);
+  const today=`${kst.getUTCFullYear()}${String(kst.getUTCMonth()+1).padStart(2,'0')}${String(kst.getUTCDate()).padStart(2,'0')}`;
+  const rows=ladderRows(sched, null, '', apprWon, today);
+  // 남은 회차가 현재 하나뿐이면 "기다리면"이라는 질문이 성립하지 않는다 — 섹션을 열지 않는다.
+  if(rows.length<2){ sec.style.display='none'; return; }
+  const won=n=>Number(n)>0?Number(n).toLocaleString()+'원':'—';
+  const dt=v=>/^\d{8}$/.test(v)&&v<'29990000'?`${v.slice(4,6)}.${v.slice(6,8)}`:'미정';
+  const body=rows.slice(0,8).map(r=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line);">
+      <span style="min-width:58px;font-size:12px;font-weight:800;color:${r.isCur?'var(--green-deep)':'var(--sub)'};">${r.nsq}회차${r.isCur?' ·다음':''}</span>
+      <span style="min-width:52px;font-size:12px;color:var(--mute);">${dt(r.end)}</span>
+      <span style="flex:1;font-size:13.5px;font-weight:${r.isCur?'900':'700'};color:var(--ink);">${won(r.low)}</span>
+      ${r.apprPct!=null?`<span style="min-width:56px;text-align:right;font-size:11.5px;color:var(--mute);">감정가 ${r.apprPct}%</span>`:''}
+      <span style="min-width:88px;text-align:right;font-size:12px;font-weight:700;color:${r.dropWon>0?'var(--green-deep)':'var(--mute)'};">${r.dropWon>0?'−'+won(r.dropWon):'—'}</span>
+    </div>`).join('');
+  const last=rows[Math.min(rows.length,8)-1];
+  card.innerHTML=`<div style="font-size:12.5px;color:var(--sub);line-height:1.75;margin-bottom:4px;">
+      유찰되면 다음 회차에 최저가가 내려갑니다. <b>남은 회차의 가격과 마감일은 온비드가 미리 공표한 일정</b>이라 추정이 아닙니다.
+    </div>${body}
+    <div style="margin-top:11px;font-size:12.5px;color:var(--sub);line-height:1.75;border-top:2px solid var(--line);padding-top:10px;">
+      끝까지 기다리면 <b>${last?dt(last.end):'—'}</b>에 <b>${last?won(last.low):'—'}</b>${last&&last.dropWon>0?` — 지금보다 <b style="color:var(--green-deep);">${won(last.dropWon)}</b> 낮습니다`:''}.
+      다만 <b>그 전에 낙찰되면 기회는 사라집니다</b> — 위 낙찰 가능성과 함께 보세요.
+    </div>`;
+  if(note) note.innerHTML='<details class="more"><summary>이 표는 무엇이고 무엇이 아닌가</summary><div class="more-body">'
+    +'회차별 최저입찰가와 입찰 마감일은 <b>온비드 공고에 공표된 사실</b>입니다(물건상세 입찰정보). '
+    +'우리가 더한 것은 값이 아니라 <b>남은 회차만 추려 지금과 견주는 틀</b>뿐이며, <b>봉인·채점 대상이 아닙니다</b>. '
+    +'중간에 낙찰·취소되면 남은 일정은 진행되지 않고, 공고 변경 시 일정도 바뀔 수 있습니다. '
+    +'<b>입찰 권유가 아닙니다.</b></div></details>';
+  sec.style.display='';
+}
+// LADDER-END
+
 // 두 숫자 모두 낙찰가와 **같은 순간에 봉인**되고 개찰 후 채점받는다(soldProb는 적중률이 아니라
 // 보정으로 채점 — "70%라 말한 것들이 실제로 몇 % 팔렸나"). 근거 셀이 없으면 만들지 않는다.
 function renderOutcome(p){
@@ -1841,6 +1926,7 @@ if(isLive&&liveItem){
             <span class="h-tag ${cls}">${tag}</span>
           </div>`;
         }).join('')+'<p style="font-size:11px;color:var(--mute);margin-top:10px;">✅ 실시간 온비드 회차별 입찰정보 (물건상세 입찰정보)</p>';
+        renderLadder(sched, apprWonLive); // 앞을 보는 뷰(아래) — 남은 회차는 날짜로 판정한다
         applyHistCollapse(); // 회차 많으면 최근분만 남기고 접기(더보기)
         // 유찰 진단 보강 — 진행된 회차 중 취소 횟수 실측(취소 반복 = 절차·권리 변수 신호)
         fdSet({cancels:cancelCnt});
