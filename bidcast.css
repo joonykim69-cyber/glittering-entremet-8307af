@@ -14,6 +14,9 @@
       이 파일의 규칙 상당수가 페이지 스타일을 덮어쓰는 오버라이드이기 때문이다.
    ═══════════════════════════════════════════════════════════════════════ */
 
+/* @import는 다른 규칙보다 앞에 와야 한다(CSS 명세). 랩 페이지가 쓰던 것과 같은 Pretendard CDN. */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
 /* ═══ 디자인 시스템 v2 공통 오버라이드 (클로드 디자인 병합, 2026-07-19) ═══
    랜딩(bidcast.html)에서 채택한 새 포맷을 전 페이지에 전파:
    - 타이포: Nunito(제목)/Poppins+Noto Sans KR(본문)
@@ -27,19 +30,38 @@ h1,h2,h3,h4{font-family:var(--font-head)}
 .logo-mark .tl.y{background:#FFC000 !important}
 .logo-mark .tl.g{background:#27A857 !important}
 
-/* ═══ 팔레트 현대화 — 중립 베이스 + 신호등 3색 유지 (2026-08-02, 핸드오프 §3·§7·실행순서 3) ═══
-   지금까지 베이스(배경·잉크·라인)까지 초록 틴트라 초록이 "판단 신호"가 아니라 "벽지"였다.
-   베이스를 중립 슬레이트로 바꾸고 신호 색(--green/--yellow/--red)은 한 값도 안 건드린다 —
-   배경이 중립일수록 신호등 3색이 신호로 잘 읽힌다(§3 색 규율과 같은 뿌리).
-   신호등 브랜드는 유지(§7 브랜드 판단 — 이름·예언자 등급·판단 준비도가 전부 그 위에 있다).
-   각 페이지 인라인 :root보다 이 파일이 나중에 로드되므로 토큰만 덮으면 15페이지가 함께 바뀐다. */
+/* ═══ 브랜드 B 하이브리드 — Neo Aqua 브랜드/행동 + 신호등 3색은 판단 신호 전용 (2026-08-03 창업자 결정) ═══
+   창업자 제공 K-Legonara Design Guideline v1의 디자인 언어를 이식하되, 신호등옥션의 판단 언어는 지킨다.
+   - Neo Aqua(#22C7B8) 계열 = 브랜드·주요 행동·선택 상태 전용 (--grad CTA 그라데이션 포함)
+   - 신호 색(--green/--yellow/--red)은 한 값도 안 건드린다 — 판단 준비도 🟢🟡🔴·예언자 등급·
+     경고·큐레이션 트랙 전용. 지금까지 초록이 "CTA"와 "판단 가능"을 겸하던 모호성이
+     이 분리로 해소된다(색 규율의 완성 — 같은 색이 두 가지 뜻을 갖지 않는다).
+   - 중립(배경·잉크·라인)은 가이드라인의 아쿠아 틴트 중립 스케일. 대비 실측:
+     잉크/배경 14.5 · 보조/흰 7.2 · 메타/흰 5.0 — 전부 WCAG AA 통과.
+   - CTA 그라데이션은 원색이 아니라 **딥 변형**(#1979C9→#0F7E75) — 기존 CTA들이 흰 글씨라
+     원색(2.1:1)로는 불합격이고, 가이드라인 스스로 "흰색 텍스트가 필요하면 더 진한 배경
+     Variant를 사용한다"고 정했다(흰 글씨 대비 4.55/4.93 AA 통과). 원색 그라데이션은
+     장식·브랜드 순간용 --grad-brand로 별도 제공(위에 작은 흰 글씨 금지).
+   - 이전 슬레이트 중립(2026-08-02, PR #181)은 이 블록으로 대체됐다. */
 :root{
-  --bg:#F6F7F9;      /* 초록 틴트 #F6FAF7 → 쿨 뉴트럴 */
-  --ink:#161B26;     /* 녹색기 블랙 #10201A → 슬레이트 블랙 */
-  --sub:#4A5361;     /* #55655D → 슬레이트 */
-  --mute:#68727F;    /* #697A70 → 슬레이트 */
-  --line:#E4E7EC;    /* 녹색기 라인 #E1EAE4 → 중립 라인 */
+  --bg:#F7FBFC;      /* Ice White */
+  --surface:#FFFFFF;
+  --line:#DCEEF0;    /* Soft Cyan Gray */
+  --ink:#102A2E;     /* Neutral 950 */
+  --sub:#3E5C61;     /* Neutral 700 */
+  --mute:#5B7479;    /* Neutral 600 */
+  --brand:#22C7B8; --brand-hover:#18B8A9; --brand-ink:#102A2E; --brand-soft:#E2F7F5;
+  --info:#2EA8FF;    /* Bright Blue — 링크·포커스·AI 보조 강조 */
+  --grad:linear-gradient(135deg,#1979C9 0%,#0F7E75 100%);       /* CTA용 딥 변형(흰 글씨 AA) */
+  --grad-brand:linear-gradient(135deg,#2EA8FF 0%,#22C7B8 100%); /* 브랜드 순간용 원색 */
+  --glow:0 0 0 4px rgba(34,199,184,.16), 0 10px 34px rgba(34,199,184,.30);
+  --font:'Pretendard Variable',Pretendard,'Inter','Noto Sans KR',-apple-system,'Malgun Gothic',sans-serif;
+  --font-head:'Pretendard Variable',Pretendard,'Inter','Noto Sans KR',-apple-system,'Malgun Gothic',sans-serif;
 }
+/* 숫자 중심 제품 — 표·가격·적중률의 자릿수 정렬(가이드라인 §6.1 tabular numerals) */
+body{font-variant-numeric:tabular-nums}
+/* 키보드 포커스 — Bright Blue 2px(가이드라인 §9.2) */
+:focus-visible{outline:2px solid var(--info);outline-offset:2px}
 
 /* ═══ 소스 축 (AIOS 다중 소스 대비, 2026-07-29) ═══
    지금은 공매(온비드) 하나뿐이라 티가 안 나지만, 이 자리를 지금 만들어 두지 않으면
