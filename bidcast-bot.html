@@ -509,7 +509,7 @@ async function sendChat() {
   } catch (e) {
     t.remove();
     chatHistory.pop(); // 실패한 user 턴 제거 — 다음 호출의 messages 정합성 유지
-    appendMsgHTML(`"<b>${escapeHtml(text)}</b>"에 대해 답변드리려면 조금 더 구체적인 사건번호나 물건 조건이 필요해요. <a href="bidcast-list.html" style="color:var(--green-deep);font-weight:800;">물건 검색</a>에서 해당 물건을 찾아 리포트를 확인하시거나, 자주 묻는 질문 중 비슷한 항목을 참고해 보세요.`, 'bot');
+    appendMsgHTML(`"<b>${escapeHtml(text)}</b>"에 대해 답변드리려면 조금 더 구체적인 물건관리번호나 물건 조건이 필요해요. <a href="bidcast-list.html" style="color:var(--green-deep);font-weight:800;">물건 검색</a>에서 해당 물건을 찾아 리포트를 확인하시거나, 자주 묻는 질문 중 비슷한 항목을 참고해 보세요.`, 'bot');
     console.info('[bidcast] 예보봇 실 AI 연동 실패, 예시 응답으로 폴백:', e.message);
   } finally {
     sending = false;
