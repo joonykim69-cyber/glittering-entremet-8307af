@@ -11,6 +11,10 @@ function makeStore(){
     async list({prefix}){ const blobs=[]; for(const k of m.keys()) if(k.startsWith(prefix)) blobs.push({key:k}); return {blobs}; },
   };
 }
+// ⚠️ base URL이 없으면 fetch가 상대 URL로 즉시 예외를 내고, collect-history는 그걸
+// catch로 삼켜 빈 결과로 통과한다 — 이 파일의 옛 단언들은 **실제로 fetch를 한 번도 타지 않은 채**
+// 통과하고 있었다(2026-08-02 발견). 실호출 경로를 실제로 밟게 하려면 반드시 세워야 한다.
+process.env.URL = 'http://test.local';
 let n=0,bad=0;const t=(k,c)=>{n++;if(!c){bad++;console.log('FAIL:',k);}};
 
 (async()=>{
@@ -61,7 +65,7 @@ let n=0,bad=0;const t=(k,c)=>{n++;if(!c){bad++;console.log('FAIL:',k);}};
 
   // 정적: 배선
   const chSrc=require('fs').readFileSync(CH,'utf8'), hsSrc=require('fs').readFileSync(HS,'utf8');
-  t('정적: 증분 고정키 쓰기', chSrc.includes('`hist/_inc/${cltrTypeCd}`'));
+  t('정적: 증분 고정키 쓰기', chSrc.includes('`hist/_inc/${p.cltrTypeCd}`'));
   t('정적: 날짜 이동 증분키 제거', !chSrc.includes('await store.setJSON(`hist/${start}_${end}/${cltrTypeCd}`, rows)'));
   t('정적: hist-stats incKeys 스캔', hsSrc.includes("/^hist\\/_inc\\/\\d+$/")&&hsSrc.includes('oldKeys.concat(incKeys)'));
 
@@ -91,6 +95,79 @@ let n=0,bad=0;const t=(k,c)=>{n++;if(!c){bad++;console.log('FAIL:',k);}};
     const bfSrc=require('fs').readFileSync(__dirname+'/../netlify/functions/collect-backfill.js','utf8');
     t('정적: 백필도 0009를 hist/pvct로 분리', bfSrc.includes('hist/pvct/')&&bfSrc.includes("PVCT_ST = '0009'"));
     t('정적: 백필 학습 표본은 0010/0011만', bfSrc.includes("r.statCd !== '0010' && r.statCd !== '0011'"));
+  }
+
+  // ── 증분 경로가 30초 벽을 넘지 않는가 (2026-08-02 복구) ──
+  // 이 함수는 하트비트도 hist/_meta도 한 번도 남기지 못한 채 죽어 있었다. 조기 반환 경로가
+  // 없으므로 "마지막 쓰기 전에 죽는다"는 뜻이고, 원인은 자산군 3개 × 5페이지를 **순차**로
+  // 도는 구조였다. 느린 응답을 심어 그 실패를 재현하고, 고친 뒤엔 하트비트가 남는지 본다.
+  {
+    const s3 = makeStore(); global.__FAKE_STORE__ = s3;
+    s3.set('hist/_state', { cursorEnd: '20200101' });   // 백필 완료 상태 → 증분 경로
+    let calls = 0, maxConcurrent = 0, inflight = 0;
+    global.fetch = async (url) => {
+      calls++; inflight++; maxConcurrent = Math.max(maxConcurrent, inflight);
+      await new Promise(r => setTimeout(r, 120));       // 느린 상위 API
+      inflight--;
+      const u = new URL(url), cd = u.searchParams.get('cltrTypeCd');
+      const rows = Array.from({ length: 5 }, (_, i) => ({
+        id: cd + '-t' + i, pbctCdtnNo: '1', statCd: '0010', winAmt: 1e8, winRate: 100, lowstRate: 110,
+        apslAmt: 1.2e8, lowstAmt: 9e7, usage: '아파트', round: 1, opbdDt: '20260731', bidderCnt: 2 }));
+      return { ok: true, json: async () => ({ results: rows }) };
+    };
+    delete require.cache[require.resolve(CH)];
+    const t0 = Date.now();
+    const r3 = await require(CH).handler({ queryStringParameters: {} });
+    const ms = Date.now() - t0;
+    t('증분: 200 응답', r3.statusCode === 200, r3.statusCode);
+    // 핵심 — 죽지 않고 **하트비트가 남는다**. 이게 없어서 아무도 죽음을 몰랐다.
+    const hb = await s3.get('_run/collect-history');
+    t('증분: 하트비트 기록됨', !!hb && hb.ok === true, JSON.stringify(hb));
+    t('증분: 소요시간을 하트비트에 남긴다', hb && typeof hb.incMs === 'number', hb && hb.incMs);
+    // hist/_meta도 함께 — 이게 비어 있던 것이 죽음의 증거였다(hist-stats 캐시 태그 가운데 칸).
+    const mt = await s3.get('hist/_meta');
+    t('증분: hist/_meta 기록됨', !!mt && !!mt.updatedAt, JSON.stringify(mt));
+    // 자산군 3개가 **병렬**로 나가야 순차 15콜의 벽을 피한다.
+    t('증분: 자산군 병렬 수집', maxConcurrent >= 2, `최대 동시 ${maxConcurrent}`);
+    // **페이지도 병렬이어야 한다** — 부동산 7일 창이 실측 8,711건(9페이지)이라 페이지를 순차로
+    // 돌면 9 × 3.2초 ≈ 29초로 벽을 넘는다. totalCount로 페이지 수를 먼저 알아내는 게 핵심.
+    t('증분: totalCount로 페이지 수 산출', /Math\.ceil\(total \/ INC_ROWS\)/.test(chSrc));
+    t('증분: 남은 페이지 병렬 조회', /INC_CONC/.test(chSrc) && /Promise\.all\(chunk\.map/.test(chSrc));
+    t('증분: 30초 안에 끝난다', ms < 25000, ms + 'ms');
+    // 페이지 크기 — 100이면 부동산 7일치(약 6,000건)를 500건까지밖에 못 본다.
+    t('증분: 페이지 1000행', /numOfRows=\$\{INC_ROWS\}/.test(chSrc) && /INC_ROWS = 1000/.test(chSrc));
+    t('증분: 시간 예산 가드', /INC_BUDGET_MS/.test(chSrc) && /incTimeHit = true/.test(chSrc));
+    // 반쪽은 여전히 덮어쓰지 않는다(어제치를 잃지 않는다) — 다만 그 사실을 기록한다.
+    t('증분: 반쪽이면 스킵하고 기록', /if \(p\.partial\) \{ incSkipped\.push/.test(chSrc));
+  }
+
+  // ── 실측 재생: 전수 수집되는가 (2026-08-02) ──
+  // 프로덕션 측정값을 그대로 심는다 — totalCount 부동산 8,711 / 자동차 220 / 동산 868.
+  // 옛 구조(100행×5페이지 순차)는 부동산을 500건(5.7%)만 가져왔고 42초가 걸려 죽었다.
+  {
+    const s4 = makeStore(); global.__FAKE_STORE__ = s4;
+    s4.set('hist/_state', { cursorEnd: '20200101' });
+    const TOTAL = { '0001': 8711, '0002': 220, '0003': 868 };
+    global.fetch = async (url) => {
+      const u = new URL(url), cd = u.searchParams.get('cltrTypeCd');
+      const n = +u.searchParams.get('numOfRows'), pg = +u.searchParams.get('page');
+      const total = TOTAL[cd] || 0;
+      const cnt = Math.max(0, Math.min(n, total - (pg - 1) * n));
+      const rows = Array.from({ length: cnt }, (_, k) => ({
+        id: cd + '-' + pg + '-' + k, pbctCdtnNo: '1', statCd: '0010', winAmt: 1e8, winRate: 100,
+        lowstRate: 110, apslAmt: 1.2e8, lowstAmt: 9e7, usage: '아파트', round: 1, opbdDt: '20260731', bidderCnt: 2 }));
+      return { ok: true, json: async () => ({ results: rows, totalCount: total }) };
+    };
+    delete require.cache[require.resolve(CH)];
+    await require(CH).handler({ queryStringParameters: {} });
+    const re = await s4.get('hist/_inc/0001');
+    const car = await s4.get('hist/_inc/0002');
+    const mv = await s4.get('hist/_inc/0003');
+    t('전수: 부동산 8,711건 모두 수집', (re&&re.length)===8711, re&&re.length);
+    t('전수: 자동차 220건', (car&&car.length)===220, car&&car.length);
+    t('전수: 동산 868건', (mv&&mv.length)===868, mv&&mv.length);
+    const hb4 = await s4.get('_run/collect-history');
+    t('전수: 스킵 없음', hb4 && !hb4.incSkipped, JSON.stringify(hb4 && hb4.incSkipped));
   }
 
   delete global.__FAKE_STORE__; delete global.fetch;
