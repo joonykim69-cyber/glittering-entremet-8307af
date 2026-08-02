@@ -51,6 +51,9 @@ h1,h2,h3,h4{font-family:var(--font-head)}
   --sub:#3E5C61;     /* Neutral 700 */
   --mute:#5B7479;    /* Neutral 600 */
   --brand:#22C7B8; --brand-hover:#18B8A9; --brand-ink:#102A2E; --brand-soft:#E2F7F5;
+  /* 텍스트·단색 버튼용 딥 변형 — 원색(2.1:1)은 텍스트·흰글씨버튼 불합격이라 별도 토큰.
+     #0E756D: 흰 배경 텍스트 5.55 · 흰 글씨 버튼 배경 5.55 · soft 배경 위 ~5.0 (전부 AA) */
+  --brand-deep:#0E756D; --brand-deeper:#0C6B63;
   --info:#2EA8FF;    /* Bright Blue — 링크·포커스·AI 보조 강조 */
   --grad:linear-gradient(135deg,#1979C9 0%,#0F7E75 100%);       /* CTA용 딥 변형(흰 글씨 AA) */
   --grad-brand:linear-gradient(135deg,#2EA8FF 0%,#22C7B8 100%); /* 브랜드 순간용 원색 */
