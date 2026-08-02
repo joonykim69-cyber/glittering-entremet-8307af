@@ -117,7 +117,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 .h2{font-size:clamp(24px,3.6vw,34px);font-weight:900;letter-spacing:-.02em;line-height:1.3;text-wrap:pretty}
 .sub{font-size:16px;color:var(--sub);line-height:1.7;text-wrap:pretty}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 2px 16px rgba(16,32,26,.04)}
-.section{padding:90px 0}
+.section{padding:56px 0} /* 90px → 56px 밀도 조임(2026-08-02 핸드오프 실행순서 3 — "랜딩은 세로로 길다") */
 .sec-head{text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center;margin-bottom:48px}
 /* logo */
 .logo{display:inline-flex;align-items:center;gap:10px}
@@ -473,7 +473,7 @@ h1,h2,h3,.h2,.metric b,.logo b,.range-box .val,.simrow b,.bar-row b{font-family:
 <div class="mock" aria-hidden="true">
 <div class="mock-top">
 <span class="logo small"><span class="logo-box"><i></i><i></i><i></i></span><b>신호등<em>옥션</em></b></span>
-<div class="mock-search">🔍 사건번호·자산군으로 검색</div>
+<div class="mock-search">🔍 물건관리번호·자산군으로 검색</div>
 </div>
 <div class="mock-tool"><b>이번 주 관심 공매 물건</b><span>☆</span><span>필터</span><span>정렬 ▾</span><span class="chip chip-demo" id="mockChip" style="margin-left:auto">예시 데이터</span></div>
 <div class="mock-body">

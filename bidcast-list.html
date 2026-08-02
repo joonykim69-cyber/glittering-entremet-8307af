@@ -506,7 +506,7 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
     <!-- 검색창 -->
     <div class="search-row">
       <div class="search-box">
-        <input type="text" id="fQuery" placeholder="🔍  물건명, 지역, 사건번호 검색..." autocomplete="off"/>
+        <input type="text" id="fQuery" placeholder="🔍  물건명, 지역, 물건관리번호 검색..." autocomplete="off"/>
       </div>
       <button class="btn-search" type="button" onclick="doSearch()">검색</button>
       <button class="btn-reset" type="button" onclick="resetFilters()">초기화</button>
@@ -1434,7 +1434,7 @@ function renderReport(it) {
   // ── 기본정보 (요이땅 팩트 테이블 대응 — 실물건은 전부 실데이터) ──
   document.getElementById('rpBasic').innerHTML = `
     <div class="rp-grid2">
-      <div class="rp-tile"><div class="k">${live?'물건관리번호':'사건번호'}</div><div class="v">${rEsc(dispCaseNo)}</div></div>
+      <div class="rp-tile"><div class="k">물건관리번호</div><div class="v">${rEsc(dispCaseNo)}</div></div>
       <div class="rp-tile"><div class="k">${live?'공고기관':'담당 기관'}</div><div class="v">${rEsc(it.court)||'—'}</div></div>
       <div class="rp-tile"><div class="k">소재지</div><div class="v">${rEsc(it.address)||'—'}</div></div>
       <div class="rp-tile"><div class="k">용도</div><div class="v">${rEsc(it.usage||it.type)}</div></div>
