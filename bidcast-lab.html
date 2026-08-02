@@ -309,7 +309,11 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
   <div class="wrap">
     <span class="eyebrow">Rejected Challengers</span>
     <h2 class="title">기각된 실험들 — 통과 못 한 모델도 남깁니다</h2>
-    <p class="lead">더 나아 보이는 모델도 고정 기준을 못 넘으면 채택하지 않습니다. 아래는 실제로 검토했다가 기각한 두 후보의 기록입니다 — 성공만 골라 보여주지 않는다는 원칙을 코드가 아니라 실제 이력으로 증명합니다.</p>
+    <p class="lead">더 나아 보이는 모델도 고정 기준을 못 넘으면 채택하지 않습니다. 실제로 검토했다가 기각한 후보들의 기록을 남깁니다 — 성공만 골라 보여주지 않는다는 원칙을 코드가 아니라 실제 이력으로 증명합니다.</p>
+    <!-- 기본 접힘(2026-08-02) — 모델 연혁과 같은 규율: 기각 기록은 "실패를 숨기지 않았다"는
+         증거이지 사용자가 매번 읽을 읽을거리가 아니다. 지우는 게 아니라 접는 것. -->
+    <details class="chron-fold">
+    <summary>기각 기록 2건 보기</summary>
     <div class="chron-line" style="margin-top:24px;">
       <div class="chron-item model">
         <div class="chron-when">2026.07.23 KST</div>
@@ -326,7 +330,8 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
         </div>
       </div>
     </div>
-    <p class="foot-note">✅ 실제 백테스트 결과에 기반한 기록(값은 실행 시점 고정) — 라이브 챌린저는 두 실험 모두 기각 후에도 v0.5를 그대로 유지 중입니다.</p>
+    <p class="foot-note">✅ 실제 백테스트 결과에 기반한 기록(값은 실행 시점 고정) — 두 실험을 기각한 뒤에도 라이브 챌린저는 v0.5를 유지했고, 2026-08-02 walk-forward 백테스트 3단계 × 3지표(적중률·오차·구간 폭)를 전승한 v0.8(GBDT)로 교체됐습니다. 구간 폭이 <b>좁아지면서</b> 이긴 승리라 "넓혀서 맞히기"가 아닙니다.</p>
+    </details>
   </div>
 </section>
 
