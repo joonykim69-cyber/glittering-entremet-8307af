@@ -294,7 +294,13 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
     .guide-pane[data-lv="2"] .guide-mission{background:#FDF1E7}
     .guide-pane[data-lv="3"] .guide-mission{background:var(--red-soft)}
     .guide-terms .term{display:inline-block;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:2px 9px;margin:2px 4px 2px 0;font-size:12px;color:var(--sub)}
-  </style>
+  .ac-seg{display:flex;gap:8px;margin-top:4px}
+.ac-opt{flex:1;min-height:44px;padding:10px 12px;border:1px solid var(--line);background:#fff;border-radius:12px;
+  font-size:13.5px;font-weight:700;color:var(--sub);cursor:pointer}
+.ac-opt.on{border-color:var(--green-deep);background:var(--green-soft);color:var(--green-deep)}
+.ac-note{font-size:11.5px;color:#8A6D00;background:#FFF8E8;border:1px solid #F0DCB0;border-radius:10px;
+  padding:9px 12px;margin-top:10px;line-height:1.6}
+</style>
 <link rel="stylesheet" href="/bidcast.css"/>
   <section class="guide-panel" id="guidePanel">
     <div class="guide-head" id="guideHead" role="button" tabindex="0" aria-expanded="true">
@@ -375,6 +381,21 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
         <div class="rng"><span>1,000만원</span><span>15억원</span></div>
       </div>
 
+      <!-- 자산군 — 대출·취득세 가정이 성립하는지를 가른다 (2026-08-02 교정).
+           옛 코드는 자산군 구분 없이 **모든 물건에** 경락잔금대출 LTV와 취득세 1.5% +
+           명도비 300만원을 적용했다. 그래서 저장된 시나리오에 "파텍필립 시계 · LTV 90% ·
+           실자금 1,337만원 · 수익률 40.8%"가 찍혔다 — 손목시계를 담보로 8,118만원을
+           빌리고 시계에 명도비 300만원을 쓴다는 계산이다. 수익률이 약 6.8배 부풀려졌다.
+           숨은 가정을 코드에 묻어 두지 않고 **화면에 꺼내 사용자가 고칠 수 있게** 한다. -->
+      <div class="ctl">
+        <div class="lbl"><span>자산군</span><span class="v" id="tAsset">부동산</span></div>
+        <div class="ac-seg" role="group" aria-label="자산군 선택">
+          <button type="button" class="ac-opt on" data-ac="부동산" onclick="setAsset('부동산')">🏢 부동산</button>
+          <button type="button" class="ac-opt" data-ac="동산" onclick="setAsset('동산')">📦 동산·차량</button>
+        </div>
+        <p class="ac-note" id="acNote" style="display:none;"></p>
+      </div>
+
       <div class="ctl">
         <div class="lbl"><span>입찰가율 (감정가 대비)</span><span class="v" id="tRatio">82%</span></div>
         <input type="range" id="sRatio" min="50" max="120" step="1" value="82" aria-label="입찰가율"/>
@@ -388,13 +409,13 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
         <p id="mktRefNote" style="display:none;font-size:11.5px;color:var(--green-deep);background:var(--green-soft);border-radius:10px;padding:9px 12px;margin-top:10px;line-height:1.5;"></p>
       </div>
 
-      <div class="ctl">
+      <div class="ctl" id="ctlLtv">
         <div class="lbl"><span>경락잔금대출 비율 (LTV)</span><span class="v" id="tLtv">70%</span></div>
         <input type="range" id="sLtv" min="0" max="90" step="5" value="70" aria-label="대출 비율"/>
         <div class="rng"><span>무대출 (0%)</span><span>최대 조달 (90%)</span></div>
       </div>
 
-      <div class="ctl">
+      <div class="ctl" id="ctlRate">
         <div class="lbl"><span>예상 대출 금리 (연)</span><span class="v" id="tRate">4.5%</span></div>
         <input type="range" id="sRate" min="2" max="8" step="0.1" value="4.5" aria-label="대출 금리"/>
         <div class="rng"><span>연 2.0%</span><span>연 8.0%</span></div>
@@ -417,9 +438,9 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
 
       <div class="brk">
         <div class="brk-row"><span class="k">나의 입찰가 (감정가 × 입찰가율)</span><span class="v" id="oBid">—</span></div>
-        <div class="brk-row"><span class="k">경락잔금대출액</span><span class="v" id="oLoan">—</span></div>
-        <div class="brk-row"><span class="k">취득세·경비 (가정: 1.5% + 명도비 300만)</span><span class="v" id="oTax">—</span></div>
-        <div class="brk-row"><span class="k">월 대출 이자</span><span class="v red" id="oInterest">—</span></div>
+        <div class="brk-row" id="rowLoan"><span class="k">경락잔금대출액</span><span class="v" id="oLoan">—</span></div>
+        <div class="brk-row" id="rowTax"><span class="k" id="taxK">취득세·경비 (가정: 1.5% + 명도비 300만)</span><span class="v" id="oTax">—</span></div>
+        <div class="brk-row" id="rowInterest"><span class="k">월 대출 이자</span><span class="v red" id="oInterest">—</span></div>
         <div class="brk-row total"><span class="k">최종 필요 실자금 (내 현금)</span><span class="v" id="oCapital">—</span></div>
       </div>
 
@@ -452,7 +473,7 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
     <div id="savedArea"></div>
     <div id="myScoreArea"></div>
     <a href="bidcast-my.html#prophet" class="xtrack-link">🔮 이 연습이 <b>예언자 등급</b>이 됩니다 — 마이페이지 여정에서 봉인·채점 기록으로 등급을 올려보세요 <span class="arw">→</span></a>
-    <p class="sim-note">※ 시나리오는 이 브라우저에만 저장됩니다(최대 10개). 실물건이 연결된 시나리오는 개찰 후 🏁 개찰 채점으로 실제 낙찰가·AI 봉인 예측과 대조됩니다 (개찰 전에는 채점 불가). 본 계산은 참고용이며 투자 결과를 보장하지 않습니다.</p>
+    <p class="sim-note">※ 시나리오는 이 브라우저에만 저장됩니다(최대 10개). 실물건이 연결된 시나리오는 개찰 후 🎯 개찰 채점으로 실제 낙찰가·AI 봉인 예측과 대조됩니다 (개찰 전에는 채점 불가). 본 계산은 참고용이며 투자 결과를 보장하지 않습니다.</p>
   </section>
 </main>
 
@@ -506,20 +527,56 @@ const fmt = n => {
 const $ = id => document.getElementById(id);
 const sliders = ['sAppr', 'sRatio', 'sMarket', 'sLtv', 'sRate'];
 
+// SIM-CALC-START  (테스트가 이 블록을 추출해 실행한다 — 마커를 지우지 말 것)
+// 자산군 — 대출·취득세 가정이 성립하는지를 가른다. 기본은 부동산.
+let ASSET = '부동산';
+const isRe = () => ASSET === '부동산';
+
+// 제목으로 자산군 추정 — URL에 ac가 없는 옛 시나리오·구형 링크용 폴백.
+// 애매하면 부동산으로 두고 **사용자가 화면에서 고칠 수 있게** 한다(추정을 숨기지 않는다).
+// 실제 온비드 제목 형태에서 뽑았다 — 차량은 "현대 중형차 스포티지R 1995cc"처럼
+// **배기량(숫자+cc)** 과 "○형차"가 거의 항상 붙는다. 반면 부동산 제목엔 그 둘이 없다.
+// (`차` 한 글자만 넣으면 주차장·차고 같은 부동산이 걸린다.)
+const MOVABLE_RE = /시계|가방|핸드백|클러치|귀금속|금목걸이|금제품|골드바|금괴|반지|목걸이|팔찌|다이아|보석|회원권|골동|미술품|차량|자동차|[대중소]형차|순찰차|트럭|승용|버스|트레일러|카라반|중장비|지게차|선박|\d+\s*cc\b/i;
+function guessAsset(title) { return MOVABLE_RE.test(String(title || '')) ? '동산' : '부동산'; }
+
+function setAsset(ac, opts) {
+  ASSET = (ac === '동산') ? '동산' : '부동산';
+  document.querySelectorAll('.ac-opt').forEach(b => b.classList.toggle('on', b.dataset.ac === ASSET));
+  const t = $('tAsset'); if (t) t.textContent = isRe() ? '부동산' : '동산·차량';
+  // 동산·차량엔 경락잔금대출도 취득세·명도비도 없다 — 슬라이더와 행을 **감춘다**.
+  // (0으로 두고 보여주면 "대출이 가능한데 안 받은 것"처럼 읽힌다.)
+  ['ctlLtv', 'ctlRate'].forEach(id => { const e = $(id); if (e) e.style.display = isRe() ? '' : 'none'; });
+  ['rowLoan', 'rowInterest'].forEach(id => { const e = $(id); if (e) e.style.display = isRe() ? '' : 'none'; });
+  const note = $('acNote');
+  if (note) {
+    note.style.display = isRe() ? 'none' : 'block';
+    // 동산 부대비용(수수료 등)의 실제 요율을 우리가 모른다 → **지어내지 않고 0으로 두고 밝힌다**.
+    note.textContent = '동산·차량은 경락잔금대출과 취득세·명도비 가정이 적용되지 않습니다 — 낙찰가 전액을 현금으로 계산합니다. 수수료 등 부대비용은 공고 원문을 확인하세요.';
+  }
+  const tk = $('taxK');
+  if (tk) tk.textContent = isRe() ? '취득세·경비 (가정: 1.5% + 명도비 300만)' : '취득세·경비 (동산·차량 — 해당 없음)';
+  if (!opts || !opts.silent) render();
+}
+
 function calc() {
   const appr = +$('sAppr').value, ratio = +$('sRatio').value, market = +$('sMarket').value;
-  const ltv = +$('sLtv').value, rate = +$('sRate').value;
+  const ltv = isRe() ? +$('sLtv').value : 0;
+  const rate = isRe() ? +$('sRate').value : 0;
 
   const bid = Math.round(appr * ratio / 100);          // 낙찰가
-  const loan = Math.round(bid * ltv / 100);            // 대출액
-  const tax = Math.round(bid * 0.015 + 300);           // 취득세·경비 (가정)
-  const capital = bid - loan + tax;                    // 실투자금
-  const monthly = Math.round(loan * (rate / 100) / 12);// 월 이자
+  // 동산·차량은 담보대출 상품이 없고(손목시계를 담보로 90%를 빌릴 수 없다),
+  // 취득세 1.5%와 명도비 300만원도 부동산 취득 비용이다. 둘 다 0으로 둔다.
+  const loan = isRe() ? Math.round(bid * ltv / 100) : 0;
+  const tax = isRe() ? Math.round(bid * 0.015 + 300) : 0;
+  const capital = bid - loan + tax;                    // 실투자금(동산이면 낙찰가 전액)
+  const monthly = isRe() ? Math.round(loan * (rate / 100) / 12) : 0;
   const margin = market - (bid + tax);                 // 안전마진
   const roi = capital > 0 ? margin / capital * 100 : 0;
   const second = Math.round(bid * 0.972);              // 2등 입찰가 가정
-  return { appr, ratio, market, ltv, rate, bid, loan, tax, capital, monthly, margin, roi, second };
+  return { asset: ASSET, appr, ratio, market, ltv, rate, bid, loan, tax, capital, monthly, margin, roi, second };
 }
+// SIM-CALC-END
 
 function render() {
   const r = calc();
@@ -541,8 +598,12 @@ function render() {
 
   // 규칙 기반 브리핑 (if-else 분기 — AI 아님을 명시)
   const b1 = $('b1'), b2 = $('b2'), b3 = $('b3');
-  if (r.roi > 40) { b1.classList.remove('warn'); $('b1t').innerHTML = `자기자본 대비 수익률 <b>${r.roi.toFixed(1)}%</b> — 레버리지 효과가 큰 구간입니다. 금리 상승 여지도 함께 점검하세요.`; }
-  else if (r.roi > 10) { b1.classList.remove('warn'); $('b1t').innerHTML = `수익률 <b>${r.roi.toFixed(1)}%</b> — 안정적인 구조입니다. 월 이자 ${r.monthly.toLocaleString()}만원을 감당할 현금흐름을 확인하세요.`; }
+  if (r.roi > 40) { b1.classList.remove('warn'); $('b1t').innerHTML = isRe()
+      ? `자기자본 대비 수익률 <b>${r.roi.toFixed(1)}%</b> — 레버리지 효과가 큰 구간입니다. 금리 상승 여지도 함께 점검하세요.`
+      : `투입 현금 대비 수익률 <b>${r.roi.toFixed(1)}%</b> — 다만 이 수치는 <b>입력하신 시세</b>에 전적으로 달려 있습니다. 동산·차량 시세는 우리가 산정하지 않으니 거래 채널에서 직접 확인하세요.`; }
+  else if (r.roi > 10) { b1.classList.remove('warn'); $('b1t').innerHTML = isRe()
+      ? `수익률 <b>${r.roi.toFixed(1)}%</b> — 안정적인 구조입니다. 월 이자 ${r.monthly.toLocaleString()}만원을 감당할 현금흐름을 확인하세요.`
+      : `수익률 <b>${r.roi.toFixed(1)}%</b> — 낙찰가 전액을 현금으로 넣는 기준입니다.`; }
   else { b1.classList.add('warn'); $('b1t').innerHTML = `수익률 <b>${r.roi.toFixed(1)}%</b> — 낮은 편입니다. 입찰가율을 낮추거나 시세가 더 높은 물건을 검토해 보세요.`; }
 
   if (r.margin < 0) { b2.classList.add('warn'); $('b2t').innerHTML = `<b>마이너스 마진</b> — 취득원가(낙찰가+경비)가 시세를 초과합니다. 이 조건으로는 입찰하지 않는 것이 안전합니다.`; }
@@ -572,6 +633,8 @@ sliders.forEach(id => $(id).addEventListener('input', render));
     }
   }
   const title = (p.get('title') || '').slice(0, 60);
+  // 자산군: 상세 페이지가 넘겨준 값 우선, 없으면 제목으로 추정(구형 링크 호환).
+  setAsset(p.get('ac') === '동산' || p.get('ac') === '자동차' ? '동산' : (p.get('ac') ? '부동산' : guessAsset(title)), { silent: true });
   // 실물건 채점 연결용: id는 문자열(cltrMngNo 가능), cdtn은 공매조건번호
   window.PRE_ID = (p.get('id') || '').slice(0, 40).replace(/[^0-9A-Za-z\-_.]/g, '');
   window.PRE_CDTN = (p.get('cdtn') || '').slice(0, 20).replace(/[^0-9]/g, '');
@@ -616,7 +679,7 @@ async function loadLinkItems(btn) {
       b.type = 'button'; b.className = 'link-item';
       // API 응답 문자열은 textContent로만 삽입 (XSS 방지)
       b.textContent = `${it.title || '(제목 없음)'} — 감정가 ${fmt(it.appr)}${it.min > 0 ? ' · 최저 ' + fmt(it.min) : ''}`;
-      b.addEventListener('click', () => linkItem(it));
+      b.addEventListener('click', () => { setAsset('부동산'); linkItem(it); }); // 이 목록은 부동산 API
       list.appendChild(b);
     });
     btn.style.display = 'none';
@@ -653,7 +716,7 @@ function loadSims() { return JSON.parse(localStorage.getItem(SIMS_KEY) || '[]');
 function saveScenario() {
   const r = calc();
   const sims = loadSims();
-  sims.unshift({ at: Date.now(), appr: r.appr, ratio: r.ratio, market: r.market, ltv: r.ltv, rate: r.rate, margin: r.margin, roi: Math.round(r.roi * 10) / 10, capital: r.capital,
+  sims.unshift({ at: Date.now(), ac: r.asset, appr: r.appr, ratio: r.ratio, market: r.market, ltv: r.ltv, rate: r.rate, margin: r.margin, roi: Math.round(r.roi * 10) / 10, capital: r.capital,
     // 실물건 연결 정보 (있을 때만) — 개찰 후 "나 vs AI" 채점에 사용
     id: window.PRE_ID || '', cdtn: window.PRE_CDTN || '', title: window.PRE_TITLE || '',
     myBid: Math.round(r.appr * r.ratio / 100) });
@@ -669,6 +732,7 @@ function applySim(at) {
   if (!s) return;
   $('sAppr').value = s.appr; $('sRatio').value = s.ratio; $('sMarket').value = s.market;
   $('sLtv').value = s.ltv; $('sRate').value = s.rate;
+  setAsset(s.ac || guessAsset(s.title), { silent: true }); // 옛 시나리오엔 ac가 없다 → 제목으로 추정
   render();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -682,10 +746,10 @@ function renderSims() {
   area.innerHTML = `<div class="saved-list">${sims.map(s => `
     <div class="saved-item">
       <div style="cursor:pointer;" onclick="applySim(${s.at})" role="button" tabindex="0" onkeydown="if(event.key==='Enter')applySim(${s.at})">
-        <div class="t">${s.title ? '📌 ' + String(s.title).replace(/</g,'&lt;') + ' — ' : ''}감정가 ${fmt(s.appr)} · 입찰가율 ${s.ratio}% · LTV ${s.ltv}%</div>
+        <div class="t">${s.title ? '📌 ' + String(s.title).replace(/</g,'&lt;') + ' — ' : ''}감정가 ${fmt(s.appr)} · 입찰가율 ${s.ratio}% · ${(s.ac || guessAsset(s.title)) === '동산' ? '📦 동산·차량 (전액 현금)' : 'LTV ' + s.ltv + '%'}</div>
         <div class="m">마진 <b class="${s.margin >= 0 ? 'pos' : 'neg'}">${fmt(s.margin)}</b> · 수익률 ${s.roi}% · 실자금 ${fmt(s.capital)}</div>
       </div>
-      ${s.id && s.cdtn ? `<button type="button" class="grade-btn" onclick="gradeSim(${s.at})">🏁 개찰 채점</button>` : `<span class="grade-none" role="button" tabindex="0" onclick="alert('이 시나리오는 실제 물건과 연결돼 있지 않아 개찰 채점을 할 수 없어요.\\n\\n① 페이지 상단의 \\'실제 온비드 물건 불러와 연결하기\\' 버튼으로 물건을 고르거나\\n② 물건검색 → 실물건 상세 → \\'모의 입찰해보기\\'로 진입한 뒤\\n저장하면 🏁 개찰 채점 버튼이 생깁니다.')">물건 미연결 ⓘ</span>`}
+      ${s.id && s.cdtn ? `<button type="button" class="grade-btn" onclick="gradeSim(${s.at})">🎯 개찰 채점</button>` : `<span class="grade-none" role="button" tabindex="0" onclick="alert('이 시나리오는 실제 물건과 연결돼 있지 않아 개찰 채점을 할 수 없어요.\\n\\n① 페이지 상단의 \\'실제 온비드 물건 불러와 연결하기\\' 버튼으로 물건을 고르거나\\n② 물건검색 → 실물건 상세 → \\'모의 입찰해보기\\'로 진입한 뒤\\n저장하면 🎯 개찰 채점 버튼이 생깁니다.')">물건 미연결 ⓘ</span>`}
       <button type="button" onclick="deleteSim(${s.at})" aria-label="시나리오 삭제">✕</button>
     </div>`).join('')}</div>`;
 }
@@ -799,7 +863,7 @@ function renderMyScore() {
   const aiAvg = avg(graded.map(x => x.aiErr));
   area.innerHTML = `
     <div style="margin-top:18px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px 22px;">
-      <h3 style="font-size:15px;font-weight:800;margin-bottom:4px;">🏁 나 vs AI — 실제 개찰 결과 채점</h3>
+      <h3 style="font-size:15px;font-weight:800;margin-bottom:4px;">🎯 나 vs AI — 실제 개찰 결과 채점</h3>
       <p style="font-size:12px;color:var(--sub);margin-bottom:12px;">내 모의입찰과 AI의 봉인 예측을 같은 실제 낙찰가로 채점합니다. 채점 <b>${rec.length}건</b> · 내 평균 오차 <b>${myAvg}%</b>${graded.length ? ` · AI 평균 오차 <b>${aiAvg}%</b> · 상대전적 나 <b>${myWins}승 ${graded.length - myWins}패</b>` : ''}</p>
       <div class="saved-list">${rec.map(x => `
         <div class="saved-item">
