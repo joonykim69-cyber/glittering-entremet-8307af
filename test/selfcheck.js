@@ -85,6 +85,15 @@ const hours = (t) => t ? (Date.now() - new Date(t).getTime()) / 3600000 : Infini
     const x = ch.avgWidthPct / sb.summary.avgWidthPct;
     if (x > 2) add('🟡', 'challenger', `구간 폭이 챔피언의 ${x.toFixed(1)}배 — 승격 보류 대상`);
   }
+  // v0.8 승격 판정점 트립와이어 — 100/200/300건은 **사람이 판정하는** 고정 체크포인트(헌장 14절).
+  // 도달을 놓치면 판정 없이 표본만 쌓이므로, 도달한 뒤에는 판정이 끝날 때까지 계속 알린다
+  // (판정 결과로 모델이 승격·기각되면 aggB가 바뀌어 자연히 사라진다).
+  if (ch && ch.modelV === 'v0.8-gbdt' && ch.headToHead && ch.headToHead.n >= 100) {
+    const n = ch.headToHead.n;
+    const point = n >= 300 ? '표준 승격(300건·55%+·세그먼트 붕괴 없음)' : n >= 200 ? '조기 탈락(200건·50% 이하면 탈락)' : '조기 승격(100건·62%+)';
+    const rate = Math.round(ch.headToHead.bWins / n * 1000) / 10;
+    add('🟡', 'challenger', `판정점 도달 — 비교 ${n}건 · 상대전적 ${rate}% · ${point} 기준으로 창업자 판정 차례`, `폭 배수 가드(2배) 함께 확인`);
+  }
 
   // ── ④ 학습 데이터가 신선한가 ──
   if (hs && hs.status === 'ok') {
