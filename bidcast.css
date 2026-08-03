@@ -96,3 +96,33 @@ body{font-variant-numeric:tabular-nums}
 @media (max-width:520px){
   .src-tab{font-size:12.5px;padding:8px 12px}
 }
+
+/* ═══ 앱 셸 (Phase 2b — K-Legonara §4.3 번역, 2026-08-04 창업자 지시 "2b 진행") ═══
+   Left Nav(우리 IA) + 본문 + 우측 컨텍스트 패널. 마이 → 리스트 → 상세 순으로 페이지별 전환하며
+   셸 껍데기는 여기(공용), 내용(메뉴 활성·위젯)은 각 페이지가 채운다.
+   모바일(<1024px)은 기존 top nav + 햄버거를 그대로 쓴다 — 셸은 데스크톱 확장이라 정보 손실 0.
+   색 규율: 선택 상태는 --brand 계열(초록은 판단 신호 전용). */
+.shell{display:block}
+.shell-nav{display:none}
+.shell-aside{display:none}
+@media(min-width:1024px){
+  body.shell-page .nav-links{display:none}   /* 좌측 내비가 메뉴를 대체 — 중복 제거 */
+  .shell{display:grid;grid-template-columns:228px minmax(0,1fr);gap:26px;width:min(1600px,96%);margin:0 auto;align-items:start;padding:22px 0 44px}
+  .shell-main{min-width:0}
+  .shell-main .wrap{width:100%}              /* 셸 컬럼 안에서는 셸이 폭을 관리한다 */
+  .shell-nav{display:flex;position:sticky;top:78px;flex-direction:column;gap:2px}
+  .shell-nav .sn-group{font-size:10.5px;font-weight:800;color:var(--mute);letter-spacing:.08em;margin:16px 10px 5px}
+  .shell-nav .sn-group:first-child{margin-top:4px}
+  .shell-nav a{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:10px;font-size:13.5px;font-weight:700;color:var(--sub);text-decoration:none;min-height:40px}
+  .shell-nav a:hover{background:var(--brand-soft);color:var(--brand-deep)}
+  .shell-nav a.on{background:var(--brand-deep);color:#fff}
+  .shell-nav a .ic{width:20px;text-align:center;flex:none}
+}
+@media(min-width:1280px){
+  .shell{grid-template-columns:228px minmax(0,1fr) 292px}
+  .shell-aside{display:flex;position:sticky;top:78px;flex-direction:column;gap:14px;min-width:0}
+}
+.aside-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:15px 16px}
+.aside-card h4{font-size:12px;font-weight:800;color:var(--mute);letter-spacing:.04em;margin-bottom:10px}
+.aside-link{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--brand-deep);text-decoration:none;padding:8px 10px;border:1px solid var(--line);border-radius:10px;min-height:40px}
+.aside-link:hover{border-color:var(--brand);background:var(--brand-soft)}
