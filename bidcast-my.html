@@ -366,7 +366,7 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
 </style>
 <link rel="stylesheet" href="/bidcast.css"/>
 </head>
-<body>
+<body class="shell-page">
 
 <nav>
   <div class="wrap">
@@ -395,6 +395,27 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
   </div>
 </nav>
 
+<!-- ═══ 앱 셸 (Phase 2b) — 데스크톱: 좌측 내비 + 본문 + 우측 컨텍스트 패널. <1024px에서는
+     셸이 사라지고 기존 top nav·햄버거가 그대로 동작한다(bidcast.css .shell 반응형 규칙). ═══ -->
+<div class="shell">
+<aside class="shell-nav" aria-label="주 메뉴">
+  <div class="sn-group">찾기</div>
+  <a href="bidcast-list.html"><span class="ic">🔍</span>물건검색</a>
+  <a href="bidcast-map.html"><span class="ic">🗺️</span>지도</a>
+  <a href="bidcast-category.html"><span class="ic">📂</span>카테고리</a>
+  <a href="bidcast-calendar.html"><span class="ic">📅</span>캘린더</a>
+  <div class="sn-group">판단 도구</div>
+  <a href="bidcast-lab.html"><span class="ic">🎯</span>적중률 랩</a>
+  <a href="bidcast-simulator.html"><span class="ic">🧮</span>입찰 시뮬레이터</a>
+  <a href="bidcast-compare.html"><span class="ic">⚖️</span>비교함</a>
+  <a href="bidcast-bot.html"><span class="ic">🤖</span>예보봇</a>
+  <a href="bidcast-insight.html"><span class="ic">📰</span>인사이트</a>
+  <div class="sn-group">내 공간</div>
+  <a href="bidcast-my.html" class="on"><span class="ic">👤</span>마이페이지</a>
+  <a href="bidcast-pricing.html"><span class="ic">💎</span>요금제</a>
+  <a href="bidcast-support.html"><span class="ic">💬</span>고객센터</a>
+</aside>
+<div class="shell-main">
 <header class="page-head">
   <div class="wrap">
     <h1>마이페이지</h1>
@@ -408,7 +429,7 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
   </div>
 </header>
 
-<main class="wrap list-pad">
+<main class="wrap list-pad" id="myMain">
 
   <!-- 🔮 나의 예언자 여정 — bidcast:mypred 기반 개인 대시보드 (랜딩 #growth 이식·일원화) -->
   <section class="section" id="prophet" aria-labelledby="secProphet">
@@ -625,6 +646,27 @@ footer .copy { margin-top:24px; font-size:11.5px; color:var(--mute); }
   </section>
 
 </main>
+</div><!-- /.shell-main -->
+<aside class="shell-aside" aria-label="컨텍스트 패널">
+  <div class="aside-card" id="asideEngine" style="display:none">
+    <h4>🚦 엔진 지금</h4>
+    <div id="asideEngineBody" style="font-size:12.5px;line-height:1.7;color:var(--sub)"></div>
+    <a class="aside-link" href="bidcast-lab.html" style="margin-top:10px">적중률 랩에서 근거 보기 →</a>
+  </div>
+  <div class="aside-card" id="asideDue" style="display:none">
+    <h4>⏰ 마감 임박 관심물건</h4>
+    <div id="asideDueBody" style="display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+  <div class="aside-card">
+    <h4>바로 가기</h4>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <a class="aside-link" href="bidcast-list.html">🔍 물건검색</a>
+      <a class="aside-link" href="bidcast-calendar.html">📅 입찰 캘린더</a>
+      <a class="aside-link" href="bidcast-bot.html">🤖 예보봇에게 묻기</a>
+    </div>
+  </div>
+</aside>
+</div><!-- /.shell -->
 
 <div class="auth-overlay" id="authOverlay" role="dialog" aria-modal="true">
   <div class="auth-modal">
@@ -1556,5 +1598,41 @@ document.addEventListener('keydown', (e) => {
 })();
 </script>
 
+<script>
+/* ═══ 앱 셸 우측 컨텍스트 패널 (Phase 2b) — 실패 시 카드 숨김 유지(가짜 초록 금지) ═══ */
+(function(){
+  var escA=function(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
+  /* 엔진 현황 — scoreboard 1회. 합산 수치는 "합산"임을 밝힌다(자산군별 상세는 랩). */
+  fetch('/.netlify/functions/scoreboard').then(function(r){return r.ok?r.json():Promise.reject(new Error('HTTP '+r.status));}).then(function(d){
+    var n=d&&d.summary&&d.summary.n;
+    if(!(n>0))return;
+    document.getElementById('asideEngineBody').innerHTML=
+      '매일 예측을 봉인하고 개찰 후 전수 채점합니다.<br/><b style="color:var(--ink)">누적 채점 '+n.toLocaleString()+'건</b> · 적중 '+d.summary.hitRate+'%<span style="font-size:11px;color:var(--mute)"> (전 자산군 합산)</span>';
+    document.getElementById('asideEngine').style.display='';
+  }).catch(function(e){/* 미배포·오류 → 카드 숨김 유지 */});
+  /* 마감 임박 관심물건 — likesnap의 bidEnd만 사용(추가 조회 0), 7일 내 상위 3건 */
+  try{
+    var snap=JSON.parse(localStorage.getItem('bidcast:likesnap')||'{}');
+    var likes=JSON.parse(localStorage.getItem('bidcast:likes')||'[]');
+    var today=new Date(); today=new Date(today.getFullYear(),today.getMonth(),today.getDate());
+    var rows=[];
+    likes.forEach(function(id){
+      var s2=snap[id]; if(!s2||!s2.bidEnd)return;
+      var e=String(s2.bidEnd); if(e.length<8)return;
+      var d2=new Date(e.slice(0,4)+'-'+e.slice(4,6)+'-'+e.slice(6,8));
+      var dd=Math.round((d2-today)/86400000);
+      if(dd>=0&&dd<=7)rows.push({id:id,t:s2.title||String(id),dd:dd});
+    });
+    rows.sort(function(a3,b3){return a3.dd-b3.dd;});
+    if(rows.length){
+      document.getElementById('asideDueBody').innerHTML=rows.slice(0,3).map(function(r2){
+        var col=r2.dd<=3?'var(--red)':'#8A6D00';
+        return '<a href="bidcast-detail.html?id='+encodeURIComponent(r2.id)+'" onclick="try{stashLive(\''+String(r2.id).replace(/[^0-9A-Za-z\-_.]/g,'')+'\')}catch(e){}" style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink);text-decoration:none;min-height:40px;padding:4px 2px;border-bottom:1px solid var(--line)"><b style="flex:none;font-size:11px;color:'+col+'">D-'+r2.dd+'</b><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escA(r2.t)+'</span></a>';
+      }).join('');
+      document.getElementById('asideDue').style.display='';
+    }
+  }catch(e){/* 파싱 실패 → 숨김 */}
+})();
+</script>
 </body>
 </html>
