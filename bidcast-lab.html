@@ -238,7 +238,7 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
 <!-- ═══ 앱 셸 (Phase 2c) — 마이·리스트와 동일한 공용 셸(bidcast.css). 좌측 내비가 가리키는
      화면에서는 좌측 내비가 유지된다. <1024px에서는 셸이 비활성되고 기존 top nav·햄버거가
      그대로 동작한다(모바일 무변경). ═══ -->
-<div class="shell no-aside">
+<div class="shell aside-empty">
 <aside class="shell-nav" aria-label="주 메뉴">
   <div class="sn-group">찾기</div>
   <a href="bidcast-list.html"><span class="ic">🔍</span>물건검색</a>
@@ -474,6 +474,13 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
 </section>
 
 </div><!-- /.shell-main -->
+<aside class="shell-aside" aria-label="컨텍스트 패널">
+  <div class="aside-card" id="asideToc" style="display:none">
+    <h4>📑 이 페이지 안에서</h4>
+    <div id="asideTocBody" class="aside-nav"></div>
+    <p class="aside-note">채점·백테스트가 쌓인 섹션만 나옵니다 — 빈 곳으로 안내하지 않습니다.</p>
+  </div>
+</aside>
 </div><!-- /.shell -->
 
 <div class="auth-overlay" id="authOverlay" role="dialog" aria-modal="true">
@@ -994,6 +1001,37 @@ document.addEventListener('keydown', (e) => {
   window.logoutDemo = window.__bcLogout;
   if (document.readyState !== 'loading') render();
   else document.addEventListener('DOMContentLoaded', render);
+})();
+</script>
+
+<script>
+/* ═══ 우측 컨텍스트 패널 — 이 페이지 안에서(목차) ═══
+   랩의 섹션 대부분은 실측이 없으면 display:none이다. 그래서 목차를 정적으로 박으면
+   빈 화면으로 안내하게 된다(상세 페이지 "다음 확인"에서 이미 정한 규율). **보이는 섹션만**
+   담고, 섹션은 scoreboard 응답 뒤에 하나씩 켜지므로 호출부를 고치지 않고 관찰해 다시 그린다
+   (상세 syncQGroups와 같은 방식 — 켜는 곳이 여러 군데라 누락이 구조적으로 생긴다). */
+(function(){
+  var box=document.getElementById('asideToc'), body=document.getElementById('asideTocBody');
+  var main=document.querySelector('.shell-main'), shell=document.querySelector('.shell');
+  if(!box||!body||!main||!shell)return;
+  var esc=function(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
+  var seq=0;
+  function render(){
+    var out=[];
+    Array.prototype.forEach.call(main.querySelectorAll('section'), function(sec){
+      var h=sec.querySelector('h2.title');
+      if(!h||sec.offsetParent===null)return;             /* 숨은 섹션은 안내하지 않는다 */
+      if(!sec.id)sec.id='labsec-'+(++seq);
+      /* 제목의 부제(— 뒤·괄호 안)는 목차에선 덜어낸다 */
+      var t=(h.textContent||'').split('—')[0].replace(/\s*\(.*$/,'').trim();
+      if(t)out.push('<a href="#'+sec.id+'">'+esc(t)+'</a>');
+    });
+    body.innerHTML=out.join('');
+    box.style.display=out.length?'':'none';
+    shell.classList.toggle('aside-empty',!out.length); /* 빈 패널이 292px을 먹지 않게 */
+  }
+  render();
+  try{ new MutationObserver(render).observe(main,{attributes:true,attributeFilter:['style'],subtree:true}); }catch(e){}
 })();
 </script>
 

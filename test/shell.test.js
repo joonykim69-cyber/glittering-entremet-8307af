@@ -66,21 +66,35 @@ for (const f of shellPages) {
     (s.match(/<div class="shell-main">/g) || []).length,
     (s.match(/\/\.shell-main -->/g) || []).length);
   eq(`③ shell 열고 닫음: ${f}`,
-    (s.match(/<div class="shell( no-aside)?">/g) || []).length,
+    (s.match(/<div class="shell(?: [a-z-]+)?">/g) || []).length,
     (s.match(/\/\.shell -->/g) || []).length);
 }
 
-// ── ④ 우측 패널이 없으면 no-aside ──
-t('④ 공용 CSS에 no-aside 규칙', /\.shell\.no-aside\{grid-template-columns:228px minmax\(0,1fr\)\}/.test(css));
+// ── ④ 빈 컬럼을 만들지 않는다 ──
+// 패널이 아예 없으면 마크업의 `no-aside`, 있지만 이번 방문에 보여줄 카드가 없으면
+// 런타임의 `aside-empty` — 둘 다 3열을 2열로 되돌린다.
+t('④ 공용 CSS에 no-aside/aside-empty 규칙',
+  /\.shell\.no-aside,\.shell\.aside-empty\{grid-template-columns:228px minmax\(0,1fr\)\}/.test(css));
 t('④ 3열은 1280px 이상에서만', /@media\(min-width:1280px\)\{[^}]*\.shell\{grid-template-columns:228px minmax\(0,1fr\) 292px\}/.test(css));
+const asidePages = shellPages.filter(f => read(f).includes('class="shell-aside"'));
 for (const f of shellPages) {
   const s = read(f);
   const hasAside = s.includes('class="shell-aside"');
-  const declared = !s.includes('<div class="shell no-aside">');
-  eq(`④ 패널 유무와 선언 일치: ${f}`, hasAside, declared);
+  eq(`④ 패널 없으면 no-aside 선언: ${f}`, !hasAside, s.includes('<div class="shell no-aside">'));
+  t(`④ 패널과 no-aside를 함께 쓰지 않음: ${f}`, !(hasAside && s.includes('<div class="shell no-aside">')));
+  if (!hasAside) continue;
+  t(`④ 패널에 카드가 있음: ${f}`, s.includes('class="aside-card"'));
+  // 카드가 전부 숨겨질 수 있는 화면은 aside-empty로 시작해 카드가 뜰 때만 뗀다
+  // (데이터가 없거나 JS가 죽어도 빈 292px 컬럼이 남지 않게).
+  const allCardsHidable = !/<div class="aside-card">/.test(s);
+  if (allCardsHidable) {
+    t(`④ 조건부 패널은 aside-empty로 시작: ${f}`, s.includes('<div class="shell aside-empty">'));
+    t(`④ 카드가 뜨면 aside-empty를 뗌: ${f}`, /classList\.(remove|toggle)\('aside-empty'/.test(s));
+  }
 }
-t('④ 패널 보유 화면은 리스트·마이 2곳', shellPages.filter(f => read(f).includes('class="shell-aside"')).join() ===
-  'bidcast-list.html,bidcast-my.html', shellPages.filter(f => read(f).includes('class="shell-aside"')).join());
+eq('④ 패널 보유 화면 5곳(캘린더·랩·리스트·마이·시뮬레이터)',
+  asidePages.slice().sort().join(),
+  'bidcast-calendar.html,bidcast-lab.html,bidcast-list.html,bidcast-my.html,bidcast-simulator.html');
 
 // ── ⑤ fixed 오버레이는 셸 밖 ──
 for (const f of shellPages) {
