@@ -126,6 +126,10 @@ nav .wrap { display:flex; align-items:center; justify-content:space-between; pad
 .map-outer { padding:16px 0 60px; }
 .map-layout { display:grid; grid-template-columns:320px 1fr; gap:14px; align-items:start; }
 @media (max-width:960px) { .map-layout { grid-template-columns:1fr; } }
+/* 셸(≥1024px)이 켜지면 본문이 좌측 내비만큼(228px+gap) 좁아진다 — 1200px 미만에서
+   목록 320px을 그대로 두면 지도가 400px 안쪽으로 눌려 이 화면의 본론이 사라진다.
+   그 구간은 ≤960px와 같은 세로 배치(목록 위·지도 아래)로 내린다(이미 쓰이는 레이아웃). */
+@media (min-width:1024px) and (max-width:1199px) { .map-layout { grid-template-columns:1fr; } }
 
 /* ═══ SIDEBAR ═══ */
 .map-side { background:var(--surface); border:1px solid var(--line); border-radius:18px; overflow:hidden; position:sticky; top:72px; max-height:calc(100vh - 90px); display:flex; flex-direction:column; }
@@ -298,7 +302,7 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
 </style>
 <link rel="stylesheet" href="/bidcast.css"/>
 </head>
-<body>
+<body class="shell-page">
 
 <!-- ═══ NAV ═══ -->
 <nav>
@@ -327,6 +331,29 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
     </div>
   </div>
 </nav>
+
+<!-- ═══ 앱 셸 (Phase 2c) — 마이·리스트와 동일한 공용 셸(bidcast.css). 좌측 내비가 가리키는
+     화면에서는 좌측 내비가 유지된다. <1024px에서는 셸이 비활성되고 기존 top nav·햄버거가
+     그대로 동작한다(모바일 무변경). ═══ -->
+<div class="shell no-aside">
+<aside class="shell-nav" aria-label="주 메뉴">
+  <div class="sn-group">찾기</div>
+  <a href="bidcast-list.html"><span class="ic">🔍</span>물건검색</a>
+  <a href="bidcast-map.html" class="on"><span class="ic">🗺️</span>지도</a>
+  <a href="bidcast-category.html"><span class="ic">📂</span>카테고리</a>
+  <a href="bidcast-calendar.html"><span class="ic">📅</span>캘린더</a>
+  <div class="sn-group">판단 도구</div>
+  <a href="bidcast-lab.html"><span class="ic">🎯</span>적중률 랩</a>
+  <a href="bidcast-simulator.html"><span class="ic">🧮</span>입찰 시뮬레이터</a>
+  <a href="bidcast-compare.html"><span class="ic">⚖️</span>비교함</a>
+  <a href="bidcast-bot.html"><span class="ic">🤖</span>예보봇</a>
+  <a href="bidcast-insight.html"><span class="ic">📰</span>인사이트</a>
+  <div class="sn-group">내 공간</div>
+  <a href="bidcast-my.html"><span class="ic">👤</span>마이페이지</a>
+  <a href="bidcast-pricing.html"><span class="ic">💎</span>요금제</a>
+  <a href="bidcast-support.html"><span class="ic">💬</span>고객센터</a>
+</aside>
+<div class="shell-main">
 
 <!-- ═══ PAGE HEAD ═══ -->
 <header class="page-head">
@@ -531,6 +558,9 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
 </div>
 
 <!-- ═══ AUTH MODAL ═══ -->
+</div><!-- /.shell-main -->
+</div><!-- /.shell -->
+
 <div class="auth-overlay" id="authOverlay" role="dialog" aria-modal="true">
   <div class="auth-modal">
     <button class="auth-close" type="button" onclick="closeAuth()" aria-label="닫기">✕</button>
