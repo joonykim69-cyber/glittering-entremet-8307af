@@ -34,10 +34,20 @@ function mkItems(prefix, n, from) {
     failCount: 0, round: 1,
   }));
 }
+// 이 블록이 시험하는 것은 **범위 질의의 페이지네이션**이라, 일자별 질의(start==end)에는
+// 빈 응답을 준다(일자별 경로는 아래 ⑦이 따로 시험한다).
 function page(list, url) {
+  const s = (url.match(/bidPrdYmdStart=(\d{8})/) || [])[1];
+  const e = (url.match(/bidPrdYmdEnd=(\d{8})/) || [])[1];
+  if (s && s === e) return { items: [] };
   const p = Number((url.match(/[?&]page=(\d+)/) || [])[1] || 1);
   return { items: list.slice((p - 1) * 1000, p * 1000) };
 }
+const isRangeCall = u => {
+  const s = (u.match(/bidPrdYmdStart=(\d{8})/) || [])[1];
+  const e = (u.match(/bidPrdYmdEnd=(\d{8})/) || [])[1];
+  return s && e && s !== e;
+};
 const realItems = mkItems('R', RE, 1), mvItems = mkItems('M', MV, 1), vhItems = mkItems('V', VH, 1);
 
 const routes = [
@@ -65,7 +75,7 @@ const routes = [
   t('① 마지막 페이지(3쪽)의 물건도 봉인됨', preds.includes('pred/R2300_0001'), preds.length);
   t('① 과거 단일 페이지 구현이면 유실됐을 1,300건 포착', preds.length - 1000 - MV - VH === 1300);
   // 페이지네이션이 실제로 돌았는지(부동산 3페이지 + 동산 1 + 차량 1)
-  const searchCalls = fetchMock.calls.filter(u => /onbid-search\?/.test(u));
+  const searchCalls = fetchMock.calls.filter(u => /onbid-search\?/.test(u) && isRangeCall(u));
   eq('① 부동산 3페이지 조회', searchCalls.length, 3);
 
   // ③ 공식 불변 — 감정가 10,000만 / 최저가 7,000만, rto1=80·rto2=95, 기본 폭 w=0.18
@@ -200,6 +210,123 @@ const routes = [
     t('⑥ 하트비트에도 expired 기록', hb6 && hb6.expired === 1, JSON.stringify(hb6));
   }
 
+  // ══ ⑦ 일자별 질의 — "화면에서 보이는 물건에 예측이 있는가" (2026-08-04) ══
+  // 발견 경위: 봉인 실행이 "대상 2,076건 → 신규 봉인 0건"이라 정상처럼 보였는데, D-4에
+  // 마감하는 실물건 5건을 조회하니 **다섯 다 봉인이 없었다**. 원인은 범위 질의
+  // (bidPrdYmdStart=오늘 & End=+14일)가 "이 기간에 마감하는 물건"을 주지 않는 것 —
+  // 실측 2,000행 중 창 안 마감은 **0건**이었고 전부 18~282일 뒤 마감이었다.
+  // 그동안 채점이 돌아간 건 입찰기간이 창 안에서 시작하고 끝나는 짧은 물건만 우연히 걸린 덕이다.
+  // 아래 목킹은 그 프로덕션 관측을 그대로 재현한다.
+  {
+    process.env.SEAL_CAP = '2500';
+    delete process.env.SEAL_COLLECT_MS;
+    const k = new Date(Date.now() + 9 * 3600 * 1000);
+    const y = d => `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`;
+    const day = n => y(new Date(k.getTime() + n * 86400000));
+    const mk = (id, bidEnd) => ({ id, pbctCdtnNo: '1', title: id, appr: 10000, min: 7000,
+      usage: '아파트', type: '아파트', bidEnd, failCount: 0, round: 1 });
+    // 범위 질의는 프로덕션처럼 **창 밖 미래**만 준다. 단 하나(RANGEOK)만 창 안에 넣어,
+    // 기존 경로가 여전히 살아 있는지(회귀 0) 함께 확인한다.
+    const rangeRows = { items: [mk('RANGEFAR', day(40) + '1700'), mk('RANGEOK', day(2) + '1700')] };
+    // 일자별 질의에만 나타나는 물건: D+4 마감(DAYONLY)과, 입찰기간이 D+3~D+5를 덮어
+    // **세 날짜에 모두 돌아오는** 물건(SPAN) — 중복 제거가 필요한 실제 형태다.
+    const perDay = d => {
+      const rows = [];
+      if (d === day(4)) rows.push(mk('DAYONLY', day(4) + '1700'));
+      if (d === day(3) || d === day(4) || d === day(5)) rows.push(mk('SPAN', day(5) + '1700'));
+      return { items: rows };
+    };
+    const route = u => {
+      const s = (u.match(/bidPrdYmdStart=(\d{8})/) || [])[1];
+      const e = (u.match(/bidPrdYmdEnd=(\d{8})/) || [])[1];
+      const p = Number((u.match(/[?&]page=(\d+)/) || [])[1] || 1);
+      if (p > 1) return { items: [] };
+      return (s && s === e) ? perDay(s) : rangeRows;
+    };
+    const store7 = makeStore();
+    global.__FAKE_STORE__ = store7;
+    const fm7 = mockFetch([
+      [/onbid-search/, route],
+      [/onbid-mvast-search/, { items: [] }], [/onbid-vhcl-search/, { items: [] }],
+      [/onbid-svc\?svc=stat_usg/, { items: [{ clsCdNm: '아파트', scfbAmtRto1: 80, scfbAmtRto2: 95 }] }],
+      [/hist-stats/, { status: 'empty' }],
+    ]);
+    delete require.cache[require.resolve(fnPath('predict-daily.js'))];
+    const r7 = await require(fnPath('predict-daily.js')).handler({ queryStringParameters: {} });
+    const s7 = JSON.parse(r7.body);
+
+    // 핵심: 범위 질의만 있던 예전 구현이면 이 두 건은 **영영 봉인되지 않았다**
+    t('⑦ 일자별 질의로만 보이는 마감 임박 물건이 봉인된다', !!(await store7.get('pred/DAYONLY_1')));
+    t('⑦ 여러 날에 걸친 물건도 봉인된다', !!(await store7.get('pred/SPAN_1')));
+    t('⑦ 범위 질의 경로는 그대로 살아 있다(회귀 0)', !!(await store7.get('pred/RANGEOK_1')));
+    t('⑦ 창 밖 물건은 여전히 봉인하지 않는다', !(await store7.get('pred/RANGEFAR_1')));
+    eq('⑦ 봉인 3건(중복 아님)', store7.keys('pred/').length, 3);
+
+    // 중복 제거 — SPAN은 세 날짜에서 돌아오지만 한 물건이다.
+    // 접지 않으면 targets·큐레이션이 같은 물건을 여러 번 센다.
+    eq('⑦ 일자별 원본에는 중복이 있다', s7.collect.viaDay, 4); // SPAN이 D+3·4·5에 3번 + DAYONLY 1번
+    eq('⑦ 중복 제거 후 고유 물건 수', s7.collect.unique, 4);   // RANGEFAR·RANGEOK·DAYONLY·SPAN
+    eq('⑦ 봉인 대상은 창 안 3건', s7.targets, 3);
+
+    // 일자별 질의가 실제로 날짜별로 발사됐는가 + **가까운 날부터** 훑는가
+    const dayCalls = fm7.calls.filter(u => /onbid-search\?/.test(u) && !isRangeCall(u));
+    const daysHit = [...new Set(dayCalls.map(u => (u.match(/bidPrdYmdStart=(\d{8})/) || [])[1]))];
+    eq('⑦ 창 전체(오늘~+14일) 15일을 일자별로 조회', daysHit.length, 15);
+    t('⑦ 오늘분을 가장 먼저 조회(오늘 마감 물건은 오늘이 마지막 기회)', daysHit[0] === day(0), daysHit.slice(0, 3).join(','));
+    const firstFar = dayCalls.findIndex(u => u.includes(`bidPrdYmdStart=${day(14)}`));
+    const firstNear = dayCalls.findIndex(u => u.includes(`bidPrdYmdStart=${day(1)}`));
+    t('⑦ 가까운 날이 먼 날보다 먼저', firstNear < firstFar, `near ${firstNear} / far ${firstFar}`);
+
+    // 요약·하트비트에 수집 실태와 실행시간이 남는가(30초 벽에 다시 가까워지는 게 보이도록)
+    t('⑦ 요약에 수집 통계', s7.collect && s7.collect.daysDone === 15 && s7.collect.daysPlanned === 15, JSON.stringify(s7.collect));
+    t('⑦ 요약·하트비트에 실행시간(ms)', typeof s7.ms === 'number', s7.ms);
+    const hb7 = await store7.get('_run/predict-daily');
+    t('⑦ 하트비트에도 수집 통계', hb7 && hb7.collect && hb7.collect.unique === 4, JSON.stringify(hb7 && hb7.collect));
+  }
+
+  // ══ ⑦-b 시간 예산이 모자라면 — 접되 조용히 접지 않는다 ══
+  // 호출 수가 한 자릿수에서 수십 개로 늘었다. 순차로 두면 30초 벽을 넘어 **봉인이 통째로
+  // 죽는다**(collect-history가 42초로 정확히 그렇게 죽어 있었다). 예산을 넘기면 뒤쪽 날짜를
+  // 접되, 접었다는 사실을 요약에 남기고 **이미 받은 물건의 봉인은 정상 진행**해야 한다.
+  {
+    const k = new Date(Date.now() + 9 * 3600 * 1000);
+    const y = d => `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`;
+    const day = n => y(new Date(k.getTime() + n * 86400000));
+    const mk = (id, bidEnd) => ({ id, pbctCdtnNo: '1', title: id, appr: 10000, min: 7000,
+      usage: '아파트', type: '아파트', bidEnd, failCount: 0, round: 1 });
+    process.env.SEAL_COLLECT_MS = '500';
+    process.env.SEAL_DAY_CONC = '2';
+    const store8 = makeStore();
+    global.__FAKE_STORE__ = store8;
+    // 느린 상위 API를 흉내낸다(목킹은 즉답이라 예산이 절대 소진되지 않는다).
+    const calls = [];
+    global.fetch = async (url) => {
+      const u = String(url);
+      calls.push(u);
+      let payload = { items: [] };
+      if (/onbid-svc\?svc=stat_usg/.test(u)) payload = { items: [{ clsCdNm: '아파트', scfbAmtRto1: 80, scfbAmtRto2: 95 }] };
+      else if (/hist-stats/.test(u)) payload = { status: 'empty' };
+      else if (/onbid-search/.test(u)) {
+        const s = (u.match(/bidPrdYmdStart=(\d{8})/) || [])[1];
+        const e = (u.match(/bidPrdYmdEnd=(\d{8})/) || [])[1];
+        await new Promise(r => setTimeout(r, 200)); // 상위 호출 지연(실측 3.7~5.9초의 축소판)
+        payload = (s === e && s === day(0)) ? { items: [mk('NEAR', day(0) + '1700')] } : { items: [] };
+      }
+      return { ok: true, status: 200, async json() { return payload; }, async text() { return JSON.stringify(payload); } };
+    };
+    delete require.cache[require.resolve(fnPath('predict-daily.js'))];
+    const r8 = await require(fnPath('predict-daily.js')).handler({ queryStringParameters: {} });
+    const s8 = JSON.parse(r8.body);
+
+    t('⑦-b 예산을 넘기면 뒤쪽 날짜를 접는다', s8.collect.daysDone < s8.collect.daysPlanned, JSON.stringify(s8.collect));
+    t('⑦-b 접힌 사실이 요약에 남는다(조용한 truncation 금지)', s8.collect.daysDone > 0 && typeof s8.collect.rangeCut === 'number', JSON.stringify(s8.collect));
+    t('⑦-b 가까운 날은 접히기 전에 이미 봤다', !!(await store8.get('pred/NEAR_1')));
+    eq('⑦-b 예산이 모자라도 봉인 자체는 성공한다', s8.ok, true);
+    t('⑦-b 실행시간이 예산 언저리에서 멈춘다', s8.collect.ms < 5000, s8.collect.ms);
+    delete process.env.SEAL_COLLECT_MS;
+    delete process.env.SEAL_DAY_CONC;
+  }
+
   delete global.__FAKE_STORE__;
-  done('predict-seal (봉인 전수·불변·공식 · L0 차단 · 창 양방향)');
+  done('predict-seal (봉인 전수·불변·공식 · L0 차단 · 창 양방향 · 일자별 커버리지)');
 })().catch(e => { console.log('THROW', e); process.exit(1); });
