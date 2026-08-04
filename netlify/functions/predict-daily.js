@@ -1,9 +1,12 @@
 // netlify/functions/predict-daily.js
 // 예측 장부 1단계 — "예측 봉인" 예약 함수 (매일 KST 07:00, netlify.toml schedule)
 //
-// 마감 임박(오늘~+2일) 물건을 전수 조회해 각 물건의 예상 낙찰가 구간 [lo, mid, hi]를
-// 산출하고 Netlify Blobs에 기록한다. 이미 봉인된 예측은 절대 덮어쓰지 않는다 —
+// 마감 임박(오늘~+14일, SEAL_WINDOW_DAYS) 물건을 전수 조회해 각 물건의 예상 낙찰가 구간
+// [lo, mid, hi]를 산출하고 Netlify Blobs에 기록한다. 이미 봉인된 예측은 절대 덮어쓰지 않는다 —
 // "개찰 전에 기록했고 사후에 고치지 않았다"가 이 장부의 신뢰 근거다.
+//
+// 수집은 두 경로를 함께 쓴다(2026-08-04): 범위 질의(기존) + **일자별 질의**(신설).
+// 범위 질의만으로는 마감 임박 물건이 잡히지 않았다 — 아래 ② 블록의 주석 참조.
 //
 // 구간 산출(model v0.1 — 통계 기반 규칙):
 //   앵커1 = 감정가 × (캠코 용도별 감정가 대비 낙찰가율 rto1)
@@ -131,6 +134,7 @@ exports.handler = async (event) => {
   const store = await openLedger(event);
   const base = process.env.URL || '';
   const qs = (event && event.queryStringParameters) || {};
+  const runT0 = Date.now(); // 하트비트에 실행시간을 남긴다 — 30초 벽에 다시 가까워지는 게 보이도록
 
   try {
     const stats = await loadUsgStats(base);
@@ -145,9 +149,7 @@ exports.handler = async (event) => {
     // 한다 — 어느 모델로 봉인했는지는 predb.modelV가 말하고, 채점은 모델별로 분리 집계된다.
     const gb08 = (await store.get('hist/_gb08', { type: 'json' })) || null;
 
-    // 마감 임박 물건 수집: 부동산 + 동산 + 차량 (입찰기간 검색 창: 오늘~+2일)
-    // 수집 상한(사용자 지정 2026-07-22): 부동산 700(일반 500 + 토지 200 — 토지는 온비드에서
-    // 부동산 목록의 한 유형이라 같은 엔드포인트로 함께 수집) · 동산 50 · 차량 50.
+    // 마감 임박 물건 수집: 부동산 + 동산 + 차량
     // ── 봉인 창 (2026-07-29 창업자 승인으로 +2일 → +14일 확대) ──
     // 표본은 늘지 않는다 — 모든 물건은 마감이 다가오며 이 창을 통과하고, 봉인은 물건당 1회
     // 멱등이기 때문이다. 넓히는 이유는 **사용자가 물건을 보는 시점에 예측이 있게** 하기 위해서다.
@@ -166,31 +168,109 @@ exports.handler = async (event) => {
     // 봉인은 물건당 1회(멱등)라 창을 넓혀도 표본이 늘지 않는다 — 실제 병목은 이 페이지 상한이었다.
     // score-daily 전수 채점 수정과 같은 패턴: numOfRows=1000, batch<1000이면 종료, 안전 상한 유지.
     const PAGE = 1000, MAX_PAGES = 5; // 자산군당 최대 5,000건(일일 쿼터 여유 내)
+    const SOURCES = ['onbid-search', 'onbid-mvast-search', 'onbid-vhcl-search'];
     // 봉인은 원장의 근간이라 예산으로 **막지 않는다**('critical' 티어) — 다만 사용량은 똑같이
     // 기록해, 대량 수집기(collect-*)가 남은 예산을 계산할 때 이 호출까지 반영되게 한다.
     const budget = await quota.openBudget(store, { service: 'onbid', tier: 'critical' });
+
+    // ── 수집 시간 예산 (2026-08-04 신설) ──
+    // 아래 일자별 질의는 호출 수를 한 자릿수에서 수십 개로 늘린다. 순차로 두면 30초 벽을 넘어
+    // **봉인이 통째로 죽는다**(collect-history가 42초로 정확히 그렇게 죽어 있었다). 그래서
+    // 두 경로가 하나의 마감시각을 공유하고, 넘기면 그 자리에서 접는다 — 접힌 만큼은 요약에
+    // 남겨 조용히 사라지지 않게 한다.
+    // 예산은 **청크 경계에서만** 검사하므로 최악의 초과분은 청크 하나의 길이다. 그래서 날짜를
+    // 몇 덩어리로 나누는지가 실제 실행시간을 정한다 — 15일을 6개씩(3덩어리) 돌면 상위 호출이
+    // 느린 날 25.8초까지 갔고(실측 지연 5.9초 리허설), 8개씩(2덩어리)이면 20초 언저리다.
+    // 동시 호출은 8일 × 3자산군 = 24개로, 기존(18개)에서 소폭만 늘어난다.
+    const COLLECT_MS = Math.max(500, Math.min(25000, parseInt(process.env.SEAL_COLLECT_MS || '12000', 10) || 12000));
+    const DAY_CONC = Math.max(1, Math.min(15, parseInt(process.env.SEAL_DAY_CONC || '8', 10) || 8));
+    const DAY_PAGES = 2; // 하루치는 창 전체보다 훨씬 적다 — 2페이지면 사실상 전수
+    const collectT0 = Date.now();
+    const overBudget = () => Date.now() - collectT0 > COLLECT_MS;
+
+    async function fetchItems(fn, params) {
+      budget.note(1);
+      const d = await fetchJson(`${base}/.netlify/functions/${fn}?${params}`);
+      return Array.isArray(d && d.items) ? d.items : [];
+    }
+
+    // ① 범위 질의 — 기존 경로를 **그대로 둔다**(회귀 0). 아래 ②가 헛돌더라도 오늘보다 나빠지지 않는다.
+    let rangeCut = 0;
     async function collectAll(fn) {
       const out = [];
       for (let page = 1; page <= MAX_PAGES; page++) {
-        let d;
-        budget.note(1);
-        try { d = await fetchJson(`${base}/.netlify/functions/${fn}?numOfRows=${PAGE}&page=${page}&${q}`); }
+        if (overBudget()) { rangeCut++; break; }
+        let batch;
+        try { batch = await fetchItems(fn, `numOfRows=${PAGE}&page=${page}&${q}`); }
         catch (e) { break; } // 한 자산군 실패는 전체를 막지 않는다
-        const batch = Array.isArray(d && d.items) ? d.items : [];
         out.push(...batch);
         if (batch.length < PAGE) break; // 마지막 페이지
       }
       return out;
     }
+
+    // ── ② 일자별 질의 (2026-08-04 신설 — 봉인 커버리지 결함 교정) ──
+    // **문제**: 위 범위 질의(bidPrdYmdStart=오늘 & End=+14일)는 우리가 기대한 "이 기간에
+    // 마감하는 물건"을 주지 않는다. 실측(2026-08-03): 같은 파라미터로 받은 2,000행 중
+    // **창 안에 마감하는 물건은 0건**이었고 전부 18~282일 뒤 마감이었다. 그래서 D-4에
+    // 마감하는 실물건 5건을 조회해 보면 다섯 다 봉인이 없었다 — 사용자가 지금 보고 있을
+    // 마감 임박 물건에 정작 예측이 없었다는 뜻이다.
+    // 그동안 채점이 돌아간 것은, 입찰기간이 창 안에서 시작하고 끝나는 짧은 물건만 **우연히**
+    // 걸렸기 때문이다(하루 24건 수준). 7-29에 창을 +14일로 넓힌 것도 이 때문에 효과가 없었다.
+    //
+    // **해법**: 하루씩 끊어 묻는다(bidPrdYmdStart=bidPrdYmdEnd=그날) — onbid-calendar가 이미
+    // 쓰고 있는, 상위 API가 확실히 이해하는 형태다. 실측 수율 **133/200(66%)** vs 범위 0/2,000.
+    // 상위 API가 왜 그렇게 답하는지는 문서화돼 있지 않다. 우리가 아는 것은 실측뿐이라 그렇게 적는다.
+    //
+    // **가까운 날부터** 훑는다. 예산이 모자라 뒤쪽 날을 못 봐도 그 물건들은 내일·모레 다시
+    // 이 창을 지나가지만, 오늘 마감하는 물건은 오늘이 마지막 기회다.
+    const sweepDays = [];
+    for (let i = 0; i <= SEAL_WINDOW_DAYS; i++) sweepDays.push(ymd(new Date(kst().getTime() + i * 86400000)));
+    let daysDone = 0;
+    const dayRows = [];
+    async function collectByDay() {
+      for (let i = 0; i < sweepDays.length; i += DAY_CONC) {
+        if (overBudget()) break;
+        const chunk = sweepDays.slice(i, i + DAY_CONC);
+        const res = await Promise.all(chunk.map(async day => {
+          const rows = [];
+          // 한 날짜의 3자산군은 서로 독립이라 함께 쏜다(날짜 안에서 순차로 두면 하루당 3배 느려진다).
+          await Promise.all(SOURCES.map(async fn => {
+            for (let page = 1; page <= DAY_PAGES; page++) {
+              let batch;
+              try { batch = await fetchItems(fn, `numOfRows=${PAGE}&page=${page}&bidPrdYmdStart=${day}&bidPrdYmdEnd=${day}`); }
+              catch (e) { break; }
+              rows.push(...batch);
+              if (batch.length < PAGE) break;
+            }
+          }));
+          return rows;
+        }));
+        res.forEach(rows => dayRows.push(...rows));
+        daysDone += chunk.length;
+      }
+    }
+
+    // 두 경로는 서로를 기다릴 이유가 없다 — 같이 쏘고 같은 마감시각을 공유한다.
     const settled = await Promise.allSettled([
-      collectAll('onbid-search'),
-      collectAll('onbid-mvast-search'),
-      collectAll('onbid-vhcl-search'),
+      Promise.all(SOURCES.map(collectAll)),
+      collectByDay(),
     ]);
-    const items = [];
-    settled.forEach(s => {
-      if (s.status === 'fulfilled' && Array.isArray(s.value)) items.push(...s.value);
-    });
+    const rangeRows = [];
+    if (settled[0].status === 'fulfilled') settled[0].value.forEach(list => rangeRows.push(...(list || [])));
+    // 같은 물건이 두 경로에, 또 여러 날짜에 걸쳐 돌아온다(입찰기간이 여러 날을 덮으므로).
+    // 중복을 접지 않으면 아래 targets·큐레이션이 같은 물건을 여러 번 세게 된다.
+    const byKey = new Map();
+    for (const it of [...rangeRows, ...dayRows]) {
+      if (!it || !it.id) continue;
+      const k = `${it.id}_${it.pbctCdtnNo || ''}`;
+      if (!byKey.has(k)) byKey.set(k, it);
+    }
+    const items = [...byKey.values()];
+    const collect = {
+      viaRange: rangeRows.length, viaDay: dayRows.length, unique: items.length,
+      daysPlanned: sweepDays.length, daysDone, rangeCut, ms: Date.now() - collectT0,
+    };
 
     // noBasisB = 챌린저를 봉인하지 못한 건수(셀 없음 또는 L0뿐) — 스킵이 조용히 사라지지 않게 센다
     let sealed = 0, skipped = 0, noBasis = 0, sealedB = 0, noBasisB = 0;
@@ -491,10 +571,10 @@ exports.handler = async (event) => {
     meta.lastSealAt = new Date().toISOString();
     await store.setJSON('meta', meta);
 
-    const summary = { ok: true, scanned: items.length, targets: targets.length, expired, sealed, sealedB, noBasisB, skipped, noBasis, curated: curatedTop.length, statPerd: stats ? stats.perd : null, ...(qs.debug ? { window: { start, end } } : {}) };
+    const summary = { ok: true, scanned: items.length, targets: targets.length, expired, sealed, sealedB, noBasisB, skipped, noBasis, curated: curatedTop.length, collect, ms: Date.now() - runT0, statPerd: stats ? stats.perd : null, ...(qs.debug ? { window: { start, end } } : {}) };
     // 하트비트 — 매 실행마다 마지막 성공 시각·처리건수 기록(자가진단이 신선도로 죽음 감지)
     await budget.flush();
-    await store.setJSON('_run/predict-daily', { at: new Date().toISOString(), ok: true, sealed, sealedB, noBasisB, curated: curatedTop.length, targets: targets.length, expired, noBasis });
+    await store.setJSON('_run/predict-daily', { at: new Date().toISOString(), ok: true, sealed, sealedB, noBasisB, curated: curatedTop.length, targets: targets.length, expired, noBasis, collect, ms: Date.now() - runT0 });
     console.log('[predict-daily]', JSON.stringify(summary));
     return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify(summary) };
   } catch (e) {
