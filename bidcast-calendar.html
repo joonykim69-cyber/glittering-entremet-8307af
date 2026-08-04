@@ -256,7 +256,7 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
 <!-- ═══ 앱 셸 (Phase 2c) — 마이·리스트와 동일한 공용 셸(bidcast.css). 좌측 내비가 가리키는
      화면에서는 좌측 내비가 유지된다. <1024px에서는 셸이 비활성되고 기존 top nav·햄버거가
      그대로 동작한다(모바일 무변경). ═══ -->
-<div class="shell no-aside">
+<div class="shell aside-empty">
 <aside class="shell-nav" aria-label="주 메뉴">
   <div class="sn-group">찾기</div>
   <a href="bidcast-list.html"><span class="ic">🔍</span>물건검색</a>
@@ -349,6 +349,13 @@ footer .copy { margin-top:20px; font-size:11px; color:var(--mute); }
 </section>
 
 </div><!-- /.shell-main -->
+<aside class="shell-aside" aria-label="컨텍스트 패널">
+  <div class="aside-card" id="asideDue" style="display:none">
+    <h4>⏰ 마감 임박 관심물건</h4>
+    <div id="asideDueBody" style="display:flex;flex-direction:column;gap:2px"></div>
+    <a class="aside-link" href="bidcast-my.html" style="margin-top:10px">관심물건 전체 →</a>
+  </div>
+</aside>
 </div><!-- /.shell -->
 
 <div class="auth-overlay" id="authOverlay" role="dialog" aria-modal="true">
@@ -811,6 +818,45 @@ document.addEventListener('keydown', (e) => {
   window.logoutDemo = window.__bcLogout;
   if (document.readyState !== 'loading') render();
   else document.addEventListener('DOMContentLoaded', render);
+})();
+</script>
+
+<script>
+/* ═══ 우측 컨텍스트 패널 — 마감 임박 관심물건 ═══
+   캘린더는 "언제 마감되나"를 보는 화면인데, 정작 사용자가 담아 둔 물건의 마감은
+   마이페이지에만 있었다. 관심물건 스냅샷(localStorage)의 bidEnd만 쓰므로 추가 조회 0이고,
+   담아 둔 물건이 없거나 7일 내 마감이 없으면 카드를 띄우지 않는다(빈 카드 금지). */
+(function(){
+  var box=document.getElementById('asideDue'), body=document.getElementById('asideDueBody');
+  var shell=document.querySelector('.shell');
+  if(!box||!body||!shell)return;
+  var esc=function(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
+  var rows=[], snap={};
+  try{
+    snap=JSON.parse(localStorage.getItem('bidcast:likesnap')||'{}');
+    var likes=JSON.parse(localStorage.getItem('bidcast:likes')||'[]');
+    var t=new Date(); t=new Date(t.getFullYear(),t.getMonth(),t.getDate());
+    likes.forEach(function(id){
+      var it=snap[id]; if(!it||!it.bidEnd)return;
+      var e=String(it.bidEnd); if(e.length<8)return;
+      var dd=Math.round((new Date(e.slice(0,4)+'-'+e.slice(4,6)+'-'+e.slice(6,8))-t)/86400000);
+      if(dd>=0&&dd<=7)rows.push({id:id,t:it.title||String(id),dd:dd});
+    });
+    rows.sort(function(a,b){return a.dd-b.dd;});
+  }catch(e){ rows=[]; }
+  /* 상세로 넘어갈 때 스냅샷을 실어 준다 — 목록 카드가 쓰는 것과 같은 세션 키 */
+  window.stashLikeSnap=function(id){ try{ var it=snap[id]; if(it)sessionStorage.setItem('bidcast:detail',JSON.stringify(it)); }catch(e){} };
+  if(rows.length){
+    body.innerHTML=rows.slice(0,4).map(function(r){
+      var col=r.dd<=3?'var(--red)':'#8A6D00';
+      var safe=String(r.id).replace(/[^0-9A-Za-z\-_.]/g,'');
+      return '<a href="bidcast-detail.html?id='+encodeURIComponent(r.id)+'" onclick="stashLikeSnap(\''+safe+'\')" style="display:flex;align-items:center;gap:8px;min-height:40px;padding:8px 10px;border-radius:9px;font-size:12.5px;color:var(--ink);text-decoration:none">'
+        +'<b style="flex:none;font-size:11px;color:'+col+'">D-'+r.dd+'</b>'
+        +'<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(r.t)+'</span></a>';
+    }).join('');
+    box.style.display='';
+    shell.classList.remove('aside-empty');
+  }
 })();
 </script>
 
