@@ -47,6 +47,24 @@ const hours = (t) => t ? (Date.now() - new Date(t).getTime()) / 3600000 : Infini
   const skipped = sb && sb.runs && sb.runs.collect && sb.runs.collect.incSkipped;
   if (skipped && skipped.length) add('🟡', 'runs.collect', '반쪽이라 갱신 못 한 자산군', skipped.join(','));
 
+  // ── ①-c 온비드 인증키가 살아 있는가 (2026-08-04 실장애로 신설) ──
+  // 2026-08-04 07:01~09:38 사이 data.go.kr 인증키가 계정 단위로 거부되기 시작했고
+  // (SERVICE_KEY_IS_NOT_REGISTERED_ERROR, 온비드 20종 + RTMS 동시), 화면은 예시 데이터로
+  // 조용히 degrade해서 **아무 지표도 빨개지지 않았다**. 키가 죽으면 그날의 봉인·채점·수집이
+  // 통째로 헛돈다 — 가장 먼저, 가장 크게 보여야 하는 신호다.
+  let onbidKeyOk = true;
+  try {
+    const probe = await get('onbid-search?numOfRows=1&debug=1');
+    const snip = JSON.stringify((probe && probe.debug) || {});
+    if (/SERVICE_KEY_IS_NOT_REGISTERED|LIMITED_NUMBER_OF_SERVICE|SERVICE_KEY_IS_NOT_REGISTERED_ERROR/.test(snip)) {
+      onbidKeyOk = false;
+      add('🔴', 'onbid API', '인증키 거부 — data.go.kr 키/계정 확인 필요(전 기능 데이터 정지)', snip.slice(0, 160));
+    } else if (!(probe && probe.totalCount > 0)) {
+      onbidKeyOk = false;
+      add('🔴', 'onbid API', '물건 목록이 0건 — 상위 API 또는 키 이상', snip.slice(0, 160));
+    }
+  } catch (e) { onbidKeyOk = false; add('🔴', 'onbid API', '조회 실패', e.message); }
+
   // ── ①-b 봉인이 창 전체를 훑었는가 (2026-08-04) ──
   // "대상 2,076건 → 신규 봉인 0건"은 정상처럼 보였지만, 실제로는 마감 임박 물건이 수집에
   // 잡히지 않아 D-4 물건 5건이 전부 봉인 없이 방치돼 있었다. 이제 수집 실태가 하트비트에
@@ -56,27 +74,15 @@ const hours = (t) => t ? (Date.now() - new Date(t).getTime()) / 3600000 : Infini
     if (pc.daysDone < pc.daysPlanned) {
       add('🟡', 'runs.predict', `봉인 수집이 ${pc.daysPlanned}일 중 ${pc.daysDone}일에서 멈춤 — 뒤쪽 날짜는 다음 실행으로 밀림`);
     }
-    if (pc.viaDay === 0 && pc.daysDone > 0) {
+    // ⚠️ 키가 죽어 있으면 수집이 0인 건 **결과**지 원인이 아니다. 그때도 이 경고를 띄우면
+    //    한 가지 장애가 두 가지 문제로 읽혀, 있지도 않은 API 형태 변경을 쫓게 된다
+    //    (2026-08-05 실제로 그렇게 보였다). 원인 하나에 신호 하나.
+    if (pc.viaDay === 0 && pc.daysDone > 0 && onbidKeyOk) {
       add('🔴', 'runs.predict', '일자별 질의가 한 건도 못 가져옴 — 상위 API 응답 형태가 바뀌었을 수 있음');
     }
   }
   const pms = sb && sb.runs && sb.runs.predict && sb.runs.predict.ms;
   if (pms > 24000) add('🟡', 'runs.predict', `봉인 실행 ${Math.round(pms / 1000)}초 — 30초 한도에 근접`);
-
-  // ── ①-c 온비드 인증키가 살아 있는가 (2026-08-04 실장애로 신설) ──
-  // 2026-08-04 07:01~09:38 사이 data.go.kr 인증키가 계정 단위로 거부되기 시작했고
-  // (SERVICE_KEY_IS_NOT_REGISTERED_ERROR, 온비드 20종 + RTMS 동시), 화면은 예시 데이터로
-  // 조용히 degrade해서 **아무 지표도 빨개지지 않았다**. 키가 죽으면 그날의 봉인·채점·수집이
-  // 통째로 헛돈다 — 가장 먼저, 가장 크게 보여야 하는 신호다.
-  try {
-    const probe = await get('onbid-search?numOfRows=1&debug=1');
-    const snip = JSON.stringify((probe && probe.debug) || {});
-    if (/SERVICE_KEY_IS_NOT_REGISTERED|LIMITED_NUMBER_OF_SERVICE|SERVICE_KEY_IS_NOT_REGISTERED_ERROR/.test(snip)) {
-      add('🔴', 'onbid API', '인증키 거부 — data.go.kr 키/계정 확인 필요(전 기능 데이터 정지)', snip.slice(0, 160));
-    } else if (!(probe && probe.totalCount > 0)) {
-      add('🔴', 'onbid API', '물건 목록이 0건 — 상위 API 또는 키 이상', snip.slice(0, 160));
-    }
-  } catch (e) { add('🔴', 'onbid API', '조회 실패', e.message); }
 
   // ── ② 랜딩에 무엇이 올라가 있는가 ──
   // 부동산 공매 서비스인데 부동산이 0건이면 그것만으로 이상 신호다(실제로 그랬다).
