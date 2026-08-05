@@ -608,6 +608,48 @@ async function loadEngineScores() {
     d.items.forEach(c => { engineMap[String(c.id)] = { score: c.score, reasons: (c.reasons || []).map(x => x.tag || x) }; });
   } catch (e) { /* 미배포·오류 → 클라 heuristic 유지 */ }
 }
+// ══════════════════════════════════════════════════════════════════════
+// 낙찰 가능성 칩 — 물건검색(bidcast-list.html)과 **같은 문턱·같은 어휘**
+// ══════════════════════════════════════════════════════════════════════
+// 값은 봉인 장부(pred.soldProb)에서만 온다 — 클라이언트가 셀 통계로 다시 계산하면
+// 채점받지 않는 숫자가 되고 "화면에 뜨는 숫자 = 채점받는 숫자" 규율을 깬다.
+// 문턱(기준선 대비 2배/1배)은 상세 Q0·리스트와 동일해야 하며 test/sold-chip.test.js가 대조한다.
+// 단일 파일 자기완결 관례상 외부 JS를 만들 수 없어 사본이지만, 그 사본이 갈라지지 않게
+// 테스트가 세 화면의 문턱을 기계적으로 비교한다(lawd.js 클라이언트 사본과 같은 방식).
+const __soldCacheC = new Map();
+function soldToneC(v, bl) {
+  if (bl != null && bl > 0) {
+    return v >= bl * 2 ? ['var(--green-deep)', '유형 평균 이상']
+         : v >= bl      ? ['#8A6D00', '유형 평균 수준']
+                        : ['#8A2A2E', '유형 평균 이하'];
+  }
+  return v >= 60 ? ['var(--green-deep)', '높은 편'] : v >= 35 ? ['#8A6D00', '보통'] : ['#8A2A2E', '낮은 편'];
+}
+function soldChipHTMLC(p) {
+  if (!p || p.soldProb == null) return '';
+  const bl = (typeof p.soldBaseline === 'number' && p.soldBaseline > 0) ? p.soldBaseline : null;
+  const tone = soldToneC(p.soldProb, bl);
+  const tip = `같은 조건의 과거 개찰 ${p.outcomeN || 0}건 중 ${p.soldProb}%가 낙찰됐습니다.`
+    + (bl != null ? ` 이 자산군은 한 회차에 ${bl}%가 낙찰됩니다 — 공매는 여러 회차에 걸쳐 팔리므로 낮은 수치가 정상입니다.` : '');
+  return `<span class="sold-chip" style="color:${tone[0]};border-color:${tone[0]}33;background:${tone[0]}12;" title="${escH(tip)}">낙찰 가능성 ${p.soldProb}% · ${tone[1]}</span>`;
+}
+function paintSoldChipsC() {
+  const nodes = [...document.querySelectorAll('.sched-row[data-cdtn]')].filter(el => el.getAttribute('data-cdtn'));
+  if (!nodes.length) return;
+  const keyOf = el => `${el.getAttribute('data-id')}_${el.getAttribute('data-cdtn')}`;
+  const paint = () => nodes.forEach(el => {
+    const slot = el.querySelector('.sold-slot');
+    if (slot) { const p = __soldCacheC.get(keyOf(el)); slot.innerHTML = p === undefined ? '' : soldChipHTMLC(p); }
+  });
+  paint();
+  const need = [...new Set(nodes.map(keyOf).filter(k => !__soldCacheC.has(k)))].slice(0, 60);
+  if (!need.length) return;
+  fetch('/.netlify/functions/scoreboard?preds=' + encodeURIComponent(need.join(',')))
+    .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+    .then(d => { const m = (d && d.preds) || {}; need.forEach(k => __soldCacheC.set(k, m[k] || null)); paint(); })
+    .catch(() => { /* 미배포·오류 — 칩 없이 그대로(가짜 수치 금지) */ });
+}
+
 // 목록 렌더 — 날짜 필터 + 건물 묶기 + (선택 시) 주목순 정렬·근거 태그.
 function renderSchedList() {
   const all = Array.isArray(window.__calAll) ? window.__calAll : [];
@@ -630,6 +672,7 @@ function renderSchedList() {
   const host = document.getElementById('schedList');
   host.innerHTML = items.length ? items.map(window.__calRowHtml).join('')
     : '<div style="padding:18px 4px;color:var(--sub);font-size:13px;">이 날짜에 표시할 물건이 없습니다.</div>';
+  paintSoldChipsC();
   const note = document.getElementById('calSortNote');
   if (note) note.innerHTML = calSort === 'notable'
     ? `🚦 <b>주목순</b> — 할인 폭·유찰 누적·개찰 임박을 종합한 <b>분석 주목도</b> 순입니다${engineMap ? ' (일부는 봉인 예측·유사 사례 통계까지 반영한 <b>엔진 선별</b>)' : ''}. <b>투자 추천이 아니라</b> 왜 볼 만한지 근거를 함께 표시합니다.`
@@ -713,14 +756,15 @@ function calMarkLive(){
           const wd=['일','월','화','수','목','금','토'][new Date(yy,mm-1,dd).getDay()];
           const wk=Math.ceil(dd/7); // 해당 월의 몇째 주
           const safeId=id.replace(/[^0-9A-Za-z\-_.]/g,'');
-          return `<a class="sched-row" href="bidcast-detail.html?id=${encodeURIComponent(id)}" onclick="stashCalLive('${safeId}')">
+          return `<a class="sched-row" data-id="${safeId}" data-cdtn="${it.pbctCdtnNo!=null?String(it.pbctCdtnNo).replace(/[^0-9A-Za-z\-_]/g,''):''}" href="bidcast-detail.html?id=${encodeURIComponent(id)}" onclick="stashCalLive('${safeId}')">
             <span class="sched-date"><span class="yy">${yy}년</span><span class="dd">${mm}.${dd}</span><span class="wd">${wd} 마감</span><span class="mw">${mm}월 ${wk}주</span></span>
             <span class="sched-ico">${it.photo && /^https?:\/\//.test(it.photo) ? `<img class="sched-photo" src="${escH(it.photo)}" alt="" loading="lazy" onerror="this.remove()">` : (TYPE_EMOJI_C[it.type]||'📦')}</span>
-            <span class="sched-body"><span class="t">${escH(it.title)}${it._more>0?` <b style="font-size:10.5px;font-weight:800;color:var(--brand-deep);background:var(--brand-soft);border-radius:6px;padding:1px 7px;vertical-align:middle;">같은 건물 외 ${it._more}건</b>`:''}${(calSort==='notable'&&it._eng)?'<span class="score-badge">🚦 엔진 선별</span>':''}</span><br/><span class="m">${escH(it.court||it.orgNm||'')} · ${escH(it.type||'')}</span>${(calSort==='notable'&&it._why&&it._why.length)?`<span class="why-row">${it._why.map(w=>`<span class="why ${w.e?'eng':(w.w?'warn':'')}">${escH(w.t)}</span>`).join('')}${it._whyMore?`<span class="why" style="opacity:.7">+${it._whyMore}</span>`:''}</span>`:''}</span>
+            <span class="sched-body"><span class="t">${escH(it.title)}${it._more>0?` <b style="font-size:10.5px;font-weight:800;color:var(--brand-deep);background:var(--brand-soft);border-radius:6px;padding:1px 7px;vertical-align:middle;">같은 건물 외 ${it._more}건</b>`:''}${(calSort==='notable'&&it._eng)?'<span class="score-badge">🚦 엔진 선별</span>':''}</span><br/><span class="m">${escH(it.court||it.orgNm||'')} · ${escH(it.type||'')}</span><span class="sold-slot"></span>${(calSort==='notable'&&it._why&&it._why.length)?`<span class="why-row">${it._why.map(w=>`<span class="why ${w.e?'eng':(w.w?'warn':'')}">${escH(w.t)}</span>`).join('')}${it._whyMore?`<span class="why" style="opacity:.7">+${it._whyMore}</span>`:''}</span>`:''}</span>
             <span class="sched-price"><span class="p">최저 ${fmtMinMan(it.min)}</span>${it.fail>0?`<br/><span class="tag">유찰 ${it.fail}회</span>`:''}</span>
           </a>`;
         });
         document.getElementById('schedList').innerHTML = items.map(window.__calRowHtml).join('');
+        paintSoldChipsC();
         calLive.sched = true; calMarkLive();
       }
     }

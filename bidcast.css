@@ -141,3 +141,14 @@ body{font-variant-numeric:tabular-nums}
 .aside-nav a,.aside-nav button{display:flex;align-items:center;gap:8px;width:100%;min-height:40px;padding:8px 10px;border:none;border-radius:9px;background:none;font:inherit;font-size:12.5px;font-weight:700;color:var(--sub);text-align:left;text-decoration:none;cursor:pointer}
 .aside-nav a:hover,.aside-nav button:hover{background:var(--brand-soft);color:var(--brand-deep)}
 .aside-note{font-size:10.5px;color:var(--mute);line-height:1.6;margin-top:8px}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   낙찰 가능성 칩 — 목록·캘린더 카드의 "이번 회차에 팔릴까"
+   ═══════════════════════════════════════════════════════════════════════
+   값은 봉인 장부(pred.soldProb)에서만 오고, 색은 상세 Q0와 같은 **판단 신호**
+   (초록/호박/빨강)다 — 브랜드 아쿠아(선택·행동)와 뜻이 겹치지 않는다.
+   색상값은 인라인으로 주입한다(자산군 기준선 대비로 런타임에 갈린다).
+   봉인이 없는 카드는 슬롯이 비고, :empty가 자리를 없애 빈 줄이 남지 않는다. */
+.sold-slot:empty{display:none}
+.sold-slot{margin:1px 0 5px}
+.sold-chip{display:inline-block;font-size:11.5px;font-weight:800;line-height:1.5;padding:3px 9px;border-radius:99px;border:1px solid;letter-spacing:-.2px;white-space:nowrap}
