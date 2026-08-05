@@ -10,6 +10,7 @@
 // 동일 방식으로 합산하도록 확장할 것.
 
 const { normalizeServiceKey } = require('./lib/servicekey.js'); // Encoding/Decoding 키 모두 허용
+const { upstreamFailure } = require('./lib/upstream.js'); // 상위 게이트웨이 오류를 빈 결과와 구별
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -47,7 +48,12 @@ async function countForDay(serviceKey, dayYmd) {
   });
   const url = `${ONBID_API_URL}${ONBID_OPERATION}?${params.toString()}&prptDivCd=${ALL_PRPT_DIV_CD}`;
   const r = await fetch(url);
-  const raw = JSON.parse(await r.text());
+  const bodyText = await r.text();
+  // 게이트웨이 오류(인증키·쿼터)는 header.resultCode 봉투를 쓰지 않아 아래 검사를 통과한다.
+  // 그대로 두면 totalCount 0이 되어 랜딩이 "오늘 공매 0건"이라고 **거짓을 단언**한다.
+  const upFail = upstreamFailure(bodyText);
+  if (upFail) throw new Error(`온비드 API 상위 오류: ${upFail.msg}`);
+  const raw = JSON.parse(bodyText);
   const env = raw?.response ?? raw;
   const header = env?.header;
   if (header && header.resultCode && header.resultCode !== '00') {

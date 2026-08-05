@@ -18,6 +18,7 @@
 // 인증키는 같은 data.go.kr 계정이므로 ONBID_SERVICE_KEY 재사용 (다르면 RTMS_SERVICE_KEY로 분리).
 
 const { normalizeServiceKey } = require('./lib/servicekey.js'); // Encoding/Decoding 키 모두 허용
+const { FATAL_RE } = require('./lib/upstream.js'); // 상위 실패 판정 — 규칙 단일 출처
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -88,7 +89,7 @@ function classify(httpStatus, bodyText) {
   const t = bodyText || '';
   if (/NO_OPENAPI_SERVICE|API not found/i.test(t) || httpStatus === 404) return 'endpoint_missing';
   if (httpStatus === 500 && /Unexpected errors/i.test(t)) return 'endpoint_missing';
-  if (/SERVICE_KEY|UNREGISTERED|LIMITED_NUMBER|DEADLINE/i.test(t)) return 'key_error';
+  if (FATAL_RE.test(t)) return 'key_error'; // 규칙은 lib/upstream.js 단일 출처
   if (/NO_MANDATORY_REQUEST_PARAMETERS|INVALID_REQUEST_PARAMETER|WRONG.*PARAM/i.test(t)) return 'endpoint_ok_params_needed';
   const rc = xmlTag(t, 'resultCode');
   if (rc === '00' || rc === '000') return 'ok';
