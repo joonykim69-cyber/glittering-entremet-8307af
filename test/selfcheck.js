@@ -54,11 +54,21 @@ const hours = (t) => t ? (Date.now() - new Date(t).getTime()) / 3600000 : Infini
   // 통째로 헛돈다 — 가장 먼저, 가장 크게 보여야 하는 신호다.
   let onbidKeyOk = true;
   try {
-    const probe = await get('onbid-search?numOfRows=1&debug=1');
-    const snip = JSON.stringify((probe && probe.debug) || {});
-    if (/SERVICE_KEY_IS_NOT_REGISTERED|LIMITED_NUMBER_OF_SERVICE|SERVICE_KEY_IS_NOT_REGISTERED_ERROR/.test(snip)) {
+    // ⚠️ 상태 코드로 끊지 말고 **본문을 읽는다**. 2026-08-05부터 프록시는 상위 게이트웨이
+    //    오류(인증키·쿼터)를 빈 배열이 아니라 502로 돌려주는데, 공용 get()은 non-2xx에서
+    //    던지므로 그대로 쓰면 이 점검이 "조회 실패 HTTP 502"로만 보고한다 — 무엇을
+    //    확인해야 하는지(키·계정)를 말해 주지 못하면 이 항목의 존재 이유가 사라진다.
+    const r = await fetch(`${BASE}/.netlify/functions/onbid-search?numOfRows=1&debug=1`, { signal: AbortSignal.timeout(30000) });
+    const text = await r.text();
+    let probe = {};
+    try { probe = JSON.parse(text); } catch (_) { /* JSON이 아니면 아래 토큰 검사로 판정 */ }
+    const snip = JSON.stringify(probe.debug || probe.error || {}) || '';
+    if (/SERVICE_KEY_IS_NOT_REGISTERED|LIMITED_NUMBER_OF_SERVICE|UNREGISTERED|"?key_error"?/.test(text)) {
       onbidKeyOk = false;
       add('🔴', 'onbid API', '인증키 거부 — data.go.kr 키/계정 확인 필요(전 기능 데이터 정지)', snip.slice(0, 160));
+    } else if (!r.ok) {
+      onbidKeyOk = false;
+      add('🔴', 'onbid API', `상위 오류 HTTP ${r.status}`, snip.slice(0, 160));
     } else if (!(probe && probe.totalCount > 0)) {
       onbidKeyOk = false;
       add('🔴', 'onbid API', '물건 목록이 0건 — 상위 API 또는 키 이상', snip.slice(0, 160));
