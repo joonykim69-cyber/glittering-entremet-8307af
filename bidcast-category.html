@@ -749,7 +749,8 @@ document.addEventListener('keydown', (e) => {
     if (typeof window.__gsearchLocal === 'function') { e.preventDefault(); window.__gsearchLocal(v); return; }
     if (!v) e.preventDefault();   /* 빈 검색으로 페이지를 갈아 끼우지 않는다 */
     /* 그 외에는 form이 그대로 제출된다(bidcast-list.html?q=…) — 인코딩은 브라우저 몫이라
-       직접 붙이지 않는다. JS가 죽어도 검색은 동작한다. */
+       직접 붙이지 않는다. 제출 핸들러가 어떤 이유로 실패해도 네이티브 폼 제출이 검색을
+       성립시킨다(단, 폼 자체를 이 스크립트가 만들므로 JS 전면 차단 시엔 나타나지 않는다). */
   });
 
   var right = wrap.querySelector('.nav-right') || wrap.querySelector('.nav-hamburger');
