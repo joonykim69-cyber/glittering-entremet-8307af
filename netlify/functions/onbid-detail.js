@@ -14,6 +14,8 @@
 //   ONBID_DETAIL_API_URL = https://apis.data.go.kr/B010003/OnbidRlstDtlSrvc2
 //   ONBID_SERVICE_KEY    = (목록 서비스와 동일한 인증키 — 이미 설정됨)
 
+const { normalizeServiceKey } = require('./lib/servicekey.js'); // Encoding/Decoding 키 모두 허용
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type',
@@ -72,7 +74,7 @@ exports.handler = async (event) => {
     return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: { message: 'Method not allowed' } }) };
   }
 
-  const serviceKey = process.env.ONBID_SERVICE_KEY;
+  const serviceKey = normalizeServiceKey(process.env.ONBID_SERVICE_KEY);
   if (!serviceKey || !ONBID_DETAIL_API_URL) {
     return {
       statusCode: 501,

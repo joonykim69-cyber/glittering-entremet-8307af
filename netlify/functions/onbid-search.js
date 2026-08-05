@@ -16,6 +16,8 @@
 //  - 페이지네이션: pageNo, numOfRows
 //  - 응답 포맷: { response: { header:{resultCode,resultMsg}, body:{items:{item:[...]}, totalCount} } }
 
+const { normalizeServiceKey } = require('./lib/servicekey.js'); // Encoding/Decoding 키 모두 허용
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type',
@@ -147,7 +149,7 @@ exports.handler = async (event) => {
     };
   }
 
-  const serviceKey = process.env.ONBID_SERVICE_KEY;
+  const serviceKey = normalizeServiceKey(process.env.ONBID_SERVICE_KEY);
   if (!serviceKey) {
     return {
       statusCode: 500,

@@ -19,6 +19,8 @@
 //   - NO_OPENAPI_SERVICE / API not found → endpoint_missing (Base URL 또는 op 추정이 틀림 — env로 교정)
 //   - SERVICE_KEY 관련           → key_error
 
+const { normalizeServiceKey } = require('./lib/servicekey.js'); // Encoding/Decoding 키 모두 허용
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type',
@@ -129,7 +131,7 @@ exports.handler = async (event) => {
     return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: { message: 'Method not allowed' } }) };
   }
 
-  const serviceKey = process.env.ONBID_SERVICE_KEY;
+  const serviceKey = normalizeServiceKey(process.env.ONBID_SERVICE_KEY);
   if (!serviceKey) {
     return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: { message: 'ONBID_SERVICE_KEY not configured' } }) };
   }

@@ -17,6 +17,8 @@
 //   RTMS_SVC_<ALIAS 대문자>_URL / RTMS_SVC_<ALIAS 대문자>_OP
 // 인증키는 같은 data.go.kr 계정이므로 ONBID_SERVICE_KEY 재사용 (다르면 RTMS_SERVICE_KEY로 분리).
 
+const { normalizeServiceKey } = require('./lib/servicekey.js'); // Encoding/Decoding 키 모두 허용
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type',
@@ -108,7 +110,7 @@ exports.handler = async (event) => {
     return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: { message: 'Method not allowed' } }) };
   }
 
-  const serviceKey = process.env.RTMS_SERVICE_KEY || process.env.ONBID_SERVICE_KEY;
+  const serviceKey = normalizeServiceKey(process.env.RTMS_SERVICE_KEY || process.env.ONBID_SERVICE_KEY);
   if (!serviceKey) {
     return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: { message: 'RTMS_SERVICE_KEY/ONBID_SERVICE_KEY not configured' } }) };
   }
