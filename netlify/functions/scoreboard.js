@@ -47,6 +47,34 @@ exports.handler = async (event) => {
         body: JSON.stringify({ pred: pred || null }),
       };
     }
+    // 봉인 예측 **일괄** 조회 — 목록·캘린더 카드가 "이번 회차에 팔릴까"(soldProb) 칩을 그릴 때 쓴다.
+    // 카드마다 ?pred= 단건을 부르면 화면 하나에 수십 번의 왕복이 생기므로 한 번에 받는다.
+    // 봉인 원본을 통째로 흘리지 않고 **카드가 쓰는 필드만** 돌려준다(응답 크기·표면 최소화).
+    if (qs.preds) {
+      const uniq = [...new Set(String(qs.preds).split(',')
+        .map(s => s.trim().replace(/[^0-9A-Za-z\-_]/g, ''))
+        .filter(Boolean))].slice(0, 60);
+      const out = {};
+      for (let i = 0; i < uniq.length; i += 20) { // Blobs 동시 조회 상한
+        const chunk = uniq.slice(i, i + 20);
+        const got = await Promise.all(chunk.map(k =>
+          store.get('pred/' + k, { type: 'json' }).catch(() => null)));
+        chunk.forEach((k, j) => {
+          const p = got[j];
+          out[k] = p ? {
+            soldProb: p.soldProb == null ? null : p.soldProb,
+            soldBaseline: p.soldBaseline == null ? null : p.soldBaseline,
+            outcomeN: p.outcomeN || 0,
+          } : null;
+        });
+      }
+      return {
+        statusCode: 200,
+        headers: { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300' },
+        body: JSON.stringify({ preds: out }),
+      };
+    }
+
     const chronicleStored = await store.get('chronicle', { type: 'json' });
     const [agg, calib, log, recent, meta, aggB, runPredict, runScore, runCollect] = await Promise.all([
       store.get('agg', { type: 'json' }),

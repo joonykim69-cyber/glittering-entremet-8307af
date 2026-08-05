@@ -1248,6 +1248,64 @@ function renderList(list) {
 
   renderPagination(pageCount);
   updateFeatured(list);
+  paintSoldChips();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// 낙찰 가능성 칩 — "이번 회차에 팔릴까"를 목록에서 바로 보여준다
+// ══════════════════════════════════════════════════════════════════════
+// 값은 **봉인 장부(pred.soldProb)** 에서만 가져온다. 셀 통계로 클라이언트가 다시 계산하면
+// 그건 채점받지 않는 숫자가 되고, 이 프로젝트의 규율("화면에 뜨는 숫자 = 채점받는 숫자")을 깬다.
+// 봉인은 마감 임박 물건만 있으므로 **없는 카드에는 아무것도 그리지 않는다**(빈 칩 금지).
+const __soldCache = new Map(); // key(id_cdtn) → {soldProb,soldBaseline,outcomeN} | null
+
+// 문턱·어휘는 상세 페이지 Q0(renderOutcome)와 **동일**해야 한다 — 같은 숫자를 두 화면이
+// 다르게 말하면 안 된다. 회차당 낙찰률은 자산군마다 45배 벌어져(자동차 72.6% · 부동산 1.6%)
+// 절대 %로 색을 칠하면 부동산은 전부 "낮음"이 되어 정보가 아니라 소음이 된다.
+function soldTone(v, bl) {
+  if (bl != null && bl > 0) {
+    return v >= bl * 2 ? ['var(--green-deep)', '유형 평균 이상']
+         : v >= bl      ? ['#8A6D00', '유형 평균 수준']
+                        : ['#8A2A2E', '유형 평균 이하'];
+  }
+  return v >= 60 ? ['var(--green-deep)', '높은 편'] : v >= 35 ? ['#8A6D00', '보통'] : ['#8A2A2E', '낮은 편'];
+}
+
+function soldChipHTML(p) {
+  if (!p || p.soldProb == null) return '';
+  const bl = (typeof p.soldBaseline === 'number' && p.soldBaseline > 0) ? p.soldBaseline : null;
+  const [c, label] = soldTone(p.soldProb, bl);
+  const tip = `같은 조건의 과거 개찰 ${p.outcomeN || 0}건 중 ${p.soldProb}%가 낙찰됐습니다.`
+    + (bl != null ? ` 이 자산군은 한 회차에 ${bl}%가 낙찰됩니다 — 공매는 여러 회차에 걸쳐 팔리므로 낮은 수치가 정상이고, 중요한 건 같은 유형과 견줘 어디쯤인가입니다.` : '');
+  return `<span class="sold-chip" style="color:${c};border-color:${c}33;background:${c}12;" title="${tip.replace(/"/g, '&quot;')}">`
+    + `낙찰 가능성 ${p.soldProb}% · ${label}</span>`;
+}
+
+function paintSoldChips() {
+  const nodes = [...document.querySelectorAll('.item-card[data-cdtn], .item-row[data-cdtn]')]
+    .filter(el => el.getAttribute('data-cdtn')); // 라이브(공매조건번호 보유)만 — 데모는 봉인이 없다
+  if (!nodes.length) return;
+  const keyOf = el => `${el.getAttribute('data-id')}_${el.getAttribute('data-cdtn')}`;
+
+  const paint = () => nodes.forEach(el => {
+    const slot = el.querySelector('.sold-slot');
+    if (!slot) return;
+    const p = __soldCache.get(keyOf(el));
+    slot.innerHTML = p === undefined ? '' : soldChipHTML(p); // 미조회는 비워 둔다(추측 금지)
+  });
+  paint();
+
+  // 필터를 바꿀 때마다 다시 그리므로 **이미 받은 것은 다시 묻지 않는다**.
+  const need = [...new Set(nodes.map(keyOf).filter(k => !__soldCache.has(k)))].slice(0, 60);
+  if (!need.length) return;
+  fetch('/.netlify/functions/scoreboard?preds=' + encodeURIComponent(need.join(',')))
+    .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+    .then(d => {
+      const m = (d && d.preds) || {};
+      need.forEach(k => __soldCache.set(k, m[k] || null));
+      paint();
+    })
+    .catch(() => { /* 봉인 장부 미배포·오류 — 칩 없이 그대로 둔다(가짜 수치 금지) */ });
 }
 
 // 감정가 미공개(0) 물건의 나눗셈 가드 — "Infinity%" 방지
@@ -1264,7 +1322,7 @@ function renderCard(it) {
   const liked = likedIds.has(String(it.id));
   const pct = pctStr(it);
   return `
-<article class="item-card" data-id="${String(it.id).replace(/["'<>]/g,'')}" style="cursor:pointer;">
+<article class="item-card" data-id="${String(it.id).replace(/["'<>]/g,'')}" data-cdtn="${it.pbctCdtnNo!=null?String(it.pbctCdtnNo).replace(/[^0-9A-Za-z\-_]/g,''):''}" style="cursor:pointer;">
   <div class="item-thumb">${it.thumb}
     ${it.photo ? `<img class="photo" src="${it.photo}" alt="" loading="lazy" onerror="this.remove()">` : ''}
     ${it.fail > 0 ? `<span class="fail-badge">유찰 ${it.fail}회</span>` : ''}
@@ -1274,6 +1332,7 @@ function renderCard(it) {
     <span class="item-kind"><span class="src-badge">🏛 공매</span> ${it.court} · ${statusBadge(it)}</span>
     <div class="item-title"><a href="bidcast-detail.html?id=${encodeURIComponent(it.id)}" onclick="stashDetail('${String(it.id).replace(/[^0-9A-Za-z\-_.]/g,'')}')">${it.title}</a></div>
     <div class="item-meta">${it.pbctCdtnNo?String(it.id):it.caseNo} · ${it.address}</div>
+    <div class="sold-slot"></div>
     <div class="item-tags">${pvctBadge(it)}${it.tags.map(t=>`<span>${t}</span>`).join('')}</div>
     <div class="item-prices">
       <div class="item-price-cell">감정가<b>${fmtWon(it.appr)}</b></div>
@@ -1294,7 +1353,7 @@ function renderRow(it) {
   const liked = likedIds.has(String(it.id));
   const pct = pctStr(it);
   return `
-<article class="item-row" data-id="${String(it.id).replace(/["'<>]/g,'')}" style="cursor:pointer;">
+<article class="item-row" data-id="${String(it.id).replace(/["'<>]/g,'')}" data-cdtn="${it.pbctCdtnNo!=null?String(it.pbctCdtnNo).replace(/[^0-9A-Za-z\-_]/g,''):''}" style="cursor:pointer;">
   <div class="item-row-thumb">${it.thumb}
     ${it.photo ? `<img src="${it.photo}" alt="" loading="lazy" onerror="this.remove()">` : ''}
     ${it.fail > 0 ? `<div class="fail-badge">유찰${it.fail}회</div>` : ''}
@@ -1304,6 +1363,7 @@ function renderRow(it) {
       <div class="item-row-kind"><span class="src-badge">🏛 공매</span> ${it.court} ${statusBadge(it)}</div>
       <div class="item-row-title"><a href="bidcast-detail.html?id=${encodeURIComponent(it.id)}" onclick="stashDetail('${String(it.id).replace(/[^0-9A-Za-z\-_.]/g,'')}')">${it.title}</a></div>
       <div class="item-row-meta">${it.pbctCdtnNo?String(it.id):it.caseNo} · ${it.address}</div>
+      <div class="sold-slot"></div>
       <div class="item-row-tags">${pvctBadge(it)}${it.tags.map(t=>`<span>${t}</span>`).join('')}</div>
     </div>
     <div class="item-row-price">
