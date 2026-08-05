@@ -152,3 +152,38 @@ body{font-variant-numeric:tabular-nums}
 .sold-slot:empty{display:none}
 .sold-slot{margin:1px 0 5px}
 .sold-chip{display:inline-block;font-size:11.5px;font-weight:800;line-height:1.5;padding:3px 9px;border-radius:99px;border:1px solid;letter-spacing:-.2px;white-space:nowrap}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   상단 검색 — 앱 셸의 물건 진입점 (002_AIOS_DESIGN_HANDOFF.md §2.3 · §7-2)
+   ═══════════════════════════════════════════════════════════════════════
+   셸이 켜지는 폭(≥1024px)에서는 상단 메뉴가 좌측 내비로 옮겨 가 nav 가운데가 비므로,
+   검색은 새 자리를 뺏지 않고 그 빈자리를 채운다. 소스가 늘어도 진입점은 여기 하나다.
+
+   ⚠️ <1024px에서는 두지 않는다 — 셸 자체가 비활성인 폭이고(좌측 내비도 없다),
+   360px nav는 로고+햄버거+CTA로 이미 빡빡하다. 그 폭의 검색은 물건검색 페이지가
+   자체 검색창·빠른검색으로 담당한다(기능 손실이 아니라 담당 화면이 다른 것).
+   ⚠️ 소스에는 색을 쓰지 않는다(§3) — 이 컴포넌트도 브랜드 1색만 쓴다. */
+.gsearch{display:none}
+@media (min-width:1024px){
+  body.shell-page .gsearch{display:flex;align-items:center;gap:4px;flex:1;min-width:0;
+    max-width:520px;margin:0 26px;padding:0 6px 0 14px;
+    background:var(--bg);border:1px solid var(--line);border-radius:99px}
+  body.shell-page .gsearch:focus-within{border-color:var(--brand);background:var(--surface)}
+  .gsearch input{flex:1;min-width:0;border:none;background:none;outline:none;
+    font:inherit;font-size:13.5px;font-weight:600;color:var(--ink);padding:10px 0}
+  .gsearch input::placeholder{color:var(--mute);font-weight:600}
+  .gsearch input::-webkit-search-cancel-button{cursor:pointer}
+  .gsearch-go{flex:none;width:34px;height:34px;border:none;border-radius:99px;background:none;
+    font-size:14px;line-height:1;cursor:pointer;color:var(--brand-deep)}
+  .gsearch-go:hover{background:var(--brand-soft)}
+}
+
+/* ── 검색 결과 소스 커버리지 ──────────────────────────────────────────────
+   0건이 "어디에도 없다"로 읽히지 않게, 어느 시장을 훑었고 어디는 안 훑었는지 밝힌다.
+   시장 이름은 소스 축(.src-axis)에서 읽어 오므로 시장을 추가하면 이 문구도 함께 바뀐다. */
+.src-cover{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
+  margin:0 0 14px;padding:11px 14px;background:var(--brand-soft);
+  border:1px solid var(--line);border-radius:12px}
+.src-cover b{font-size:13px;font-weight:800;color:var(--ink)}
+.src-cover .sc-n{font-size:13px;font-weight:800;color:var(--brand-deep)}
+.src-cover small{font-size:11.5px;font-weight:600;color:var(--sub);line-height:1.6}
