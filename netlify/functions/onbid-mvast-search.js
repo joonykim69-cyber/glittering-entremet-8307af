@@ -17,6 +17,8 @@
 //    (예: https://apis.data.go.kr/B010003/OnbidMvastListSrvc2 — 승인 페이지의 End Point 복사)
 //  - ONBID_MVAST_API_OP : (선택) 오퍼레이션 경로가 기본값과 다를 때만
 
+const { normalizeServiceKey } = require('./lib/servicekey.js'); // Encoding/Decoding 키 모두 허용
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type',
@@ -108,7 +110,7 @@ exports.handler = async (event) => {
     return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: { message: 'Method not allowed' } }) };
   }
 
-  const serviceKey = process.env.ONBID_SERVICE_KEY;
+  const serviceKey = normalizeServiceKey(process.env.ONBID_SERVICE_KEY);
   if (!serviceKey) {
     return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: { message: 'Server service key not configured (ONBID_SERVICE_KEY)' } }) };
   }

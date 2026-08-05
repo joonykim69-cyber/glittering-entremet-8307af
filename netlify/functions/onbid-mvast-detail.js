@@ -15,6 +15,8 @@
 //   ONBID_MVAST_DETAIL_API_OP  = (선택) 오퍼레이션 경로 오버라이드
 //   ONBID_SERVICE_KEY          = 기존 것 재사용
 
+const { normalizeServiceKey } = require('./lib/servicekey.js'); // Encoding/Decoding 키 모두 허용
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type',
@@ -62,7 +64,7 @@ exports.handler = async (event) => {
     return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: { message: 'Method not allowed' } }) };
   }
 
-  const serviceKey = process.env.ONBID_SERVICE_KEY;
+  const serviceKey = normalizeServiceKey(process.env.ONBID_SERVICE_KEY);
   if (!serviceKey || !ONBID_MVAST_DETAIL_API_URL) {
     return {
       statusCode: 501,

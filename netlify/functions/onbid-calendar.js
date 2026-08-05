@@ -9,6 +9,8 @@
 // ⚠️ 이 API는 부동산만 집계한다. 동산 목록 API(onbid-mvast-search.js)가 연동되면
 // 동일 방식으로 합산하도록 확장할 것.
 
+const { normalizeServiceKey } = require('./lib/servicekey.js'); // Encoding/Decoding 키 모두 허용
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type',
@@ -60,7 +62,7 @@ exports.handler = async (event) => {
     return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: { message: 'Method not allowed' } }) };
   }
 
-  const serviceKey = process.env.ONBID_SERVICE_KEY;
+  const serviceKey = normalizeServiceKey(process.env.ONBID_SERVICE_KEY);
   if (!serviceKey || !ONBID_API_URL) {
     return {
       statusCode: 500,
