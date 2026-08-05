@@ -20,6 +20,7 @@
 //   - SERVICE_KEY 관련           → key_error
 
 const { normalizeServiceKey } = require('./lib/servicekey.js'); // Encoding/Decoding 키 모두 허용
+const { FATAL_RE, upstreamFailure } = require('./lib/upstream.js'); // 상위 실패 판정 — 규칙 단일 출처
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -105,7 +106,7 @@ function classify(httpStatus, bodyText) {
   if (/NO_OPENAPI_SERVICE|API not found/i.test(t) || httpStatus === 404) return 'endpoint_missing';
   if (httpStatus === 500 && /Unexpected errors/i.test(t)) return 'endpoint_missing';
   if (/NO_MANDATORY_REQUEST_PARAMETERS|INVALID_REQUEST_PARAMETER|WRONG.*PARAM|필수.*(파라미터|항목)/i.test(t)) return 'endpoint_ok_params_needed';
-  if (/SERVICE_KEY|UNREGISTERED|LIMITED_NUMBER|DEADLINE/i.test(t)) return 'key_error';
+  if (FATAL_RE.test(t)) return 'key_error'; // 규칙은 lib/upstream.js 단일 출처
   try {
     const j = JSON.parse(t);
     const env = j?.response ?? j;
@@ -204,6 +205,19 @@ exports.handler = async (event) => {
     const r = await fetch(`${effBase}${effOp}?${params.toString()}`);
     const bodyText = await r.text();
     console.log(`[onbid-svc:${alias}] status:`, r.status, '| body(첫 500자):', bodyText.slice(0, 500));
+
+    // 게이트웨이 오류(인증키·쿼터)는 JSON 파싱에 성공하고 header.resultCode도 없어서
+    // 아래 검사를 전부 통과해 **items: [] + HTTP 200**이 된다 — 상세 페이지 입찰 이력이
+    // "이력 없음"이라고 거짓을 말하게 된다. _health의 classify와 달리 데이터 경로엔
+    // 이 판정이 없었다(2026-08-05 발견).
+    const upFail = upstreamFailure(bodyText);
+    if (upFail) {
+      return {
+        statusCode: 502,
+        headers: CORS,
+        body: JSON.stringify({ error: { message: `${svc.name} API 상위 오류: ${upFail.msg}`, verdict: upFail.verdict }, ...(debug ? { debug: { upstreamUrl, rawSnippet: bodyText.slice(0, 800) } } : {}) }),
+      };
+    }
 
     let raw;
     try { raw = JSON.parse(bodyText); }

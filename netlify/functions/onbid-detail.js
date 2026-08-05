@@ -15,6 +15,7 @@
 //   ONBID_SERVICE_KEY    = (목록 서비스와 동일한 인증키 — 이미 설정됨)
 
 const { normalizeServiceKey } = require('./lib/servicekey.js'); // Encoding/Decoding 키 모두 허용
+const { upstreamFailure } = require('./lib/upstream.js'); // 상위 게이트웨이 오류를 빈 결과와 구별
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -101,6 +102,18 @@ exports.handler = async (event) => {
   try {
     const r = await fetch(`${ONBID_DETAIL_API_URL}${ONBID_DETAIL_OPERATION}?${params.toString()}`);
     const bodyText = await r.text();
+    // 상위 게이트웨이 오류(인증키·쿼터 등)는 문서화된 header.resultCode 봉투를 쓰지 않아
+    // 아래 오류 분기를 전부 통과해 '데이터 0건'으로 보인다 — 여기서 명시적 실패로 돌린다.
+    // 수집기가 실패와 무데이터를 구분할 수 있어야 빈 창을 저장하고 커서를 넘기지 않는다.
+    const upFail = upstreamFailure(bodyText);
+    if (upFail) {
+      console.log('[onbid-detail] 상위 실패:', upFail.verdict, upFail.msg);
+      return {
+        statusCode: 502,
+        headers: CORS,
+        body: JSON.stringify({ error: { message: `온비드 물건상세 API 상위 오류: ${upFail.msg}`, verdict: upFail.verdict }, ...(qs.debug ? { debug: { upstreamUrl, rawSnippet: bodyText.slice(0, 800) } } : {}) }),
+      };
+    }
     console.log('[onbid-detail] request:', upstreamUrl);
     console.log('[onbid-detail] upstream status:', r.status, '| body(첫 1000자):', bodyText.slice(0, 1000));
 

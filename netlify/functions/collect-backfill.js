@@ -90,13 +90,18 @@ function splitRecord(r) {
 // budget.take()가 false면 **호출하지 않고 즉시 멈춘다** — 사용자 화면 몫을 침범하지 않기 위해.
 async function censusWindow(base, type, start, end, budget) {
   const feat = [], winMap = {}, pvct = [];
-  let calls = 0, budgetHit = false;
+  let calls = 0, budgetHit = false, fetchFail = null;
   for (let page = 1; page <= MAX_PAGES; page++) {
     if (budget && !budget.take(1)) { budgetHit = true; break; }
     let d = null;
     try {
       d = await fetchJson(`${base}/.netlify/functions/onbid-bidresults?cltrTypeCd=${type}&numOfRows=1000&page=${page}&opbdDtStart=${start}&opbdDtEnd=${end}`);
-    } catch (e) { break; }
+    } catch (e) {
+      // 실패는 '개찰 없음'과 다르다 — 여기서 빈 결과로 접으면 호출자가 빈 창을 저장하고
+      // 커서를 전진시켜, 백필이 과거로만 가는 특성상 그 구간이 영영 비게 된다.
+      fetchFail = e.message;
+      break;
+    }
     calls++;
     const batch = Array.isArray(d && d.results) ? d.results : [];
     for (const r of batch) {
@@ -108,7 +113,7 @@ async function censusWindow(base, type, start, end, budget) {
     }
     if (batch.length < 1000) break; // 마지막 페이지
   }
-  return { feat, winMap, pvct, calls, budgetHit };
+  return { feat, winMap, pvct, calls, budgetHit, fetchFail };
 }
 
 exports.handler = async (event) => {
@@ -142,6 +147,7 @@ exports.handler = async (event) => {
     const t0 = Date.now();
     const didWindows = [];
     let totalCalls = 0, budgetStopped = false;
+    let fetchStopped = null; // 상위 호출 실패로 창을 버리고 멈춘 사유 — 예산 소진과 구분해 기록한다
     while (cursorEnd >= BF_START) {
       const start = maxStr(addDays(cursorEnd, -(WINDOW_DAYS - 1)), BF_START);
       // 창 하나를 온전히 끝낼 여유가 없으면 아예 시작하지 않는다 — 반쪽 창을 저장하고
@@ -151,13 +157,16 @@ exports.handler = async (event) => {
       const pending = [];
       let winRows = 0, aborted = false;
       for (const type of ['0001', '0002', '0003']) {
-        const { feat, winMap, pvct, calls, budgetHit } = await censusWindow(base, type, start, cursorEnd, budget);
+        const { feat, winMap, pvct, calls, budgetHit, fetchFail } = await censusWindow(base, type, start, cursorEnd, budget);
+        // 상위 실패 — 예산 소진과 똑같이 이 창을 통째로 버린다(저장·커서 전진 없음).
+        if (fetchFail) { fetchStopped = fetchFail; aborted = true; break; }
         totalCalls += calls;
         if (budgetHit) { aborted = true; break; }   // 예산 소진 — 이 창은 통째로 버린다
         pending.push({ type, feat, winMap, pvct });
         winRows += Object.keys(winMap).length;
       }
-      if (aborted) { budgetStopped = true; break; } // 커서 미전진 → 다음 실행이 이 창부터 다시
+      // 커서 미전진 → 다음 실행이 이 창부터 다시. 예산 소진과 상위 실패를 섞어 적지 않는다.
+      if (aborted) { if (!fetchStopped) budgetStopped = true; break; }
 
       for (const p of pending) {
         // 물리 분리 저장 — feat(낙찰가 없음) / win(낙찰가만)
@@ -192,7 +201,7 @@ exports.handler = async (event) => {
     meta.newest = BF_END;
     meta.updatedAt = new Date().toISOString();
     await store.setJSON('hist/_bfmeta', meta);
-    await store.setJSON('_run/collect-backfill', { at: new Date().toISOString(), ok: true, done, records: meta.records, windowsThisRun: didWindows.length, quotaStopped: budgetStopped });
+    await store.setJSON('_run/collect-backfill', { at: new Date().toISOString(), ok: true, done, records: meta.records, windowsThisRun: didWindows.length, quotaStopped: budgetStopped, ...(fetchStopped ? { fetchStopped } : {}) });
 
     // 수집이 끝나면(done) hist-stats 셀을 재빌드해 수집한 1~6월 통계를 즉시 반영 —
     // 라이브 챌린저(predb)가 hist/_cells를 읽으므로 이 rebuild로 "학습 즉시 반영"이 성립.
@@ -208,9 +217,12 @@ exports.handler = async (event) => {
         ok: true, done, cursorEnd, calls: totalCalls,
         windowsThisRun: didWindows, meta,
         quota: budget.summary(),
+        ...(fetchStopped ? { fetchStopped } : {}),
         note: done
           ? `백필 완료 — ${BF_START}~${BF_END} 전수 수집됨(총 ${meta.records.toLocaleString()}건).`
-          : budgetStopped
+          : fetchStopped
+            ? `상위 API 호출이 실패해 중단했습니다(${fetchStopped}) — 실패는 '개찰 없음'과 다르므로 빈 창을 저장하지 않았고 커서(${cursorEnd})도 그대로입니다.`
+            : budgetStopped
             ? `오늘의 API 예산(사용자 화면 몫 제외 ${budget.limit}회)을 다 써서 중단했습니다 — 커서(${cursorEnd})는 그대로이며 내일 이어서 수집합니다.`
             : `진행 중 — 다음 실행은 ${cursorEnd} 이전 창부터 이어서 수집합니다.`,
       }),

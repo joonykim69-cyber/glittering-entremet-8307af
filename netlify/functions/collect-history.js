@@ -141,6 +141,7 @@ exports.handler = async (event) => {
     // 일일 API 예산('bulk' 티어) — 사용자 화면 몫을 침범하지 않는 선에서만 수집.
     const budget = await quota.openBudget(store, { service: 'onbid', tier: 'bulk' });
     let budgetStopped = false;
+    let fetchStopped = null; // 상위 호출 실패로 창을 버리고 멈춘 사유(빈 창 저장·커서 전진 금지)
 
     // 백필이 끝난 뒤에는 최근 7일 창을 매일 다시 수집해 신규 개찰분을 증분 유지한다.
     // **고정 키(hist/_inc/{type})로 매일 덮어쓴다**(2026-07-27 하우스키핑 수정): 과거엔 창 키가 매일
@@ -180,6 +181,7 @@ exports.handler = async (event) => {
 
       const pending = [];
       let aborted = false;
+      let failed = null; // 상위 호출 실패 — '개찰 없음'과 절대 같지 않다
       for (const cltrTypeCd of ['0001', '0002', '0003']) {
         const rows = [];
         for (let page = 1; page <= MAX_PAGES; page++) {
@@ -187,16 +189,25 @@ exports.handler = async (event) => {
           let d = null;
           try {
             d = await fetchJson(`${base}/.netlify/functions/onbid-bidresults?cltrTypeCd=${cltrTypeCd}&numOfRows=100&page=${page}&opbdDtStart=${winStart}&opbdDtEnd=${cursorEnd}`);
-          } catch (e) { break; }
+          } catch (e) {
+            // 실패를 '데이터 없음'으로 접으면 빈 창을 저장하고 커서가 지나가 버린다.
+            // 백필은 과거로만 가므로 그 구간은 **다시 오지 않는다**(2026-08-05 인증키 장애에서
+            // 실제로 6창 42일치가 이렇게 비었다). collect-rtms와 같은 규율로 멈춘다.
+            failed = e.message;
+            break;
+          }
           const batch = Array.isArray(d && d.results) ? d.results : [];
           // 낙찰(0010)·유찰(0011)만 학습 표본으로 저장 — 취소(0012) 등은 제외
           rows.push(...batch.filter(x => x.statCd === '0010' || x.statCd === '0011').map(toRecord));
           if (batch.length < 100) break;
         }
-        if (aborted) break;                      // 예산 소진 — 이 창은 통째로 버린다
+        if (aborted || failed) break;            // 예산 소진·상위 실패 — 이 창은 통째로 버린다
         pending.push({ cltrTypeCd, rows });
       }
       if (aborted) { budgetStopped = true; break; } // 커서 미전진 → 다음 실행이 이 창부터 다시
+      // 실패도 같다 — 저장하지 않고, 커서를 전진시키지 않고, 이번 실행을 끝낸다.
+      // 조용히 사라지지 않도록 실패 사유를 하트비트에 남긴다.
+      if (failed) { fetchStopped = failed; break; }
 
       for (const p of pending) {
         await store.setJSON(`hist/${winStart}_${cursorEnd}/${p.cltrTypeCd}`, p.rows);
@@ -236,6 +247,7 @@ exports.handler = async (event) => {
     await store.setJSON('_run/collect-history', {
       at: new Date().toISOString(), ok: true, added, windows: runWindows.length, cursorEnd,
       backfillComplete: doneBackfill, quotaStopped: budgetStopped,
+      ...(fetchStopped ? { fetchStopped } : {}),
       incRows, incPvct, incMs, ...(incTimeHit ? { incTimeHit: true } : {}),
       ...(incSkipped.length ? { incSkipped } : {}),
     });
@@ -249,7 +261,10 @@ exports.handler = async (event) => {
         backfillComplete: doneBackfill,
         meta,
         quota: budget.summary(),
-        note: budgetStopped
+        ...(fetchStopped ? { fetchStopped } : {}),
+        note: fetchStopped
+          ? `상위 API 호출이 실패해 중단했습니다(${fetchStopped}) — 실패는 '개찰 없음'과 다르므로 빈 창을 저장하지 않았고 커서(${cursorEnd})도 그대로입니다. 원인 해소 후 다음 실행이 이 창부터 다시 수집합니다.`
+          : budgetStopped
           ? `오늘의 API 예산(사용자 화면 몫 제외 ${budget.limit}회)을 다 써서 중단했습니다 — 커서(${cursorEnd})는 그대로이며 내일 이어서 수집합니다.`
           : doneBackfill
           ? `백필 완료 — 목표 ${targetDays}일치 수집됨. 이후 실행은 증분 유지용.`
