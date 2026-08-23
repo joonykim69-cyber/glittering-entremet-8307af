@@ -450,6 +450,7 @@ select:focus-visible,input:focus-visible,button:focus-visible,a:focus-visible{ou
         이어폰/스피커 <b>출력 분리는 모바일 웹에서 제어할 수 없어</b> 알림음과 아이콘으로 방향만 구분합니다 — 실제 오디오 라우팅·AEC·초저지연 스트리밍은 네이티브 앱 단계에서 제공됩니다.
         번역이 재생되는 동안에는 마이크를 닫아 스피커 소리가 되돌아 번역되는 루프를 구조적으로 차단합니다.
         통역 결과는 참고용이며 법적 효력이 없습니다.
+        <br/><span id="buildTag"></span>
       </p>
     </div>
   </div>
@@ -536,6 +537,7 @@ var DOC_RULES = [
       ['여권 · 외국인등록증',''],['근로계약서','서명 전 내용 확인'],['체류자격 확인','취업 가능한 체류자격인지 ☎ 1345로 확인']] },
 ];
 
+var BUILD = '2026-08-23-6'; // 공동 검증용 빌드 표식 — 폰이 최신 버전인지 즉시 확인
 var $ = function(id){ return document.getElementById(id); };
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(m){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]; }); }
 
@@ -1145,7 +1147,7 @@ function runDiag(){
   Promise.all([pMic, pTok]).then(function(rr){
     lines.push((rr[0] === 'granted' ? '✓' : (rr[0] === 'denied' ? '✗' : '·')) + ' 마이크 권한: ' + rr[0]);
     lines.push(rr[1]);
-    lines.push('· 화면 크기 ' + window.innerWidth + '×' + window.innerHeight + ' · UA: ' + navigator.userAgent.slice(0, 80) + '…');
+    lines.push('· 빌드 ' + BUILD + ' · 화면 ' + window.innerWidth + '×' + window.innerHeight + ' · UA: ' + navigator.userAgent.slice(0, 80) + '…');
     out.innerHTML = lines.map(esc).join('<br>');
   });
 }
@@ -1355,6 +1357,7 @@ function init(){
   $('diagBtn').addEventListener('click', runDiag);
   $('ttsTestBtn').addEventListener('click', ttsTest);
   if (IS_INAPP) $('inappWarn').style.display = 'block';
+  $('buildTag').textContent = '빌드 ' + BUILD;
 
   // 온보딩
   renderOnboard();
