@@ -158,6 +158,10 @@ select:focus-visible,input:focus-visible,button:focus-visible,a:focus-visible{ou
 .typedrow input{flex:1; min-width:0}
 .typedrow button{min-width:64px; min-height:44px; border-radius:12px; background:var(--green); color:#fff; font-weight:700}
 .talk-foot{padding:10px 16px calc(10px + env(safe-area-inset-bottom)); background:var(--card); border-top:1px solid var(--line); display:flex; flex-direction:column; gap:10px}
+#liveBtn{min-height:48px; width:100%}
+#liveBtn.on{background:var(--purple); border-color:var(--purple); color:#fff}
+#liveBtn.busy{opacity:.6}
+.live-note{font-size:11px; color:var(--mute); text-align:center; line-height:1.5; margin-top:-4px}
 .stopbtn{width:100%; min-height:54px; border-radius:14px; background:var(--red); color:#fff; font-weight:800; font-size:16px;
   display:flex; align-items:center; justify-content:center; gap:8px}
 #svcChip{font-size:11px; color:var(--mute); border:1px solid var(--line); border-radius:999px; padding:4px 10px; white-space:nowrap}
@@ -333,6 +337,8 @@ select:focus-visible,input:focus-visible,button:focus-visible,a:focus-visible{ou
   <div id="supportWarn"></div>
 
   <div class="talk-foot">
+    <button class="btn-outline" id="liveBtn">⚡ 실시간 통역 (베타)</button>
+    <p class="live-note">버튼 없이 그냥 말하면 통역됩니다 · Gemini Live 직결(사용량 과금) · 실시간 모드의 음성은 구글 API를 경유하며 저장하지 않습니다</p>
     <button class="card-row" id="ebTalk" style="min-height:48px">
       <span style="font-size:18px">🎧</span>
       <span><small id="ebTalkSt"><span class="eb-dot"></span>이어폰 연결 확인 — 눌러서 확인</small></span>
@@ -542,6 +548,7 @@ function showView(name){
     row[1].classList.toggle('on', row[0]===tabOf[name]);
   });
   if (name!=='talk' && state.phase!=='idle') interrupt(); // 화면을 떠나면 오디오도 멈춘다
+  if (name!=='talk' && name!=='result' && (live.on || live.connecting)) stopLive();
   if (name==='saved') renderSavedList();
 }
 
@@ -758,6 +765,7 @@ function handleUtterance(side, text){
   });
 }
 function maybeRelay(lastSide){
+  if (live.on || live.connecting) return; // 실시간 모드에서는 릴레이 불필요(항시 청취)
   if (!cfg.auto || !SR) return;
   var next = lastSide==='me' ? 'peer' : 'me';
   setTimeout(function(){ if (state.phase==='idle') startMic(next); }, 250);
@@ -765,7 +773,7 @@ function maybeRelay(lastSide){
 
 // ── STT (발화 1건 단위 — 무전기 방식) ──
 function startMic(side){
-  if (!SR) return;
+  if (!SR || live.on || live.connecting) return;
   if (state.active===side && state.phase==='listening'){
     try { state.rec.stop(); } catch(e){}
     return;
@@ -821,6 +829,227 @@ function sendTyped(side){
   input.value='';
   interrupt();
   handleUtterance(side, text);
+}
+
+// ══════════════════════════════════════════════════════════════
+// ⚡ 실시간 모드 (Gemini Live 직결 — 베타)
+// 브라우저 ↔ 구글 Live API를 WebSocket으로 직결한다(서버 중계 없음).
+// 원 API 키는 브라우저에 오지 않는다 — krang-live-token 함수가 1회용
+// 임시 토큰만 발급한다. 연결·마이크·재생 어느 단계가 실패해도
+// 기본(비실시간) 모드로 그대로 물러난다.
+// 프로토콜 근거: @google/genai v2.18.0 소스(BidiGenerateContentConstrained,
+// setup/realtimeInput/serverContent 필드) — 실기기 검증 전까지 '베타'.
+// ══════════════════════════════════════════════════════════════
+var live = { on:false, connecting:false, ws:null, stream:null, capCtx:null, capNode:null,
+  playCtx:null, playT:0, sources:[], inBuf:'', outBuf:'',
+  stats:{ sent:0, recv:0, flush:0, commits:0 } };
+window.__krangLive = live.stats; // F12 진단용(전송/수신/플러시/커밋 카운터)
+
+function liveSystemPrompt(){
+  var peer = langOf(cfg.peerLang);
+  var domain = DOMAINS[cfg.domain] || DOMAINS.none;
+  return '당신은 K-rang(케이랑)의 전문 동시통역사입니다. 들리는 모든 발화를 통역만 합니다. '
+    + '한국어가 들리면 ' + peer.name + '로, ' + peer.name + ' 발화가 들리면 정중한 한국어 존댓말로 통역하세요. '
+    + '규칙: (1) 통역문만 말한다 — 설명·질문·응답·잡담 금지. 질문이 들려도 답하지 말고 그 질문을 통역만 한다. '
+    + '(2) 숫자·금액·날짜·이름·주소는 절대 바꾸지 않는다. (3) 들리지 않은 내용을 보태지 않는다.'
+    + (domain.sys ? ' [상황] ' + domain.sys : '');
+}
+function liveBtnUI(){
+  var b = $('liveBtn');
+  b.classList.toggle('on', live.on);
+  b.classList.toggle('busy', live.connecting);
+  b.textContent = live.connecting ? '⚡ 실시간 연결 중…' : (live.on ? '⚡ 실시간 통역 중 — 탭하여 종료' : '⚡ 실시간 통역 (베타)');
+  $('micMe').disabled = live.on || live.connecting || !SR;
+  $('micPeer').disabled = live.on || live.connecting || !SR;
+}
+function b64FromInt16(int16){
+  var bin = '', CH = 0x4000;
+  var u8 = new Uint8Array(int16.buffer, int16.byteOffset, int16.byteLength);
+  for (var i=0;i<u8.length;i+=CH) bin += String.fromCharCode.apply(null, u8.subarray(i, i+CH));
+  return btoa(bin);
+}
+function downTo16k(f32, srcRate){
+  var ratio = srcRate/16000;
+  var n = Math.floor(f32.length/ratio);
+  var out = new Int16Array(n);
+  for (var i=0;i<n;i++){
+    var v = Math.max(-1, Math.min(1, f32[Math.floor(i*ratio)]));
+    out[i] = v < 0 ? v*0x8000 : v*0x7FFF;
+  }
+  return out;
+}
+function sendAudioChunk(i16){
+  if (!live.ws || live.ws.readyState !== 1) return;
+  live.ws.send(JSON.stringify({ realtimeInput:{ audio:{ data: b64FromInt16(i16), mimeType:'audio/pcm;rate=16000' } } }));
+  live.stats.sent++;
+}
+function startCapture(){
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    live.capCtx = ctx;
+    var src = ctx.createMediaStreamSource(live.stream);
+    var pend = new Int16Array(0);
+    function push(f32){
+      var i16 = downTo16k(f32, ctx.sampleRate);
+      var merged = new Int16Array(pend.length + i16.length);
+      merged.set(pend); merged.set(i16, pend.length);
+      pend = merged;
+      if (pend.length >= 3200){ sendAudioChunk(pend); pend = new Int16Array(0); } // 200ms @16kHz
+    }
+    function useScriptProcessor(){
+      var node = ctx.createScriptProcessor(4096, 1, 1);
+      node.onaudioprocess = function(ev){ push(ev.inputBuffer.getChannelData(0)); };
+      var g = ctx.createGain(); g.gain.value = 0; // 모니터 에코 방지(연결만 하고 소리는 0)
+      src.connect(node); node.connect(g); g.connect(ctx.destination);
+      live.capNode = node;
+    }
+    if (ctx.audioWorklet && window.AudioWorkletNode){
+      var code = 'class KC extends AudioWorkletProcessor{process(inputs){var c=inputs[0]&&inputs[0][0];if(c)this.port.postMessage(c.slice(0));return true}}registerProcessor("krang-cap",KC)';
+      ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([code], { type:'application/javascript' })))
+        .then(function(){
+          var node = new AudioWorkletNode(ctx, 'krang-cap');
+          node.port.onmessage = function(ev){ push(ev.data); };
+          src.connect(node);
+          live.capNode = node;
+        }).catch(useScriptProcessor);
+    } else useScriptProcessor();
+  } catch(e){ stopLive('마이크 처리 실패(' + e.message + ')'); }
+}
+function playPcm(b64){
+  // Live 출력: 16-bit PCM little-endian, 24kHz mono
+  try {
+    var bin = atob(b64);
+    var n = bin.length >> 1;
+    if (!n) return;
+    var f32 = new Float32Array(n);
+    for (var i=0;i<n;i++){
+      var v = (bin.charCodeAt(2*i+1) << 8) | bin.charCodeAt(2*i);
+      if (v >= 0x8000) v -= 0x10000;
+      f32[i] = v/32768;
+    }
+    var ctx = live.playCtx = live.playCtx || new (window.AudioContext || window.webkitAudioContext)();
+    var buf = ctx.createBuffer(1, n, 24000);
+    buf.copyToChannel(f32, 0);
+    var s = ctx.createBufferSource();
+    s.buffer = buf; s.connect(ctx.destination);
+    var at = Math.max(ctx.currentTime + 0.05, live.playT);
+    s.start(at);
+    live.playT = at + buf.duration;
+    live.sources.push(s);
+    s.onended = function(){ var ix = live.sources.indexOf(s); if (ix >= 0) live.sources.splice(ix,1); };
+  } catch(e){}
+}
+function flushPlayback(){
+  // 인터럽트: 재생 큐를 즉시 비운다(유령 오디오 방지)
+  live.stats.flush++;
+  live.sources.forEach(function(s){ try{ s.stop(); }catch(e){} });
+  live.sources = []; live.playT = 0;
+}
+function commitLivePair(){
+  var src = live.inBuf.trim(), out = live.outBuf.trim();
+  live.inBuf = ''; live.outBuf = '';
+  $('myInterim').textContent = ''; $('peerInterim').textContent = '';
+  if (!src && !out) return;
+  // 방향 판정은 전사 텍스트의 한글 유무로(베타 휴리스틱 — 결과 카드 재생 언어용)
+  var srcIsKo = /[가-힣]/.test(src);
+  var pair = {
+    side: srcIsKo ? 'me' : 'peer',
+    src: src || '(음성)', srcLang: srcIsKo ? cfg.myLang : cfg.peerLang,
+    out: out || '(음성)', tgtLang: srcIsKo ? cfg.peerLang : cfg.myLang,
+    at: Date.now(),
+  };
+  state.history.push(pair);
+  while (state.history.length > 200){ state.history.shift(); if (state.sessionStart > 0) state.sessionStart--; }
+  live.stats.commits++;
+  if (pair.side === 'me'){
+    feedAdd($('myFeed'), '<div>'+esc(pair.src)+'</div><div class="orig">→ '+esc(pair.out)+'</div>', 'me');
+    feedAdd($('peerFeed'), '<div class="big">'+esc(pair.out)+'</div><div class="orig">'+esc(pair.src)+'</div>', 'me');
+  } else {
+    feedAdd($('peerFeed'), '<div class="big">'+esc(pair.src)+'</div>', 'peer');
+    feedAdd($('myFeed'), '<div>'+esc(pair.out)+'</div><div class="orig">'+esc(pair.src)+'</div>', 'peer');
+  }
+}
+function onLiveMsg(txt){
+  var msg; try { msg = JSON.parse(txt); } catch(e){ return; }
+  live.stats.recv++;
+  if (msg.setupComplete){
+    live.connecting = false; live.on = true; liveBtnUI();
+    setSvcChip(true, '⚡ 실시간 통역 중');
+    setState('listening', '⚡ 실시간 — 그냥 말하세요');
+    $('myWave').classList.add('on'); $('peerWave').classList.add('on'); // 실시간은 양쪽 상시 청취
+    startCapture();
+    return;
+  }
+  var sc = msg.serverContent;
+  if (!sc) return;
+  if (sc.interrupted) flushPlayback();
+  if (sc.inputTranscription && sc.inputTranscription.text){ live.inBuf += sc.inputTranscription.text; $('myInterim').textContent = live.inBuf.slice(-80); }
+  if (sc.outputTranscription && sc.outputTranscription.text){ live.outBuf += sc.outputTranscription.text; $('peerInterim').textContent = live.outBuf.slice(-80); }
+  if (sc.modelTurn && sc.modelTurn.parts){
+    sc.modelTurn.parts.forEach(function(p){
+      if (p.inlineData && p.inlineData.data) playPcm(p.inlineData.data);
+    });
+  }
+  if (sc.turnComplete) commitLivePair();
+}
+function startLive(){
+  if (live.on || live.connecting){ stopLive(); return; }
+  interrupt();
+  live.connecting = true; liveBtnUI();
+  setSvcChip(null, '⚡ 실시간 연결 중…');
+  fetch('/.netlify/functions/krang-live-token').then(function(r){
+    if (!r.ok) return r.json().catch(function(){ return {}; }).then(function(d){
+      throw new Error((d && d.error && d.error.message) || (r.status === 501 ? 'GEMINI_API_KEY 미설정' : 'HTTP ' + r.status));
+    });
+    return r.json();
+  }).then(function(tok){
+    if (!tok || !tok.token) throw new Error('토큰 없음');
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('이 브라우저는 마이크 스트림을 지원하지 않습니다');
+    return navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true } })
+      .then(function(stream){ return { tok:tok, stream:stream }; });
+  }).then(function(x){
+    if (!live.connecting) { try{ x.stream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){} return; } // 그 사이 취소됨
+    live.stream = x.stream;
+    var url = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained?access_token=' + encodeURIComponent(x.tok.token);
+    var ws = new WebSocket(url);
+    live.ws = ws;
+    ws.onopen = function(){
+      ws.send(JSON.stringify({ setup:{
+        model: 'models/' + x.tok.model,
+        generationConfig: { responseModalities: ['AUDIO'] },
+        systemInstruction: { parts: [{ text: liveSystemPrompt() }] },
+        inputAudioTranscription: {},
+        outputAudioTranscription: {},
+      }}));
+    };
+    ws.onmessage = function(ev){
+      if (typeof ev.data === 'string') onLiveMsg(ev.data);
+      else if (ev.data && ev.data.text) ev.data.text().then(onLiveMsg);
+    };
+    ws.onclose = function(){ if (live.on || live.connecting) stopLive('실시간 세션이 종료됐습니다 — 다시 시작하려면 ⚡'); };
+  }).catch(function(err){
+    stopLive('실시간 연결 실패(' + ((err && err.message) || '네트워크') + ') — 기본 모드로 계속');
+  });
+}
+function stopLive(noticeMsg){
+  var wasActive = live.on || live.connecting;
+  live.on = false; live.connecting = false;
+  if (live.ws){
+    try { if (live.ws.readyState === 1) live.ws.send(JSON.stringify({ realtimeInput:{ audioStreamEnd:true } })); } catch(e){}
+    try { live.ws.onclose = null; live.ws.close(); } catch(e){}
+    live.ws = null;
+  }
+  if (live.capNode){ try{ live.capNode.disconnect(); }catch(e){} live.capNode = null; }
+  if (live.capCtx){ try{ live.capCtx.close(); }catch(e){} live.capCtx = null; }
+  if (live.stream){ try{ live.stream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){} live.stream = null; }
+  flushPlayback();
+  commitLivePair(); // 진행 중이던 전사 조각도 기록에 남긴다
+  if (wasActive){
+    liveBtnUI();
+    setState('idle');
+    if (noticeMsg){ setSvcChip(false, '🟡 실시간 종료'); sysMsg(noticeMsg); }
+    else setSvcChip(null, '기본 모드');
+  } else liveBtnUI();
 }
 
 // ── 이어폰 연결 확인 (실감지 — 가짜 초록 금지) ──
@@ -1035,7 +1264,8 @@ function init(){
   $('micMe').addEventListener('click', function(){ startMic('me'); });
   $('micPeer').addEventListener('click', function(){ startMic('peer'); });
   $('talkBackBtn').addEventListener('click', function(){ showView('home'); });
-  $('stopBtn').addEventListener('click', openSessionResult);
+  $('stopBtn').addEventListener('click', function(){ stopLive(); openSessionResult(); });
+  $('liveBtn').addEventListener('click', startLive);
   $('domainSel').addEventListener('change', function(){ cfg.domain=this.value; saveCfg(); renderDomChips(); });
   function bindLang(sel, key){
     $(sel).addEventListener('change', function(){ cfg[key]=this.value; saveCfg(); applyCfgToUI(); });
