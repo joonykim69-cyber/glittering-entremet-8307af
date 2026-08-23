@@ -27,12 +27,17 @@ exports.handler = async (event) => {
     return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: { message: 'Method not allowed' } }) };
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = (process.env.GEMINI_API_KEY || '').trim();
   if (!apiKey) {
+    // 변수 자체가 없는 것과 있는데 값이 빈 것을 구분 — Netlify secret은 편집 시
+    // 값을 다시 붙여넣지 않으면 빈 값으로 저장되는 함정이 있다(실장애에서 확인).
+    const empty = process.env.GEMINI_API_KEY !== undefined;
     return {
       statusCode: 501,
       headers: { ...CORS, 'Cache-Control': 'no-store' },
-      body: JSON.stringify({ error: { message: 'GEMINI_API_KEY not configured' } }),
+      body: JSON.stringify({ error: { message: empty
+        ? 'GEMINI_API_KEY is empty — Netlify에서 값을 다시 붙여넣고 재배포하세요'
+        : 'GEMINI_API_KEY not configured' } }),
     };
   }
 
