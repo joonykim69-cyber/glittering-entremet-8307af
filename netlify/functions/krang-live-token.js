@@ -27,17 +27,22 @@ exports.handler = async (event) => {
     return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: { message: 'Method not allowed' } }) };
   }
 
-  const apiKey = (process.env.GEMINI_API_KEY || '').trim();
+  // 변수명 후보를 순서대로 탐색 — UI에서 변수 하나가 꼬인 경우(빈 값 저장 등)를
+  // 새 이름으로 우회할 수 있게 하고, 실패 시 무엇이 보이는지 정확히 알려준다.
+  const CAND = ['GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_KEY'];
+  let apiKey = '', keyVar = '';
+  for (const n of CAND) {
+    const v = (process.env[n] || '').trim();
+    if (v) { apiKey = v; keyVar = n; break; }
+  }
   if (!apiKey) {
-    // 변수 자체가 없는 것과 있는데 값이 빈 것을 구분 — Netlify secret은 편집 시
-    // 값을 다시 붙여넣지 않으면 빈 값으로 저장되는 함정이 있다(실장애에서 확인).
-    const empty = process.env.GEMINI_API_KEY !== undefined;
+    const present = CAND.filter((n) => process.env[n] !== undefined);
     return {
       statusCode: 501,
       headers: { ...CORS, 'Cache-Control': 'no-store' },
-      body: JSON.stringify({ error: { message: empty
-        ? 'GEMINI_API_KEY is empty — Netlify에서 값을 다시 붙여넣고 재배포하세요'
-        : 'GEMINI_API_KEY not configured' } }),
+      body: JSON.stringify({ error: { message: present.length
+        ? present.join(',') + ' 변수는 있으나 값이 비어 있음 — Netlify에서 값을 다시 붙여넣고 재배포'
+        : 'GEMINI_API_KEY not configured (함수에 변수가 안 보임 — GEMINI_KEY라는 새 이름으로 만들어도 됩니다)' } }),
     };
   }
 
@@ -68,7 +73,7 @@ exports.handler = async (event) => {
     return {
       statusCode: 200,
       headers: { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-      body: JSON.stringify({ token: data.name, model: model, expireTime: body.newSessionExpireTime }),
+      body: JSON.stringify({ token: data.name, model: model, keyVar: keyVar, expireTime: body.newSessionExpireTime }),
     };
   } catch (e) {
     return {

@@ -24,6 +24,8 @@ function get(){ return fn.handler({ httpMethod: 'GET' }); }
 (async () => {
   // ── ② 키 미설정 → clean 501 ──
   delete process.env.GEMINI_API_KEY;
+  delete process.env.GOOGLE_API_KEY;
+  delete process.env.GEMINI_KEY;
   let res = await get();
   eq('키 미설정 → 501', res.statusCode, 501);
   t('키 미설정 → no-store', /no-store/.test(res.headers['Cache-Control'] || ''));
