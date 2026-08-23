@@ -567,6 +567,7 @@ function showView(name){
   });
   if (name!=='talk' && state.phase!=='idle') interrupt(); // 화면을 떠나면 오디오도 멈춘다
   if (name!=='talk' && name!=='result' && (live.on || live.connecting)) stopLive();
+  if (name!=='talk' && name!=='result') releaseMicPermission(); // 통역을 떠나면 마이크 앵커 해제
   if (name==='saved') renderSavedList();
 }
 
@@ -650,16 +651,30 @@ function makeUtter(text, langCode){
   return u;
 }
 // speak: 재생 완료 시 done(ok) 콜백. 음성 자체가 없으면 ok=false(텍스트만 전달).
+// ⚠ 안드로이드 Chrome 실기기 버그(2026-08-23 창업자 실테스트에서 확인):
+//   cancel() 직후의 speak()가 조용히 무시된다 → 재생 중일 때만 취소하고
+//   한 박자(80ms) 쉬었다 재생 + resume() 워밍. (결과 화면 재생은 cancel 없이
+//   호출해서 처음부터 정상이었다 — 같은 진단의 근거.)
 function speak(text, langCode, route, epoch, done){
   if (!window.speechSynthesis){ done(false); return; }
   beep(route);
   var u = makeUtter(text, langCode);
-  var finished = false;
+  var finished = false, started = false;
   function fin(ok){ if (finished) return; finished = true; done(ok); }
+  u.onstart = function(){ started = true; };
   u.onend = function(){ fin(true); };
   u.onerror = function(){ fin(false); };
-  setTimeout(function(){ if (state.epoch===epoch) fin(true); }, 4000 + text.length*180);
-  try { speechSynthesis.cancel(); speechSynthesis.speak(u); } catch(e){ fin(false); }
+  // 2.5초 안에 재생이 시작조차 안 되면 "이 언어 음성 없음"으로 정직하게 처리
+  setTimeout(function(){ if (state.epoch===epoch && !started) fin(false); }, 2500);
+  setTimeout(function(){ if (state.epoch===epoch) fin(true); }, 8000 + text.length*180);
+  function go(){
+    if (state.epoch !== epoch){ fin(true); return; }
+    try { speechSynthesis.resume(); speechSynthesis.speak(u); } catch(e){ fin(false); }
+  }
+  try {
+    if (speechSynthesis.speaking || speechSynthesis.pending){ speechSynthesis.cancel(); setTimeout(go, 80); }
+    else go();
+  } catch(e){ go(); }
 }
 // 결과 화면 재생 — 진행 대화를 끊지 않도록 cancel 없이 큐잉
 function speakOnce(text, langCode){
@@ -670,9 +685,24 @@ var ttsUnlocked = false;
 function unlockTTS(){
   if (ttsUnlocked || !window.speechSynthesis) return;
   ttsUnlocked = true;
-  try { var u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch(e){}
+  try { speechSynthesis.resume(); var u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch(e){}
 }
 document.addEventListener('pointerdown', unlockTTS, { once:true });
+
+// ── 마이크 권한 앵커 ──
+// "이번만 허용"을 고르면 턴마다 새 SpeechRecognition이 권한을 다시 묻는다
+// (창업자 실테스트에서 확인). 대면 통역 시작 시 권한을 1회 받고, 통역 세션
+// 동안 오디오 스트림을 잡아 두면 재팝업이 사라진다. 통역을 떠나면 해제.
+var permStream = null;
+function ensureMicPermission(){
+  if (permStream || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+  navigator.mediaDevices.getUserMedia({ audio:true }).then(function(s){
+    permStream = s;
+  }).catch(function(){ /* 거부 시 STT 시작 시점의 안내가 담당 */ });
+}
+function releaseMicPermission(){
+  if (permStream){ try { permStream.getTracks().forEach(function(t){ t.stop(); }); } catch(e){} permStream = null; }
+}
 
 // ── 인터럽트 ──
 function interrupt(){
@@ -1249,6 +1279,7 @@ function openTalk(domain){
   if (domain){ cfg.domain = domain; saveCfg(); fillDomainSelect(); }
   state.sessionStart = state.history.length; // 새 세션 시작
   showView('talk');
+  ensureMicPermission(); // 시작 시 1회 — 턴마다 권한 팝업이 뜨지 않게
 }
 function init(){
   applyCfgToUI();
