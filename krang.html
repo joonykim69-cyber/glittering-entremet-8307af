@@ -99,7 +99,9 @@ select:focus-visible,input:focus-visible,button:focus-visible,a:focus-visible{ou
 .hotlink{margin-top:6px; color:var(--sub); font-size:13px; min-height:40px; display:inline-flex; align-items:center; gap:6px; font-weight:600}
 
 /* ═══════ 통역 화면 ═══════ */
-#view-talk{background:var(--card)}
+#view-talk{background:var(--card); height:100dvh; min-height:0; overflow:hidden}
+/* 고정 높이 — 대화가 쌓여도 하단 조작부(⚡·이어폰·중지)가 항상 보이고,
+   넘치는 대화는 각 존의 feed가 자체 스크롤한다 */
 .zone{flex:1; display:flex; flex-direction:column; min-height:0; padding:8px 16px}
 .zone.peer{background:var(--purple-soft)}
 .zone.me{background:var(--green-soft)}
@@ -109,7 +111,7 @@ select:focus-visible,input:focus-visible,button:focus-visible,a:focus-visible{ou
 .zone-head .who{font-weight:700; font-size:13px; color:var(--ink)}
 .zone-head select{flex:0 1 auto; max-width:44vw; min-height:36px; padding:4px 8px; font-size:13px}
 .zone .act{border:1px solid var(--line); border-radius:10px; padding:0 12px; min-height:36px; background:var(--card); color:var(--green); font-size:12.5px; font-weight:600}
-.feed{flex:1; overflow-y:auto; overflow-x:hidden; display:flex; flex-direction:column; gap:8px; padding:8px 2px; min-height:56px}
+.feed{flex:1; overflow-y:auto; overflow-x:hidden; display:flex; flex-direction:column; gap:8px; padding:8px 2px; min-height:40px}
 .feed::-webkit-scrollbar{width:4px}
 .feed::-webkit-scrollbar-thumb{background:var(--line); border-radius:2px}
 .bub{max-width:92%; border-radius:14px; padding:9px 12px; line-height:1.45; word-break:break-word; font-size:calc(15px*var(--fs,1));
@@ -126,7 +128,7 @@ select:focus-visible,input:focus-visible,button:focus-visible,a:focus-visible{ou
 .interim{text-align:center; font-size:14px; min-height:20px; padding:0 8px; color:var(--sub)}
 
 /* 파형 (행안부 시각 피드백 — 듣는 중일 때만) */
-.wave{display:flex; align-items:center; justify-content:center; gap:3px; height:26px; visibility:hidden}
+.wave{display:flex; align-items:center; justify-content:center; gap:3px; height:20px; visibility:hidden}
 .wave.on{visibility:visible}
 .wave i{width:3px; height:6px; border-radius:2px; background:var(--green)}
 .zone.peer .wave i{background:var(--purple)}
@@ -134,6 +136,18 @@ select:focus-visible,input:focus-visible,button:focus-visible,a:focus-visible{ou
 .wave.on i:nth-child(2n){animation-delay:.15s} .wave.on i:nth-child(3n){animation-delay:.3s} .wave.on i:nth-child(5n){animation-delay:.45s}
 @keyframes wv{0%,100%{height:6px}50%{height:22px}}
 @media (prefers-reduced-motion:reduce){ .wave.on i{animation:none; height:14px} .flip-inner{transition:none} .mic.listening{animation:none} }
+/* 낮은 화면: 장식을 접어 조작부(⚡·중지)가 항상 들어가게 */
+@media (max-height:700px){
+  .wave,.live-note{display:none}
+  .mic{width:54px; height:54px} .mic > span:first-child{font-size:19px}
+  .kbd-btn{min-width:44px; min-height:44px; font-size:16px}
+  .zone{padding:4px 12px} .feed{min-height:26px} .interim{min-height:14px; font-size:12px}
+  #liveBtn,.stopbtn{min-height:44px}
+}
+/* 낮은 화면(≤700px)은 겹치느니 스크롤로 — 고정 하단은 일반 폰 높이(740px+)에서 유지 */
+@media (max-height:700px){
+  #view-talk{height:auto; min-height:100dvh; overflow:visible}
+}
 
 .divider{display:flex; align-items:center; justify-content:center; gap:10px; padding:5px 14px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); background:var(--card); font-size:12px; color:var(--sub); min-height:34px}
 .stchip{display:inline-flex; align-items:center; gap:5px; border-radius:999px; padding:3px 12px; font-size:12px; font-weight:700}
@@ -143,8 +157,8 @@ select:focus-visible,input:focus-visible,button:focus-visible,a:focus-visible{ou
 .stchip.speak{background:var(--purple-soft); color:var(--purple-deep)}
 
 .microw{display:flex; gap:14px; align-items:center; justify-content:center; padding-top:6px}
-.mic{flex:0 0 auto; width:72px; height:72px; border-radius:50%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px;
-  background:var(--green); color:#fff; box-shadow:0 0 0 7px var(--green-soft); transition:box-shadow .15s}
+.mic{flex:0 0 auto; width:64px; height:64px; border-radius:50%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px;
+  background:var(--green); color:#fff; box-shadow:0 0 0 6px var(--green-soft); transition:box-shadow .15s}
 .mic > span:first-child{font-size:23px; line-height:1.1}
 .mic .mic-txt{display:none}
 .mic small{font-weight:700; font-size:10px; color:#D8EAE0; max-width:64px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
@@ -157,12 +171,14 @@ select:focus-visible,input:focus-visible,button:focus-visible,a:focus-visible{ou
 .typedrow.open{display:flex}
 .typedrow input{flex:1; min-width:0}
 .typedrow button{min-width:64px; min-height:44px; border-radius:12px; background:var(--green); color:#fff; font-weight:700}
-.talk-foot{padding:10px 16px calc(10px + env(safe-area-inset-bottom)); background:var(--card); border-top:1px solid var(--line); display:flex; flex-direction:column; gap:10px}
-#liveBtn{min-height:48px; width:100%}
+.subhead,.divider,.talk-foot{flex-shrink:0}
+.talk-foot{padding:8px 16px calc(8px + env(safe-area-inset-bottom)); background:var(--card); border-top:1px solid var(--line); display:flex; flex-direction:column; gap:8px}
+.foot-row{display:flex; gap:10px}
+#liveBtn{flex:1; min-height:50px}
 #liveBtn.on{background:var(--purple); border-color:var(--purple); color:#fff}
 #liveBtn.busy{opacity:.6}
-.live-note{font-size:11px; color:var(--mute); text-align:center; line-height:1.5; margin-top:-4px}
-.stopbtn{width:100%; min-height:54px; border-radius:14px; background:var(--red); color:#fff; font-weight:800; font-size:16px;
+.live-note{font-size:10.5px; color:var(--mute); text-align:center; line-height:1.45}
+.stopbtn{flex:1.3; min-height:50px; border-radius:14px; background:var(--red); color:#fff; font-weight:800; font-size:16px;
   display:flex; align-items:center; justify-content:center; gap:8px}
 #svcChip{font-size:11px; color:var(--mute); border:1px solid var(--line); border-radius:999px; padding:4px 10px; white-space:nowrap}
 #svcChip.on{color:var(--green); border-color:var(--green-line)}
@@ -337,13 +353,15 @@ select:focus-visible,input:focus-visible,button:focus-visible,a:focus-visible{ou
   <div id="supportWarn"></div>
 
   <div class="talk-foot">
-    <button class="btn-outline" id="liveBtn">⚡ 실시간 통역 (베타)</button>
-    <p class="live-note">버튼 없이 그냥 말하면 통역됩니다 · Gemini Live 직결(사용량 과금) · 실시간 모드의 음성은 구글 API를 경유하며 저장하지 않습니다</p>
-    <button class="card-row" id="ebTalk" style="min-height:48px">
-      <span style="font-size:18px">🎧</span>
+    <button class="card-row" id="ebTalk" style="min-height:40px; padding:6px 12px">
+      <span style="font-size:16px">🎧</span>
       <span><small id="ebTalkSt"><span class="eb-dot"></span>이어폰 연결 확인 — 눌러서 확인</small></span>
     </button>
-    <button class="stopbtn" id="stopBtn">■ 중지</button>
+    <div class="foot-row">
+      <button class="btn-outline" id="liveBtn">⚡ 실시간 (베타)</button>
+      <button class="stopbtn" id="stopBtn">■ 중지</button>
+    </div>
+    <p class="live-note">⚡ 실시간은 버튼 없이 말하는 대로 통역 · Gemini Live 직결(사용량 과금) · 음성은 구글 API 경유, 저장 안 함</p>
   </div>
 </div>
 
@@ -858,7 +876,7 @@ function liveBtnUI(){
   var b = $('liveBtn');
   b.classList.toggle('on', live.on);
   b.classList.toggle('busy', live.connecting);
-  b.textContent = live.connecting ? '⚡ 실시간 연결 중…' : (live.on ? '⚡ 실시간 통역 중 — 탭하여 종료' : '⚡ 실시간 통역 (베타)');
+  b.textContent = live.connecting ? '⚡ 연결 중…' : (live.on ? '⚡ 통역 중 · 종료' : '⚡ 실시간 (베타)');
   $('micMe').disabled = live.on || live.connecting || !SR;
   $('micPeer').disabled = live.on || live.connecting || !SR;
 }
