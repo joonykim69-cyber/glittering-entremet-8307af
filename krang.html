@@ -260,6 +260,9 @@ select:focus-visible,input:focus-visible,button:focus-visible,a:focus-visible{ou
       <div class="brand"><span class="dot"></span><span class="dot"></span>K-rang</div>
       <button class="icon-btn" id="gearBtn" style="margin-left:auto" aria-label="더보기·설정">⚙️</button>
     </div>
+    <div id="inappWarn" style="display:none; margin-top:6px; padding:10px 12px; border:1px solid var(--amber); background:var(--amber-bg); border-radius:12px; color:var(--amber); font-size:13px; line-height:1.5">
+      ⚠ 카카오톡·인앱 브라우저에서는 마이크·음성이 제한됩니다. 우측 하단 메뉴(⋮ 또는 ∨) → <b>"다른 브라우저로 열기"</b>로 Chrome에서 열어 주세요.
+    </div>
     <div class="home-title">실시간 통역</div>
     <p class="home-sub">K-rang AI가 빠르고 자연스럽게 대화를 도와드려요.</p>
 
@@ -405,6 +408,13 @@ select:focus-visible,input:focus-visible,button:focus-visible,a:focus-visible{ou
     <div class="set-group">
       <h3>긴급 · Emergency</h3>
       <div class="set-row"><button class="act" id="emgHotBtn">☎ 긴급 연락처 열기</button></div>
+    </div>
+
+    <div class="set-group">
+      <h3>연결 진단 · Diagnostics</h3>
+      <div class="set-row"><button class="act" id="diagBtn">🔧 연결 진단 실행</button><button class="act" id="ttsTestBtn">🔊 음성 테스트</button></div>
+      <div id="diagOut" style="font-size:13px; line-height:1.9; word-break:break-all"></div>
+      <p class="set-desc">문제가 있으면 이 결과 화면을 캡처해서 보내 주세요 — 원인을 바로 특정할 수 있습니다. 🔊 음성 테스트는 상대 언어로 한 문장을 즉시 읽습니다(이게 되는데 통역 음성만 안 나오면 재생 경로 문제, 이것도 안 나오면 기기 보이스·브라우저 문제).</p>
     </div>
 
     <div class="set-group">
@@ -1100,6 +1110,46 @@ function stopLive(noticeMsg){
   } else liveBtnUI();
 }
 
+// ── 🔧 연결 진단 (원격 디버깅용 — 캡처 한 장으로 원인 특정) ──
+var IS_INAPP = /KAKAOTALK|NAVER\(inapp|Instagram|FBAN|FBAV|Line\//i.test(navigator.userAgent);
+function ttsTest(){
+  // 탭 제스처 안에서 직접 재생 — 통역 음성과 재생 경로를 분리 진단
+  loadVoices();
+  var peer = langOf(cfg.peerLang);
+  var phrase = { en:'Hello, this is a voice test.', vi:'Xin chào, đây là kiểm tra giọng nói.', zh:'你好，这是语音测试。', ja:'こんにちは、音声テストです。' }[cfg.peerLang.split('-')[0]] || ('Voice test. ' + peer.en + '.');
+  try { speechSynthesis.resume(); speechSynthesis.speak(makeUtter(phrase, cfg.peerLang)); } catch(e){ alert('재생 실패: ' + e.message); }
+}
+function runDiag(){
+  var out = $('diagOut');
+  loadVoices();
+  var vs = voices || [];
+  var peerBase = cfg.peerLang.split('-')[0].toLowerCase();
+  var hasPeer = vs.some(function(v){ return (v.lang||'').toLowerCase().replace('_','-').indexOf(peerBase) === 0; });
+  var lines = [];
+  lines.push((IS_INAPP ? '✗ 브라우저: 인앱(카카오톡 등) — Chrome으로 여세요' : '✓ 브라우저: 일반'));
+  lines.push((SR ? '✓' : '✗') + ' 음성 인식(STT): ' + (SR ? '지원' : '미지원 — 키보드만 가능'));
+  lines.push((window.speechSynthesis ? '✓' : '✗') + ' 음성 합성(TTS): 보이스 ' + vs.length + '개' +
+    (vs.length ? (hasPeer ? ' · ' + peer_label() + ' 보이스 있음' : ' · ⚠ ' + peer_label() + ' 보이스 없음(기기 TTS 설정에서 언어 설치 필요)') : ' · ⚠ 목록이 비어 있음(인앱 브라우저이거나 첫 로드 — 다시 실행해 보세요)'));
+  function peer_label(){ return langOf(cfg.peerLang).label; }
+  out.innerHTML = lines.map(esc).join('<br>') + '<br>… 마이크·실시간 확인 중';
+  var pMic = (navigator.permissions && navigator.permissions.query)
+    ? navigator.permissions.query({ name:'microphone' }).then(function(r){ return r.state; }).catch(function(){ return '확인 불가'; })
+    : Promise.resolve('확인 불가');
+  var pTok = fetch('/.netlify/functions/krang-live-token').then(function(r){
+    return r.json().catch(function(){ return {}; }).then(function(d){
+      if (r.ok && d.token) return '✓ 실시간 토큰: 발급 성공 · 모델 ' + (d.model || '?');
+      return '✗ 실시간 토큰: HTTP ' + r.status + ' — ' + ((d.error && d.error.message) || '응답 없음') +
+        (r.status === 501 ? ' (이 배포 컨텍스트에 GEMINI_API_KEY가 없습니다 — Netlify 환경변수의 Deploy Previews 칸 확인)' : '');
+    });
+  }).catch(function(e){ return '✗ 실시간 토큰: 네트워크 오류 — ' + e.message; });
+  Promise.all([pMic, pTok]).then(function(rr){
+    lines.push((rr[0] === 'granted' ? '✓' : (rr[0] === 'denied' ? '✗' : '·')) + ' 마이크 권한: ' + rr[0]);
+    lines.push(rr[1]);
+    lines.push('· 화면 크기 ' + window.innerWidth + '×' + window.innerHeight + ' · UA: ' + navigator.userAgent.slice(0, 80) + '…');
+    out.innerHTML = lines.map(esc).join('<br>');
+  });
+}
+
 // ── 이어폰 연결 확인 (실감지 — 가짜 초록 금지) ──
 var EB_RE = /airpod|buds|bluetooth|headset|headphone|earphone|이어폰|에어팟|버즈|무선/i;
 function renderEb(st){
@@ -1302,6 +1352,9 @@ function init(){
   $('hotlineModal').addEventListener('click', function(ev){ if (ev.target===this) this.classList.remove('open'); });
   $('ebHome').addEventListener('click', checkEarbuds);
   $('ebTalk').addEventListener('click', checkEarbuds);
+  $('diagBtn').addEventListener('click', runDiag);
+  $('ttsTestBtn').addEventListener('click', ttsTest);
+  if (IS_INAPP) $('inappWarn').style.display = 'block';
 
   // 온보딩
   renderOnboard();
